@@ -8,5 +8,6 @@ export default defineNuxtConfig({
     "@nuxt/icon",
     'nuxt-headlessui',
   ],
+  components: true,
   headlessui: { prefix: "H" },
 })
