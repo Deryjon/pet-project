@@ -4,7 +4,8 @@ import { defineStore } from 'pinia'
 export const usePanelStore = defineStore('panel', {
   state: () => ({
     isOpen: false,
-    isQuitConfirm: false
+    isQuitConfirm: false,
+    isChangeShop: false,
   }),
   actions: {
     toggle() {
@@ -16,9 +17,16 @@ export const usePanelStore = defineStore('panel', {
     closeQuit() {
       this.isQuitConfirm = false
     },
+    openChange() {
+      this.isChangeShop = true
+    },
+    closeChange() {
+      this.isChangeShop = false
+    },
     closeAll() {
       this.isOpen = false
       this.isQuitConfirm = false
+      this.isChangeShop = false
     }
   }
 })

@@ -61,61 +61,68 @@ const handleLogout = () => {
   <div>
     <UserTrigger :user="user" @click="panel.toggle" />
 
+    <!-- Общая панель (выезжает слева) -->
     <transition name="slide">
       <div
         v-if="panel.isOpen || panel.isQuitConfirm"
         ref="panelRef"
         class="panel-container"
       >
-        <UserPanelMain
-          v-if="panel.isOpen"
-          :user="user"
-          @logout="panel.openQuit"
-          @settings="emit('settings')"
-          @close="panel.toggle"
-        />
-
-        <ConfirmLogout
-          v-if="panel.isQuitConfirm"
-          @confirm="handleLogout"
-          @cancel="panel.closeQuit"
-        />
-      </div>
-    </transition>
-    <transition name="slide-quit">
-      <div
-        v-if="panel.isQuitConfirm"
-        ref="panelRef"
-        class="panel-container"
-      >
-        <ConfirmLogout
-          v-if="panel.isQuitConfirm"
-          @confirm="handleLogout"
-          @cancel="panel.closeQuit"
-        />
+        <transition name="slide-quit" mode="out-in">
+          <component
+            :is="panel.isQuitConfirm ? ConfirmLogout : UserPanelMain"
+            :user="user"
+            @logout="panel.openQuit"
+            @settings="emit('settings')"
+            @close="panel.toggle"
+            @confirm="handleLogout"
+            @cancel="panel.closeQuit"
+          />
+        </transition>
       </div>
     </transition>
   </div>
 </template>
 
+
+
 <style scoped>
+/* Вся панель выезжает слева */
 .slide-enter-active,
 .slide-leave-active {
   transition: transform 0.3s ease;
-  will-change: transform;
 }
-
-.slide-enter-from {
-  transform: translateX(-100%);
-}
-.slide-enter-to {
-  transform: translateX(0);
-}
-.slide-leave-from {
-  transform: translateX(0);
-}
+.slide-enter-from,
 .slide-leave-to {
   transform: translateX(-100%);
+}
+.slide-enter-to,
+.slide-leave-from {
+  transform: translateX(0%);
+}
+
+/* Внутренний контент также въезжает слева */
+.slide-quit-enter-active,
+.slide-quit-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  position: absolute;
+  width: 100%;
+}
+.slide-quit-enter-from {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.slide-quit-enter-to {
+  transform: translateX(0%);
+  opacity: 1;
+}
+.slide-quit-leave-from {
+  transform: translateX(0%);
+  opacity: 1;
+}
+.slide-quit-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
 }
 
 .panel-container {
@@ -131,5 +138,8 @@ const handleLogout = () => {
   overflow-y: auto;
   border-top-right-radius: 56px;
   border-bottom-right-radius: 56px;
+  overflow-x: hidden;
 }
+
+
 </style>

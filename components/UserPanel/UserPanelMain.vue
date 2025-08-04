@@ -1,3 +1,13 @@
+  <script setup lang="ts">
+  import { usePanelStore } from "@/store/usePanelStore";
+  import BaseButton from "../ui/BaseButton.vue";
+  
+  defineProps<{
+    user: { name: string; location: string; avatarUrl?: string };
+  }>();
+  
+  const panel = usePanelStore();
+  </script>
 <template>
     <div
       class="fixed top-0 left-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-r-[56px] z-50 overflow-y-auto"
@@ -29,8 +39,8 @@
       </BaseButton>
   
       <button
-        @click.prevent
-        class="mt-4 bg-[#404040] py-3 rounded-[20px] w-full font-semibold flex items-center justify-between px-5 hover:bg-[#5e5e5e] transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-white"
+        @click="panel.openChange"
+        class="mt-4 bg-[#404040] py-3 rounded-[20px] w-full font-semibold flex items-center justify-between px-5 hover:bg-[#5e5e5e] transition-colors duration-300"
       >
         <div class="flex items-center gap-2">
           <Icon name="heroicons:shopping-bag" class="w-4 h-4" />
@@ -38,17 +48,27 @@
         </div>
         <Icon name="heroicons:arrow-right" class="w-4 h-4" />
       </button>
+      <Teleport to="body">
+      <transition name="slide-from-left">
+        <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
+      </transition>
+    </Teleport>
     </div>
   </template>
-  
-  <script setup lang="ts">
-  import { usePanelStore } from "@/store/usePanelStore";
-  import BaseButton from "../ui/BaseButton.vue";
-  
-  defineProps<{
-    user: { name: string; location: string; avatarUrl?: string };
-  }>();
-  
-  const panel = usePanelStore();
-  </script>
+<style>
+.slide-from-left-enter-active,
+.slide-from-left-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.slide-from-left-enter-from,
+.slide-from-left-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.slide-from-left-enter-to,
+.slide-from-left-leave-from {
+  transform: translateX(0%);
+  opacity: 1;
+}
+</style>
   
