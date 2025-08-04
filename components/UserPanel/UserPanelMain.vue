@@ -4,6 +4,7 @@ import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
 import BaseButton from "../ui/BaseButton.vue";
 import ChangeShop from "../ChangeShop.vue";
+import ConfirmLogout from "./ConfirmLogout.vue"
 
 const panel = usePanelStore();
 const { user } = storeToRefs(useUserStore());
@@ -11,7 +12,7 @@ const { selectedLocation } = storeToRefs(useLocationStore());
 </script>
 
 <template>
-  <transition name="slide-in">
+  <transition name="slide-main">
     <div
       class="fixed top-0 left-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-r-[56px] z-50 overflow-y-auto"
       @click.stop
@@ -42,7 +43,11 @@ const { selectedLocation } = storeToRefs(useLocationStore());
       <BaseButton color="red" class="mt-6" @click="panel.openQuit">
         Выйти из аккаунта
       </BaseButton>
-
+      <Teleport to="body">
+        <transition name="slide-logout">
+          <ConfirmLogout v-if="panel.isQuitConfirm" @close="panel.closeQuit" />
+        </transition>
+      </Teleport>
       <button
         @click="panel.openChange"
         class="mt-4 bg-[#404040] py-3 rounded-[20px] w-full font-semibold flex items-center justify-between px-5 hover:bg-[#5e5e5e] transition-colors duration-300"
@@ -54,7 +59,7 @@ const { selectedLocation } = storeToRefs(useLocationStore());
         <Icon name="heroicons:arrow-right" class="w-4 h-4" />
       </button>
       <Teleport to="body">
-        <transition name="slide-from-left">
+        <transition name="slide-change">
           <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
         </transition>
       </Teleport>
@@ -62,6 +67,36 @@ const { selectedLocation } = storeToRefs(useLocationStore());
   </transition>
 </template>
 <style>
+/* Один и тот же эффект для нескольких transition name */
+.slide-main-enter-active,
+.slide-main-leave-active,
+.slide-change-enter-active,
+.slide-change-leave-active,
+.slide-logout-enter-active,
+.slide-logout-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.slide-main-enter-from,
+.slide-main-leave-to,
+.slide-change-enter-from,
+.slide-change-leave-to,
+.slide-logout-enter-from,
+.slide-logout-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.slide-main-enter-to,
+.slide-main-leave-from,
+.slide-change-enter-to,
+.slide-change-leave-from,
+.slide-logout-enter-to,
+.slide-logout-leave-from {
+  transform: translateX(0%);
+  opacity: 1;
+}
+
 .slide-from-left-enter-active,
 .slide-from-left-leave-active {
   transition: transform 0.3s ease, opacity 0.3s ease;
@@ -76,4 +111,5 @@ const { selectedLocation } = storeToRefs(useLocationStore());
   transform: translateX(0%);
   opacity: 1;
 }
+
 </style>
