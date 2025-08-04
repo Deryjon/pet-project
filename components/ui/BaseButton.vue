@@ -4,7 +4,7 @@
         'py-4 rounded-[20px] w-full font-semibold flex items-center justify-center gap-2',
         'bg-[#404040]',
         hoverClass,
-        color === 'red' ? 'text-[#eb5757]' : 'text-white',
+        color === 'red' ? 'text-[#eb5757]' : '',
       ]"
       v-bind="$attrs"
     >

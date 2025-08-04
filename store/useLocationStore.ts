@@ -1,5 +1,5 @@
-// /store/useLocationStore.ts
 import { defineStore } from "pinia";
+import { usePanelStore } from "./usePanelStore";
 
 export const useLocationStore = defineStore("location", {
   state: () => ({
@@ -10,9 +10,17 @@ export const useLocationStore = defineStore("location", {
     selectedLocation: null as null | { id: number; name: string },
   }),
   actions: {
-    selectLocation(location: { id: number; name: string }) {
+    setLocation(location: { id: number; name: string }) {
       this.selectedLocation = location;
-      console.log("Выбран магазин:", this.selectedLocation); // ✅ для проверки
+      localStorage.setItem("selectedLocation", JSON.stringify(location));
+      const panel = usePanelStore();
+      panel.closeAll();
+    },
+    init() {
+      const saved = localStorage.getItem("selectedLocation");
+      if (saved) {
+        this.selectedLocation = JSON.parse(saved);
+      }
     },
   },
 });

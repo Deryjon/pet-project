@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import LayoutSidebar from "../components/Sidebar.vue";
+import { useUserStore } from "../store/useUserStore";
+
+onMounted(() => {
+  const userStore = useUserStore();
+  userStore.init();
+});
 </script>
 
 <template>

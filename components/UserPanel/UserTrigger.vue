@@ -4,8 +4,7 @@
     role="button"
     tabindex="0"
     class="flex items-center gap-3 cursor-pointer hover:bg-[#5e5e5e] rounded-[32px] p-2 transition-colors duration-300"
-  
-    >
+  >
     <img
       :src="user.avatarUrl"
       alt="Avatar"
@@ -15,18 +14,20 @@
       <p class="text-white truncate max-w-[120px]">
         {{ user.name }}
       </p>
-
       <p class="text-[#bdbdbd] truncate max-w-[120px]">
-        {{ user.location }}
+        {{ selectedLocation?.name || "..." }}
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  user: { name: string; location: string; avatarUrl?: string };
-}>();
+import { storeToRefs } from "pinia";
+import { useUserStore } from "@/store/useUserStore";
+import { useLocationStore } from "@/store/useLocationStore";
+
+const { selectedLocation } = storeToRefs(useLocationStore());
+const { user } = storeToRefs(useUserStore());
 
 defineEmits(["toggle"]);
 </script>

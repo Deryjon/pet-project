@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import BaseButton from "./ui/BaseButton.vue";
 import { useLocationStore } from "@/store/useLocationStore";
+import { storeToRefs } from "pinia";
 
 const locationStore = useLocationStore();
-console.log(locationStore.selectedLocation?.name);
+const { locations, selectedLocation } = storeToRefs(locationStore);
 </script>
 
 <template>
@@ -23,17 +24,20 @@ console.log(locationStore.selectedLocation?.name);
 
     <div class="space-y-4">
       <BaseButton
-        v-for="location in locationStore.locations"
-        :key="location.id"
-        class="w-full"
-        @click="
-          () => {
-            console.log('Нажал:', location.name);
-            locationStore.selectLocation(location);
-          }
-        "
+        v-for="location in locations"
+        :class="{
+          'text-[#4993dd]': selectedLocation?.id === location.id,
+          'text-white': selectedLocation?.id !== location.id,
+        }"
+        @click="locationStore.setLocation(location)"
+        class="w-full justify-center"
       >
         {{ location.name }}
+        <Icon
+          v-if="locationStore.selectedLocation?.id === location.id"
+          name="heroicons:check"
+          class="w-6 h-6 ml-2"
+        />
       </BaseButton>
     </div>
   </div>

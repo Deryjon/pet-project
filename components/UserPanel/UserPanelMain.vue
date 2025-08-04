@@ -1,14 +1,17 @@
-  <script setup lang="ts">
-  import { usePanelStore } from "@/store/usePanelStore";
-  import BaseButton from "../ui/BaseButton.vue";
-  
-  defineProps<{
-    user: { name: string; location: string; avatarUrl?: string };
-  }>();
-  
-  const panel = usePanelStore();
-  </script>
+<script setup lang="ts">
+import { usePanelStore } from "@/store/usePanelStore";
+import { useUserStore } from "@/store/useUserStore";
+import { useLocationStore } from "@/store/useLocationStore";
+import BaseButton from "../ui/BaseButton.vue";
+import ChangeShop from "../ChangeShop.vue";
+
+const panel = usePanelStore();
+const { user } = storeToRefs(useUserStore());
+const { selectedLocation } = storeToRefs(useLocationStore());
+</script>
+
 <template>
+  <transition name="slide-in">
     <div
       class="fixed top-0 left-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-r-[56px] z-50 overflow-y-auto"
       @click.stop
@@ -22,7 +25,7 @@
           <Icon name="heroicons:arrow-left" class="w-4 h-4" />
         </button>
       </div>
-  
+
       <div class="flex items-center gap-3 p-[5px] mt-[20px]">
         <img
           :src="user.avatarUrl || 'https://via.placeholder.com/40'"
@@ -30,14 +33,16 @@
         />
         <div>
           <p class="text-white truncate max-w-[300px]">{{ user.name }}</p>
-          <p class="text-[#bdbdbd] truncate max-w-[300px]">{{ user.location }}</p>
+          <p class="text-[#bdbdbd] truncate max-w-[300px]">
+            {{ selectedLocation?.name || "..." }}
+          </p>
         </div>
       </div>
-  
+
       <BaseButton color="red" class="mt-6" @click="panel.openQuit">
         Выйти из аккаунта
       </BaseButton>
-  
+
       <button
         @click="panel.openChange"
         class="mt-4 bg-[#404040] py-3 rounded-[20px] w-full font-semibold flex items-center justify-between px-5 hover:bg-[#5e5e5e] transition-colors duration-300"
@@ -49,12 +54,13 @@
         <Icon name="heroicons:arrow-right" class="w-4 h-4" />
       </button>
       <Teleport to="body">
-      <transition name="slide-from-left">
-        <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
-      </transition>
-    </Teleport>
+        <transition name="slide-from-left">
+          <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
+        </transition>
+      </Teleport>
     </div>
-  </template>
+  </transition>
+</template>
 <style>
 .slide-from-left-enter-active,
 .slide-from-left-leave-active {
@@ -71,4 +77,3 @@
   opacity: 1;
 }
 </style>
-  
