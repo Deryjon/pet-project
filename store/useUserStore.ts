@@ -10,12 +10,19 @@ export const useUserStore = defineStore("user", {
     token: null as string | null,
     location: null as null | { id: number; name: string },
   }),
+  getters:{
+    isLoggedIn: (state) => !!state.token,
+
+  },
 
   actions: {
     setUser(user: { id: number; name: string; avatarUrl: string }) {
       this.user = user;
     },
-
+    login(token: string, userData: any) {
+        this.token = token;
+        this.user = userData;
+      },
     setToken(token: string) {
       this.token = token;
       localStorage.setItem("auth_token", token);

@@ -10,7 +10,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="flex bg-white dark:bg-[#404040] text-black">
+  <section class="flex bg-white dark:bg-[#404040]">
     <!-- Sidebar wrapper -->
     <div
       class="w-[256px] min-w-[256px] max-w-[256px] border-r transition-all duration-300"
