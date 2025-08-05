@@ -13,10 +13,10 @@ onMounted(() => {
   <section class="flex bg-white dark:bg-[#404040]">
     <!-- Sidebar wrapper -->
     <div
-      class="w-[256px] min-w-[256px] max-w-[256px] border-r transition-all duration-300"
+      class="w-[256px] min-w-[256px] max-w-[256px] border-r transition-all duration-300  h-screen-full"
     >
       <LayoutSidebar
-        class="sticky top-[20px] py-5 transition-all duration-300"
+        class="sticky h-full top-[20px] py-5 transition-all duration-300"
       />
     </div>
     <!-- Main content -->

@@ -1,13 +1,11 @@
 <template>
-    <div>
-Catalog
-    </div>
+  <div>
+    <DataTable ></DataTable>
+  </div>
 </template>
 
 <script setup lang="ts">
-
+import DataTable from "../../components/DataTable.vue";
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>
