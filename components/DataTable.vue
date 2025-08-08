@@ -7,9 +7,12 @@
       placeholder="Артикул, баркод, наименование"
       class="p-[17px] bg-[#404040] rounded-[15px] w-full text-[#bdbdbd] text-[16px] font-bold"
     />
+    <div v-if="loading" class="text-center text-white py-6">
+      Загружаем данные...
+    </div>
 
     <!-- Таблица -->
-    <table class="w-full text-sm text-left text-[16px] text-[#bdbdbd]">
+    <table v-else class="w-full text-sm text-left text-[16px] text-[#bdbdbd]">
       <thead class="border-t border-b">
         <tr
           v-for="headerGroup in table.getHeaderGroups()"
@@ -101,19 +104,35 @@ import {
   getPaginationRowModel,
   FlexRender,
 } from "@tanstack/vue-table";
-import { data } from "../data"; // Подстрой путь
+import { data as mockData } from "../data";
 
-const rawData = ref(data);
+const rawData = ref([]);
 const globalFilter = ref("");
+const loading = ref(false); // ⬅️ Состояние загрузки
 
-// ✅ Реактивное состояние пагинации и сортировки
-const pagination = ref({
-  pageSize: 10,
-  pageIndex: 0,
+// Пагинация и сортировка
+const pagination = ref({ pageSize: 10, pageIndex: 0 });
+const sorting = ref([]);
+
+// Симуляция загрузки с бэка
+async function fetchData() {
+  loading.value = true;
+  rawData.value = [];
+  // здесь будет реальный API-запрос
+  await new Promise((resolve) => setTimeout(resolve, 500)); 
+  rawData.value = mockData;
+  loading.value = false;
+}
+
+// Загрузка при первом открытии
+fetchData();
+
+// Обновление при поиске
+watch(globalFilter, async () => {
+  pagination.value.pageIndex = 0;
+  await fetchData();
 });
-const sorting = ref([]); // ⬅️ ОБЯЗАТЕЛЬНО!
 
-// ✅ Фильтрация
 const filteredData = computed(() => {
   if (!globalFilter.value) return rawData.value;
   return rawData.value.filter((item) =>
@@ -124,58 +143,29 @@ const filteredData = computed(() => {
   );
 });
 
-// ✅ Сброс страницы при фильтрации
-watch(filteredData, () => {
-  pagination.value.pageIndex = 0;
-});
-
 const columns = [
-  {
-    accessorKey: "photo",
-    header: "Фото",
-    cell: ({ getValue }) => {
+  { accessorKey: "photo", header: "Фото", cell: ({ getValue }) => {
       const url = getValue();
       const imageUrl = url
         ? url
         : new URL("../assets/images/placeholder_img.svg", import.meta.url).href;
-
       return h("img", {
         src: imageUrl,
         alt: "Фото товара",
         class: "w-12 h-12 object-cover rounded",
       });
-    },
+    }
   },
   { accessorKey: "name", header: "Наименование" },
   { accessorKey: "sku", header: "Артикул" },
   { accessorKey: "barcode", header: "Баркод" },
   { accessorKey: "category", header: "Категория" },
   { accessorKey: "supplier", header: "Поставщик" },
-
-  // Кол-во с "шт"
-  {
-    accessorKey: "quantity",
-    header: "Кол-во",
-    cell: ({ getValue }) => `${getValue()} шт`,
-  },
-
-  // Цена поставки с "UZS"
-  {
-    accessorKey: "purchase_price",
-    header: "Цена поставки",
-    cell: ({ getValue }) => `${getValue()} UZS`,
-  },
-
-  // Цена продажи с "UZS"
-  {
-    accessorKey: "sale_price",
-    header: "Цена продажи",
-    cell: ({ getValue }) => `${getValue()} UZS`,
-  },
+  { accessorKey: "quantity", header: "Кол-во", cell: ({ getValue }) => `${getValue()} шт` },
+  { accessorKey: "purchase_price", header: "Цена поставки", cell: ({ getValue }) => `${getValue()} UZS` },
+  { accessorKey: "sale_price", header: "Цена продажи", cell: ({ getValue }) => `${getValue()} UZS` },
 ];
 
-
-// ✅ Таблица
 const table = useVueTable({
   data: filteredData,
   columns,
@@ -191,12 +181,10 @@ const table = useVueTable({
     },
   },
   onPaginationChange: (updater) => {
-    pagination.value =
-      typeof updater === "function" ? updater(pagination.value) : updater;
+    pagination.value = typeof updater === "function" ? updater(pagination.value) : updater;
   },
   onSortingChange: (updater) => {
-    sorting.value =
-      typeof updater === "function" ? updater(sorting.value) : updater;
+    sorting.value = typeof updater === "function" ? updater(sorting.value) : updater;
   },
 });
 </script>
