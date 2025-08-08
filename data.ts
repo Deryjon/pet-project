@@ -1,7 +1,7 @@
  export const data = [
     {
         "id": 1,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 1",
         "sku": "SKU-001",
         "barcode": "1000000000001",
@@ -13,7 +13,7 @@
       },
       {
         "id": 2,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 2",
         "sku": "SKU-002",
         "barcode": "1000000000002",
@@ -25,7 +25,7 @@
       },
       {
         "id": 3,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 3",
         "sku": "SKU-003",
         "barcode": "1000000000003",
@@ -37,7 +37,7 @@
       },
       {
         "id": 4,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 4",
         "sku": "SKU-004",
         "barcode": "1000000000004",
@@ -49,7 +49,7 @@
       },
       {
         "id": 5,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 5",
         "sku": "SKU-005",
         "barcode": "1000000000005",
@@ -61,7 +61,7 @@
       },
       {
         "id": 6,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 6",
         "sku": "SKU-006",
         "barcode": "1000000000006",
@@ -73,7 +73,7 @@
       },
       {
         "id": 7,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 7",
         "sku": "SKU-007",
         "barcode": "1000000000007",
@@ -85,7 +85,7 @@
       },
       {
         "id": 8,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 8",
         "sku": "SKU-008",
         "barcode": "1000000000008",
@@ -97,7 +97,7 @@
       },
       {
         "id": 9,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 9",
         "sku": "SKU-009",
         "barcode": "1000000000009",
@@ -109,7 +109,7 @@
       },
       {
         "id": 10,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 10",
         "sku": "SKU-010",
         "barcode": "1000000000010",
@@ -121,7 +121,7 @@
       },
       {
         "id": 11,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 11",
         "sku": "SKU-011",
         "barcode": "1000000000011",
@@ -133,7 +133,7 @@
       },
       {
         "id": 12,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 12",
         "sku": "SKU-012",
         "barcode": "1000000000012",
@@ -145,7 +145,7 @@
       },
       {
         "id": 13,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 13",
         "sku": "SKU-013",
         "barcode": "1000000000013",
@@ -157,7 +157,7 @@
       },
       {
         "id": 14,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 14",
         "sku": "SKU-014",
         "barcode": "1000000000014",
@@ -169,7 +169,7 @@
       },
       {
         "id": 15,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 15",
         "sku": "SKU-015",
         "barcode": "1000000000015",
@@ -181,7 +181,7 @@
       },
       {
         "id": 16,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 16",
         "sku": "SKU-016",
         "barcode": "1000000000016",
@@ -193,7 +193,7 @@
       },
       {
         "id": 17,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 17",
         "sku": "SKU-017",
         "barcode": "1000000000017",
@@ -205,7 +205,7 @@
       },
       {
         "id": 18,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 18",
         "sku": "SKU-018",
         "barcode": "1000000000018",
@@ -217,7 +217,7 @@
       },
       {
         "id": 19,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 19",
         "sku": "SKU-019",
         "barcode": "1000000000019",
@@ -229,7 +229,7 @@
       },
       {
         "id": 20,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 20",
         "sku": "SKU-020",
         "barcode": "1000000000020",
@@ -241,7 +241,7 @@
       },
       {
         "id": 21,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 21",
         "sku": "SKU-021",
         "barcode": "1000000000021",
@@ -253,7 +253,7 @@
       },
       {
         "id": 22,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 22",
         "sku": "SKU-022",
         "barcode": "1000000000022",
@@ -265,7 +265,7 @@
       },
       {
         "id": 23,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 23",
         "sku": "SKU-023",
         "barcode": "1000000000023",
@@ -277,7 +277,7 @@
       },
       {
         "id": 24,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 24",
         "sku": "SKU-024",
         "barcode": "1000000000024",
@@ -289,7 +289,7 @@
       },
       {
         "id": 25,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 25",
         "sku": "SKU-025",
         "barcode": "1000000000025",
@@ -301,7 +301,7 @@
       },
       {
         "id": 26,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 26",
         "sku": "SKU-026",
         "barcode": "1000000000026",
@@ -313,7 +313,7 @@
       },
       {
         "id": 27,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 27",
         "sku": "SKU-027",
         "barcode": "1000000000027",
@@ -325,7 +325,7 @@
       },
       {
         "id": 28,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 28",
         "sku": "SKU-028",
         "barcode": "1000000000028",
@@ -337,7 +337,7 @@
       },
       {
         "id": 29,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 29",
         "sku": "SKU-029",
         "barcode": "1000000000029",
@@ -349,7 +349,7 @@
       },
       {
         "id": 30,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 30",
         "sku": "SKU-030",
         "barcode": "1000000000030",
@@ -361,7 +361,7 @@
       },
       {
         "id": 31,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 31",
         "sku": "SKU-031",
         "barcode": "1000000000031",
@@ -373,7 +373,7 @@
       },
       {
         "id": 32,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 32",
         "sku": "SKU-032",
         "barcode": "1000000000032",
@@ -385,7 +385,7 @@
       },
       {
         "id": 33,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 33",
         "sku": "SKU-033",
         "barcode": "1000000000033",
@@ -397,7 +397,7 @@
       },
       {
         "id": 34,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 34",
         "sku": "SKU-034",
         "barcode": "1000000000034",
@@ -409,7 +409,7 @@
       },
       {
         "id": 35,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 35",
         "sku": "SKU-035",
         "barcode": "1000000000035",
@@ -421,7 +421,7 @@
       },
       {
         "id": 36,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 36",
         "sku": "SKU-036",
         "barcode": "1000000000036",
@@ -433,7 +433,7 @@
       },
       {
         "id": 37,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 37",
         "sku": "SKU-037",
         "barcode": "1000000000037",
@@ -445,7 +445,7 @@
       },
       {
         "id": 38,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 38",
         "sku": "SKU-038",
         "barcode": "1000000000038",
@@ -457,7 +457,7 @@
       },
       {
         "id": 39,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 39",
         "sku": "SKU-039",
         "barcode": "1000000000039",
@@ -469,7 +469,7 @@
       },
       {
         "id": 40,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 40",
         "sku": "SKU-040",
         "barcode": "1000000000040",
@@ -481,7 +481,7 @@
       },
       {
         "id": 41,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 41",
         "sku": "SKU-041",
         "barcode": "1000000000041",
@@ -493,7 +493,7 @@
       },
       {
         "id": 42,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 42",
         "sku": "SKU-042",
         "barcode": "1000000000042",
@@ -505,7 +505,7 @@
       },
       {
         "id": 43,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 43",
         "sku": "SKU-043",
         "barcode": "1000000000043",
@@ -517,7 +517,7 @@
       },
       {
         "id": 44,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 44",
         "sku": "SKU-044",
         "barcode": "1000000000044",
@@ -529,7 +529,7 @@
       },
       {
         "id": 45,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 45",
         "sku": "SKU-045",
         "barcode": "1000000000045",
@@ -541,7 +541,7 @@
       },
       {
         "id": 46,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 46",
         "sku": "SKU-046",
         "barcode": "1000000000046",
@@ -553,7 +553,7 @@
       },
       {
         "id": 47,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 47",
         "sku": "SKU-047",
         "barcode": "1000000000047",
@@ -565,7 +565,7 @@
       },
       {
         "id": 48,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 48",
         "sku": "SKU-048",
         "barcode": "1000000000048",
@@ -577,7 +577,7 @@
       },
       {
         "id": 49,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 49",
         "sku": "SKU-049",
         "barcode": "1000000000049",
@@ -589,7 +589,7 @@
       },
       {
         "id": 50,
-        "photo": "https://via.placeholder.com/50",
+        "photo": "",
         "name": "Товар 50",
         "sku": "SKU-050",
         "barcode": "1000000000050",
@@ -601,7 +601,7 @@
       },
       {
           id: 51,
-          photo: 'https://via.placeholder.com/50',
+          photo: '',
           name: 'Чехол силиконовый',
           sku: 'SKU-001',
           barcode: '1234567890123',
@@ -613,7 +613,7 @@
         },
         {
           id: 52,
-          photo: 'https://via.placeholder.com/50',
+          photo: '',
           name: 'Защитное стекло',
           sku: 'SKU-002',
           barcode: '9876543210987',

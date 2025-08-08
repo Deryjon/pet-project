@@ -3,7 +3,7 @@ import Menu from "./Menu.vue";
 import User from "./User.vue";
 </script>
 <template>
-  <div class="flex flex-col justify-between min-h-screen px-[20px]">
+  <div class="flex flex-col justify-between px-[20px]">
     <!-- Верхняя часть -->
     <div class="flex flex-col gap-[30px]">
       <div class="logo font-bold text-[20px] text-white p-[5px]">

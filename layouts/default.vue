@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted } from "vue";
 import LayoutSidebar from "../components/Sidebar.vue";
 import { useUserStore } from "../store/useUserStore";
 
@@ -11,17 +11,16 @@ onMounted(() => {
 
 <template>
   <section class="flex bg-white dark:bg-[#404040]">
-    <!-- Sidebar wrapper -->
+    <!-- Sidebar -->
     <div
-      class="w-[256px] min-w-[256px] max-w-[256px] border-r transition-all duration-300  h-screen-full"
+      class="fixed left-0 top-0 h-screen w-[256px] min-w-[256px] max-w-[256px] border-r bg-white dark:bg-[#404040] py-5"
     >
-      <LayoutSidebar
-        class="sticky h-full top-[20px] py-5 transition-all duration-300"
-      />
+      <LayoutSidebar class="h-full" />
     </div>
+
     <!-- Main content -->
     <div
-      class="bg-white dark:bg-[#262626] w-full min-h-[100vh] py-[20px] px-[15px] md:p-[40px]"
+      class="bg-white dark:bg-[#262626] w-full min-h-screen py-[20px] px-[15px] md:p-[40px] ml-[256px]"
     >
       <slot />
     </div>

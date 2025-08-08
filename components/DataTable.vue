@@ -4,13 +4,13 @@
     <input
       v-model="globalFilter"
       type="text"
-      placeholder="Поиск..."
-      class="border px-3 py-2 rounded w-full text-black"
+      placeholder="Артикул, баркод, наименование"
+      class="p-[17px] bg-[#404040] rounded-[15px] w-full text-[#bdbdbd] text-[16px] font-bold"
     />
 
     <!-- Таблица -->
-    <table class="w-full border border-gray-700 text-sm text-left text-white">
-      <thead class="bg-gray-800 text-white">
+    <table class="w-full text-sm text-left text-[16px] text-[#bdbdbd]">
+      <thead class="border-t border-b">
         <tr
           v-for="headerGroup in table.getHeaderGroups()"
           :key="headerGroup.id"
@@ -18,29 +18,45 @@
           <th
             v-for="header in headerGroup.headers"
             :key="header.id"
-            class="border border-gray-600 px-4 py-2 font-semibold cursor-pointer select-none"
-            @click="header.column.getToggleSortingHandler()?.()"
+            class="cursor-pointer font-bold select-none p-[20px] hover:bg-[#5e5e5e] transition-colors duration-300"
+            @click="header.column.getToggleSortingHandler()?.($event)"
           >
-            <FlexRender
-              v-if="!header.isPlaceholder"
-              :render="header.column.columnDef.header"
-              :props="header.getContext()"
-            />
-            <span v-if="header.column.getIsSorted() === 'asc'">▲</span>
-            <span v-else-if="header.column.getIsSorted() === 'desc'">▼</span>
+            <div class="flex justify-between">
+              <FlexRender
+                v-if="!header.isPlaceholder"
+                :render="header.column.columnDef.header"
+                :props="header.getContext()"
+              />
+              <span v-if="header.column.getIsSorted() === 'asc'">▲</span>
+              <span v-else-if="header.column.getIsSorted() === 'desc'">▼</span>
+            </div>
           </th>
         </tr>
       </thead>
       <tbody>
         <tr
-          v-for="row in table.getRowModel().rows"
+          v-for="(row, index) in table.getRowModel().rows"
           :key="row.id"
-          class="hover:bg-gray-700 transition"
+          class="overflow-hidden"
         >
           <td
-            v-for="cell in row.getVisibleCells()"
+            v-for="(cell, i) in row.getVisibleCells()"
             :key="cell.id"
-            class="border border-gray-600 px-4 py-2"
+            class="text-left text-[16px] font-bold"
+            :class="[
+              'px-4 py-2',
+              index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',
+              row.getVisibleCells().length === 1
+                ? 'rounded-[20px]'
+                : i === 0
+                ? 'rounded-l-[20px]'
+                : i === row.getVisibleCells().length - 1
+                ? 'rounded-r-[20px]'
+                : '',
+              cell.column.id === 'name'
+                ? 'px-[25px] py-[20px] text-left text-[16px] text-[#4993dd] cursor-pointer'
+                : 'text-white',
+            ]"
           >
             <FlexRender
               :render="cell.column.columnDef.cell"
@@ -76,23 +92,28 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, h } from "vue";
 import {
   useVueTable,
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
   FlexRender,
-  createColumnHelper,
 } from "@tanstack/vue-table";
 import { data } from "../data"; // Подстрой путь
 
 const rawData = ref(data);
 const globalFilter = ref("");
 
-// Фильтрация
+// ✅ Реактивное состояние пагинации и сортировки
+const pagination = ref({
+  pageSize: 10,
+  pageIndex: 0,
+});
+const sorting = ref([]); // ⬅️ ОБЯЗАТЕЛЬНО!
+
+// ✅ Фильтрация
 const filteredData = computed(() => {
   if (!globalFilter.value) return rawData.value;
   return rawData.value.filter((item) =>
@@ -103,19 +124,58 @@ const filteredData = computed(() => {
   );
 });
 
-// Колонки
+// ✅ Сброс страницы при фильтрации
+watch(filteredData, () => {
+  pagination.value.pageIndex = 0;
+});
+
 const columns = [
+  {
+    accessorKey: "photo",
+    header: "Фото",
+    cell: ({ getValue }) => {
+      const url = getValue();
+      const imageUrl = url
+        ? url
+        : new URL("../assets/images/placeholder_img.svg", import.meta.url).href;
+
+      return h("img", {
+        src: imageUrl,
+        alt: "Фото товара",
+        class: "w-12 h-12 object-cover rounded",
+      });
+    },
+  },
   { accessorKey: "name", header: "Наименование" },
   { accessorKey: "sku", header: "Артикул" },
   { accessorKey: "barcode", header: "Баркод" },
   { accessorKey: "category", header: "Категория" },
   { accessorKey: "supplier", header: "Поставщик" },
-  { accessorKey: "quantity", header: "Кол-во" },
-  { accessorKey: "purchase_price", header: "Цена поставки" },
-  { accessorKey: "sale_price", header: "Цена продажи" },
+
+  // Кол-во с "шт"
+  {
+    accessorKey: "quantity",
+    header: "Кол-во",
+    cell: ({ getValue }) => `${getValue()} шт`,
+  },
+
+  // Цена поставки с "UZS"
+  {
+    accessorKey: "purchase_price",
+    header: "Цена поставки",
+    cell: ({ getValue }) => `${getValue()} UZS`,
+  },
+
+  // Цена продажи с "UZS"
+  {
+    accessorKey: "sale_price",
+    header: "Цена продажи",
+    cell: ({ getValue }) => `${getValue()} UZS`,
+  },
 ];
 
-// Таблица
+
+// ✅ Таблица
 const table = useVueTable({
   data: filteredData,
   columns,
@@ -123,10 +183,20 @@ const table = useVueTable({
   getSortedRowModel: getSortedRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
   state: {
-    pagination: {
-      pageSize: 10,
-      pageIndex: 0,
+    get pagination() {
+      return pagination.value;
     },
+    get sorting() {
+      return sorting.value;
+    },
+  },
+  onPaginationChange: (updater) => {
+    pagination.value =
+      typeof updater === "function" ? updater(pagination.value) : updater;
+  },
+  onSortingChange: (updater) => {
+    sorting.value =
+      typeof updater === "function" ? updater(sorting.value) : updater;
   },
 });
 </script>
@@ -137,23 +207,14 @@ table {
   width: 100%;
 }
 
-th,
 td {
-  padding: 12px;
-  border: 1px solid #333;
+  padding: 25px 20px;
   text-align: left;
 }
-
 th {
-  background-color: #222;
-  color: #fff;
+  text-align: left;
   font-weight: bold;
 }
-
-tr:hover {
-  background-color: #333;
-}
-
 button:disabled {
   cursor: not-allowed;
 }
