@@ -1,20 +1,15 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { useHead } from "#imports";
 
-useHead({
-  title: "Новый продукт | Konkurent.cases",
-  meta: [{ name: "description", content: "Описание страницы" }],
-});
 
 definePageMeta({
   layout: "empty",
 });
 
-const router = useRouter();``
+const router = useRouter();
 
 const operations = [
-  { title: "Печать ценников", slug: "print-tag" },
+{ title: "Печать ценников", slug: "print-tag" },
   { title: "Настройка малого остатка", slug: "small-left" },
   { title: "Изменить свойства продуктов", slug: "product-property" },
   { title: "Изменить цены продуктов", slug: "product-price" },
@@ -42,7 +37,7 @@ function goTo(slug: string) {
               class="w-5 h-5 text-muted-foreground"
             />
           </div>
-          <h2 class="text-[28px] font-bold">Новый продукт</h2>
+          <h2 class="text-[28px] font-bold">Массовые операции</h2>
         </div>
       </div>
     </div>
