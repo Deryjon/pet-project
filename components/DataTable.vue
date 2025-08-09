@@ -53,7 +53,7 @@
       <div class="action">
         <button
           class="filter bg-[#1f78ff] rounded-[15px] flex items-center gap-[15px] p-[17px] text-[17px] font-bold text-white"
-          @click=""
+          @click="goToCreate"
         >
           <Icon name="heroicons:plus" class="w-5 h-5" />
           Создать
@@ -163,6 +163,13 @@ import TableFilter from "./TableFilter.vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
+
+function goToCreate() {
+  router.push({
+    path: '/products/create',
+    query: { page: 1 }
+  });
+}
 
 // Получаем массив выбранных товаров
 const selectedProducts = computed(
