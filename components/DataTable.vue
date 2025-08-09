@@ -1,18 +1,72 @@
 <template>
   <div class="space-y-4">
-    <!-- Поиск -->
-    <input
-      v-model="globalFilter"
-      type="text"
-      placeholder="Артикул, баркод, наименование"
-      class="p-[17px] bg-[#404040] rounded-[15px] w-full text-[#bdbdbd] text-[16px] font-bold"
-    />
+    <div class="top flex justify-between gap-[10px]">
+      <div
+        class="input p-[17px] w-full bg-[#404040] rounded-[15px] flex items-center gap-[10px] hover:bg-[#5e5e5e] transition-colors duration-300"
+      >
+        <Icon name="material-symbols:search" class="w-6 h-6 text-[#bdbdbd]" />
+        <input
+          v-model="globalFilter"
+          type="text"
+          placeholder="Артикул, баркод, наименование"
+          class="bg-transparent w-full text-[#bdbdbd] text-[17px] font-bold"
+        />
+      </div>
+      <div class="filters">
+        <button
+          class="filter bg-[#404040] rounded-[15px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
+          @click="showFilters = !showFilters"
+        >
+          <svg
+            aria-hidden="true"
+            focusable="false"
+            data-prefix="fas"
+            data-icon="chevron-down"
+            class="w-[14px] transition-transform duration-200"
+            :class="{ 'rotate-180': showFilters }"
+            role="img"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+          >
+            <path
+              fill="currentColor"
+              d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z"
+            ></path>
+          </svg>
+          <Icon name="heroicons:funnel" class="w-5 h-5 text-[#4993dd]" />
+          Фильтры
+        </button>
+      </div>
+
+      <div class="action">
+        <button
+          class="filter bg-[#404040] rounded-[15px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
+          @click=""
+        >
+          <Icon
+            name="heroicons:adjustments-horizontal"
+            class="w-5 h-5 text-[#4993dd]"
+          />
+          Действия
+        </button>
+      </div>
+      <div class="action">
+        <button
+          class="filter bg-[#1f78ff] rounded-[15px] flex items-center gap-[15px] p-[17px] text-[17px] font-bold text-white"
+          @click=""
+        >
+          <Icon name="heroicons:plus" class="w-5 h-5" />
+          Создать
+        </button>
+      </div>
+    </div>
+    <TableFilter v-if="showFilters" />
     <div v-if="loading" class="text-center text-white py-6">
       Загружаем данные...
     </div>
 
     <!-- Таблица -->
-    <table v-else class="w-full text-sm text-left text-[16px] text-[#bdbdbd]">
+    <table v-else class="w-full text-sm text-left text-[15px] text-[#bdbdbd]">
       <thead class="border-t border-b">
         <tr
           v-for="headerGroup in table.getHeaderGroups()"
@@ -45,7 +99,7 @@
           <td
             v-for="(cell, i) in row.getVisibleCells()"
             :key="cell.id"
-            class="text-left text-[16px] font-bold"
+            class="text-left text-[15px] font-bold"
             :class="[
               'px-4 py-2',
               index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',
@@ -57,7 +111,7 @@
                 ? 'rounded-r-[20px]'
                 : '',
               cell.column.id === 'name'
-                ? 'px-[25px] py-[20px] text-left text-[16px] text-[#4993dd] cursor-pointer'
+                ? 'px-[25px] py-[20px] text-left text-[15px] text-[#4993dd] cursor-pointer'
                 : 'text-white',
             ]"
           >
@@ -105,6 +159,7 @@ import {
   FlexRender,
 } from "@tanstack/vue-table";
 import { data as mockData } from "../data";
+import TableFilter from "./TableFilter.vue";
 
 const rawData = ref([]);
 const globalFilter = ref("");
@@ -114,12 +169,18 @@ const loading = ref(false); // ⬅️ Состояние загрузки
 const pagination = ref({ pageSize: 10, pageIndex: 0 });
 const sorting = ref([]);
 
+const showFilters = ref(false);
+
+function applyFilters() {
+  // Здесь логика применения фильтров
+  showFilters.value = false;
+}
 // Симуляция загрузки с бэка
 async function fetchData() {
   loading.value = true;
   rawData.value = [];
   // здесь будет реальный API-запрос
-  await new Promise((resolve) => setTimeout(resolve, 500)); 
+  await new Promise((resolve) => setTimeout(resolve, 500));
   rawData.value = mockData;
   loading.value = false;
 }
@@ -142,9 +203,36 @@ const filteredData = computed(() => {
       .includes(globalFilter.value.toLowerCase())
   );
 });
-
 const columns = [
-  { accessorKey: "photo", header: "Фото", cell: ({ getValue }) => {
+  {
+    id: "select",
+    header: () =>
+      h("input", {
+        type: "checkbox",
+        class: "w-3.5 h-3.5 accent-[#4993dd] cursor-pointer",
+        // здесь можешь реализовать "выбрать всё"
+        onChange: (e) => {
+          const checked = e.target.checked;
+          table
+            .getRowModel()
+            .rows.forEach((row) => row.toggleSelected(checked));
+        },
+      }),
+    cell: ({ row }) =>
+      h("input", {
+        type: "checkbox",
+        class: "w-3.5 h-3.5  accent-[#4993dd] cursor-pointer",
+        checked: row.getIsSelected?.(),
+        onChange: (e) => row.toggleSelected?.(e.target.checked),
+      }),
+    enableSorting: false,
+    enableColumnFilter: false,
+    size: 40,
+  },
+  {
+    accessorKey: "photo",
+    header: "Фото",
+    cell: ({ getValue }) => {
       const url = getValue();
       const imageUrl = url
         ? url
@@ -154,16 +242,28 @@ const columns = [
         alt: "Фото товара",
         class: "w-12 h-12 object-cover rounded",
       });
-    }
+    },
   },
   { accessorKey: "name", header: "Наименование" },
   { accessorKey: "sku", header: "Артикул" },
   { accessorKey: "barcode", header: "Баркод" },
   { accessorKey: "category", header: "Категория" },
   { accessorKey: "supplier", header: "Поставщик" },
-  { accessorKey: "quantity", header: "Кол-во", cell: ({ getValue }) => `${getValue()} шт` },
-  { accessorKey: "purchase_price", header: "Цена поставки", cell: ({ getValue }) => `${getValue()} UZS` },
-  { accessorKey: "sale_price", header: "Цена продажи", cell: ({ getValue }) => `${getValue()} UZS` },
+  {
+    accessorKey: "quantity",
+    header: "Кол-во",
+    cell: ({ getValue }) => `${getValue()} шт`,
+  },
+  {
+    accessorKey: "purchase_price",
+    header: "Цена поставки",
+    cell: ({ getValue }) => `${getValue()} UZS`,
+  },
+  {
+    accessorKey: "sale_price",
+    header: "Цена продажи",
+    cell: ({ getValue }) => `${getValue()} UZS`,
+  },
 ];
 
 const table = useVueTable({
@@ -172,6 +272,7 @@ const table = useVueTable({
   getCoreRowModel: getCoreRowModel(),
   getSortedRowModel: getSortedRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
+  enableRowSelection: true, // ⬅️ обязательно
   state: {
     get pagination() {
       return pagination.value;
@@ -181,10 +282,12 @@ const table = useVueTable({
     },
   },
   onPaginationChange: (updater) => {
-    pagination.value = typeof updater === "function" ? updater(pagination.value) : updater;
+    pagination.value =
+      typeof updater === "function" ? updater(pagination.value) : updater;
   },
   onSortingChange: (updater) => {
-    sorting.value = typeof updater === "function" ? updater(sorting.value) : updater;
+    sorting.value =
+      typeof updater === "function" ? updater(sorting.value) : updater;
   },
 });
 </script>
@@ -205,5 +308,8 @@ th {
 }
 button:disabled {
   cursor: not-allowed;
+}
+input::placeholder {
+  color: #bdbdbd;
 }
 </style>
