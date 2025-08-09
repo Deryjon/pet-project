@@ -29,10 +29,12 @@ const backToMainMenu = () => {
         <!-- Название раздела с действием "Назад" -->
         <h2
           @click="backToMainMenu"
-          class="text-lg font-semibold p-[5px] py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e]  rounded-md transition-colors duration-300"
+          class="text-lg font-semibold p-[5px] py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e]  rounded-md  duration-300"
         >
-          <Icon name="heroicons:arrow-left" class="w-4 h-4" />
-          <Icon
+        <Icon
+            name="heroicons:chevron-left"
+            class="w-5 h-5 text-muted-foreground"
+          />          <Icon
             :name="activeMenu.icon"
             class="w-5 h-5"
             v-if="activeMenu?.icon"

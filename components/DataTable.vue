@@ -41,7 +41,7 @@
       <div class="action">
         <button
           class="filter bg-[#404040] rounded-[15px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
-          @click=""
+          @click="goToActions"
         >
           <Icon
             name="heroicons:adjustments-horizontal"
@@ -160,6 +160,27 @@ import {
 } from "@tanstack/vue-table";
 import { data as mockData } from "../data";
 import TableFilter from "./TableFilter.vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+
+// Получаем массив выбранных товаров
+const selectedProducts = computed(
+  () => table.getSelectedRowModel().rows.map((row) => row.original.id) // id должен быть в данных товара
+);
+
+function goToActions() {
+  if (selectedProducts.value.length === 0) {
+    alert("Выберите хотя бы один товар");
+    return;
+  }
+
+  // Переход с передачей выбранных ID
+  router.push({
+    path: "/products/settings",
+    query: { ids: selectedProducts.value.join(",") },
+  });
+}
 
 const rawData = ref([]);
 const globalFilter = ref("");
@@ -308,6 +329,10 @@ th {
 }
 button:disabled {
   cursor: not-allowed;
+}
+input:focus {
+  border: none;
+  outline: none;
 }
 input::placeholder {
   color: #bdbdbd;
