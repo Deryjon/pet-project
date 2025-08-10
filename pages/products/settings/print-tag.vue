@@ -16,7 +16,7 @@
           </div>
           <div class="buttons flex items-center gap-4">
             <button class="btn-dark">Тестовая печать</button>
-            <button class="btn-blue">Печатать все</button>
+            <button class="bg-[#1f78ff] px-[15px] py-[12px] text-[16px] font-semibold rounded-[20px] transition-all duration-300 hover:bg-[#4d94ff]">Печатать все</button>
           </div>
         </div>
       </div>
@@ -234,10 +234,6 @@ onBeforeUnmount(() => {
 .btn-dark {
   @apply bg-[#404040] px-[15px] py-[12px] text-[16px] font-semibold rounded-[20px] transition-all duration-300 hover:bg-[#5e5e5e];
 }
-.btn-blue {
-  @apply bg-[#1f78ff] px-[15px] py-[12px] text-[16px] font-semibold rounded-[20px] transition-all duration-300 hover:bg-[#4d94ff];
-}
-
 .input {
   @apply w-full px-4 py-2 border border-gray-300 rounded-lg bg-[#404040] text-white transition-all duration-300;
 }
