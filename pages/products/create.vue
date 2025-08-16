@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { useHead } from '#imports'
+import { useRouter } from "vue-router";
+import { useHead } from "#imports";
 
-import ProductHeader from '@/components/products/ProductHeader.vue'
-import ProductSidebar from '@/components/products/ProductSidebar.vue'
-import ProductMainForm from '@/components/products/ProductMainForm.vue'
-import ProductPrices from '@/components/products/ProductPrices.vue'
-import ProductStocks from '@/components/products/ProductStocks.vue'
-import ProductFeatures from '@/components/products/ProductFeatures.vue'
+import ProductHeader from "@/components/products/ProductHeader.vue";
+import ProductSidebar from "@/components/products/ProductSidebar.vue";
+import ProductMainForm from "@/components/products/ProductMainForm.vue";
+import ProductPrices from "@/components/products/ProductPrices.vue";
+import ProductStocks from "@/components/products/ProductStocks.vue";
+import ProductFeatures from "@/components/products/ProductFeatures.vue";
 
 definePageMeta({ layout: "empty" });
 
-const router = useRouter()
+const router = useRouter();
 
 useHead({
-  title: 'Новый продукт | Konkurent.cases',
-  meta: [{ name: 'description', content: 'Описание страницы' }]
-})
+  title: "Новый продукт | Konkurent.cases",
+  meta: [{ name: "description", content: "Описание страницы" }],
+});
 </script>
 
 <template>
@@ -33,3 +33,9 @@ useHead({
     </div>
   </section>
 </template>
+<style>
+input,
+select {
+  @apply bg-[#404040] p-[15px] text-[16px] font-semibold rounded-[15px] transition-all duration-300 hover:bg-[#5e5e5e];
+} 
+</style>

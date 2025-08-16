@@ -7,13 +7,17 @@ export const useProductStore = defineStore('product', {
     productTypes: ['Товар', 'Услуга'],
     productVariants: ['Простой', 'Вариативный'],
     units: ['Штука', 'Литр', 'Килограмм'],
+    selectedUnit: null as string | null,
     categories: ['аудио-система', 'пылесос', 'станция', 'подставка', 'стекло'],
+    selectedCategory: null as string | null,
     stores: [
       { name: 'Globus Mall', qty: 0 },
       { name: 'Samarqand Darvoza', qty: 0 },
     ],
     article: '',
     barcode: '',
+    isUnitOpen: false,
+    isCategoryOpen: false,
   }),
   actions: {
     generateCode(type: 'article' | 'barcode') {
@@ -28,5 +32,6 @@ export const useProductStore = defineStore('product', {
       const store = this.stores.find(s => s.name === name)
       if (store) store.qty = qty
     }
+    
   }
 })
