@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <div class="top flex justify-between gap-[10px]">
       <div
-        class="input p-[17px] w-full bg-[#404040] rounded-[15px] flex items-center gap-[10px] hover:bg-[#5e5e5e] transition-colors duration-300"
+        class="input pl-[17px] w-full bg-[#404040] rounded-[15px] flex items-center gap-[10px] hover:bg-[#5e5e5e] transition-colors duration-300"
       >
         <Icon name="material-symbols:search" class="w-6 h-6 text-[#bdbdbd]" />
         <input
@@ -114,6 +114,9 @@
                 ? 'px-[25px] py-[20px] text-left text-[15px] text-[#4993dd] cursor-pointer'
                 : 'text-white',
             ]"
+            @click="
+              cell.column.id === 'name' ? openProduct(row.original) : null
+            "
           >
             <FlexRender
               :render="cell.column.columnDef.cell"
@@ -133,12 +136,10 @@
       >
         Назад
       </button>
-
       <span>
         Страница {{ table.getState().pagination.pageIndex + 1 }} из
         {{ table.getPageCount() }}
       </span>
-
       <button
         @click="table.nextPage()"
         :disabled="!table.getCanNextPage()"
@@ -147,6 +148,40 @@
         Вперёд
       </button>
     </div>
+
+    <!-- Боковое окно -->
+    <transition name="slide">
+      <div
+        v-if="showProductSidebar"
+        class="fixed top-0 right-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-l-[56px] z-50 overflow-y-auto"
+      >
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-white">
+            {{ selectedProduct?.name }}
+          </h2>
+          <button
+            @click="showProductSidebar = false"
+            class="text-white hover:text-gray-400"
+          >
+            ✕
+          </button>
+        </div>
+        <div v-if="selectedProduct" class="space-y-3 text-[#bdbdbd]">
+          <img
+            :src="selectedProduct.photo || placeholder"
+            alt="Фото"
+            class="w-32 h-32 object-cover rounded mb-4"
+          />
+          <p><b>Артикул:</b> {{ selectedProduct.sku }}</p>
+          <p><b>Баркод:</b> {{ selectedProduct.barcode }}</p>
+          <p><b>Категория:</b> {{ selectedProduct.category }}</p>
+          <p><b>Поставщик:</b> {{ selectedProduct.supplier }}</p>
+          <p><b>Количество:</b> {{ selectedProduct.quantity }} шт</p>
+          <p><b>Цена поставки:</b> {{ selectedProduct.purchase_price }} UZS</p>
+          <p><b>Цена продажи:</b> {{ selectedProduct.sale_price }} UZS</p>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 <script setup lang="ts">
@@ -161,14 +196,25 @@ import {
 import { data as mockData } from "../data";
 import TableFilter from "./TableFilter.vue";
 import { useRouter } from "vue-router";
+import placeholderImg from "../assets/images/placeholder_img.svg";
 
 const router = useRouter();
 
+const placeholder = placeholderImg;
+
+const showProductSidebar = ref(false);
+const selectedProduct = ref<any | null>(null);
+
 function goToCreate() {
   router.push({
-    path: '/products/create',
-    query: { page: 1 }
+    path: "/products/create",
+    query: { page: 1 },
   });
+}
+
+function openProduct(product: any) {
+  selectedProduct.value = product;
+  showProductSidebar.value = true;
 }
 
 // Получаем массив выбранных товаров
@@ -321,6 +367,17 @@ const table = useVueTable({
 </script>
 
 <style scoped>
+/* Анимация справа */
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
