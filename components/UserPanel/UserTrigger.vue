@@ -10,7 +10,9 @@
       alt="Avatar"
       class="rounded-full w-[40px] h-[40px] object-cover"
     />
-    <div class="user-info">
+
+    <!-- Показываем инфо только если меню открыто -->
+    <div v-if="!collapsed" class="user-info">
       <p class="text-white truncate max-w-[120px]">
         {{ user.name }}
       </p>
@@ -25,9 +27,11 @@
 import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
+import { useSidebarStore } from "../../store/useSidebar"; // 👈 подключаем pinia
 
 const { selectedLocation } = storeToRefs(useLocationStore());
 const { user } = storeToRefs(useUserStore());
+const { collapsed } = storeToRefs(useSidebarStore());
 
 defineEmits(["toggle"]);
 </script>
