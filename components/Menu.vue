@@ -28,14 +28,21 @@ const backToMainMenu = () => {
   >
     <!-- Подменю выбранного раздела -->
     <template v-if="activeMenu">
-      <div class="flex flex-col gap-2 ">
+      <div class="flex flex-col gap-2">
         <!-- Название раздела с действием "Назад" -->
         <h2
           @click="backToMainMenu"
           class="text-lg font-semibold p-[5px] py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e] rounded-md duration-300"
         >
-          <Icon name="heroicons:chevron-left" class="w-5 h-5 text-muted-foreground" />
-          <Icon v-if="activeMenu?.icon" :name="activeMenu.icon" class="w-5 h-5" />
+          <Icon
+            name="heroicons:chevron-left"
+            class="w-5 h-5 text-muted-foreground"
+          />
+          <Icon
+            v-if="activeMenu?.icon"
+            :name="activeMenu.icon"
+            class="w-5 h-5"
+          />
           <span v-if="!sidebar.collapsed">{{ activeMenu.name }}</span>
         </h2>
 
@@ -60,7 +67,11 @@ const backToMainMenu = () => {
           :to="item.url"
           class="inline-flex items-center gap-4 p-[5px] py-3 hover:bg-[#5e5e5e] rounded-md transition-colors duration-300"
         >
-          <Icon v-if="item.icon" :name="item.icon" class="h-5 w-5 text-muted-foreground" />
+          <Icon
+            v-if="item.icon"
+            :name="item.icon"
+            class="h-5 w-5 text-muted-foreground"
+          />
           <p v-if="!sidebar.collapsed" class="truncate">{{ item.name }}</p>
         </NuxtLink>
 
@@ -68,12 +79,24 @@ const backToMainMenu = () => {
         <button
           v-else
           @click="openMenu(item)"
-          class="flex items-center justify-between gap-4 p-[5px] py-3 hover:bg-[#5e5e5e] rounded-md transition-colors duration-300"
+          class="flex items-center justify-between p-[5px] py-3 hover:bg-[#5e5e5e] rounded-md transition-colors duration-300"
         >
-          <div class="flex items-center gap-4">
-            <Icon v-if="item.icon" :name="item.icon" class="w-5 h-5 text-muted-foreground" />
+          <!-- Левая часть -->
+          <div
+            :class="[
+              'flex items-center gap-4',
+              sidebar.collapsed ? 'flex-1 justify-center' : '',
+            ]"
+          >
+            <Icon
+              v-if="item.icon"
+              :name="item.icon"
+              class="w-5 h-5 text-muted-foreground"
+            />
             <p v-if="!sidebar.collapsed" class="truncate">{{ item.name }}</p>
           </div>
+
+          <!-- Стрелка всегда справа -->
           <Icon
             v-if="!sidebar.collapsed"
             name="heroicons:chevron-right"

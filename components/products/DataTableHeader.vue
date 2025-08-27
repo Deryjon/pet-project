@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import { ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { useCatalogDataTableStore } from "@/store/catalogDataTableStore"
 
 const store = useCatalogDataTableStore()
 const router = useRouter()
 
-// глобальный фильтр берём из стора
-const globalFilter = store.globalFilter
+// локальный инпут
+const globalFilterInput = ref(store.globalFilter)
 const showFilters = ref(false)
 
 function goToActions() {
@@ -24,6 +25,12 @@ function goToActions() {
 function goToCreate() {
   console.log("Создать новый продукт")
 }
+
+// синхронизация с стором
+watch(globalFilterInput, (val) => {
+  store.globalFilter = val
+  store.fetchData({ search: val }) // если хочешь передавать параметр поиска
+})
 </script>
 
 <template>
@@ -34,13 +41,12 @@ function goToCreate() {
     >
       <Icon name="material-symbols:search" class="w-6 h-6 text-[#bdbdbd]" />
       <input
-        v-model="globalFilter"
+        v-model="globalFilterInput"
         type="text"
         placeholder="Артикул, баркод, наименование"
         class="bg-transparent w-full text-[#bdbdbd] text-[17px] font-bold"
       />
     </div>
-
     <!-- Фильтры -->
     <div class="filters">
       <button
@@ -61,7 +67,7 @@ function goToCreate() {
           <path
             fill="currentColor"
             d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z"
-          ></path>
+          />
         </svg>
         <Icon name="heroicons:funnel" class="w-5 h-5 text-[#4993dd]" />
         Фильтры
@@ -96,5 +102,4 @@ function goToCreate() {
 
   <!-- Фильтры блок -->
   <TableFilter v-if="showFilters" />
-
 </template>

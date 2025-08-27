@@ -29,7 +29,7 @@ const { selectedLocation } = storeToRefs(useLocationStore());
 
       <div class="flex items-center gap-3 p-[5px] mt-[20px]">
         <img
-          :src="user.avatarUrl || 'https://via.placeholder.com/40'"
+          :src="user.avatarUrl || '../assets/images/placeholder_img.svg'"
           class="rounded-full w-[40px] h-[40px] object-cover"
         />
         <div>
