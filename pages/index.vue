@@ -1,6 +1,4 @@
 <script setup></script>
 <template>
-  <div>
-    Hello
-  </div>
+  <div>Dashboard page</div>
 </template>
