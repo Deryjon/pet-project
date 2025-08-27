@@ -1,7 +1,10 @@
 <script setup lang="ts">
-const emit = defineEmits(['scrollTo'])
+const emit = defineEmits<{
+  (e: "scrollTo", section: string): void;
+}>();
+
 function go(section: string) {
-  emit('scrollTo', section)
+  emit("scrollTo", section);
 }
 </script>
 

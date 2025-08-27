@@ -154,19 +154,19 @@
       <teleport to="body">
         <div
           v-if="showProductSidebar"
-          class="fixed top-0 right-0 h-full w-full max-w-[700px] bg-[#2b2b2b] text-white shadow-lg px-8 py-10 rounded-l-[60px] z-[9999] overflow-y-auto"
+          class="fixed top-0 right-0 h-full w-full max-w-[768px] bg-[#2b2b2b] text-white shadow-lg px-16 py-14 rounded-l-[60px] z-[9999] overflow-y-auto"
         >
           <!-- Заголовок -->
           <div class="flex justify-between items-center mb-6">
             <div class="border-gray-600 flex gap-[20px]">
               <img
-                src="https://via.placeholder.com/40"
+                src="../assets/images/placeholder_img.svg"
                 alt=""
-                class="rounded-full w-[60px] h-[60px] object-cover"
+                class="rounded-[20px] w-[60px] h-[60px] object-cover"
               />
               <div class="flex flex-col font-semibold">
-                <p class="text-lg">{{ selectedProduct?.name }}</p>
-                <p class="text-[#bdbdbd]">
+                <p class="text-[24px]">{{ selectedProduct?.name }}</p>
+                <p class="text-[#bdbdbd] text-[16px]">
                   {{ selectedProduct?.sku }} / {{ selectedProduct?.barcode }} /
                   {{ selectedProduct?.category }} /
                   {{ selectedProduct?.sale_price }} UZS
