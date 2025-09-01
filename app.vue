@@ -18,6 +18,9 @@ onMounted(() => {
   </div>
 </template>
 <style>
+body{
+  color: white; 
+}
 body.no-scroll {
   overflow: hidden !important;
 }

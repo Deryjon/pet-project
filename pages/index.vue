@@ -1,4 +1,6 @@
-<script setup></script>
-<template>
-  <div>Dashboard page</div>
-</template>
+<script setup lang="ts">
+import { navigateTo } from '#app'
+
+// Перенаправление на /dashboard
+navigateTo('/dashboard')
+</script>

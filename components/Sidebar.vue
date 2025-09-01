@@ -2,7 +2,12 @@
 import Menu from "./Menu.vue";
 import User from "./User.vue";
 import { useSidebarStore } from "../store/useSidebar";
+import { useRouter } from "vue-router";
 
+const router = useRouter(); 
+const goToSidebar = () => {
+  router.push("/");
+}
 const sidebar = useSidebarStore();
 </script>
 
@@ -17,8 +22,8 @@ const sidebar = useSidebarStore();
         class="logo font-bold text-[20px] text-white p-[5px] flex justify-between items-center"
       >
         <!-- Если сайдбар открыт -->
-        <h1 v-if="sidebar.collapsed" class="cursor-pointer">K</h1>
-        <h1 v-else class="cursor-pointer">Konkurent.cases</h1>
+        <h1 @click="goToSidebar" v-if="sidebar.collapsed" class="cursor-pointer">K</h1>
+        <h1 @click="goToSidebar" v-else class="cursor-pointer">Konkurent.cases</h1>
         <!-- Кнопка сворачивания -->
 
         <Icon
