@@ -194,7 +194,7 @@ const dashboardData = ref({
       cardTransfer: 72_000_000,
       click: 24_000_000,
     },
-    transactions: {
+    transactions: { 
       total: 13_480,
       products: 26_940,
       services: 820,

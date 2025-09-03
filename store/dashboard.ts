@@ -193,6 +193,21 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
   const periodData = computed(() => dashboardData.value[selectedPeriod.value]);
 
+  const branchesSales = computed(() => {
+    return shops.value.map((shop, index) => {
+      const branchKey = index === 0 ? "branch1" : "branch2";
+      const total = periodData.value.hourlySales.reduce(
+        (sum, i) => sum + (i[branchKey] || 0),
+        0
+      );
+      return {
+        name: shop.name,
+        total,
+        color: index === 0 ? "#4ade80" : "#60a5fa", // чтобы совпадало с графиком
+      };
+    });
+  });
+  
   // фильтрованные данные для графика
   const chartData = computed(() => {
     const labels = periodData.value.hourlySales.map((i) => i.hour);
@@ -264,5 +279,6 @@ export const useDashboardStore = defineStore("dashboard", () => {
     filteredTotalSales,
     selectShop,
     setPeriod,
+    branchesSales,
   };
 });
