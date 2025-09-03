@@ -65,9 +65,27 @@ export const useDashboardStore = defineStore("dashboard", () => {
         exchanges: 0,
       },
       topSellers: [
-        { name: "Komiljon Alidjanov", sum: 1_810_000 },
-        { name: "Sunnatilla Miryusupov", sum: 730_000 },
-        { name: "Dilshod Karimov", sum: 520_000 },
+        {
+          name: "Sardor Obidjanov",
+          sum: 640000,
+          avgCheck: 120000,
+          avgCount: 5,
+          color: "#ff6b6b",
+        },
+        {
+          name: "Iskandarjon Yusupov",
+          sum: 330000,
+          avgCheck: 110000,
+          avgCount: 3,
+          color: "#4dabf7",
+        },
+        {
+          name: "Dilshod Karimov",
+          sum: 210000,
+          avgCheck: 70000,
+          avgCount: 2,
+          color: "#51cf66",
+        },
       ],
       topProducts: [
         { name: "Silicone iPhone Case", sum: 355000 },
@@ -102,9 +120,27 @@ export const useDashboardStore = defineStore("dashboard", () => {
         exchanges: 1,
       },
       topSellers: [
-        { name: "Komiljon Alidjanov", sum: 1_210_000 },
-        { name: "Sunnatilla Miryusupov", sum: 690_000 },
-        { name: "Dilshod Karimov", sum: 410_000 },
+        {
+          name: "Sardor Obidjanov",
+          sum: 640000,
+          avgCheck: 120000,
+          avgCount: 5,
+          color: "#ff6b6b",
+        },
+        {
+          name: "Iskandarjon Yusupov",
+          sum: 330000,
+          avgCheck: 110000,
+          avgCount: 3,
+          color: "#4dabf7",
+        },
+        {
+          name: "Dilshod Karimov",
+          sum: 210000,
+          avgCheck: 70000,
+          avgCount: 2,
+          color: "#51cf66",
+        },
       ],
       topProducts: [
         { name: "PowerBank 20k", sum: 355000 },
@@ -137,10 +173,29 @@ export const useDashboardStore = defineStore("dashboard", () => {
         exchanges: 5,
       },
       topSellers: [
-        { name: "Komiljon Alidjanov", sum: 8_810_000 },
-        { name: "Sunnatilla Miryusupov", sum: 6_730_000 },
-        { name: "Dilshod Karimov", sum: 5_520_000 },
+        {
+          name: "Sardor Obidjanov",
+          sum: 640000,
+          avgCheck: 120000,
+          avgCount: 5,
+          color: "#ff6b6b",
+        },
+        {
+          name: "Iskandarjon Yusupov",
+          sum: 330000,
+          avgCheck: 110000,
+          avgCount: 3,
+          color: "#4dabf7",
+        },
+        {
+          name: "Dilshod Karimov",
+          sum: 210000,
+          avgCheck: 70000,
+          avgCount: 2,
+          color: "#51cf66",
+        },
       ],
+
       topProducts: [
         { name: "AirPods 3 Dubai", sum: 2_400_000 },
         { name: "Silicone iPhone Case", sum: 1_950_000 },
@@ -177,9 +232,27 @@ export const useDashboardStore = defineStore("dashboard", () => {
         exchanges: 120,
       },
       topSellers: [
-        { name: "Komiljon Alidjanov", sum: 226_000_000 },
-        { name: "Sunnatilla Miryusupov", sum: 189_000_000 },
-        { name: "Dilshod Karimov", sum: 142_000_000 },
+        {
+          name: "Sardor Obidjanov",
+          sum: 640000,
+          avgCheck: 120000,
+          avgCount: 5,
+          color: "#ff6b6b",
+        },
+        {
+          name: "Iskandarjon Yusupov",
+          sum: 330000,
+          avgCheck: 110000,
+          avgCount: 3,
+          color: "#4dabf7",
+        },
+        {
+          name: "Dilshod Karimov",
+          sum: 210000,
+          avgCheck: 70000,
+          avgCount: 2,
+          color: "#51cf66",
+        },
       ],
       topProducts: [
         { name: "Silicone iPhone Case", sum: 62_000_000 },
@@ -207,7 +280,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       };
     });
   });
-  
+
   // фильтрованные данные для графика
   const chartData = computed(() => {
     const labels = periodData.value.hourlySales.map((i) => i.hour);
