@@ -1,36 +1,36 @@
 <script setup lang="ts">
-import { ref, watch } from "vue"
-import { useRouter } from "vue-router"
-import { useCatalogDataTableStore } from "@/store/catalogDataTableStore"
+import { ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useCatalogDataTableStore } from "@/store/catalogDataTableStore";
 
-const store = useCatalogDataTableStore()
-const router = useRouter()
+const store = useCatalogDataTableStore();
+const router = useRouter();
 
 // локальный инпут
-const globalFilterInput = ref(store.globalFilter)
-const showFilters = ref(false)
+const globalFilterInput = ref(store.globalFilter);
+const showFilters = ref(false);
 
 function goToActions() {
   if (store.selectedProducts.length === 0) {
-    alert("Выберите хотя бы один товар")
-    return
+    alert("Выберите хотя бы один товар");
+    return;
   }
 
   router.push({
     path: "/products/settings",
     query: { ids: store.selectedProducts.join(",") },
-  })
+  });
 }
 
 function goToCreate() {
-  console.log("Создать новый продукт")
+  router.push("/products/create?page=1");
 }
 
 // синхронизация с стором
 watch(globalFilterInput, (val) => {
-  store.globalFilter = val
-  store.fetchData({ search: val }) // если хочешь передавать параметр поиска
-})
+  store.globalFilter = val;
+  store.fetchData({ search: val }); // если хочешь передавать параметр поиска
+});
 </script>
 
 <template>
