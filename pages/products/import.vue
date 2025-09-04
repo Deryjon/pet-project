@@ -8,7 +8,11 @@
 </template>
 
 <script setup lang="ts">
+import { useHead } from "#imports";
 import DataTable from "../../components/ImportDataTable.vue";
+useHead({
+  title: "Импорт | Konkurent.cases",
+});
 </script>
 
 <style scoped>

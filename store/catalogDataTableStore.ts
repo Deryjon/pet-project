@@ -29,7 +29,6 @@ export const useCatalogDataTableStore = defineStore(
     async function fetchData() {
       loading.value = true;
       rawData.value = [];
-      // имитация задержки — если хочешь убрать, просто присвой данные сразу
       await new Promise((r) => setTimeout(r, 200));
       rawData.value = data; // берем из /data.ts
       loading.value = false;

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { FlexRender } from "@tanstack/vue-table";
-
 // Пропсы
 defineProps<{
   table: any; // экземпляр таблицы из useVueTable
