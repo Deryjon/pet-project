@@ -2,7 +2,7 @@
   <div class="w-full border-2 bg-[#262626] text-white rounded-[20px] p-[20px]">
     <div class="w-full grid grid-cols-2 gap-y-[30px]">
     <!-- Дата -->
-    <div class="w-full">
+    <div class="w-full bg-[#404040] p-[15px] rounded-lg">
       e
       <!-- <DatePicker v-model="date" label="Дата" placeholder="Выберите дату" /> -->
     </div>
