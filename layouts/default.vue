@@ -26,14 +26,16 @@ onMounted(() => {
       <LayoutSidebar class="h-full" :collapsed="sidebar.collapsed" />
     </div>
 
-    <!-- Main content -->
-    <div
-      :class="[
-        'bg-white dark:bg-[#262626] w-full min-h-screen py-[20px] px-[15px] md:p-[40px] transition-all duration-300',
-        sidebar.collapsed ? 'ml-[80px]' : 'ml-[256px]'
-      ]"
-    >
-      <slot />
-    </div>
+   <!-- Main content -->
+<div
+  :class="[
+    'bg-white dark:bg-[#262626] w-full min-h-screen py-[20px] px-[15px] md:p-[40px] transition-all duration-300',
+    sidebar.collapsed ? 'ml-[80px]' : 'ml-[256px]'
+  ]"
+  style="max-width: 100vw; overflow-x: hidden;"
+>
+  <slot />
+</div>
+
   </section>
 </template>

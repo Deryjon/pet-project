@@ -18,7 +18,7 @@ defineProps<{
     <!-- Таблица -->
     <table
       v-else
-      class="w-full min-w-[600px] text-sm text-left text-[15px] text-[#bdbdbd]"
+      class="min-w-full text-sm text-left text-[15px] text-[#bdbdbd]"
     >
       <thead class="border-t border-b rounded-[0px]">
         <tr

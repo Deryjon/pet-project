@@ -9,7 +9,7 @@
   
   <script setup lang="ts">
   import { useHead } from "#imports";
-  import DataTable from "../../components/ImportDataTable.vue";
+  import DataTable from "../../components/OrderDataTable.vue";
   useHead({
     title: "Заказы | Konkurent.cases",
   });

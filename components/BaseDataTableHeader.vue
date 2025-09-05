@@ -61,12 +61,12 @@ const router = useRouter();
 
 <template>
   <!-- Верхняя панель фильтров -->
-  <div v-if="statFilters?.length" class="flex gap-3 mb-4">
+  <div v-if="statFilters?.length" class="flex gap-1 mb-4">
     <button
       v-for="f in statFilters"
       :key="f.key"
       @click="selectFilter(f.key)"
-      class="flex items-center gap-2 py-1 px-3 rounded-[20px] transition-colors duration-300 text-[#bdbdbd]"
+      class="flex items-center  py-1 px-3 rounded-[20px] transition-colors duration-300 text-[#bdbdbd]"
       :class="[activeFilter === f.key ? 'bg-[#404040]' : '']"
     >
       <span
@@ -74,7 +74,7 @@ const router = useRouter();
         >{{ f.label }}</span
       >
       <span
-        class="min-w-[28px] h-[28px] flex items-center justify-center rounded-full text-[18px] font-semibold"
+        class="min-w-[28px] h-[28px] flex items-center justify-center rounded-full text-[16px] font-semibold"
         :class="activeFilter === f.key ? '' : ''"
       >
         ({{ f.count }})
@@ -89,8 +89,7 @@ const router = useRouter();
       v-if="showSearch"
       class="pl-[17px] w-full bg-[#404040] rounded-[15px] flex items-center gap-[10px] hover:bg-[#5e5e5e] transition-colors duration-300"
     >
-      <Icon name="material-symbols:search" class="w-6 text-[#bdbdbd]" />
-      <input
+    <svg width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.7812 13.8438L12.6562 10.7188C12.5 10.5938 12.3125 10.5 12.125 10.5H11.625C12.4688 9.40625 13 8.03125 13 6.5C13 2.9375 10.0625 0 6.5 0C2.90625 0 0 2.9375 0 6.5C0 10.0938 2.90625 13 6.5 13C8 13 9.375 12.5 10.5 11.625V12.1562C10.5 12.3438 10.5625 12.5312 10.7188 12.6875L13.8125 15.7812C14.125 16.0938 14.5938 16.0938 14.875 15.7812L15.75 14.9062C16.0625 14.625 16.0625 14.1562 15.7812 13.8438ZM6.5 10.5C4.28125 10.5 2.5 8.71875 2.5 6.5C2.5 4.3125 4.28125 2.5 6.5 2.5C8.6875 2.5 10.5 4.3125 10.5 6.5C10.5 8.71875 8.6875 10.5 6.5 10.5Z" fill="#BDBDBD"></path></svg>      <input
         v-model="searchInput"
         type="text"
         :placeholder="searchPlaceholder || 'Поиск...'"
