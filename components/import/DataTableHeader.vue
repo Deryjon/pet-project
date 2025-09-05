@@ -3,7 +3,7 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useImportDataTableStore } from "@/store/importDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
-import TableFilter from "../TableFilter.vue"; // поправь путь если не совпадает
+import TableFilter from "./TableFilter.vue"; // поправь путь если не совпадает
 
 const store = useImportDataTableStore();
 const router = useRouter();
