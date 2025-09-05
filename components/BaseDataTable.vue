@@ -8,14 +8,18 @@ defineProps<{
 </script>
 
 <template>
-  <div class="overflow-hidden">
+  <!-- Контейнер со скроллом -->
+  <div class="overflow-x-auto">
     <!-- Лоадер -->
     <div v-if="store.loading" class="text-center text-white py-6">
       Загружаем данные...
     </div>
 
     <!-- Таблица -->
-    <table v-else class="w-full text-sm text-left text-[15px] text-[#bdbdbd]">
+    <table
+      v-else
+      class="w-full min-w-[600px] text-sm text-left text-[15px] text-[#bdbdbd]"
+    >
       <thead class="border-t border-b rounded-[0px]">
         <tr
           v-for="headerGroup in table.getHeaderGroups()"
@@ -24,7 +28,7 @@ defineProps<{
           <th
             v-for="header in headerGroup.headers"
             :key="header.id"
-            class="cursor-pointer font-bold select-none px-[20px] py-[25px] hover:bg-[#5e5e5e] transition-colors duration-300"
+            class="cursor-pointer font-bold select-none px-[20px] py-[25px] hover:bg-[#5e5e5e] transition-colors duration-300 whitespace-nowrap"
             :class="{ 'w-[50px] text-center': header.column.id === 'select' }"
             @click="header.column.getToggleSortingHandler()?.($event)"
           >
@@ -48,13 +52,12 @@ defineProps<{
         <tr
           v-for="(row, index) in table.getRowModel().rows"
           :key="row.id"
-          class="overflow-hidden"
         >
           <td
             v-for="(cell, i) in row.getVisibleCells()"
             :key="cell.id"
-            class="text-left text-[15px] font-bold"
-            :class="[
+            class="text-left text-[15px] font-bold whitespace-nowrap"
+            :class="[ 
               'px-[20px] py-[25px]',
               index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',
               row.getVisibleCells().length === 1

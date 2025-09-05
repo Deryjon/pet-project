@@ -21,10 +21,6 @@ function goToActions() {
   });
 }
 
-function goToCreate() {
-  router.push("/products/create?page=1");
-}
-
 // синхронизация с стором
 watch(globalFilterInput, (val) => {
   store.globalFilter = val;
@@ -38,8 +34,14 @@ watch(globalFilterInput, (val) => {
     :showSearch="true"
     searchPlaceholder="Артикул, баркод, наименование"
     :showFilters="true"
-    :createButton="{ label: 'Создать', to: '/import/create' }"
+    :createButton="{ label: 'Создать', to: '/products/create?page=1' }"
     @toggleFilters="showFilters = !showFilters"
+    :actionButtons="[
+      {
+        label: 'Действия',
+        onClick: goToActions,
+      },
+    ]"
   />
   <!-- Фильтры блок -->
   <TableFilter v-if="showFilters" />
