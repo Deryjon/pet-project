@@ -9,6 +9,12 @@ interface ActionButton {
   onClick: () => void;
 }
 
+interface StatFilter {
+  key: string;
+  label: string;
+  count: number;
+}
+
 const props = defineProps<{
   searchPlaceholder?: string;
   modelValue?: string;
@@ -21,21 +27,62 @@ const props = defineProps<{
     to?: string;
     onClick?: () => void;
   };
+  statFilters?: StatFilter[]; // 👉 передаём фильтры снаружи
+  activeFilter?: string; // 👉 выбранный фильтр
 }>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
   (e: "toggleFilters"): void;
+  (e: "update:activeFilter", value: string): void;
 }>();
 
-// 👉 биндим к v-model, остальное не трогаем
+// v-model для поиска
 const searchInput = ref(props.modelValue ?? "");
 watch(searchInput, (val) => emit("update:modelValue", val));
+
+// активный фильтр
+const activeFilter = ref(
+  props.activeFilter ?? (props.statFilters?.[0]?.key || "")
+);
+watch(
+  () => props.activeFilter,
+  (val) => {
+    if (val) activeFilter.value = val;
+  }
+);
+function selectFilter(key: string) {
+  activeFilter.value = key;
+  emit("update:activeFilter", key);
+}
 
 const router = useRouter();
 </script>
 
 <template>
+  <!-- Верхняя панель фильтров -->
+  <div v-if="statFilters?.length" class="flex gap-3 mb-4">
+    <button
+      v-for="f in statFilters"
+      :key="f.key"
+      @click="selectFilter(f.key)"
+      class="flex items-center gap-2 py-1 px-3 rounded-[20px] transition-colors duration-300 text-[#bdbdbd]"
+      :class="[activeFilter === f.key ? 'bg-[#404040]' : '']"
+    >
+      <span
+        class="min-w-[28px] h-[28px] flex items-center justify-center rounded-full text-[18px] font-semibold"
+        >{{ f.label }}</span
+      >
+      <span
+        class="min-w-[28px] h-[28px] flex items-center justify-center rounded-full text-[18px] font-semibold"
+        :class="activeFilter === f.key ? '' : ''"
+      >
+        ({{ f.count }})
+      </span>
+    </button>
+  </div>
+  
+  <!-- Основной топбар -->
   <div class="top flex justify-between gap-[10px]">
     <!-- Поиск -->
     <div
@@ -50,6 +97,7 @@ const router = useRouter();
         class="bg-transparent w-full text-[#bdbdbd] text-[17px] font-bold"
       />
     </div>
+
     <!-- Фильтры -->
     <div v-if="showFilters" class="filters">
       <button
@@ -57,22 +105,6 @@ const router = useRouter();
         @click="emit('toggleFilters')"
         :aria-expanded="showFilters"
       >
-      <svg
-          aria-hidden="true"
-          focusable="false"
-          data-prefix="fas"
-          data-icon="chevron-down"
-          class="w-[14px] transition-transform duration-200"
-          :class="{ 'rotate-180': showFilters }"
-          role="img"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 512 512"
-        >
-          <path
-            fill="currentColor"
-            d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z"
-          ></path>
-        </svg>
         <Icon name="heroicons:funnel" class="w-5 h-5 text-[#4993dd]" />
         Фильтры
       </button>
@@ -87,8 +119,7 @@ const router = useRouter();
         :class="[btn.color || 'bg-[#404040]']"
         @click="btn.onClick"
       >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="#4993DD" xmlns="http://www.w3.org/2000/svg"><path d="M11.2031 0.328125L1.45312 3.98438C0.5625 4.3125 0 5.15625 0 6.09375V16.6406C0 17.4844 0.46875 18.2812 1.21875 18.6562L10.9688 23.5312C11.625 23.8594 12.3281 23.8594 12.9844 23.5312L22.7344 18.6562C23.4844 18.2812 23.9531 17.4844 23.9531 16.6406V6.09375C23.9531 5.15625 23.3906 4.3125 22.5 3.98438L12.75 0.328125C12.2812 0.140625 11.7188 0.140625 11.2031 0.328125ZM12 3.23438L21 6.60938V6.65625L12 10.3125L3 6.65625V6.60938L12 3.23438ZM13.5 19.9219V12.9375L21 9.89062V16.1719L13.5 19.9219Z" fill="inherit"></path></svg>
-      {{ btn.label }}
+        {{ btn.label }}
       </button>
     </div>
 
