@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useTransferDataTableStore } from "@/store/DataTables/transferDataTableStore";
+import { useRevaluationDataTableStore } from "@/store/DataTables/revaluationDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
-import TableFilter from "./TableFilter.vue";
+import TableFilter from "./TableFilter.vue"; // поправь путь если не совпадает
 
-const store = useTransferDataTableStore();
+const store = useRevaluationDataTableStore();
 const router = useRouter();
 
 // локальный инпут
@@ -25,7 +25,7 @@ watch(globalFilterInput, (val) => {
     :showSearch="true"
     searchPlaceholder="ID, наименование, магазин"
     :showFilters="true"
-    :createButton="{ label: 'Новый трансфер', to: '/inventory/create' }"
+    :createButton="{ label: 'Новая переоценка', to: '/inventory/create' }"
     @toggleFilters="showFilters = !showFilters"
   />
 
