@@ -100,7 +100,7 @@ const router = useRouter();
     <!-- Фильтры -->
     <div v-if="showFilters" class="filters">
       <button
-        class="filter bg-[#404040] rounded-[20px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
+        class="filter bg-[#404040] rounded-[15px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
         @click="emit('toggleFilters')"
         :aria-expanded="showFilters"
       >
@@ -125,7 +125,7 @@ const router = useRouter();
     <!-- Создать -->
     <div v-if="createButton" class="action">
       <button
-        class="w-[200px] bg-[#1f78ff] rounded-[15px] flex items-center justify-center gap-2 p-[17px] text-[17px] font-bold text-white hover:bg-[#2a6ed9] transition-colors duration-300"
+        class=" bg-[#1f78ff] rounded-[15px] flex items-center justify-center gap-2 p-[17px] text-[17px] font-bold text-white hover:bg-[#2a6ed9] transition-colors duration-300"
         @click="
           createButton.onClick
             ? createButton.onClick()
