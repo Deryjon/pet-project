@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useInventoryDataTableStore } from "@/store/inventoryDataTableStore";
+import { useInventoryDataTableStore } from "@/store/DataTables/inventoryDataTableStore";
 import BaseDataTable from "@/components/BaseDataTable.vue";
 
 const store = useInventoryDataTableStore();
@@ -32,3 +32,4 @@ input::placeholder {
   color: #bdbdbd;
 }
 </style>
+~/store/DataTables/inventoryDataTableStore

@@ -3,9 +3,7 @@ import DataTableHeader from "@/components/orders/DataTableHeader.vue";
 import DataTableBody from "@/components/orders/DataTableBody.vue";
 import DataTablePagination from "@/components/products/DataTablePagination.vue";
 import DataTableProductInfo from "@/components/products/DataTableProductInfo.vue";
-import { useCatalogDataTableStore } from "@/store/catalogDataTableStore";
 
-const store = useCatalogDataTableStore();
 </script>
 
 <template>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useImportDataTableStore } from "@/store/DataTables/importDataTableStore";
+import { useTransferDataTableStore } from "@/store/DataTables/transferDataTableStore";
 import BaseDataTable from "@/components/BaseDataTable.vue";
 
-const store = useImportDataTableStore();
+const store = useTransferDataTableStore();
 
 </script>
 
@@ -32,3 +32,4 @@ input::placeholder {
   color: #bdbdbd;
 }
 </style>
+~/store/DataTables/inventoryDataTableStore

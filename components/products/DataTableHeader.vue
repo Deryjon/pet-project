@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { useCatalogDataTableStore } from "@/store/catalogDataTableStore";
+import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
 const store = useCatalogDataTableStore();
 const router = useRouter();

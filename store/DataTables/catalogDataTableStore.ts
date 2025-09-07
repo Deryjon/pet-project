@@ -48,10 +48,7 @@ export const useCatalogDataTableStore = defineStore(
       if (!globalFilter.value) return rawData.value;
       const q = globalFilter.value.toLowerCase();
       return rawData.value.filter((item) =>
-        Object.values(item)
-          .join(" ")
-          .toLowerCase()
-          .includes(q)
+        Object.values(item).join(" ").toLowerCase().includes(q)
       );
     });
 
@@ -67,7 +64,7 @@ export const useCatalogDataTableStore = defineStore(
 
     // placeholder для фото (использует import.meta.url)
     const placeholderImgUrl = new URL(
-      "../assets/images/placeholder_img.svg",
+      "../../assets/images/placeholder_img.svg",
       import.meta.url
     ).href;
 

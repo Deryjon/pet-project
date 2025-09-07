@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useImportDataTableStore } from "@/store/importDataTableStore";
+import { useImportDataTableStore } from "@/store/DataTables/importDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
 import TableFilter from "./TableFilter.vue"; // поправь путь если не совпадает
 

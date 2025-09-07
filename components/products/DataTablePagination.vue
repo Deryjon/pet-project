@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useCatalogDataTableStore } from "@/store/catalogDataTableStore";
+import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 
 const store = useCatalogDataTableStore();
 

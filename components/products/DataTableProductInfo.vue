@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useCatalogDataTableStore } from "@/store/catalogDataTableStore";
+import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 
 const store = useCatalogDataTableStore();
 const selectedProduct = computed(() => store.selectedProduct);

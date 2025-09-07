@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useOrdersDataTableStore } from "@/store/ordersDataTableStore";
+import { useOrdersDataTableStore } from "@/store/DataTables/ordersDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
 import TableFilter from "./TableFilter.vue"; // поправь путь если не совпадает
 
@@ -38,3 +38,4 @@ watch(globalFilterInput, (val) => {
   <!-- Фильтры блок -->
   <TableFilter v-if="showFilters" />
 </template>
+~/store/DataTables/ordersDataTableStore
