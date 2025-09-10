@@ -26,8 +26,8 @@ export interface IMenuItem {
       icon: 'heroicons:shopping-cart',
       url: '/order',
       items: [
-        { title: 'Новая продажа', url: '/order/new-order' },
-        { title: 'Все продажи', url: '/order/all' },
+        { title: 'Новая продажа', url: '/pos/new-pos' },
+        { title: 'Все продажи', url: '/pos/all' },
       ],
     },
     {
