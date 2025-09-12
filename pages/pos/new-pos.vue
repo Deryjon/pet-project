@@ -1,7 +1,7 @@
 <template>
-  <section class="bg-[#262626] text-white rounded-2xl flex h-full">
+  <section class="bg-[#262626] text-white rounded-2xl flex min-h-full">
     <!-- Левая часть -->
-    <div class="w-full border-r border-[#404040] pr-8 h-full">
+    <div class="w-full border-r border-[#404040] pr-7 h-full">
       <!-- 🔎 Поиск и кнопки -->
       <div class="flex items-center justify-between w-full">
         <!-- 🔎 Поиск -->
@@ -115,7 +115,9 @@
           class="cart mt-[20px] w-full h-[400px] rounded-[25px] p-[20px] flex flex-col items-center justify-center"
         >
           <span class="text-[24px] font-bold">Корзинка пока что пуста</span>
-          <span class="text-[18px] font-bold w-[340px] text-center text-[#5e5e5e]">
+          <span
+            class="text-[18px] font-bold w-[340px] text-center text-[#5e5e5e]"
+          >
             Нажмите “/” для поиска товаров или отсканируйте товары
           </span>
         </div>
@@ -123,53 +125,122 @@
     </div>
 
     <!-- Правая часть -->
-    <div class="pl-8 flex flex-col justify-between">
+    <div class="pl-[15px] flex flex-col justify-between w-[450px]">
       <!-- 👥 Клиент -->
-      <div class="top flex flex-col gap-4">
+      <div class="top flex flex-col gap-6">
+        <div class="flex items-center justify-between">
+          <label class="block text-[18px] font-semibold">Клиент</label>
+          <button class="text-[#4993dd]">Создать</button>
+        </div>
+        <div class="flex items-center bg-[#404040] p-4 rounded-[15px] gap-2">
+          <div class="icon">
+            <svg
+              width="14"
+              height="16"
+              viewBox="0 0 14 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M7 8C9.1875 8 11 6.21875 11 4C11 1.8125 9.1875 0 7 0C4.78125 0 3 1.8125 3 4C3 6.21875 4.78125 8 7 8ZM9.78125 9H9.25C8.5625 9.34375 7.8125 9.5 7 9.5C6.1875 9.5 5.40625 9.34375 4.71875 9H4.1875C1.875 9 0 10.9062 0 13.2188V14.5C0 15.3438 0.65625 16 1.5 16H12.5C13.3125 16 14 15.3438 14 14.5V13.2188C14 10.9062 12.0938 9 9.78125 9Z"
+                fill="#4993DD"
+              ></path>
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Имя или номер клиента "
+            class="flex-1 bg-transparent rounded-[15px] text-black"
+          />
+        </div>
 
-        <div class="space-y-2">
-          <label class="block text-sm">Клиент</label>
-          <div class="flex gap-2">
-            <button class="px-3 py-2 bg-blue-500 rounded-lg">Создать</button>
-            <input
-              type="text"
-              placeholder="Найти клиента..."
-              class="flex-1 p-3 rounded-lg text-black"
-            />
+        <!-- 💸 Скидка -->
+        <div class="flex items-center justify-between">
+          <label class="block text-[18px] font-semibold">Скидка</label>
+          <button class="text-[#4993dd] rounded-[15px]">Ввести код</button>
+        </div>
+        <div class="flex items-center gap-1">
+          <input
+            type="text"
+            :placeholder="
+              activeSwitcher === '%' ? 'Введите скидку' : 'Итоговая сумма'
+            "
+            class="bg-[#404040] p-4 rounded-[15px] w-1/2"
+          />
+          <div class="switcher bg-[#404040] w-1/2 flex p-1 rounded-[15px]">
+            <div
+              :class="[
+                'p-3 rounded-[15px] cursor-pointer text-center w-1/2 transition-colors',
+                activeSwitcher === '%'
+                  ? 'bg-[#262626] text-white'
+                  : 'bg-[#404040] text-[#bdbdbd] hover:bg-[#5e5e5e]',
+              ]"
+              @click="activeSwitcher = '%'"
+            >
+              %
+            </div>
+            <div
+              :class="[
+                'p-3 rounded-[15px] cursor-pointer text-center w-1/2 transition-colors',
+                activeSwitcher === 'uzs'
+                  ? 'bg-[#262626] text-white'
+                  : 'bg-[#404040] text-[#bdbdbd] hover:bg-[#5e5e5e]',
+              ]"
+              @click="activeSwitcher = 'uzs'"
+            >
+              uzs
+            </div>
           </div>
         </div>
-  
-        <!-- 💸 Скидка -->
-        <div class="space-y-2">
-          <label class="block text-sm">Скидка</label>
-          <div class="flex gap-2">
-            <button class="px-3 py-2 bg-blue-500 rounded-lg">Создать</button>
-            <input
-              type="number"
-              placeholder="0"
-              class="p-3 rounded-lg text-black w-24"
-            />
-            <select class="p-3 rounded-lg text-black">
-              <option>%</option>
-              <option>UZS</option>
-            </select>
-          </div>
+        <div class="flex items-center gap-1">
+          <transition name="fade" mode="out-in">
+            <div
+              key="uzs"
+              v-if="activeSwitcher === 'uzs'"
+              class="switchers flex gap-2 w-full"
+            >
+              <div
+                v-for="item in uzsOptions"
+                :key="item"
+                class="flex-1 bg-[#404040] hover:bg-[#5e5e5e] text-white text-center p-3 rounded-[15px] cursor-pointer transition-colors"
+              >
+                {{ item }}
+              </div>
+            </div>
+
+            <div key="percent" v-else class="switchers flex gap-2 w-full">
+              <div
+                v-for="item in percentOptions"
+                :key="item"
+                class="flex-1 bg-[#404040] hover:bg-[#5e5e5e] text-white text-center p-3 rounded-[15px] cursor-pointer transition-colors"
+              >
+                {{ item }}
+              </div>
+            </div>
+          </transition>
         </div>
       </div>
 
       <!-- 📊 Итоговый блок -->
-      <div class="bg-[#1e1e1e] p-4 rounded-xl space-y-2">
-        <div>Подытог: 150 000 UZS</div>
-        <div>Скидка: -10 000 UZS</div>
-        <div class="text-xl font-bold">Итого: 140 000 UZS</div>
-
-        <div class="grid grid-cols-2 gap-3 mt-4">
-          <button class="py-3 bg-green-600 rounded-xl font-bold">
-            Оплатить
-          </button>
-          <button class="py-3 bg-orange-600 rounded-xl font-bold">
-            Отложить
-          </button>
+      <div
+        class="bg-[#1e1e1e] rounded-xl flex flex-col shadow-style font-bold text-[17px]"
+      >
+        <div class="flex items-center justify-between p-5">
+          <span>Подытог</span>
+          <span>0 UZS</span>
+        </div>
+        <div class="flex items-center justify-between p-5">
+          <span>Скидка</span>
+          <span>0 UZS</span>
+        </div>
+        <div
+          class="flex items-center justify-between rounded-[15px] bg-[#404040] p-5"
+        >
+          <span>Оплатить</span>
+          <span>0 UZS</span>
+        </div>
+        <div class="button flex items-center justify-center text-[#404040] p-5">
+          Отложить
         </div>
       </div>
     </div>
@@ -177,10 +248,14 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { useHead } from "#imports";
 useHead({
   title: "Новая продажа | Konkurent.cases",
 });
+const activeSwitcher = ref("%"); // по умолчанию %
+const uzsOptions = ["50k", "100k", "500k", "1M"];
+const percentOptions = ["15%", "30%", "50%", "75%"];
 </script>
 
 <style scoped>
