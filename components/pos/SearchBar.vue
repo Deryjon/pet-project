@@ -44,7 +44,7 @@
             </div>
           </div>
           <div class="flex flex-col text-right">
-            <span>{{ product.price }} UZS</span>
+            <span>{{ formatPrice(product.price) }} UZS</span>
             <span class="text-[#999]">Кол-во: 1 шт</span>
           </div>
         </div>
@@ -55,9 +55,12 @@
   <script setup lang="ts">
   import { useCartStore } from "@/store/cart";
   import { storeToRefs } from "pinia";
-  
+  import { useFormatPrice } from "@/composables/useFormatPrice";
+
   const store = useCartStore();
   const { searchQuery, filteredProducts } = storeToRefs(store);
   const { addToCart } = store;
+  const { formatPrice } = useFormatPrice();
+
   </script>
   

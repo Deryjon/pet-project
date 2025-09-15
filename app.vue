@@ -20,6 +20,7 @@ onMounted(() => {
 <style>
 body{
   color: white; 
+  font-family: 'Inter', sans-serif;
 }
 body.no-scroll {
   overflow: hidden !important;

@@ -19,7 +19,7 @@
           </span>
         </div>
         <div class="flex items-center gap-3">
-          <span class="font-bold">{{ product.price.toLocaleString() }} UZS</span>
+          <span class="font-bold">{{ formatPrice(product.price) }} UZS</span>
           <button
             class="px-3 py-1 bg-green-600 rounded-lg text-sm hover:bg-green-700"
           >
@@ -33,8 +33,11 @@
   <script setup lang="ts">
   import { useCartStore } from "@/store/cart";
   import { storeToRefs } from "pinia";
-  
+  import { useFormatPrice } from "@/composables/useFormatPrice";
+
   const store = useCartStore();
+  const { formatPrice } = useFormatPrice();
+
   const { filteredProducts, searchQuery } = storeToRefs(store);
   const { addToCart } = store;
   </script>

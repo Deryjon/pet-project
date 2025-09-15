@@ -31,7 +31,7 @@
     <!-- Правая часть -->
     <div class="flex gap-[10px]">
       <div class="flex flex-col items-end">
-        <span class="text-[16px] font-bold">{{ item.price }} UZS</span>
+        <span class="text-[16px] font-bold">{{ formatPrice(item.price) }} UZS</span>
         <span class="">Iskandarjon Yusupov</span>
       </div>
       <button
@@ -45,5 +45,9 @@
 </template>
 
 <script setup lang="ts">
+import { useFormatPrice } from "@/composables/useFormatPrice";
+
+const { formatPrice } = useFormatPrice();
+
 defineProps<{ item: any }>();
 </script>
