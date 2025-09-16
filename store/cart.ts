@@ -12,44 +12,66 @@ export const useCartStore = defineStore("cart", () => {
   ]);
 
   const searchQuery = ref("");
-  const discountValue = ref(0);       // введённая скидка
-  const discountType = ref("%");      // "%" или "uzs"
 
   const filteredProducts = computed(() =>
     products.value.filter((p) =>
       p.name.toLowerCase().includes(searchQuery.value.toLowerCase())
     )
   );
-
-  function addToCart(product: any) {
-    const existing = cart.value.find((c) => c.id === product.id);
-    if (existing) {
-      existing.quantity += 1;
-    } else {
-      cart.value.push({ ...product, quantity: 1 });
-    }
-    searchQuery.value = "";
+function addToCart(product: any) {
+  const existing = cart.value.find((c) => c.id === product.id);
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    cart.value.push({
+      ...product,
+      quantity: 1,        // всегда есть количество
+      discountValue: 0,   // скидка по умолчанию
+      discountType: "%"   // тип скидки по умолчанию
+    });
   }
+  searchQuery.value = "";
+}
 
   function removeFromCart(id: number) {
     cart.value = cart.value.filter((c) => c.id !== id);
   }
 
-  // Подытог
+  /** 👉 обновить скидку для товара */
+  function updateDiscount(id: number, value: number, type: "%" | "uzs") {
+    const product = cart.value.find((c) => c.id === id);
+    if (product) {
+      product.discountValue = value;
+      product.discountType = type;
+    }
+  }
+
+  /** Цена товара с учётом скидки */
+  function itemFinalPrice(item: any) {
+    if (item.discountType === "%") {
+      return Math.max(0, item.price - (item.price * item.discountValue) / 100);
+    } else {
+      return Math.max(0, item.price - item.discountValue);
+    }
+  }
+
+  // Подытог (без скидки)
   const subtotal = computed(() =>
     cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0)
   );
 
-  // Скидка
-  const discount = computed(() => {
-    if (discountType.value === "%") {
-      return Math.floor((subtotal.value * discountValue.value) / 100);
-    }
-    return discountValue.value;
-  });
+  // Сумма всех скидок
+  const totalDiscount = computed(() =>
+    cart.value.reduce(
+      (sum, item) => sum + (item.price - itemFinalPrice(item)) * item.quantity,
+      0
+    )
+  );
 
-  // Итог к оплате
-  const total = computed(() => Math.max(0, subtotal.value - discount.value));
+  // Итог к оплате (с учётом всех скидок)
+  const total = computed(() =>
+    cart.value.reduce((sum, item) => sum + itemFinalPrice(item) * item.quantity, 0)
+  );
 
   return {
     cart,
@@ -59,11 +81,11 @@ export const useCartStore = defineStore("cart", () => {
     addToCart,
     removeFromCart,
 
-    // скидки
-    discountValue,
-    discountType,
+    updateDiscount,
+    itemFinalPrice,
+
     subtotal,
-    discount,
+    totalDiscount,
     total,
   };
 });

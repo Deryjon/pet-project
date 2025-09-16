@@ -14,26 +14,35 @@
       </div>
 
       <div
-        src=""
-        alt=""
         class="bg-[#111111] w-[40px] h-[40px] rounded-[8px] object-cover mb-[5px]"
       ></div>
+
       <div class="flex flex-col">
         <span class="font-bold text-[16px]">{{ item.name }}</span>
         <div class="bar-art flex items-center gap-4">
-          <span class="">{{ item.barcode }}</span>
-          /
-          <span class="">{{ item.article }}</span>
+          <span>{{ item.barcode }}</span> /
+          <span>{{ item.article }}</span>
         </div>
       </div>
     </div>
 
     <!-- Правая часть -->
-    <div class="flex gap-[10px]">
+    <div class="flex gap-[10px] items-center">
       <div class="flex flex-col items-end">
-        <span class="text-[16px] font-bold">{{ formatPrice(item.price) }} UZS</span>
-        <span class="">Iskandarjon Yusupov</span>
+        <div class="flex items-center gap-2">
+          <span class="text-[16px] font-bold">
+            {{ formatPrice(finalPrice) }} UZS
+          </span>
+          <button
+            @click="$emit('edit-discount', item)"
+            class="text-gray-300 hover:text-white"
+          >
+            <Icon name="heroicons:pencil-square" class="w-5 h-5" />
+          </button>
+        </div>
+        <span class="text-[14px]">Iskandarjon Yusupov</span>
       </div>
+
       <button
         @click="$emit('remove')"
         class="p-[13px] rounded-[15px] text-center text-red-400 hover:bg-red-500 text-[14px]"
@@ -45,9 +54,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useCartStore } from "@/store/cart";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
+const props = defineProps<{ item: any }>();
+const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 
-defineProps<{ item: any }>();
+const finalPrice = computed(() => store.itemFinalPrice(props.item));
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

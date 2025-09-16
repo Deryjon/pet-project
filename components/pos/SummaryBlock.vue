@@ -9,10 +9,11 @@
     </div>
 
     <!-- Скидка -->
-    <div class="flex items-center justify-between p-5">
-      <span>Скидка</span>
-      <span>{{ formatPrice(discount) }} UZS</span>
-    </div>
+ <!-- Скидка -->
+<div class="flex items-center justify-between p-5">
+  <span>Скидка</span>
+  <span>{{ formatPrice(totalDiscount) }} UZS</span>
+</div>
 
     <!-- К оплате -->
     <div
@@ -37,7 +38,7 @@ import { useCartStore } from "@/store/cart";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
 const cartStore = useCartStore();
-const { subtotal, discount, total } = storeToRefs(cartStore);
+const { subtotal, totalDiscount, total } = storeToRefs(cartStore);
 
 // наш форматтер
 const { formatPrice } = useFormatPrice();
