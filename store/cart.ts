@@ -42,11 +42,16 @@ export const useCartStore = defineStore("cart", () => {
   const discountValue = ref(0); // число (либо % либо UZS)
   const discountType = ref<"%" | "uzs">("%"); // текущий тип скидки
 
-  const filteredProducts = computed(() =>
-    products.value.filter((p) =>
-      p.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-  );
+  const filteredProducts = computed(() => {
+    const q = searchQuery.value.toLowerCase();
+    return products.value.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.article.toLowerCase().includes(q) ||
+        p.barcode.toLowerCase().includes(q)
+    );
+  });
+  
 
   function addToCart(product: any) {
     const existing = cart.value.find((c) => c.id === product.id);
@@ -65,6 +70,10 @@ export const useCartStore = defineStore("cart", () => {
 
   function removeFromCart(id: number) {
     cart.value = cart.value.filter((c) => c.id !== id);
+  }
+
+  function clearCart() {
+    cart.value = [];
   }
 
   /** 👉 обновить скидку для конкретного товара */
@@ -153,6 +162,7 @@ function itemFinalPriceWithGlobal(item: any) {
     updateDiscount,
     itemFinalPrice,
     itemFinalPriceWithGlobal,
+    clearCart,
     subtotal,
     itemDiscounts,
     total,

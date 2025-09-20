@@ -5,11 +5,21 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h3 class="text-[36px] font-semibold">Корзина</h3>
-        <span
-          class="bg-[#404040] px-[25px] py-2 rounded-full font-bold text-[24px]"
+        <div class="div bg-[#404040] px-[25px] py-2 rounded-full font-bold text-[24px] flex items-center gap-2">
+
+          <span
+            class=""
+          >
+            {{ totalQuantity }}
+          </span>
+          <button
+          @click="store.clearCart"
+          class="rounded-[15px] text-center text-red-400  duration-300 text-[14px]"
+          v-if="totalQuantity > 0"
         >
-          {{ totalQuantity }}
-        </span>
+        <svg width="14" height="16" viewBox="0 0 14 16" fill="#BDBDBD" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 1H9.75L9.4375 0.4375C9.3125 0.1875 9.0625 0 8.78125 0H5.1875C4.90625 0 4.65625 0.1875 4.53125 0.4375L4.25 1H0.5C0.21875 1 0 1.25 0 1.5V2.5C0 2.78125 0.21875 3 0.5 3H13.5C13.75 3 14 2.78125 14 2.5V1.5C14 1.25 13.75 1 13.5 1ZM1.65625 14.5938C1.6875 15.4062 2.34375 16 3.15625 16H10.8125C11.625 16 12.2812 15.4062 12.3125 14.5938L13 4H1L1.65625 14.5938Z" fill="inherit"></path></svg>
+        </button>
+        </div>
       </div>
       <span class="text-[36px] font-bold text-[#bdbdbd]">#4046384943</span>
     </div>

@@ -29,7 +29,7 @@ onMounted(() => {
    <!-- Main content -->
 <div
   :class="[
-    'bg-white dark:bg-[#262626] w-full min-h-screen py-[20px] px-[15px] md:p-[40px] transition-all duration-300',
+    'bg-white dark:bg-[#262626] w-full min-h-screen pt-[30px] px-[35px]  transition-all duration-300',
     sidebar.collapsed ? 'ml-[80px]' : 'ml-[256px]'
   ]"
   style="max-width: 100vw; overflow-x: hidden;"

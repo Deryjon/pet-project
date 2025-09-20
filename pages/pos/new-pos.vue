@@ -1,5 +1,5 @@
 <template>
-  <section class="bg-[#262626] text-white rounded-2xl flex h-full min-h-screen">
+  <section class="bg-[#262626] text-white rounded-2xl flex h-full ">
     <!-- Левая часть -->
     <div class="w-full border-r border-[#404040] pr-7 h-full flex flex-col overflow-y-auto">
       <SearchBar />
@@ -7,9 +7,12 @@
     </div>
 
     <!-- Правая часть -->
-    <div class="pl-[15px] flex flex-col w-[450px] h-full">
-      <ClientForm />
-      <DiscountSwitcher />
+    <div class="pl-[15px] flex flex-col justify-between w-[450px] h-full">
+      <div class=" flex flex-col">
+
+        <ClientForm />
+        <DiscountSwitcher />
+      </div>
       <Summary />
     </div>
   </section>
