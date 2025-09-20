@@ -1,3 +1,4 @@
+// store/cart.ts
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
@@ -18,26 +19,27 @@ export const useCartStore = defineStore("cart", () => {
       p.name.toLowerCase().includes(searchQuery.value.toLowerCase())
     )
   );
-function addToCart(product: any) {
-  const existing = cart.value.find((c) => c.id === product.id);
-  if (existing) {
-    existing.quantity += 1;
-  } else {
-    cart.value.push({
-      ...product,
-      quantity: 1,        // всегда есть количество
-      discountValue: 0,   // скидка по умолчанию
-      discountType: "%"   // тип скидки по умолчанию
-    });
+
+  function addToCart(product: any) {
+    const existing = cart.value.find((c) => c.id === product.id);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.value.push({
+        ...product,
+        quantity: 1,
+        discountValue: 0,   // скидка по умолчанию для этого товара
+        discountType: "%"   // тип скидки по умолчанию для этого товара
+      });
+    }
+    searchQuery.value = "";
   }
-  searchQuery.value = "";
-}
 
   function removeFromCart(id: number) {
     cart.value = cart.value.filter((c) => c.id !== id);
   }
 
-  /** 👉 обновить скидку для товара */
+  /** 👉 обновить скидку для конкретного товара */
   function updateDiscount(id: number, value: number, type: "%" | "uzs") {
     const product = cart.value.find((c) => c.id === id);
     if (product) {
@@ -46,12 +48,14 @@ function addToCart(product: any) {
     }
   }
 
-  /** Цена товара с учётом скидки */
+  /** Цена товара с учётом его собственной скидки */
   function itemFinalPrice(item: any) {
-    if (item.discountType === "%") {
-      return Math.max(0, item.price - (item.price * item.discountValue) / 100);
+    const dv = Number(item.discountValue || 0);
+    const dt = item.discountType || "%";
+    if (dt === "%") {
+      return Math.max(0, item.price - (item.price * dv) / 100);
     } else {
-      return Math.max(0, item.price - item.discountValue);
+      return Math.max(0, item.price - dv);
     }
   }
 
@@ -81,7 +85,7 @@ function addToCart(product: any) {
     addToCart,
     removeFromCart,
 
-    updateDiscount,
+    updateDiscount,    // <- возвращаем функцию обратно
     itemFinalPrice,
 
     subtotal,

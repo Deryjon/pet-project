@@ -42,28 +42,33 @@
       </div>
     </div>
   </template>
-  
-  <script setup lang="ts">
-  import { ref, computed } from "vue";
-  import { useCartStore } from "@/store/cart";
-  
-  const cartStore = useCartStore();
-  const activeSwitcher = ref(cartStore.discountType);
-  
-  const uzsOptions = ["50K", "100K", "500K", "1M"];
-  const percentOptions = ["15%", "30%", "50%", "75%"];
-  
-  const options = computed(() =>
-    activeSwitcher.value === "%" ? percentOptions : uzsOptions
-  );
-  
-  function setType(type: "%" | "uzs") {
-    activeSwitcher.value = type;
-    cartStore.discountType = type;
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { useCartStore } from "@/store/cart";
+
+const cartStore = useCartStore();
+const activeSwitcher = ref(cartStore.discountType);
+
+const uzsOptions = ["50000", "100000", "500000", "1000000"]; // лучше сразу числа
+const percentOptions = ["15", "30", "50", "75"]; // проценты без символов
+
+const options = computed(() =>
+  activeSwitcher.value === "%" ? percentOptions : uzsOptions
+);
+
+function setType(type: "%" | "uzs") {
+  activeSwitcher.value = type;
+  cartStore.discountType = type;
+  cartStore.discountValue = 0; // сбрасываем при переключении
+}
+
+function applyQuickDiscount(val: string) {
+  if (activeSwitcher.value === "%") {
+    cartStore.discountValue = parseInt(val.replace("%", "")); // "15%" → 15
+  } else {
+    cartStore.discountValue = parseInt(val.replace("K", "000").replace("M", "000000")); 
+    // "50K" → 50000, "1M" → 1000000
   }
-  
-  function applyQuickDiscount(val: string) {
-    cartStore.discountValue = Number(val);
-  }
-  </script>
-  
+}
+
+</script>

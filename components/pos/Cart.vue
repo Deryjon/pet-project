@@ -1,6 +1,7 @@
 <template>
   <div class="rounded-xl mt-[30px] relative">
     <!-- Заголовок -->
+
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h3 class="text-[36px] font-semibold">Корзина</h3>
@@ -12,7 +13,29 @@
       </div>
       <span class="text-[36px] font-bold text-[#bdbdbd]">#4046384943</span>
     </div>
-
+    <div class="sellers flex gap-4 mt-[15px]">
+      <button
+        class="all-sellers bg-[#1f78ff] hover:bg-[#4993dd] py-1 px-4 rounded-[20px]"
+      >
+        <span class="text-[16px] font-semibold"> Все продавцы </span>
+      </button>
+      <button
+        class="seller bg-[#404040] hover:bg-[#5e5e5e] py-1 px-4 rounded-[20px] flex items-center justify-center"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="#fff"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M8 0.25C3.71875 0.25 0.25 3.71875 0.25 8C0.25 12.2812 3.71875 15.75 8 15.75C12.2812 15.75 15.75 12.2812 15.75 8C15.75 3.71875 12.2812 0.25 8 0.25ZM12.5 8.875C12.5 9.09375 12.3125 9.25 12.125 9.25H9.25V12.125C9.25 12.3438 9.0625 12.5 8.875 12.5H7.125C6.90625 12.5 6.75 12.3438 6.75 12.125V9.25H3.875C3.65625 9.25 3.5 9.09375 3.5 8.875V7.125C3.5 6.9375 3.65625 6.75 3.875 6.75H6.75V3.875C6.75 3.6875 6.90625 3.5 7.125 3.5H8.875C9.0625 3.5 9.25 3.6875 9.25 3.875V6.75H12.125C12.3125 6.75 12.5 6.9375 12.5 7.125V8.875Z"
+            fill="#4993DD"
+          ></path>
+        </svg>
+      </button>
+    </div>
     <!-- пустая корзина -->
     <div
       v-if="cart.length === 0"
@@ -27,7 +50,7 @@
     <!-- список товаров -->
     <div
       v-else
-      class="mt-[20px] w-full max-h-[400px] overflow-y-auto rounded-[25px] p-[20px]"
+      class="mt-[20px] w-full max-h-[400px] overflow-y-auto rounded-[25px]"
     >
       <CartItem
         v-for="item in cart"
@@ -113,7 +136,11 @@ function closeDiscountPanel() {
 
 function applyDiscount() {
   if (editingItem.value) {
-    updateDiscount(editingItem.value.id, discountValue.value, discountType.value);
+    updateDiscount(
+      editingItem.value.id,
+      discountValue.value,
+      discountType.value
+    );
     closeDiscountPanel();
   }
 }
