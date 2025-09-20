@@ -46,13 +46,15 @@
   <div class="flex items-center gap-2">
     <!-- Если есть скидка -->
     <template v-if="finalPrice < props.item.price">
-      <span class="text-gray-400 line-through text-[14px]">
-        {{ formatPrice(props.item.price) }} UZS
-      </span>
-      <span class="text-[16px] font-bold text-green-400">
-        {{ formatPrice(finalPrice) }} UZS
-      </span>
-    </template>
+  <span class="text-gray-400 line-through text-[14px]">
+    {{ formatPrice(props.item.price) }} UZS
+  </span>
+  <span class="text-[16px] font-bold text-green-400">
+    {{ formatPrice(finalPrice) }} UZS
+  </span>
+</template>
+
+
 
     <!-- Если скидки нет -->
     <template v-else>
@@ -93,7 +95,7 @@ const props = defineProps<{ item: any }>();
 const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 
-const finalPrice = computed(() => store.itemFinalPrice(props.item));
+const finalPrice = computed(() => store.itemFinalPriceWithGlobal(props.item));
 </script>
 
 <style scoped>
