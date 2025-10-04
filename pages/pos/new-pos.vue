@@ -2,7 +2,7 @@
   <section class="bg-[#262626] text-white rounded-2xl flex h-full ">
     <!-- Левая часть -->
     <div class="w-full border-r border-[#404040] pr-7 h-full flex flex-col overflow-y-auto">
-      <SearchBar />
+      <SearchBar /> 
       <Cart />
     </div>
 
