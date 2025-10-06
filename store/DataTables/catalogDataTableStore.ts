@@ -1,49 +1,69 @@
 // store/catalogDataTableStore.ts
 import { defineStore } from "pinia";
 import { ref, computed, watch, h } from "vue";
-import { data } from "@/data"; // твой data.ts
 import {
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
   useVueTable,
 } from "@tanstack/vue-table";
+import { useProducts, type ProductDTO } from "~/composables/useProducts";
 
 export const useCatalogDataTableStore = defineStore(
   "catalogDataTableStore",
   () => {
-    // исходные данные и состояние
     const rawData = ref<any[]>([]);
     const globalFilter = ref("");
     const loading = ref(false);
 
-    // состояние таблицы (tanstack)
     const pagination = ref({ pageSize: 10, pageIndex: 0 });
     const sorting = ref<any[]>([]);
 
-    // сайдбар продукта
     const showProductSidebar = ref(false);
     const selectedProduct = ref<any | null>(null);
 
-    // загрузка данных (имитация)
-    async function fetchData() {
+    async function fetchData(params?: { search?: string; page?: number; pageSize?: number }) {
       loading.value = true;
       rawData.value = [];
-      await new Promise((r) => setTimeout(r, 200));
-      rawData.value = data; // берем из /data.ts
-      loading.value = false;
+      try {
+        const { listProducts } = useProducts();
+        const items = await listProducts({
+          search: params?.search || globalFilter.value || undefined,
+          page: params?.page ?? pagination.value.pageIndex + 1,
+          pageSize: params?.pageSize ?? pagination.value.pageSize,
+        });
+        rawData.value = (items as ProductDTO[]).map((p) => ({
+          id: p.id,
+          photo: p.photo || undefined,
+          name: p.name,
+          sku: p.sku,
+          barcode: p.barcode,
+          category: p.category?.name || "",
+          supplier:
+            Array.isArray(p.suppliers) && p.suppliers.length
+              ? p.suppliers.map((s) => s.name).join(", ")
+              : "",
+          quantity: p.quantity,
+          purchase_price: p.purchase_price,
+          sale_price: p.sale_price,
+          _original: p,
+        }));
+      } catch (e) {
+        console.error("Failed to load products", e);
+        rawData.value = [];
+      } finally {
+        loading.value = false;
+      }
     }
 
-    // сразу подгружаем данные
+    // initial load
     fetchData();
 
-    // при изменении фильтра — сбрасываем страницу и перезагружаем (как в твоём коде)
-    watch(globalFilter, async () => {
+    watch(globalFilter, async (val) => {
       pagination.value.pageIndex = 0;
-      await fetchData();
+      await fetchData({ search: val });
     });
 
-    // фильтрация (глобальный фильтр по всем полям)
     const filteredData = computed(() => {
       if (!globalFilter.value) return rawData.value;
       const q = globalFilter.value.toLowerCase();
@@ -52,7 +72,6 @@ export const useCatalogDataTableStore = defineStore(
       );
     });
 
-    // пагинация данных (выдаются на вход таблице)
     const paginatedProducts = computed(() => {
       const start = pagination.value.pageIndex * pagination.value.pageSize;
       return filteredData.value.slice(start, start + pagination.value.pageSize);
@@ -62,13 +81,11 @@ export const useCatalogDataTableStore = defineStore(
       Math.ceil(filteredData.value.length / pagination.value.pageSize)
     );
 
-    // placeholder для фото (использует import.meta.url)
     const placeholderImgUrl = new URL(
       "../../assets/images/placeholder_img.svg",
       import.meta.url
     ).href;
 
-    // колонки (включая чекбокс "select" и картинку)
     const columns: any[] = [
       {
         id: "select",
@@ -78,7 +95,6 @@ export const useCatalogDataTableStore = defineStore(
             class: "w-3.5 h-3.5 accent-[#4993dd] cursor-pointer",
             onChange: (e: Event) => {
               const checked = (e.target as HTMLInputElement).checked;
-              // table будет определён ниже — это нормальная замыкание
               table
                 .getRowModel()
                 .rows.forEach((row) => row.toggleSelected(checked));
@@ -111,7 +127,7 @@ export const useCatalogDataTableStore = defineStore(
       },
       { accessorKey: "name", header: "Наименование" },
       { accessorKey: "sku", header: "Артикул" },
-      { accessorKey: "barcode", header: "Баркод" },
+      { accessorKey: "barcode", header: "Штрихкод" },
       { accessorKey: "category", header: "Категория" },
       { accessorKey: "supplier", header: "Поставщик" },
       {
@@ -121,19 +137,18 @@ export const useCatalogDataTableStore = defineStore(
       },
       {
         accessorKey: "purchase_price",
-        header: "Цена поставки",
+        header: "Закупочная",
         cell: ({ getValue }: any) => `${getValue()} UZS`,
       },
       {
         accessorKey: "sale_price",
-        header: "Цена продажи",
+        header: "Продажная",
         cell: ({ getValue }: any) => `${getValue()} UZS`,
       },
     ];
 
-    // создаём таблицу TanStack
     const table = useVueTable({
-      data: filteredData, // таблица будет работать с фильтрованными данными (внутри используется pagination state)
+      data: filteredData,
       columns,
       getCoreRowModel: getCoreRowModel(),
       getSortedRowModel: getSortedRowModel(),
@@ -157,12 +172,10 @@ export const useCatalogDataTableStore = defineStore(
       },
     });
 
-    // массив выбранных ID (используется в goToActions)
     const selectedProducts = computed(() =>
       table.getSelectedRowModel().rows.map((row: any) => row.original.id)
     );
 
-    // открытие/закрытие сайдбара продукта
     function openProduct(product: any) {
       selectedProduct.value = product;
       showProductSidebar.value = true;
@@ -172,7 +185,6 @@ export const useCatalogDataTableStore = defineStore(
       showProductSidebar.value = false;
     }
 
-    // Удобные прокси-методы для шаблонов (по желанию можно вызывать table.nextPage() напрямую)
     function previousPage() {
       table.previousPage();
     }
@@ -181,7 +193,6 @@ export const useCatalogDataTableStore = defineStore(
     }
 
     return {
-      // данные / состояние
       rawData,
       globalFilter,
       loading,
@@ -190,21 +201,16 @@ export const useCatalogDataTableStore = defineStore(
       filteredData,
       paginatedProducts,
       totalPages,
-
-      // tanstack table
       table,
-
-      // selection / sidebar
       selectedProduct,
       showProductSidebar,
       selectedProducts,
       openProduct,
       closeProductSidebar,
-
-      // методы
       fetchData,
       previousPage,
       nextPage,
     };
   }
 );
+

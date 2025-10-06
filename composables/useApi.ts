@@ -7,6 +7,12 @@ export function useApi() {
   const apiBase = config.public.apiBase as string;
 
   async function apiFetch<T>(path: string, opts: Parameters<typeof $fetch<T>>[1] = {}) {
+    // Ensure token is loaded on client before first request
+    if (!user.token && typeof window !== 'undefined') {
+      try {
+        user.loadToken();
+      } catch {}
+    }
     const headers = {
       ...(opts?.headers as Record<string, string> | undefined),
       ...(user.token ? { Authorization: `Bearer ${user.token}` } : {}),
@@ -23,4 +29,3 @@ export function useApi() {
 
   return { apiBase, apiFetch };
 }
-
