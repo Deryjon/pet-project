@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 const router = useRouter()
+const emit = defineEmits<{ (e: 'create'): void }>()
 </script>
 
 <template>
@@ -16,7 +17,7 @@ const router = useRouter()
           </div>
           <h2 class="text-[28px] font-bold">Новый продукт</h2>
         </div>
-        <button
+        <button @click="emit('create')"
           class="bg-[#1f78ff] px-[30px] py-[12px] text-[16px] font-semibold rounded-[20px] transition-all duration-300 hover:bg-[#4d94ff]"
         >
           Создать

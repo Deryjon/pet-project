@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 export const useProductStore = defineStore('product', {
   state: () => ({
+    name: '' as string,
     selectedProductType: 'Товар',
     selectedVariant: 'Простой',
     productTypes: ['Товар', 'Услуга'],
@@ -16,6 +17,10 @@ export const useProductStore = defineStore('product', {
     ],
     article: '',
     barcode: '',
+    purchase_price: 0 as number,
+    sale_price: 0 as number,
+    markup_percent: 0 as number,
+    branch_code: '' as string,
     isUnitOpen: false,
     isCategoryOpen: false,
   }),
