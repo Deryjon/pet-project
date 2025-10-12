@@ -13,9 +13,10 @@ export function useApi() {
         user.loadToken();
       } catch {}
     }
+    const isAuthApi = typeof path === 'string' && path.startsWith('/auth');
     const headers = {
       ...(opts?.headers as Record<string, string> | undefined),
-      ...(user.token ? { Authorization: `Bearer ${user.token}` } : {}),
+      ...(user.token && !isAuthApi ? { Authorization: `Bearer ${user.token}` } : {}),
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };

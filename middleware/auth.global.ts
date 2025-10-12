@@ -1,9 +1,19 @@
 import { useUserStore } from "~/store/useUserStore";
 
-export default defineNuxtRouteMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware((to) => {
+  if (process.server) return;
+
   const userStore = useUserStore();
 
-//   if (!userStore.isLoggedIn && !["/auth/login", "/auth/register"].includes(to.path)) {
-//     return navigateTo("/auth/login");
-//   }
+  try {
+    userStore.loadToken();
+  } catch (_) {
+    // ignore localStorage access issues
+  }
+
+  const isAuthRoute = to.path.startsWith("/auth");
+
+  if (!userStore.isLoggedIn && !isAuthRoute) {
+    return navigateTo("/auth/register");
+  }
 });
