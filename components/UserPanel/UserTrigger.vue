@@ -14,7 +14,7 @@
     <!-- Показываем инфо только если меню открыто -->
     <div v-if="!collapsed" class="user-info">
       <p class="text-white truncate max-w-[120px]">
-        {{ user.name }}
+        {{ fullName || user.username || user.name || "..." }}
       </p>
       <p class="text-[#bdbdbd] truncate max-w-[120px]">
         {{ selectedLocation?.name || "..." }}
@@ -30,7 +30,7 @@ import { useLocationStore } from "@/store/useLocationStore";
 import { useSidebarStore } from "../../store/useSidebar"; // 👈 подключаем pinia
 
 const { selectedLocation } = storeToRefs(useLocationStore());
-const { user } = storeToRefs(useUserStore());
+const { user, fullName } = storeToRefs(useUserStore());
 const { collapsed } = storeToRefs(useSidebarStore());
 
 defineEmits(["toggle"]);

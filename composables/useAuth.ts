@@ -27,6 +27,10 @@ export function useAuth() {
     const token = res?.token || res?.access_token || res?.data?.token;
     if (token) user.setToken(token);
     if (res?.user) user.setUser(res.user);
+    // Always fetch fresh user profile from backend once token is set
+    if (token) {
+      await user.fetchMe();
+    }
     return res;
   }
 
@@ -39,4 +43,3 @@ export function useAuth() {
 
   return { login, register };
 }
-

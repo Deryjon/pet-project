@@ -13,10 +13,12 @@ export function useApi() {
         user.loadToken();
       } catch {}
     }
-    const isAuthApi = typeof path === 'string' && path.startsWith('/auth');
+    // Only these auth endpoints are tokenless
+    const tokenlessAuth = ['/auth/login', '/auth/register'];
+    const needsToken = !!user.token && !tokenlessAuth.some(p => typeof path === 'string' && (path === p || (path as string).startsWith(p + '/')));
     const headers = {
       ...(opts?.headers as Record<string, string> | undefined),
-      ...(user.token && !isAuthApi ? { Authorization: `Bearer ${user.token}` } : {}),
+      ...(needsToken ? { Authorization: `Bearer ${user.token}` } : {}),
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };

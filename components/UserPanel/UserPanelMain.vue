@@ -7,7 +7,7 @@ import ChangeShop from "../ChangeShop.vue";
 import ConfirmLogout from "./ConfirmLogout.vue"
 
 const panel = usePanelStore();
-const { user } = storeToRefs(useUserStore());
+const { user, fullName } = storeToRefs(useUserStore());
 const { selectedLocation } = storeToRefs(useLocationStore());
 </script>
 
@@ -33,7 +33,7 @@ const { selectedLocation } = storeToRefs(useLocationStore());
           class="rounded-full w-[40px] h-[40px] object-cover"
         />
         <div>
-          <p class="text-white truncate max-w-[300px]">{{ user.name }}</p>
+          <p class="text-white truncate max-w-[300px]">{{ fullName || user.username || user.name || "..." }}</p>
           <p class="text-[#bdbdbd] truncate max-w-[300px]">
             {{ selectedLocation?.name || "..." }}
           </p>
