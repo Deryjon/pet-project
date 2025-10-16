@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch, h } from "vue";
+import { useRouter } from "vue-router";
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -25,6 +26,7 @@ type RawEmployee = {
 export const useEmployeesDataTableStore = defineStore(
   "employeesDataTableStore",
   () => {
+    const router = useRouter();
     const { apiFetch } = useApi();
 
     const rawData = ref<any[]>([]);
@@ -112,7 +114,8 @@ export const useEmployeesDataTableStore = defineStore(
 
     function editEmployee(row: any) {
       const id = idFor(row);
-      if (id) navigateTo(`/management/create-employees?edit=${encodeURIComponent(String(id))}`);
+      if (!id) return;
+      router.push(`/management/employees/${encodeURIComponent(String(id))}`);
     }
 
     const columns: any[] = [
@@ -234,4 +237,3 @@ export const useEmployeesDataTableStore = defineStore(
     };
   }
 );
-
