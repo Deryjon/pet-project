@@ -124,10 +124,10 @@ const selectOption = (code: string) => {
 
     <p v-if="serverError" class="text-center text-sm text-red-400">{{ serverError }}</p>
 
-    <p class="text-center text-sm text-[#aaa]">
+    <!-- <p class="text-center text-sm text-[#aaa]">
       Нет аккаунта?
       <NuxtLink to="/auth/register" class="text-blue-400 hover:underline">Зарегистрироваться</NuxtLink>
-    </p>
+    </p> -->
   </div>
   
 </template>

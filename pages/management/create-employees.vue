@@ -1,51 +1,44 @@
 <script setup lang="ts">
 import { useForm, useField } from "vee-validate";
 import * as yup from "yup";
-import { ref, watch } from "vue";
-import { useAuth } from "~/composables/useAuth";
+import { ref, watch, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useHead } from "#imports";
+import { useApi } from "~/composables/useApi";
 
 useHead({ title: "Создать сотрудника | Konkurent.cases" });
 
 const schema = yup.object({
-  username: yup.string().required("Имя пользователя обязательно"),
   countryCode: yup.string().required("Код страны обязателен"),
   phone: yup
     .string()
-    .required("Номер телефона обязателен")
+    .required("Телефон обязателен")
     .matches(/^\d{2} \d{3} \d{2} \d{2}$/, "Формат: 90 123 45 67"),
   password: yup
     .string()
     .required("Пароль обязателен")
     .min(6, "Минимум 6 символов"),
   role: yup.string().required("Роль обязательна"),
-  branch_code: yup.string().required("Код филиала обязателен"),
+  branch_code: yup.string().required("Филиал обязателен"),
 });
 
 const { handleSubmit } = useForm({ validationSchema: schema });
 
-const { value: username, errorMessage: usernameError } = useField("username");
-const { value: countryCode, errorMessage: codeError } = useField(
-  "countryCode",
-  undefined,
-  { initialValue: "+998" }
-);
+const { value: countryCode, errorMessage: codeError } = useField("countryCode", undefined, { initialValue: "+998" });
 const { value: phone, errorMessage: phoneError } = useField("phone");
 const { value: password, errorMessage: passwordError } = useField("password");
-const { value: role, errorMessage: roleError } = useField(
-  "role",
-  undefined,
-  { initialValue: "employee" }
-);
-const { value: branch_code, errorMessage: branchError } = useField(
-  "branch_code",
-  undefined,
-  { initialValue: "branch_a" }
-);
+const { value: role, errorMessage: roleError } = useField("role", undefined, { initialValue: "employee" });
+const { value: branch_code, errorMessage: branchError } = useField("branch_code", undefined, { initialValue: "branch_a" });
 
-const formatPhone = (input: string) => {
-  const numbersOnly = input.replace(/\D/g, "");
+// Additional fields for detailed employee payload
+const first_name = ref("");
+const last_name = ref("");
+const birth_date = ref(""); // e.g. 12.06.2004
+const branch_location = ref("");
+
+const formatPhone = (input: string | undefined | null) => {
+  const src = typeof input === 'string' ? input : '';
+  const numbersOnly = src.replace(/\D/g, "");
   const parts: string[] = [];
   if (numbersOnly.length > 0) parts.push(numbersOnly.slice(0, 2));
   if (numbersOnly.length > 2) parts.push(numbersOnly.slice(2, 5));
@@ -61,56 +54,70 @@ watch(phone, (newVal) => {
 const loading = ref(false);
 const serverError = ref<string | null>(null);
 const serverOk = ref<string | null>(null);
-const auth = useAuth();
 const router = useRouter();
+const { apiFetch } = useApi();
 
-// Регистрация сотрудника (как в auth/register, но редирект в список сотрудников)
+// Prepare object in requested shape for /users/add
+const preparedData = computed(() => {
+  const code = (countryCode.value ? String(countryCode.value) : '').replace(/^\+/, "");
+  const digits = (phone.value ? String(phone.value) : '').replace(/\D/g, "");
+  const fullPhone = `${code}${digits}`;
+  return {
+    first_name: String(first_name.value || ""),
+    last_name: String(last_name.value || ""),
+    birth_date: String(birth_date.value || ""),
+    password: String(password.value || ""),
+    phone_number: String(fullPhone),
+    role: String(role.value || ""),
+    branch_location: String(branch_location.value || branch_code.value || ""),
+  } as any;
+});
+
 const onSubmit = handleSubmit(async () => {
   serverError.value = null;
   serverOk.value = null;
   loading.value = true;
   try {
-    const fullPhone = `${countryCode.value.replace(/^\+/, "")}${phone.value.replace(/\D/g, "")}`;
-    await auth.register({
-      phone_number: fullPhone,
-      password: String(password.value),
-      role: String(role.value),
-      branch_code: String(branch_code.value),
+    await apiFetch('/users/add', {
+      method: 'POST',
+      body: preparedData.value,
     });
-    serverOk.value = "Сотрудник создан успешно";
-    setTimeout(() => router.push("/management/employees"), 800);
+    serverOk.value = 'Сотрудник добавлен';
+    setTimeout(() => router.push('/management/employees'), 800);
   } catch (e: any) {
-    serverError.value = e?.data?.message || e?.message || "Ошибка регистрации";
+    serverError.value = e?.data?.message || e?.message || 'Ошибка сохранения';
   } finally {
     loading.value = false;
   }
 });
-
-const showDropdown = ref(false);
-const options = ["+998", "+7", "+1"];
-const selectOption = (code: string) => {
-  countryCode.value = code;
-  showDropdown.value = false;
-};
 </script>
 
 <template>
   <section class="w-full max-w-[720px] text-white">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="font-bold text-2xl">Новый сотрудник</h2>
+      <h2 class="font-bold text-2xl">Создать сотрудника</h2>
       <NuxtLink to="/management/employees" class="text-blue-400 hover:underline">К списку сотрудников</NuxtLink>
     </div>
 
     <form @submit.prevent="onSubmit" class="flex flex-col gap-5 bg-[#262626] p-8 rounded-2xl shadow-xl">
-      <div class="flex flex-col gap-2">
-        <label class="block font-medium">Имя пользователя</label>
-        <input
-          v-model="username"
-          type="text"
-          placeholder="employee_1"
-          :class="['w-full bg-[#404040] rounded-[12px] px-4 py-3 focus:outline-none focus:ring-2', usernameError ? 'ring-red-500' : 'focus:ring-blue-500']"
-        />
-        <p v-if="usernameError" class="text-sm text-red-400">{{ usernameError }}</p>
+      <!-- Extra fields to build full employee payload -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-2">
+          <label class="block font-medium">Имя (first_name)</label>
+          <input v-model="first_name" type="text" placeholder="Ivan" class="w-full bg-[#404040] rounded-[12px] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="flex flex-col gap-2">
+          <label class="block font-medium">Фамилия (last_name)</label>
+          <input v-model="last_name" type="text" placeholder="Petrov" class="w-full bg-[#404040] rounded-[12px] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="flex flex-col gap-2 md:col-span-2">
+          <label class="block font-medium">Дата рождения (birth_date, дд.мм.гггг)</label>
+          <input v-model="birth_date" type="text" placeholder="12.06.2004" class="w-full bg-[#404040] rounded-[12px] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="flex flex-col gap-2 md:col-span-2">
+          <label class="block font-medium">Филиал (branch_location)</label>
+          <input v-model="branch_location" type="text" placeholder="branch_a" class="w-full bg-[#404040] rounded-[12px] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
       </div>
 
       <div class="flex flex-col gap-2">
@@ -165,7 +172,7 @@ const selectOption = (code: string) => {
           <p v-if="roleError" class="text-sm text-red-400">{{ roleError }}</p>
         </div>
         <div class="flex-1 flex flex-col gap-2">
-          <label class="block font-medium">Код филиала</label>
+          <label class="block font-medium">Код филиала (branch_code)</label>
           <input
             v-model="branch_code"
             type="text"
@@ -177,12 +184,18 @@ const selectOption = (code: string) => {
       </div>
 
       <button type="submit" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition p-4 rounded-[12px] font-semibold text-white shadow-md">
-        {{ loading ? 'Создаём…' : 'Создать сотрудника' }}
+        {{ loading ? 'Сохранение...' : 'Создать сотрудника' }}
       </button>
     </form>
 
     <p v-if="serverError" class="mt-3 text-sm text-red-400">{{ serverError }}</p>
     <p v-if="serverOk" class="mt-3 text-sm text-green-400">{{ serverOk }}</p>
+
+    <!-- Preview of prepared data object -->
+    <div class="mt-4 bg-[#1f1f1f] text-white p-4 rounded-lg">
+      <p class="font-semibold mb-2">Подготавливаемые данные:</p>
+      <pre class="text-sm whitespace-pre-wrap">{{ preparedData }}</pre>
+    </div>
   </section>
 </template>
 
