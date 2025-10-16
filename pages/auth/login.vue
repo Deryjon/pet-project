@@ -43,7 +43,7 @@ const onSubmit = handleSubmit(async () => {
   loading.value = true;
   try {
     const fullPhone = `${countryCode.value.replace(/^\+/, "")}${phone.value.replace(/\D/g, "")}`;
-    await auth.login({ phone: fullPhone, password: String(password.value) });
+    await auth.login({ phone_number: fullPhone, password: String(password.value) });
     router.push("/");
   } catch (e: any) {
     serverError.value = e?.data?.message || e?.message || "Ошибка входа";
