@@ -5,7 +5,6 @@ export const useUserStore = defineStore("user", {
   state: () => ({
     user: {
       id: null as number | null,
-      username: "" as string,
       firstName: "" as string,
       lastName: "" as string,
       birthYear: null as number | null,
@@ -32,7 +31,6 @@ export const useUserStore = defineStore("user", {
       // Accept both legacy and API shapes and normalize
       const normalized = {
         id: user?.id ?? null,
-        username: user?.username ?? "",
         firstName: user?.first_name ?? user?.firstName ?? "",
         lastName: user?.last_name ?? user?.lastName ?? "",
         birthYear: user?.birth_year ?? user?.birthYear ?? null,
@@ -115,7 +113,6 @@ export const useUserStore = defineStore("user", {
     logout() {
       this.user = {
         id: null,
-        username: "",
         firstName: "",
         lastName: "",
         birthYear: null,

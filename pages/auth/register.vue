@@ -53,7 +53,7 @@ const onSubmit = handleSubmit(async () => {
     const fullPhone = `${countryCode.value.replace(/^\+/, "")}${phone.value.replace(/\D/g, "")}`;
     await auth.register({
       username: String(username.value),
-      phone: fullPhone,
+      phone_number: fullPhone,
       password: String(password.value),
       role: String(role.value),
       branch_code: String(branch_code.value),
@@ -136,4 +136,5 @@ const selectOption = (code: string) => {
     </p>
   </div>
 </template>
+
 

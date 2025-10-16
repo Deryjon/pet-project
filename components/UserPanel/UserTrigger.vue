@@ -11,10 +11,10 @@
       class="rounded-full w-[40px] h-[40px] object-cover"
     />
 
-    <!-- Показываем инфо только если меню открыто -->
+    <!--Показываеминфотолькоеслименюоткрыто-->
     <div v-if="!collapsed" class="user-info">
       <p class="text-white truncate max-w-[120px]">
-        {{ fullName || user.username || user.name || "..." }}
+        {{ fullName || user.name || "..." }}
       </p>
       <p class="text-[#bdbdbd] truncate max-w-[120px]">
         {{ selectedLocation?.name || "..." }}
@@ -27,7 +27,7 @@
 import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
-import { useSidebarStore } from "../../store/useSidebar"; // 👈 подключаем pinia
+import { useSidebarStore } from "../../store/useSidebar"; //👈подключаемpinia
 
 const { selectedLocation } = storeToRefs(useLocationStore());
 const { user, fullName } = storeToRefs(useUserStore());

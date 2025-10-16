@@ -8,12 +8,10 @@ useHead({ title: 'Редактирование сотрудника | Konkurent.
 
 type User = {
   id?: number | string;
-  username?: string;
   first_name?: string;
   last_name?: string;
   branch_location?: string;
   branch_code?: string;
-  phone?: string;
   phone_number?: string;
 };
 
@@ -45,7 +43,7 @@ async function fetchUser() {
     firstName.value = user?.first_name || '';
     lastName.value = user?.last_name || '';
     branch.value = user?.branch_location || user?.branch_code || '';
-    const rawPhone = user?.phone_number || user?.phone || '';
+    const rawPhone = user?.phone_number || '';
     phone.value = String(rawPhone || '');
   } catch (e: any) {
     serverError.value = e?.data?.message || e?.message || 'Не удалось загрузить пользователя';
@@ -173,4 +171,3 @@ function goBack() {
 <style scoped>
 input::placeholder { color: #bdbdbd; }
 </style>
-

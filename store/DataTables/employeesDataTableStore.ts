@@ -11,13 +11,12 @@ import { useApi } from "~/composables/useApi";
 
 type RawEmployee = {
   id?: number | string;
-  username?: string;
   first_name?: string;
   last_name?: string;
   firstName?: string;
   lastName?: string;
   name?: string;
-  phone?: string;
+  phone_number?: string;
   role?: string;
   branch_code?: string;
   branchCode?: string;
@@ -73,9 +72,9 @@ export const useEmployeesDataTableStore = defineStore(
             (u.last_name || u.lastName ? ` ${u.last_name || u.lastName}` : "")
           ).trim();
           return {
-            id: u.id ?? u.username ?? u.phone,
-            name: (u.name || fullName || u.username || "").trim(),
-            phone: u.phone || "",
+            id: u.id ?? u.phone_number,
+            name: (u.name || fullName || "").trim(),
+            phone_number: u.phone_number || "",
             role: u.role || "",
             branch: u.branch_code || u.branchCode || "",
             _original: u,
@@ -92,7 +91,7 @@ export const useEmployeesDataTableStore = defineStore(
     });
 
     function idFor(row: any) {
-      return row?.id ?? row?._original?.id ?? row?._original?.username ?? row?._original?.phone;
+      return row?.id ?? row?._original?.id ?? row?._original?.phone_number;
     }
 
     async function deleteEmployee(row: any) {
@@ -144,7 +143,7 @@ export const useEmployeesDataTableStore = defineStore(
         size: 40,
       },
       { accessorKey: "name", header: "Имя" },
-      { accessorKey: "phone", header: "Телефон" },
+      { accessorKey: "phone_number", header: "Телефон" },
       { accessorKey: "role", header: "Роль" },
       { accessorKey: "branch", header: "Филиал" },
       {
@@ -237,3 +236,4 @@ export const useEmployeesDataTableStore = defineStore(
     };
   }
 );
+

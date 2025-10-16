@@ -32,4 +32,3 @@ input::placeholder {
   color: #bdbdbd;
 }
 </style>
-~/store/DataTables/inventoryDataTableStore

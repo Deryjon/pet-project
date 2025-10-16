@@ -72,8 +72,7 @@ const onSubmit = handleSubmit(async () => {
   try {
     const fullPhone = `${countryCode.value.replace(/^\+/, "")}${phone.value.replace(/\D/g, "")}`;
     await auth.register({
-      username: String(username.value),
-      phone: fullPhone,
+      phone_number: fullPhone,
       password: String(password.value),
       role: String(role.value),
       branch_code: String(branch_code.value),
