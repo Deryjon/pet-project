@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { useSuppliersDataTableStore } from "@/store/DataTables/suppliersDataTableStore";
+import { useEmployeesDataTableStore } from "@/store/DataTables/employeesDataTableStore";
 import BaseDataTable from "@/components/BaseDataTable.vue";
 
-const store = useSuppliersDataTableStore();
-
+const store = useEmployeesDataTableStore();
 </script>
 
 <template>
   <BaseDataTable :table="store.table" :store="store" />
+  
 </template>
+
 <style>
 table {
   width: 100%;
@@ -32,3 +33,4 @@ input::placeholder {
   color: #bdbdbd;
 }
 </style>
+

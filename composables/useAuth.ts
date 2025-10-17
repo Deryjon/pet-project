@@ -2,13 +2,12 @@ import { useUserStore } from "~/store/useUserStore";
 import { useApi } from "~/composables/useApi";
 
 export interface LoginPayload {
-  phone: string;
+  phone_number: string;
   password: string;
 }
 
 export interface RegisterPayload {
-  username: string;
-  phone: string;
+  phone_number: string;
   password: string;
   role: string;
   branch_code: string;
@@ -21,7 +20,10 @@ export function useAuth() {
   async function login(payload: LoginPayload) {
     const res: any = await apiFetch("/auth/login", {
       method: "POST",
-      body: payload,
+      body: {
+        phone_number: String(payload.phone_number),
+        password: payload.password,
+      },
     });
 
     const token = res?.token || res?.access_token || res?.data?.token;
@@ -37,7 +39,12 @@ export function useAuth() {
   async function register(payload: RegisterPayload) {
     return apiFetch("/auth/register", {
       method: "POST",
-      body: payload,
+      body: {
+        phone_number: String(payload.phone_number),
+        password: payload.password,
+        role: payload.role,
+        branch_code: payload.branch_code,
+      },
     });
   }
 
