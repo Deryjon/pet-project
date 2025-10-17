@@ -4,7 +4,7 @@ import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
 import BaseButton from "../ui/BaseButton.vue";
 import ChangeShop from "../ChangeShop.vue";
-import ConfirmLogout from "./ConfirmLogout.vue"
+import ConfirmLogout from "./ConfirmLogout.vue";
 
 const panel = usePanelStore();
 const { user, fullName } = storeToRefs(useUserStore());
@@ -33,7 +33,9 @@ const { selectedLocation } = storeToRefs(useLocationStore());
           class="rounded-full w-[40px] h-[40px] object-cover"
         />
         <div>
-          <p class="text-white truncate max-w-[300px]">{{ fullName || user.username || user.name || "..." }}</p>
+          <p class="text-white truncate max-w-[300px]">
+            {{ fullName || user.username || user.name || "..." }}
+          </p>
           <p class="text-[#bdbdbd] truncate max-w-[300px]">
             {{ selectedLocation?.name || "..." }}
           </p>
@@ -111,5 +113,4 @@ const { selectedLocation } = storeToRefs(useLocationStore());
   transform: translateX(0%);
   opacity: 1;
 }
-
 </style>

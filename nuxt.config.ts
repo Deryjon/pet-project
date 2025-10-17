@@ -13,7 +13,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       // Can be overridden by NUXT_PUBLIC_API_BASE
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000/api',
+      // apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://test-pdvcbwrha-iskandars-projects-1875bffc.vercel.app/api/',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://konkurentcases.vercel.app/api/',
     },
   },
 })
