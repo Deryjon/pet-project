@@ -8,22 +8,29 @@ import { useRouter } from "vue-router";
 definePageMeta({ layout: "auth" });
 
 const schema = yup.object({
-  username: yup.string().required("Имя обязательно"),
-  countryCode: yup.string().required("Выберите код"),
-  phone: yup.string().required("Телефон обязателен").matches(/^\d{2} \d{3} \d{2} \d{2}$/, "Неверный формат"),
-  password: yup.string().required("Пароль обязателен").min(6, "Минимум 6 символов"),
-  role: yup.string().required("Роль обязательна"),
-  branch_code: yup.string().required("Код филиала обязателен"),
+  first_name: yup.string().required("Required"),
+  last_name: yup.string().required("Required"),
+  birth_date: yup.string().required("Required"),
+  countryCode: yup.string().required("Required"),
+  phone: yup
+    .string()
+    .required("Required")
+    .matches(/^\d{2} \d{3} \d{2} \d{2}$/, "Format: 90 123 45 67"),
+  password: yup.string().required("Required").min(6, "Min 6 chars"),
+  role: yup.string().required("Required"),
+  branch_location: yup.string().required("Required"),
 });
 
 const { handleSubmit } = useForm({ validationSchema: schema });
 
-const { value: username, errorMessage: usernameError } = useField("username");
+const { value: first_name, errorMessage: firstNameError } = useField("first_name");
+const { value: last_name, errorMessage: lastNameError } = useField("last_name");
+const { value: birth_date, errorMessage: birthDateError } = useField("birth_date");
 const { value: countryCode, errorMessage: codeError } = useField("countryCode", undefined, { initialValue: "+998" });
 const { value: phone, errorMessage: phoneError } = useField("phone");
 const { value: password, errorMessage: passwordError } = useField("password");
-const { value: role, errorMessage: roleError } = useField("role", undefined, { initialValue: "admin" });
-const { value: branch_code, errorMessage: branchError } = useField("branch_code", undefined, { initialValue: "branch_a" });
+const { value: role, errorMessage: roleError } = useField("role", undefined, { initialValue: "user" });
+const { value: branch_location, errorMessage: branchError } = useField("branch_location", undefined, { initialValue: "branch_a" });
 
 const formatPhone = (input: string) => {
   const numbersOnly = input.replace(/\D/g, "");
@@ -52,16 +59,18 @@ const onSubmit = handleSubmit(async () => {
   try {
     const fullPhone = `${countryCode.value.replace(/^\+/, "")}${phone.value.replace(/\D/g, "")}`;
     await auth.register({
-      username: String(username.value),
-      phone: fullPhone,
-      password: String(password.value),
+      first_name: String(first_name.value),
+      last_name: String(last_name.value),
+      birth_date: String(birth_date.value),
+      phone_number: fullPhone,
       role: String(role.value),
-      branch_code: String(branch_code.value),
+      branch_location: String(branch_location.value),
+      password: String(password.value),
     });
-    serverOk.value = "Регистрация успешна. Теперь войдите.";
+    serverOk.value = "Registration successful. Redirecting to login...";
     setTimeout(() => router.push("/auth/login"), 800);
   } catch (e: any) {
-    serverError.value = e?.data?.message || e?.message || "Ошибка регистрации";
+    serverError.value = e?.data?.message || e?.message || "Registration failed";
   } finally {
     loading.value = false;
   }
@@ -79,17 +88,27 @@ const selectOption = (code: string) => {
   <div class="login-box w-full max-w-[560px] bg-[#262626] px-10 py-12 rounded-[40px] text-white flex flex-col gap-8 shadow-2xl">
     <div class="top flex flex-col gap-2">
       <h2 class="font-bold text-lg">Konkurent.cases</h2>
-      <h2 class="font-bold text-3xl">Регистрация</h2>
+      <h2 class="font-bold text-3xl">Register</h2>
     </div>
 
     <form @submit.prevent="onSubmit" class="flex flex-col gap-5">
       <div class="flex flex-col gap-2">
-        <label class="block font-medium">Имя</label>
-        <input v-model="username" type="text" placeholder="Admin" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', usernameError ? 'ring-red-500' : 'focus:ring-blue-500']" />
+        <label class="block font-medium">First Name</label>
+        <input v-model="first_name" type="text" placeholder="Ivan" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', firstNameError ? 'ring-red-500' : 'focus:ring-blue-500']" />
       </div>
 
       <div class="flex flex-col gap-2">
-        <label class="block font-medium">Номер телефона</label>
+        <label class="block font-medium">Last Name</label>
+        <input v-model="last_name" type="text" placeholder="Petrov" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', lastNameError ? 'ring-red-500' : 'focus:ring-blue-500']" />
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label class="block font-medium">Birth Date</label>
+        <input v-model="birth_date" type="text" placeholder="12.06.2004" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', birthDateError ? 'ring-red-500' : 'focus:ring-blue-500']" />
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label class="block font-medium">Phone</label>
         <div class="flex">
           <div class="relative w-[110px]">
             <button type="button" @click="showDropdown = !showDropdown" class="w-full bg-[#404040] text-white rounded-l-xl px-4 py-3 flex justify-between items-center transition-all duration-200" :class="codeError ? 'ring-2 ring-red-500' : 'focus:ring-2 focus:ring-blue-500'">
@@ -102,28 +121,28 @@ const selectOption = (code: string) => {
               </ul>
             </transition>
           </div>
-          <input v-model="phone" type="tel" placeholder="90 123 45 67" :class="['flex-1 bg-[#404040] border-l text-white placeholder-gray-400  rounded-r-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all', phoneError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500']" />
+          <input v-model="phone" type="tel" placeholder="90 123 45 67" :class="['flex-1 bg-[#404040] border-l text-white placeholder-gray-400 rounded-r-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all', phoneError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500']" />
         </div>
       </div>
 
       <div class="flex flex-col gap-2">
-        <label class="block font-medium">Пароль</label>
-        <input v-model="password" type="password" placeholder="Ваш пароль" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', passwordError ? 'ring-red-500' : 'focus:ring-blue-500']" />
+        <label class="block font-medium">Password</label>
+        <input v-model="password" type="password" placeholder="••••••" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', passwordError ? 'ring-red-500' : 'focus:ring-blue-500']" />
       </div>
 
       <div class="flex gap-4">
         <div class="flex-1 flex flex-col gap-2">
-          <label class="block font-medium">Роль</label>
-          <input v-model="role" type="text" placeholder="admin" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', roleError ? 'ring-red-500' : 'focus:ring-blue-500']" />
+          <label class="block font-medium">Role</label>
+          <input v-model="role" type="text" placeholder="user" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', roleError ? 'ring-red-500' : 'focus:ring-blue-500']" />
         </div>
         <div class="flex-1 flex flex-col gap-2">
-          <label class="block font-medium">Код филиала</label>
-          <input v-model="branch_code" type="text" placeholder="branch_a" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', branchError ? 'ring-red-500' : 'focus:ring-blue-500']" />
+          <label class="block font-medium">Branch Location</label>
+          <input v-model="branch_location" type="text" placeholder="branch_a" :class="['w-full bg-[#404040] rounded-[15px] px-4 py-3 focus:outline-none focus:ring-2', branchError ? 'ring-red-500' : 'focus:ring-blue-500']" />
         </div>
       </div>
 
       <button type="submit" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition p-4 rounded-[15px] font-semibold text-white shadow-md">
-        {{ loading ? 'Отправляем...' : 'Зарегистрироваться' }}
+        {{ loading ? 'Registering...' : 'Register' }}
       </button>
     </form>
 
@@ -131,8 +150,8 @@ const selectOption = (code: string) => {
     <p v-if="serverOk" class="text-center text-sm text-green-400">{{ serverOk }}</p>
 
     <p class="text-center text-sm text-[#aaa]">
-      Уже есть аккаунт?
-      <NuxtLink to="/auth/login" class="text-blue-400 hover:underline">Войти</NuxtLink>
+      Already have an account?
+      <NuxtLink to="/auth/login" class="text-blue-400 hover:underline">Sign in</NuxtLink>
     </p>
   </div>
 </template>
