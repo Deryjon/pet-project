@@ -18,19 +18,4 @@ export default defineNuxtConfig({
       // Example local backend: 'http://127.0.0.1:8000/api'
     },
   },
-  // Proxy external API to same-origin path so cookies and CSRF work on localhost.
-  nitro: {
-    routeRules: {
-      '/api/**': {
-        proxy: 'https://konkurentcases.vercel.app/api/**',
-      },
-    },
-    // Ensure proxy also works in local dev server
-    devProxy: {
-      '/api': {
-        target: 'https://konkurentcases.vercel.app/api',
-        changeOrigin: true,
-      },
-    },
-  },
 })
