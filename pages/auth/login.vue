@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, useField } from "vee-validate";
 import * as yup from "yup";
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useAuth } from "~/composables/useAuth";
 import { useRouter } from "vue-router";
 
@@ -17,6 +17,7 @@ const { handleSubmit } = useForm({ validationSchema: schema });
 
 const { value: countryCode, errorMessage: codeError } = useField("countryCode", undefined, { initialValue: "+998" });
 const { value: phone, errorMessage: phoneError } = useField("phone");
+const phoneGroupError = computed(() => !!codeError.value || !!phoneError.value);
 const { value: password, errorMessage: passwordError } = useField("password");
 
 const formatPhone = (input: string) => {
@@ -70,13 +71,18 @@ const selectOption = (code: string) => {
     <form @submit.prevent="onSubmit" class="flex flex-col gap-6">
       <div class="flex flex-col gap-2">
         <label for="phone" class="block font-medium">Номер телефона</label>
-        <div class="flex">
+        <div
+          :class="[
+            'flex items-stretch rounded-[15px] bg-[#404040] transition-all',
+            phoneGroupError ? 'ring-2 ring-red-500' : 'focus-within:ring-2 focus-within:ring-blue-500',
+          ]"
+        >
           <div class="relative w-[110px]">
             <button
               type="button"
               @click="showDropdown = !showDropdown"
-              class="w-full bg-[#404040] text-white rounded-l-xl px-4 py-3 flex justify-between items-center transition-all duration-200"
-              :class="codeError ? 'ring-2 ring-red-500' : 'focus:ring-2 focus:ring-blue-500'"
+              class="w-full h-full text-white rounded-l-[15px] px-4 py-3 flex justify-between items-center focus:outline-none"
+              :aria-expanded="showDropdown ? 'true' : 'false'"
             >
               <span class="font-medium">{{ countryCode }}</span>
               <svg class="w-4 h-4 transition-transform duration-200" :class="{ 'rotate-180': showDropdown }" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -91,14 +97,12 @@ const selectOption = (code: string) => {
               </ul>
             </transition>
           </div>
+          <div class="w-px bg-[#333]" aria-hidden="true"></div>
           <input
             v-model="phone"
             type="tel"
             placeholder="90 123 45 67"
-            :class="[
-              'flex-1 bg-[#404040] border-l text-white placeholder-gray-400  rounded-r-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all',
-              phoneError ? 'ring-2 ring-red-500' : 'focus:ring-blue-500',
-            ]"
+            class="flex-1 bg-transparent text-white placeholder-gray-400 px-4 py-3 focus:outline-none"
           />
         </div>
       </div>
@@ -117,8 +121,16 @@ const selectOption = (code: string) => {
         />
       </div>
 
-      <button type="submit" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition p-4 rounded-[15px] font-semibold text-white shadow-md">
-        {{ loading ? 'Входим...' : 'Войти' }}
+      <button
+        type="submit"
+        :disabled="loading"
+        :aria-busy="loading ? 'true' : 'false'"
+        class="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition p-4 rounded-[15px] font-semibold text-white shadow-md"
+      >
+        <span class="flex items-center justify-center gap-2">
+          <Icon v-if="loading" name="heroicons:arrow-path" class="w-5 h-5 animate-spin" />
+          {{ loading ? 'Входим...' : 'Войти' }}
+        </span>
       </button>
     </form>
 

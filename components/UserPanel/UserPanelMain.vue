@@ -13,11 +13,12 @@ const { selectedLocation } = storeToRefs(useLocationStore());
 </script>
 
 <template>
-  <transition name="slide-main">
-    <div
-      class="fixed top-0 left-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-r-[56px] z-50 overflow-y-auto"
-      @click.stop
-    >
+  <teleport to="body">
+    <transition name="slide-main">
+      <div
+        class="fixed top-0 left-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-r-[56px] z-[1000] overflow-y-auto"
+        @click.stop
+      >
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-[36px] font-bold">Аккаунт</h2>
         <button
@@ -69,8 +70,9 @@ const { selectedLocation } = storeToRefs(useLocationStore());
           <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
         </transition>
       </teleport>
-    </div>
-  </transition>
+      </div>
+    </transition>
+  </teleport>
 </template>
 
 <style>

@@ -8,6 +8,16 @@ export const useCartStore = defineStore("cart", () => {
   const saleId = ref<string | number | null>(null);
   const saleNumber = ref<string | null>(null);
   const receipt = ref<any | null>(null);
+  const productsLoading = ref(false);
+  const creatingSale = ref(false);
+  const loadingSale = ref(false);
+  const addingItem = ref(false);
+  const payLoading = ref(false);
+  const cancelLoading = ref(false);
+  const discountLoading = ref(false);
+  const discountPercent = ref<number>(0);
+  const discountAmount = ref<number>(0);
+  const payableTotal = ref<number>(0);
 
   const products = ref([
     {
@@ -59,16 +69,25 @@ export const useCartStore = defineStore("cart", () => {
   // Server-backed sale flow
   async function initSale() {
     if (saleId.value) return saleId.value;
-    const { apiFetch } = useApi();
-    const res: any = await apiFetch("/new-sale", { method: "POST" });
-    saleId.value = res?.id ?? res?.sid ?? null;
-    saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
-    return saleId.value;
+    creatingSale.value = true;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch("/new-sale", { method: "POST" });
+      saleId.value = res?.id ?? res?.sid ?? null;
+      saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+      discountPercent.value = Number(res?.discount_percent ?? 0);
+      discountAmount.value = Number(res?.discount_amount ?? 0);
+      payableTotal.value = Number(res?.payable_total ?? 0);
+      return saleId.value;
+    } finally {
+      creatingSale.value = false;
+    }
   }
 
   async function loadSale(sid?: string | number | null) {
     const id = sid ?? saleId.value;
     if (!id) return null;
+    loadingSale.value = true;
     const { apiFetch } = useApi();
     const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
     const items = Array.isArray(res?.items) ? res.items : [];
@@ -84,11 +103,16 @@ export const useCartStore = defineStore("cart", () => {
     }));
     saleId.value = res?.id ?? saleId.value;
     saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+    discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
+    discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
+    payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
+    loadingSale.value = false;
     return res;
   }
 
   async function addToCartServer(product: any) {
     try {
+      addingItem.value = true;
       const sid = saleId.value || (await initSale());
       if (!sid) throw new Error("sale not created");
       const { apiFetch } = useApi();
@@ -100,6 +124,7 @@ export const useCartStore = defineStore("cart", () => {
     } catch (_) {
       // optionally show error
     } finally {
+      addingItem.value = false;
       searchQuery.value = "";
     }
   }
@@ -131,18 +156,23 @@ export const useCartStore = defineStore("cart", () => {
   async function paySale() {
     if (!saleId.value) return null;
     const { apiFetch } = useApi();
+    payLoading.value = true;
     try {
       const res: any = await apiFetch(`/new-sale/${saleId.value}/pay`, { method: "POST" });
       receipt.value = res;
       cart.value = [];
       saleId.value = null;
       saleNumber.value = null;
+      discountPercent.value = 0;
+      discountAmount.value = 0;
+      payableTotal.value = 0;
       return res;
-    } catch (_) { return null; }
+    } catch (_) { return null; } finally { payLoading.value = false; }
   }
 
   async function cancelSale() {
     const { apiFetch } = useApi();
+    cancelLoading.value = true;
     if (saleId.value) {
       try {
         await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
@@ -151,6 +181,36 @@ export const useCartStore = defineStore("cart", () => {
     cart.value = [];
     saleId.value = null;
     saleNumber.value = null;
+    discountPercent.value = 0;
+    discountAmount.value = 0;
+    payableTotal.value = 0;
+    cancelLoading.value = false;
+  }
+
+  async function applySaleDiscount() {
+    if (!saleId.value) {
+      await initSale();
+    }
+    const sid = saleId.value;
+    if (!sid) return;
+    discountLoading.value = true;
+    const { apiFetch } = useApi();
+    try {
+      const body: any = {};
+      if (discountType.value === "%") {
+        body.discount_percent = Number(discountValue.value || 0);
+      } else {
+        body.discount_amount = Number(discountValue.value || 0);
+      }
+      const res: any = await apiFetch(`/new-sale/${sid}/discount`, { method: "PUT", body });
+      discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
+      discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
+      payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
+    } catch (_) {
+      // ignore for now
+    } finally {
+      discountLoading.value = false;
+    }
   }
 
   /** 👉 обновить скидку для конкретного товара */
@@ -233,15 +293,26 @@ function itemFinalPriceWithGlobal(item: any) {
     saleId,
     saleNumber,
     receipt,
+    productsLoading,
+    creatingSale,
+    loadingSale,
+    addingItem,
+    payLoading,
+    cancelLoading,
     products,
     searchQuery,
     filteredProducts,
     totalDiscount,
+    payableTotal,
+    discountPercent,
+    discountAmount,
+    discountLoading,
     initSale,
     loadSale,
     addToCartServer,
     addToCart,
     removeFromCart,
+    applySaleDiscount,
     paySale,
     cancelSale,
     updateDiscount,

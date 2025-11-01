@@ -15,6 +15,7 @@
           <button
           @click="store.cancelSale"
           class="rounded-[15px] text-center text-red-400  duration-300 text-[14px]"
+          :class="{ 'opacity-50 pointer-events-none': store.cancelLoading }"
           v-if="totalQuantity > 0"
         >
         <svg width="14" height="16"

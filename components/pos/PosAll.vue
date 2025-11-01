@@ -19,6 +19,10 @@
     </div>
 
     <div class="bg-[#1f1f1f] rounded-[15px] overflow-hidden">
+      <div v-if="loading" class="p-4 text-[#bdbdbd] flex items-center gap-2">
+        <Icon name="heroicons:arrow-path" class="w-4 h-4 animate-spin" />
+        Загрузка продаж...
+      </div>
       <div class="grid grid-cols-5 gap-2 px-4 py-3 text-[#bdbdbd] text-sm border-b border-[#333]">
         <div>Номер</div>
         <div>Статус</div>
@@ -89,6 +93,7 @@ const branchCode = ref("");
 const isAdminOrManager = computed(() => ["admin", "manager"].includes((user.user?.role || "").toLowerCase()));
 
 const sales = ref<any[]>([]);
+const loading = ref(false);
 
 function formatDate(d: string | number | Date | undefined) {
   if (!d) return "";
@@ -107,6 +112,7 @@ async function fetchSales() {
   const query: any = { page: page.value, limit: Math.min(Math.max(limit.value,1),100) };
   if (status.value) query.status = status.value;
   if (isAdminOrManager.value && branchCode.value) query.branch_code = branchCode.value;
+  loading.value = true;
   try {
     const res: any = await apiFetch("/sales", { method: "GET", query });
     sales.value = Array.isArray(res?.items) ? res.items : [];
@@ -115,7 +121,7 @@ async function fetchSales() {
     total.value = Number(res?.total ?? total.value) || 0;
   } catch (_) {
     // ignore
-  }
+  } finally { loading.value = false; }
 }
 
 let t: any = null;

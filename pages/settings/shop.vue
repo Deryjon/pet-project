@@ -9,7 +9,10 @@
           <input v-model="key" type="text" class="w-full bg-[#404040] rounded px-3 py-2 outline-none" placeholder="1 или branch_a" />
         </div>
         <div class="flex items-end">
-          <button @click="fetchBranch" class="bg-[#1f78ff] hover:bg-[#4993dd] px-4 py-2 rounded font-semibold">Загрузить</button>
+          <button @click="fetchBranch" :disabled="loading" class="bg-[#1f78ff] hover:bg-[#4993dd] disabled:opacity-50 px-4 py-2 rounded font-semibold flex items-center gap-2">
+            <Icon v-if="loading" name="heroicons:arrow-path" class="w-4 h-4 animate-spin" />
+            Загрузить
+          </button>
         </div>
       </div>
 
@@ -29,7 +32,10 @@
       </div>
 
       <div class="flex gap-3">
-        <button :disabled="!loaded || saving" @click="save" class="bg-green-600 hover:bg-green-700 disabled:opacity-50 px-4 py-2 rounded font-semibold">Сохранить</button>
+        <button :disabled="!loaded || saving" @click="save" class="bg-green-600 hover:bg-green-700 disabled:opacity-50 px-4 py-2 rounded font-semibold flex items-center gap-2">
+          <Icon v-if="saving" name="heroicons:arrow-path" class="w-4 h-4 animate-spin" />
+          Сохранить
+        </button>
         <span v-if="ok" class="text-green-400">Сохранено</span>
         <span v-if="err" class="text-red-400">{{ err }}</span>
       </div>
@@ -49,12 +55,14 @@ const key = ref<string>('')
 const loaded = ref<any | null>(null)
 const title = ref('')
 const saving = ref(false)
+const loading = ref(false)
 const ok = ref(false)
 const err = ref<string | null>(null)
 
 async function fetchBranch() {
   ok.value = false; err.value = null
   if (!key.value) return
+  loading.value = true
   try {
     const res: any = await apiFetch(`/branches/${encodeURIComponent(key.value)}`, { method: 'GET' })
     loaded.value = res
@@ -62,7 +70,7 @@ async function fetchBranch() {
   } catch (e: any) {
     err.value = e?.data?.message || e?.message || 'Не удалось загрузить филиал'
     loaded.value = null
-  }
+  } finally { loading.value = false }
 }
 
 async function save() {
@@ -89,4 +97,3 @@ onMounted(() => {
   }
 })
 </script>
-

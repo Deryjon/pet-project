@@ -43,7 +43,7 @@
     </div>
   </template>
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useCartStore } from "@/store/cart";
 
 const cartStore = useCartStore();
@@ -71,4 +71,19 @@ function applyQuickDiscount(val: string) {
   }
 }
 
+
+
+// Debounced apply to backend
+let t: any = null;
+watch(
+  () => [cartStore.discountType, cartStore.discountValue],
+  () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => {
+      cartStore.applySaleDiscount();
+    }, 400);
+  }
+);
+onBeforeUnmount(() => { if (t) clearTimeout(t); });
 </script>
+

@@ -40,5 +40,5 @@ function toggle() { open.value = !open.value; }
         </li>
       </ul>
     </transition>
-  </div>
+  </div>  
 </template>

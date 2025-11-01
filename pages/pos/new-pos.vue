@@ -1,9 +1,16 @@
 <template>
   <section class="bg-[#262626] text-white rounded-2xl flex h-full ">
     <!-- Левая часть -->
-    <div class="w-full border-r border-[#404040] pr-7 h-full flex flex-col overflow-y-auto">
+    <div class="w-full border-r border-[#404040] pr-7 h-full flex flex-col overflow-y-auto relative">
       <SearchBar /> 
       <Cart />
+      <div
+        v-if="cartStore.productsLoading || cartStore.creatingSale || cartStore.loadingSale || cartStore.addingItem"
+        class="absolute top-2 right-3 text-[#bdbdbd] flex items-center gap-2"
+      >
+        <Icon name="heroicons:arrow-path" class="w-4 h-4 animate-spin" />
+        Загрузка...
+      </div>
     </div>
 
     <!-- Правая часть -->
@@ -51,6 +58,7 @@ const isAdminOrManager = computed(() => ["admin", "manager"].includes((user.user
 
 async function fetchProducts() {
   try {
+    cartStore.productsLoading = true as any;
     const query: Record<string, any> = {
       page: page.value,
       limit: Math.min(Math.max(limit.value, 1), 100),
@@ -85,6 +93,8 @@ async function fetchProducts() {
     total.value = Number(res?.total ?? total.value) || 0;
   } catch (e) {
     // keep previous products on error
+  } finally {
+    cartStore.productsLoading = false as any;
   }
 }
 
