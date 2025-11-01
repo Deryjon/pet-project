@@ -13,7 +13,7 @@
             {{ totalQuantity }}
           </span>
           <button
-          @click="store.clearCart"
+          @click="store.cancelSale"
           class="rounded-[15px] text-center text-red-400  duration-300 text-[14px]"
           v-if="totalQuantity > 0"
         >
@@ -23,7 +23,7 @@
         </button>
         </div>
       </div>
-      <span class="text-[36px] font-bold text-[#bdbdbd]">#4046384943</span>
+      <span class="text-[36px] font-bold text-[#bdbdbd]">{{ store.saleNumber ? `№ ${store.saleNumber}` : (store.saleId ? `#${store.saleId}` : '#—') }}</span>
     </div>
     <div class="sellers flex gap-4 mt-[15px]">
       <button

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
+import { storeToRefs } from "pinia";
 import { usePanelStore } from "@/store/usePanelStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
@@ -34,22 +34,17 @@ const { selectedLocation } = storeToRefs(useLocationStore());
           class="rounded-full w-[40px] h-[40px] object-cover"
         />
         <div>
-<<<<<<< HEAD
           <p class="text-white truncate max-w-[300px]">
             {{ fullName || user.username || user.name || "..." }}
           </p>
           <p class="text-[#bdbdbd] truncate max-w-[300px]">
-            {{ selectedLocation?.name || "..." }}
+            {{ selectedLocation?.name || user.branchTitle || user.branch_title || "..." }}
           </p>
-=======
-          <p class="text-white truncate max-w-[300px]">{{ fullName || user.name || "..." }}</p>
-          <p class="text-[#bdbdbd] truncate max-w-[300px]">{{ selectedLocation?.name || "..." }}</p>
->>>>>>> 0ebe967a0494754533c0f27449eca18d6eacf0ea
         </div>
       </div>
 
       <BaseButton color="red" class="mt-6" @click="panel.openQuit">
-         Выйти из аккаунта
+        Выйти из аккаунта
       </BaseButton>
 
       <teleport to="body">
@@ -64,7 +59,7 @@ const { selectedLocation } = storeToRefs(useLocationStore());
       >
         <div class="flex items-center gap-2">
           <Icon name="heroicons:shopping-bag" class="w-4 h-4" />
-           Сменить магазин
+          Сменить магазин
         </div>
         <Icon name="heroicons:arrow-right" class="w-4 h-4" />
       </button>

@@ -27,4 +27,76 @@ import Summary from "@/components/pos/SummaryBlock.vue";
 
 import { useHead } from "#imports";
 useHead({ title: "Новая продажа | Konkurent.cases" });
+// POS products search: GET /api/new-sale/products
+import { ref, watch, computed, onMounted } from "vue";
+import { useApi } from "~/composables/useApi";
+import { useUserStore } from "~/store/useUserStore";
+import { useCartStore } from "~/store/cart";
+
+const { apiFetch } = useApi();
+const user = useUserStore();
+const cartStore = useCartStore();
+
+// Pagination and search params
+const page = ref(1);
+const limit = ref(10);
+const total = ref(0);
+
+// Reuse SearchBar's store-bound search query
+const search = computed(() => cartStore.searchQuery);
+
+// Optional branch override (admins/managers only)
+const selectedBranch = ref<string | null>(null);
+const isAdminOrManager = computed(() => ["admin", "manager"].includes((user.user?.role || "").toLowerCase()));
+
+async function fetchProducts() {
+  try {
+    const query: Record<string, any> = {
+      page: page.value,
+      limit: Math.min(Math.max(limit.value, 1), 100),
+    };
+    if (search.value) query.search = search.value;
+    if (isAdminOrManager.value && selectedBranch.value) {
+      query.branch_code = selectedBranch.value;
+    }
+
+    const res = await apiFetch<any>("/new-sale/products", { method: "GET", query });
+    const items = Array.isArray(res?.items) ? res.items : [];
+
+    // Map API items to shape used in POS and replace products in-place
+    const mapped = items.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      price: p.sale_price ?? p.price ?? 0,
+      barcode: p.barcode ?? "",
+      article: p.sku ?? "",
+    }));
+    // mutate array to avoid replacing Ref in Pinia setup store
+    try {
+      (cartStore.products as any).splice(0, (cartStore.products as any).length, ...mapped);
+    } catch {
+      // fallback assign if splice fails for any reason
+      // @ts-ignore
+      cartStore.products = mapped as any;
+    }
+
+    page.value = Number(res?.page ?? page.value) || 1;
+    limit.value = Number(res?.limit ?? limit.value) || 10;
+    total.value = Number(res?.total ?? total.value) || 0;
+  } catch (e) {
+    // keep previous products on error
+  }
+}
+
+let t: any = null;
+watch([search, page, limit, selectedBranch], () => {
+  if (t) clearTimeout(t);
+  t = setTimeout(fetchProducts, 250);
+}, { immediate: true });
+
+// Create a pending sale on page entry
+onMounted(async () => {
+  const sid = await cartStore.initSale();
+  if (sid) await cartStore.loadSale(sid);
+});
 </script>

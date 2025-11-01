@@ -6,7 +6,7 @@
     class="flex items-center gap-3 cursor-pointer hover:bg-[#5e5e5e] rounded-[32px] p-2 transition-colors duration-300"
   >
     <img
-      :src="user.avatarUrl"
+          :src="user.avatarUrl || '../../assets/images/placeholder_img.svg'"
       alt="Avatar"
       class="rounded-full w-[40px] h-[40px] object-cover"
     />
@@ -14,10 +14,10 @@
     <!--Показываеминфотолькоеслименюоткрыто-->
     <div v-if="!collapsed" class="user-info">
       <p class="text-white truncate max-w-[120px]">
-        {{ fullName || user.name || "..." }}
+        {{ fullName || user.username || user.name || "..." }}
       </p>
       <p class="text-[#bdbdbd] truncate max-w-[120px]">
-        {{ selectedLocation?.name || "..." }}
+         {{ selectedLocation?.name || user.branchTitle || user.branch_title || "..." }}
       </p>
     </div>
   </div>

@@ -43,7 +43,7 @@ export const useEmployeesDataTableStore = defineStore(
       );
     });
 
-    const candidates = ["/users", "/auth/users", "/management/users", "/employees", "/staff"];
+    const candidates = ["/users"];
     const chosenListEndpoint = ref<string | null>(null);
 
     async function fetchData() {

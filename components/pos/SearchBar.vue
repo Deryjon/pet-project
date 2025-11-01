@@ -75,7 +75,8 @@ import { useFormatPrice } from "@/composables/useFormatPrice";
 
 const store = useCartStore();
 const { searchQuery, filteredProducts } = storeToRefs(store);
-const { addToCart } = store;
+// Use server-backed addToCart
+const { addToCartServer: addToCart } = store as any;
 const { formatPrice } = useFormatPrice();
 </script>
 

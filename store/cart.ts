@@ -1,9 +1,13 @@
 // store/cart.ts
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { useApi } from "~/composables/useApi";
 
 export const useCartStore = defineStore("cart", () => {
   const cart = ref<any[]>([]);
+  const saleId = ref<string | number | null>(null);
+  const saleNumber = ref<string | null>(null);
+  const receipt = ref<any | null>(null);
 
   const products = ref([
     {
@@ -52,7 +56,55 @@ export const useCartStore = defineStore("cart", () => {
     );
   });
   
+  // Server-backed sale flow
+  async function initSale() {
+    if (saleId.value) return saleId.value;
+    const { apiFetch } = useApi();
+    const res: any = await apiFetch("/new-sale", { method: "POST" });
+    saleId.value = res?.id ?? res?.sid ?? null;
+    saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+    return saleId.value;
+  }
 
+  async function loadSale(sid?: string | number | null) {
+    const id = sid ?? saleId.value;
+    if (!id) return null;
+    const { apiFetch } = useApi();
+    const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
+    const items = Array.isArray(res?.items) ? res.items : [];
+    cart.value = items.map((it: any) => ({
+      id: it.product_id ?? it.id ?? it.product?.id,
+      name: it.name,
+      price: it.sale_price,
+      barcode: it.barcode ?? "",
+      article: it.sku ?? "",
+      quantity: it.quantity ?? 1,
+      discountValue: 0,
+      discountType: "%",
+    }));
+    saleId.value = res?.id ?? saleId.value;
+    saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+    return res;
+  }
+
+  async function addToCartServer(product: any) {
+    try {
+      const sid = saleId.value || (await initSale());
+      if (!sid) throw new Error("sale not created");
+      const { apiFetch } = useApi();
+      await apiFetch(`/new-sale/${sid}/items`, {
+        method: "POST",
+        body: { product_id: product.id, quantity: 1, sale_price: product.price },
+      });
+      await loadSale(sid);
+    } catch (_) {
+      // optionally show error
+    } finally {
+      searchQuery.value = "";
+    }
+  }
+
+  
   function addToCart(product: any) {
     const existing = cart.value.find((c) => c.id === product.id);
     if (existing) {
@@ -74,6 +126,31 @@ export const useCartStore = defineStore("cart", () => {
 
   function clearCart() {
     cart.value = [];
+  }
+
+  async function paySale() {
+    if (!saleId.value) return null;
+    const { apiFetch } = useApi();
+    try {
+      const res: any = await apiFetch(`/new-sale/${saleId.value}/pay`, { method: "POST" });
+      receipt.value = res;
+      cart.value = [];
+      saleId.value = null;
+      saleNumber.value = null;
+      return res;
+    } catch (_) { return null; }
+  }
+
+  async function cancelSale() {
+    const { apiFetch } = useApi();
+    if (saleId.value) {
+      try {
+        await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
+      } catch (_) {}
+    }
+    cart.value = [];
+    saleId.value = null;
+    saleNumber.value = null;
   }
 
   /** 👉 обновить скидку для конкретного товара */
@@ -153,12 +230,20 @@ function itemFinalPriceWithGlobal(item: any) {
 
   return {
     cart,
+    saleId,
+    saleNumber,
+    receipt,
     products,
     searchQuery,
     filteredProducts,
     totalDiscount,
+    initSale,
+    loadSale,
+    addToCartServer,
     addToCart,
     removeFromCart,
+    paySale,
+    cancelSale,
     updateDiscount,
     itemFinalPrice,
     itemFinalPriceWithGlobal,

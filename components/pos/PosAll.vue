@@ -1,147 +1,129 @@
 <template>
-    <div class="rounded-xl mt-[30px] relative">
-      <!-- Заголовок -->
-  
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <h3 class="text-[36px] font-semibold">Все продажи</h3>
-          <div class="div bg-[#404040] px-[25px] py-2 rounded-full font-bold text-[24px] flex items-center gap-2">
-  
-            <span
-              class=""
-            >
-              {{ totalQuantity }}
-            </span>
-            <button
-            @click="store.clearCart"
-            class="rounded-[15px] text-center text-red-400  duration-300 text-[14px]"
-            v-if="totalQuantity > 0"
-          >
-          <svg width="14" height="16" viewBox="0 0 14 16" fill="#BDBDBD" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 1H9.75L9.4375 0.4375C9.3125 0.1875 9.0625 0 8.78125 0H5.1875C4.90625 0 4.65625 0.1875 4.53125 0.4375L4.25 1H0.5C0.21875 1 0 1.25 0 1.5V2.5C0 2.78125 0.21875 3 0.5 3H13.5C13.75 3 14 2.78125 14 2.5V1.5C14 1.25 13.75 1 13.5 1ZM1.65625 14.5938C1.6875 15.4062 2.34375 16 3.15625 16H10.8125C11.625 16 12.2812 15.4062 12.3125 14.5938L13 4H1L1.65625 14.5938Z" fill="inherit"></path></svg>
-          </button>
-          </div>
-        </div>
-        <span class="text-[36px] font-bold text-[#bdbdbd]">Date Picker</span>
-      </div>
-      <!-- пустая корзина -->
-      <div
-        v-if="cart.length === 0"
-        class="cart mt-[20px] w-full h-[400px] rounded-[25px] p-[20px] flex flex-col items-center justify-center"
-      >
-        <span class="text-[24px] font-bold">Продажи не найдены</span>
-      </div>
-      <!-- список товаров -->
-      <div
-        v-else
-        class="mt-[20px] w-full max-h-[400px] overflow-y-auto rounded-[25px]"
-      >
-        <CartItem
-          v-for="item in cart"
-          :key="item.id"
-          :item="item"
-          @remove="removeFromCart(item.id)"
-          @edit-discount="openDiscountPanel"
+  <div class="rounded-xl mt-[30px] relative">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-[28px] font-semibold">Список продаж</h3>
+      <div class="flex items-center gap-2">
+        <select v-model="status" class="bg-[#404040] p-2 rounded text-white">
+          <option value="">Все</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <input
+          v-if="isAdminOrManager"
+          v-model="branchCode"
+          placeholder="branch_code"
+          class="bg-[#404040] p-2 rounded text-white"
         />
       </div>
-  
-      <!-- 👉 панель справа -->
-      <transition name="slide">
-        <div
-          v-if="editingItem"
-          class="fixed top-0 right-0 w-[300px] h-full bg-[#1e1e1e] text-white shadow-lg p-6 z-50 flex flex-col"
-        >
-          <h3 class="text-xl font-bold mb-4">Скидка</h3>
-  
-          <label class="text-sm mb-1">Введите скидку</label>
-          <input
-            type="number"
-            v-model.number="discountValue"
-            class="w-full mb-3 p-2 rounded bg-[#2a2a2a] border border-[#404040]"
-          />
-  
-          <label class="text-sm mb-1">Тип скидки</label>
-          <select
-            v-model="discountType"
-            class="w-full mb-6 p-2 rounded bg-[#2a2a2a] border border-[#404040]"
-          >
-            <option value="%">%</option>
-            <option value="uzs">UZS</option>
-          </select>
-  
-          <div class="mt-auto flex gap-2">
-            <button
-              @click="applyDiscount"
-              class="flex-1 bg-green-600 py-2 rounded font-bold hover:bg-green-700"
-            >
-              Применить
-            </button>
-            <button
-              @click="closeDiscountPanel"
-              class="flex-1 bg-red-500 py-2 rounded font-bold hover:bg-red-600"
-            >
-              Отмена
-            </button>
+    </div>
+
+    <div class="bg-[#1f1f1f] rounded-[15px] overflow-hidden">
+      <div class="grid grid-cols-5 gap-2 px-4 py-3 text-[#bdbdbd] text-sm border-b border-[#333]">
+        <div>Номер</div>
+        <div>Статус</div>
+        <div>Филиал</div>
+        <div>Сумма</div>
+        <div>Создана</div>
+      </div>
+      <div v-for="s in sales" :key="s.id" class="border-b border-[#333]">
+        <div class="grid grid-cols-5 gap-2 px-4 py-3 items-center">
+          <div class="font-semibold">№ {{ s.number || '—' }}</div>
+          <div>
+            <span :class="statusClass(s.status)">{{ s.status }}</span>
+          </div>
+          <div>{{ s.branch_code }}</div>
+          <div>{{ formatPrice(s.total || 0) }} UZS</div>
+          <div>{{ formatDate(s.created_at) }}</div>
+        </div>
+        <div v-if="s.items?.length" class="px-6 pb-3 text-sm text-[#cfcfcf]">
+          <div class="grid grid-cols-5 gap-2 opacity-70 mb-1">
+            <div class="col-span-2">Товар</div>
+            <div>SKU</div>
+            <div>Шт.</div>
+            <div>Цена</div>
+          </div>
+          <div v-for="it in s.items" :key="it.id || it.sku" class="grid grid-cols-5 gap-2 py-1">
+            <div class="col-span-2 truncate">{{ it.name }}</div>
+            <div>{{ it.sku }}</div>
+            <div>x{{ it.quantity }}</div>
+            <div>{{ formatPrice(it.sale_price || 0) }}</div>
           </div>
         </div>
-      </transition>
+      </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed } from "vue";
-  import { useCartStore } from "@/store/cart";
-  import { storeToRefs } from "pinia";
-  import CartItem from "./CartItem.vue";
-  
-  const store = useCartStore();
-  const { cart } = storeToRefs(store);
-  const { removeFromCart, updateDiscount } = store;
-  
-  // общее кол-во товаров
-  const totalQuantity = computed(() =>
-    cart.value.reduce((sum, item) => sum + item.quantity, 0)
-  );
-  
-  // 👉 состояние для панели
-  const editingItem = ref<any>(null);
-  const discountValue = ref(0);
-  const discountType = ref("%");
-  
-  function openDiscountPanel(item: any) {
-    editingItem.value = item;
-    discountValue.value = item.discountValue;
-    discountType.value = item.discountType;
+
+    <div class="flex justify-between items-center mt-4">
+      <div class="text-sm text-[#bdbdbd]">Всего: {{ total }}</div>
+      <div class="flex items-center gap-2">
+        <button class="bg-[#404040] px-3 py-2 rounded disabled:opacity-50" :disabled="page<=1" @click="page--">Назад</button>
+        <span class="text-sm">{{ page }}</span>
+        <button class="bg-[#404040] px-3 py-2 rounded disabled:opacity-50" :disabled="page*limit>=total" @click="page++">Вперёд</button>
+        <select v-model.number="limit" class="bg-[#404040] p-2 rounded text-white">
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, computed } from "vue";
+import { useApi } from "~/composables/useApi";
+import { useUserStore } from "~/store/useUserStore";
+import { useFormatPrice } from "@/composables/useFormatPrice";
+
+const { apiFetch } = useApi();
+const user = useUserStore();
+const { formatPrice } = useFormatPrice();
+
+const page = ref(1);
+const limit = ref(10);
+const total = ref(0);
+const status = ref("");
+const branchCode = ref("");
+
+const isAdminOrManager = computed(() => ["admin", "manager"].includes((user.user?.role || "").toLowerCase()));
+
+const sales = ref<any[]>([]);
+
+function formatDate(d: string | number | Date | undefined) {
+  if (!d) return "";
+  try { return new Date(d as any).toLocaleString(); } catch { return String(d); }
+}
+
+function statusClass(s: string) {
+  const base = "px-2 py-0.5 rounded text-xs";
+  if (s === "paid") return base + " bg-green-600/30 text-green-300";
+  if (s === "pending") return base + " bg-yellow-600/30 text-yellow-300";
+  if (s === "cancelled") return base + " bg-red-600/30 text-red-300";
+  return base + " bg-[#333] text-[#bbb]";
+}
+
+async function fetchSales() {
+  const query: any = { page: page.value, limit: Math.min(Math.max(limit.value,1),100) };
+  if (status.value) query.status = status.value;
+  if (isAdminOrManager.value && branchCode.value) query.branch_code = branchCode.value;
+  try {
+    const res: any = await apiFetch("/sales", { method: "GET", query });
+    sales.value = Array.isArray(res?.items) ? res.items : [];
+    page.value = Number(res?.page ?? page.value) || 1;
+    limit.value = Number(res?.limit ?? limit.value) || 10;
+    total.value = Number(res?.total ?? total.value) || 0;
+  } catch (_) {
+    // ignore
   }
-  
-  function closeDiscountPanel() {
-    editingItem.value = null;
-  }
-  
-  function applyDiscount() {
-    if (editingItem.value) {
-      updateDiscount(
-        editingItem.value.id,
-        discountValue.value,
-        discountType.value
-      );
-      closeDiscountPanel();
-    }
-  }
-  </script>
-  
-  <style scoped>
-  .cart {
-    border: 1px dashed #919090;
-  }
-  
-  /* анимация выезда справа */
-  .slide-enter-active,
-  .slide-leave-active {
-    transition: transform 0.3s ease;
-  }
-  .slide-enter-from,
-  .slide-leave-to {
-    transform: translateX(100%);
-  }
-  </style>
-  
+}
+
+let t: any = null;
+watch([page, limit, status, branchCode], () => {
+  if (t) clearTimeout(t);
+  t = setTimeout(fetchSales, 200);
+}, { immediate: true });
+</script>
+
+<style scoped>
+</style>
