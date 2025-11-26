@@ -19,6 +19,7 @@ export const useUserStore = defineStore("user", {
     },
     token: null as string | null,
     location: null as null | { id: number; name: string },
+    initializing: false as boolean,
   }),
   getters:{
     isLoggedIn: (state) => !!state.token,
@@ -102,12 +103,17 @@ export const useUserStore = defineStore("user", {
         const location = localStorage.getItem("selectedLocation");
         if (location) this.location = JSON.parse(location);
     },
-    init() {
-      this.loadToken();
-      this.loadLocation();
-      if (this.token) {
-        // Fetch current user details when token is present
-        this.fetchMe();
+    async init() {
+      this.initializing = true;
+      try {
+        this.loadToken();
+        this.loadLocation();
+        if (this.token) {
+          // Fetch current user details when token is present
+          await this.fetchMe();
+        }
+      } finally {
+        this.initializing = false;
       }
     },
     logout() {

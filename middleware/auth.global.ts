@@ -18,6 +18,6 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   if (!hasToken && !isAuthRoute) {
-    return navigateTo("/auth/register");
+    return navigateTo("/auth/login");
   }
 });

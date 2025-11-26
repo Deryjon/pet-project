@@ -19,6 +19,7 @@ type RawEmployee = {
   phone_number?: string;
   role?: string;
   branch_code?: string;
+  branch_title?: string;
   branchCode?: string;
 };
 
@@ -76,7 +77,7 @@ export const useEmployeesDataTableStore = defineStore(
             name: (u.name || fullName || "").trim(),
             phone_number: u.phone_number || "",
             role: u.role || "",
-            branch: u.branch_code || u.branchCode || "",
+            branch_title: u.branch_title || u.branchCode || "",
             _original: u,
           } as any;
         });
@@ -145,7 +146,7 @@ export const useEmployeesDataTableStore = defineStore(
       { accessorKey: "name", header: "Имя" },
       { accessorKey: "phone_number", header: "Телефон" },
       { accessorKey: "role", header: "Роль" },
-      { accessorKey: "branch", header: "Филиал" },
+      { accessorKey: "branch_title", header: "Филиал" },
       {
         id: "actions",
         header: "Действия",

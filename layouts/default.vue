@@ -4,10 +4,10 @@ import LayoutSidebar from "../components/Sidebar.vue";
 import { useUserStore } from "../store/useUserStore";
 import { useSidebarStore } from "../store/useSidebar";
 
+const userStore = useUserStore();
 const sidebar = useSidebarStore();
 
 onMounted(() => {
-  const userStore = useUserStore();
   userStore.init();
 });
 </script>
@@ -36,6 +36,13 @@ onMounted(() => {
       style="max-width: 100vw; overflow-x: hidden"
     >
       <slot />
+    </div>
+
+    <div
+      v-if="userStore.initializing"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <div class="h-14 w-14 rounded-full border-4 border-white/30 border-t-blue-500 animate-spin"></div>
     </div>
   </section>
 </template>
