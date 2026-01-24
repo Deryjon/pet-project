@@ -13,11 +13,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="flex bg-white dark:bg-[#404040]">
+  <section class="app-shell flex">
+    <div class="app-orb app-orb-1" aria-hidden="true"></div>
+    <div class="app-orb app-orb-2" aria-hidden="true"></div>
+    <div class="app-orb app-orb-3" aria-hidden="true"></div>
     <!-- Sidebar -->
     <div
       :class="[
-        'fixed left-0 top-0 h-screen border-r bg-white dark:bg-[#404040] py-5 transition-all duration-300',
+        'fixed left-0 top-0 h-screen app-sidebar py-5 transition-all duration-300',
         sidebar.collapsed
           ? 'w-[80px] min-w-[80px] max-w-[80px]'
           : 'w-[256px] min-w-[256px] max-w-[256px]',
@@ -30,7 +33,7 @@ onMounted(() => {
     <!-- Main content -->
     <div
       :class="[
-        'bg-white dark:bg-[#262626] w-full min-h-screen pt-[30px] px-[35px]  transition-all duration-300',
+        'w-full min-h-screen pt-[30px] px-[35px] transition-all duration-300 app-main text-white',
         sidebar.collapsed ? 'ml-[80px]' : 'ml-[256px]',
       ]"
       style="max-width: 100vw; overflow-x: hidden"
@@ -42,7 +45,7 @@ onMounted(() => {
       v-if="userStore.initializing"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
     >
-      <div class="h-14 w-14 rounded-full border-4 border-white/30 border-t-blue-500 animate-spin"></div>
+      <div class="h-14 w-14 rounded-full border-4 border-white/30 border-t-emerald-400 animate-spin"></div>
     </div>
   </section>
 </template>

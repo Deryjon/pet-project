@@ -1,6 +1,8 @@
 <template>
-    <section class="min-h-[100vh] bg-[#404040] text-white flex justify-center items-center">
-      <slot />
-    </section>
-  </template>
-  
+  <section class="app-shell flex items-center justify-center">
+    <div class="app-orb app-orb-1" aria-hidden="true"></div>
+    <div class="app-orb app-orb-2" aria-hidden="true"></div>
+    <div class="app-orb app-orb-3" aria-hidden="true"></div>
+    <slot />
+  </section>
+</template>
