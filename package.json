@@ -26,6 +26,8 @@
     "yup": "^1.7.0"
   },
   "devDependencies": {
+    "@iconify-json/heroicons": "^1.2.3",
+    "@iconify-json/material-symbols": "^1.2.56",
     "@nuxt/devtools": "^2.6.2",
     "@nuxt/icon": "^1.15.0"
   }

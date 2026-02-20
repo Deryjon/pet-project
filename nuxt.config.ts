@@ -10,6 +10,10 @@ export default defineNuxtConfig({
   ],
   components: true,
   headlessui: { prefix: "H" },
+  icon: {
+    provider: "server",
+    fallbackToApi: false,
+  },
   runtimeConfig: {
     public: {
       // Use same-origin path for API to enable cookies/CSRF on localhost and prod.

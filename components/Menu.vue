@@ -32,7 +32,10 @@ const backToMainMenu = () => {
         <!-- Название раздела с действием "Назад" -->
         <h2
           @click="backToMainMenu"
-          class="text-lg font-semibold p-[5px] py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e] rounded-md duration-300"
+          :class="[
+            'w-full text-lg font-semibold py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e] duration-300',
+            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+          ]"
         >
           <Icon
             name="heroicons:chevron-left"
@@ -41,7 +44,7 @@ const backToMainMenu = () => {
           <Icon
             v-if="activeMenu?.icon"
             :name="activeMenu.icon"
-            class="w-5 h-5"
+            class="w-5 h-5 text-[#3b82f6]"
           />
           <span v-if="!sidebar.collapsed">{{ activeMenu.name }}</span>
         </h2>
@@ -51,7 +54,10 @@ const backToMainMenu = () => {
           :key="j"
           :to="subItem.url"
           @click="closeMenu"
-          class="rounded-md py-2 hover:bg-[#5e5e5e] p-[5px] transition-colors duration-300"
+          :class="[
+            'block w-full py-2 hover:bg-[#5e5e5e] transition-colors duration-300',
+            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+          ]"
         >
           <span v-if="!sidebar.collapsed">{{ subItem.title }}</span>
         </NuxtLink>
@@ -65,12 +71,15 @@ const backToMainMenu = () => {
         <NuxtLink
           v-if="!item.items"
           :to="item.url"
-          class="inline-flex items-center gap-4 p-[5px] py-3 hover:bg-[#5e5e5e] rounded-md transition-colors duration-300"
+          :class="[
+            'flex w-full items-center gap-4 py-3 hover:bg-[#5e5e5e] transition-colors duration-300',
+            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+          ]"
         >
           <Icon
             v-if="item.icon"
             :name="item.icon"
-            class="h-5 w-5 text-muted-foreground"
+            class="h-5 w-5 text-[#3b82f6]"
           />
           <p v-if="!sidebar.collapsed" class="truncate">{{ item.name }}</p>
         </NuxtLink>
@@ -79,7 +88,10 @@ const backToMainMenu = () => {
         <button
           v-else
           @click="openMenu(item)"
-          class="flex items-center justify-between p-[5px] py-3 hover:bg-[#5e5e5e] rounded-md transition-colors duration-300"
+          :class="[
+            'flex w-full items-center justify-between py-3 hover:bg-[#5e5e5e] transition-colors duration-300',
+            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+          ]"
         >
           <!-- Левая часть -->
           <div
@@ -91,7 +103,7 @@ const backToMainMenu = () => {
             <Icon
               v-if="item.icon"
               :name="item.icon"
-              class="w-5 h-5 text-muted-foreground"
+              class="w-5 h-5 text-[#3b82f6]"
             />
             <p v-if="!sidebar.collapsed" class="truncate">{{ item.name }}</p>
           </div>

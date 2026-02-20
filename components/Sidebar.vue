@@ -38,7 +38,7 @@ const sidebar = useSidebarStore();
         <!-- Если закрыт -->
       </div>
 
-      <Menu />
+      <Menu :class="sidebar.collapsed ? '-mx-[10px]' : '-mx-[20px]'" />
     </div>
 
     <!-- Нижняя часть -->

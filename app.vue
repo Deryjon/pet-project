@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { useLocationStore } from './store/useLocationStore'; // путь поправь если нужно
+import { onMounted } from "vue";
+import { useLocationStore } from "./store/useLocationStore"; // путь поправь если нужно
 
 const locationStore = useLocationStore();
 
@@ -11,16 +11,15 @@ onMounted(() => {
 
 <template>
   <div>
-    <NuxtLayout >
+    <NuxtLayout>
       <NuxtPage />
-      
     </NuxtLayout>
   </div>
 </template>
 <style>
-body{
-  color: white; 
-  font-family: 'Inter', sans-serif;
+body {
+  color: white;
+  font-family: "Inter", sans-serif;
 }
 body.no-scroll {
   overflow: hidden !important;
@@ -41,5 +40,4 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
-
 </style>
