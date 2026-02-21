@@ -17,7 +17,7 @@ onMounted(() => {
     <!-- Sidebar -->
     <div
       :class="[
-        'fixed left-0 top-0 h-screen app-sidebar pt-5 transition-all duration-300',
+        'fixed left-0 top-0 h-screen app-sidebar pt-5 transition-all duration-400 ease-in-out',
         sidebar.collapsed
           ? 'w-[95px] min-w-[95px] max-w-[95px]'
           : 'w-[256px] min-w-[256px] max-w-[256px]',
@@ -30,7 +30,7 @@ onMounted(() => {
     <!-- Main content -->
     <div
       :class="[
-        'app-main-content w-full min-h-screen pt-[30px] px-[35px] transition-all duration-300 text-white',
+        'app-main-content w-full min-h-screen pt-[30px] px-[35px] transition-all duration-400 ease-in-out text-white',
         sidebar.collapsed ? 'ml-[80px]' : 'ml-[256px]',
       ]"
       style="max-width: 100vw; overflow-x: hidden"

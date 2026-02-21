@@ -50,7 +50,9 @@ const isMenuItemActive = (item: IMenuItem) => {
         >
           <Icon name="tabler:chevron-left" class="w-5 h-5 text-muted-foreground" />
           <Icon v-if="activeMenu?.icon" :name="activeMenu.icon" class="w-5 h-5 text-[#3b82f6]" />
-          <span v-if="!sidebar.collapsed">{{ activeMenu.name }}</span>
+          <transition name="menu-label" mode="out-in">
+            <span v-if="!sidebar.collapsed" key="active-menu-title">{{ activeMenu.name }}</span>
+          </transition>
         </h2>
 
         <NuxtLink
@@ -59,12 +61,14 @@ const isMenuItemActive = (item: IMenuItem) => {
           :to="subItem.url"
           @click="closeMenu"
           :class="[
-            'block w-full py-2 cursor-pointer hover:bg-[#5e5e5e] transition-colors duration-300',
+            'block w-full py-3 cursor-pointer hover:bg-[#5e5e5e] transition-colors duration-300',
             isSubItemActive(subItem.url) ? 'bg-[#5e5e5e] text-[#3b82f6]' : '',
-            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+            sidebar.collapsed ? 'px-[15px]' : 'px-[25px]',
           ]"
         >
-          <span v-if="!sidebar.collapsed">{{ subItem.title }}</span>
+          <transition name="menu-label" mode="out-in">
+            <span v-if="!sidebar.collapsed" :key="`sub-${j}`">{{ subItem.title }}</span>
+          </transition>
         </NuxtLink>
       </div>
     </template>
@@ -81,9 +85,15 @@ const isMenuItemActive = (item: IMenuItem) => {
           ]"
         >
           <Icon v-if="item.icon" :name="item.icon" class="h-5 w-5 text-[#3b82f6]" />
-          <p v-if="!sidebar.collapsed" :class="['truncate', isMenuItemActive(item) ? 'text-[#3b82f6]' : '']">
-            {{ item.name }}
-          </p>
+          <transition name="menu-label" mode="out-in">
+            <p
+              v-if="!sidebar.collapsed"
+              :key="`item-link-${i}`"
+              :class="['truncate', isMenuItemActive(item) ? 'text-[#3b82f6]' : '']"
+            >
+              {{ item.name }}
+            </p>
+          </transition>
         </NuxtLink>
 
         <button
@@ -102,9 +112,15 @@ const isMenuItemActive = (item: IMenuItem) => {
             ]"
           >
             <Icon v-if="item.icon" :name="item.icon" class="w-5 h-5 text-[#3b82f6]" />
-            <p v-if="!sidebar.collapsed" :class="['truncate', isMenuItemActive(item) ? 'text-[#3b82f6]' : '']">
-              {{ item.name }}
-            </p>
+            <transition name="menu-label" mode="out-in">
+              <p
+                v-if="!sidebar.collapsed"
+                :key="`item-btn-${i}`"
+                :class="['truncate', isMenuItemActive(item) ? 'text-[#3b82f6]' : '']"
+              >
+                {{ item.name }}
+              </p>
+            </transition>
           </div>
 
           <Icon v-if="!sidebar.collapsed" name="tabler:chevron-right" class="w-6 h-6 text-muted-foreground" />
@@ -113,3 +129,16 @@ const isMenuItemActive = (item: IMenuItem) => {
     </template>
   </div>
 </template>
+
+<style scoped>
+.menu-label-enter-active,
+.menu-label-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.menu-label-enter-from,
+.menu-label-leave-to {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+</style>

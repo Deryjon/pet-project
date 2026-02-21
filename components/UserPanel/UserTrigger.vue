@@ -12,12 +12,14 @@
     />
 
     <!--Показываеминфотолькоеслименюоткрыто-->
-    <div v-if="!collapsed" class="">
-      <p class="text-white max-w-[120px]">
-        Iskandarjon Y.
-        <span class="text-[#bdbdbd]">Globus Mall</span>
-      </p>
-    </div>
+    <transition name="user-label" mode="out-in">
+      <div v-if="!collapsed" class="" key="user-label-expanded">
+        <p class="text-white max-w-[120px]">
+          Iskandarjon Y.
+          <span class="text-[#bdbdbd]">Globus Mall</span>
+        </p>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -33,3 +35,16 @@ const { collapsed } = storeToRefs(useSidebarStore());
 
 defineEmits(["toggle"]);
 </script>
+
+<style scoped>
+.user-label-enter-active,
+.user-label-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.user-label-enter-from,
+.user-label-leave-to {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+</style>
