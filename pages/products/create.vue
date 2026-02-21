@@ -157,6 +157,8 @@ async function onCreate() {
 </template>
 
 <style>
+@reference "tailwindcss";
+
 input,
 select {
   @apply bg-[#404040] p-[15px] text-[16px] font-semibold rounded-[15px] transition-all duration-300 hover:bg-[#5e5e5e];

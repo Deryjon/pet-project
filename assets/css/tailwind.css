@@ -1,22 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --app-bg-1: #0b1117;
-  --app-bg-2: #0f1722;
-  --app-bg-3: #0a1016;
-  --app-accent-1: #34d399;
-  --app-accent-2: #3b82f6;
-  --app-accent-3: #22c55e;
-  --app-text: #eef2f7;
-  --app-panel-1: rgba(18, 22, 28, 0.78);
-  --app-panel-2: rgba(24, 30, 38, 0.85);
-  --app-panel-3: rgba(30, 36, 45, 0.9);
-  --app-panel-hover: rgba(45, 54, 66, 0.92);
-}
+@import "tailwindcss";
+@import "@nuxt/ui";
 
 body {
   font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -54,36 +37,6 @@ body {
   border-radius: 28px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(10px);
-}
-
-.bg-\[\#262626\] { background-color: var(--app-panel-1) !important; }
-.bg-\[\#404040\] { background-color: var(--app-panel-2) !important; }
-.bg-\[\#2e2e2e\] { background-color: var(--app-panel-2) !important; }
-.bg-\[\#333\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#333333\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#3a3a3a\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#2c2c2c\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#202020\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#1f1f1f\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#1e1e1e\] { background-color: var(--app-panel-3) !important; }
-.bg-\[\#2b2b2b\] { background-color: var(--app-panel-3) !important; }
-
-.bg-\[\#505050\] { background-color: var(--app-panel-hover) !important; }
-.bg-\[\#5e5e5e\] { background-color: var(--app-panel-hover) !important; }
-.bg-\[\#606060\] { background-color: var(--app-panel-hover) !important; }
-
-.bg-\[\#1f78ff\] { background-color: var(--app-accent-2) !important; }
-.bg-\[\#4d94ff\] { background-color: var(--app-accent-1) !important; }
-.bg-\[\#4993dd\] { background-color: var(--app-accent-1) !important; }
-
-.hover\:bg-\[\#505050\]:hover { background-color: var(--app-panel-hover) !important; }
-.hover\:bg-\[\#5e5e5e\]:hover { background-color: var(--app-panel-hover) !important; }
-.hover\:bg-\[\#606060\]:hover { background-color: var(--app-panel-hover) !important; }
-.hover\:bg-\[\#4993dd\]:hover { background-color: var(--app-accent-1) !important; }
-.hover\:bg-\[\#4d94ff\]:hover { background-color: var(--app-accent-1) !important; }
-
-.app-sidebar .hover\:bg-\[\#5e5e5e\]:hover {
-  background-color: #5E5E5E !important;
 }
 
 @keyframes app-float {

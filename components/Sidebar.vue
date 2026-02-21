@@ -39,19 +39,17 @@ const sidebar = useSidebarStore();
       <Menu :class="sidebar.collapsed ? '-mx-[10px]' : '-mx-[20px]'" />
     </div>
 
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-5">
       <User />
       <UButton
-        block
-        disabled
         :class="[
-          '!text-white [&_*]:!text-white !opacity-100 text-[16px] w-full py-5 rounded-none !bg-[#5e5e5e] hover:!bg-[#5e5e5e] cursor-not-allowed flex items-center gap-2 text-semibold',
+          'text-white [&_*]:text-white opacity-100 text-[16px] w-full py-5 rounded-none bg-[#5e5e5e] hover:bg-[#4d4c4c] flex items-center gap-2 font-semibold cursor-pointer transition-colors duration-300',
           sidebar.collapsed
             ? '-ml-[10px] w-[calc(100%+20px)] px-[10px]'
             : '-ml-[20px] w-[calc(100%+40px)] px-[20px]',
         ]"
       >
-        <Icon name="solar:help-bold" class="w-5 h-5 !text-white" />
+        <Icon name="solar:help-bold" class="w-5 h-5 text-white" />
         Написать в поддержку
       </UButton>
     </div>

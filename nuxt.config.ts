@@ -2,15 +2,13 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  css: ['~/assets/css/tailwind.css'],
   modules: [
     '@pinia/nuxt',
     '@nuxt/ui',
     "@nuxt/icon",
     'nuxt-headlessui',
   ],
-  tailwindcss: {
-    cssPath: '~/assets/css/tailwind.css',
-  },
   ui: {
     colorMode: false,
   },
