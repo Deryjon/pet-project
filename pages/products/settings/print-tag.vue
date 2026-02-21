@@ -150,7 +150,7 @@
         <transition name="fade-slide" mode="out-in" class="bg-[#404040]">
           <div
             :key="JSON.stringify(form)"
-            class="bg-[#404040] text-black p-6 rounded-lg shadow-xl w-[250px] h-[150px] flex flex-col justify-between border border-gray-300"
+            class="bg-[#404040] text-white p-6 rounded-lg shadow-xl w-[250px] h-[150px] flex flex-col justify-between border border-gray-300"
           >
             <div class="text-lg font-bold">{{ form.template }}</div>
             <div>{{ form.store }}</div>

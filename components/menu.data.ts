@@ -8,7 +8,7 @@ export interface IMenuItem {
 export const MENU_DATA: IMenuItem[] = [
   {
     name: "Товары",
-    icon: "heroicons:cube",
+    icon: "ph:shopping-cart-simple-fill",
     url: "/products",
     items: [
       { title: "Каталог", url: "/products/catalog" },
@@ -23,7 +23,7 @@ export const MENU_DATA: IMenuItem[] = [
   },
   {
     name: "Продажи",
-    icon: "heroicons:shopping-cart",
+    icon: "boxicons:scan-filled",
     url: "/order",
     items: [
       { title: "Новая продажа", url: "/pos/new-pos" },
@@ -32,7 +32,7 @@ export const MENU_DATA: IMenuItem[] = [
   },
   {
     name: "Клиенты",
-    icon: "heroicons:user-group",
+    icon: "solar:user-bold",
     url: "/clients",
     items: [
       { title: "Все клиенты", url: "/clients/all" },
@@ -42,7 +42,7 @@ export const MENU_DATA: IMenuItem[] = [
   },
   {
     name: "Отчеты",
-    icon: "heroicons:chart-pie",
+    icon: "flowbite:chart-pie-solid",
     url: "/analytics",
     items: [
       { title: "Магазин", url: "/analytics/shop" },
@@ -53,7 +53,7 @@ export const MENU_DATA: IMenuItem[] = [
   },
   {
     name: "Управление",
-    icon: "uil:bag",
+    icon: "ix:work-case-filled",
     url: "",
     items: [
       { title: "Сотрудники", url: "/management/employees" },
@@ -62,7 +62,7 @@ export const MENU_DATA: IMenuItem[] = [
   },
   {
     name: "Настройки",
-    icon: "uil:cog",
+    icon: "material-symbols:settings",
     url: "",
     items: [
       { title: "Профиль", url: "/settings/profile" },

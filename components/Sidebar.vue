@@ -1,47 +1,59 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import Menu from "./Menu.vue";
 import User from "./User.vue";
 import { useSidebarStore } from "../store/useSidebar";
 import { useRouter } from "vue-router";
 
-const router = useRouter(); 
+const router = useRouter();
 const goToSidebar = () => {
   router.push("/");
-}
+};
 const sidebar = useSidebarStore();
 </script>
 
 <template>
   <div
-  class="flex flex-col justify-between"
-  :class="sidebar.collapsed ? 'px-[10px]' : 'px-[20px]'"
+    class="flex flex-col justify-between"
+    :class="sidebar.collapsed ? 'px-[10px]' : 'px-[20px]'"
   >
-    <!-- Верхняя часть -->
     <div class="flex flex-col gap-[30px]">
       <div
         class="logo font-bold text-[20px] text-white p-[5px] flex justify-between items-center"
       >
-        <!-- Если сайдбар открыт -->
-        <h1 @click="goToSidebar" v-if="sidebar.collapsed" class="cursor-pointer">K</h1>
-        <h1 @click="goToSidebar" v-else class="cursor-pointer">Konkurent.cases</h1>
-        <!-- Кнопка сворачивания -->
+        <h1
+          v-if="sidebar.collapsed"
+          class="cursor-pointer"
+          @click="goToSidebar"
+        >
+          K
+        </h1>
+        <h1 v-else class="cursor-pointer" @click="goToSidebar">Konkurent</h1>
 
         <Icon
           @click="sidebar.toggle"
-          :name="
-            sidebar.collapsed
-              ? 'heroicons:chevron-right'
-              : 'heroicons:chevron-left'
-          "
-          class="w-5 h-5 cursor-pointer"
+          :name="sidebar.collapsed ? 'tabler:chevrons-right' : 'tabler:chevrons-left'"
+          class="w-6 h-6 cursor-pointer"
         />
-        <!-- Если закрыт -->
       </div>
 
       <Menu :class="sidebar.collapsed ? '-mx-[10px]' : '-mx-[20px]'" />
     </div>
 
-    <!-- Нижняя часть -->
-    <User />
+    <div class="flex flex-col gap-2">
+      <User />
+      <UButton
+        block
+        disabled
+        :class="[
+          '!text-white [&_*]:!text-white !opacity-100 text-[16px] w-full py-5 rounded-none !bg-[#5e5e5e] hover:!bg-[#5e5e5e] cursor-not-allowed flex items-center gap-2 text-semibold',
+          sidebar.collapsed
+            ? '-ml-[10px] w-[calc(100%+20px)] px-[10px]'
+            : '-ml-[20px] w-[calc(100%+40px)] px-[20px]',
+        ]"
+      >
+        <Icon name="solar:help-bold" class="w-5 h-5 !text-white" />
+        Написать в поддержку
+      </UButton>
+    </div>
   </div>
 </template>

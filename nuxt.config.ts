@@ -3,16 +3,22 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: [
-    '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
+    '@nuxt/ui',
     "@nuxt/icon",
     'nuxt-headlessui',
   ],
+  tailwindcss: {
+    cssPath: '~/assets/css/tailwind.css',
+  },
+  ui: {
+    colorMode: false,
+  },
   components: true,
   headlessui: { prefix: "H" },
   icon: {
-    provider: "server",
-    fallbackToApi: false,
+    provider: "iconify",
+    serverBundle: false,
   },
   runtimeConfig: {
     public: {

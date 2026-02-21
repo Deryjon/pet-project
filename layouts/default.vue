@@ -17,9 +17,9 @@ onMounted(() => {
     <!-- Sidebar -->
     <div
       :class="[
-        'fixed left-0 top-0 h-screen bg-[#33383a] app-sidebar py-5 transition-all duration-300',
+        'fixed left-0 top-0 h-screen app-sidebar pt-5 transition-all duration-300',
         sidebar.collapsed
-          ? 'w-[80px] min-w-[80px] max-w-[80px]'
+          ? 'w-[95px] min-w-[95px] max-w-[95px]'
           : 'w-[256px] min-w-[256px] max-w-[256px]',
       ]"
     >

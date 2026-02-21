@@ -40,8 +40,7 @@ body {
 
 
 .app-sidebar {
-  background: #33383a;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #404040;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
 }
 

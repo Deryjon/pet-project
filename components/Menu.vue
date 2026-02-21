@@ -24,7 +24,7 @@ const backToMainMenu = () => {
 
 <template>
   <div
-    class="flex flex-col gap-[5px] text-black dark:text-white text-md font-semibold transition-colors duration-300"
+    class="flex flex-col gap-[5px] text-white text-md font-semibold transition-colors duration-300"
   >
     <!-- Подменю выбранного раздела -->
     <template v-if="activeMenu">
@@ -38,7 +38,7 @@ const backToMainMenu = () => {
           ]"
         >
           <Icon
-            name="heroicons:chevron-left"
+            name="tabler:chevron-left"
             class="w-5 h-5 text-muted-foreground"
           />
           <Icon
@@ -73,7 +73,7 @@ const backToMainMenu = () => {
           :to="item.url"
           :class="[
             'flex w-full items-center gap-4 py-3 hover:bg-[#5e5e5e] transition-colors duration-300',
-            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+            sidebar.collapsed ? 'px-[15px]' : 'px-[20px]',
           ]"
         >
           <Icon
@@ -90,7 +90,7 @@ const backToMainMenu = () => {
           @click="openMenu(item)"
           :class="[
             'flex w-full items-center justify-between py-3 hover:bg-[#5e5e5e] transition-colors duration-300',
-            sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
+            sidebar.collapsed ? 'px-[15px]' : 'px-[25px]',
           ]"
         >
           <!-- Левая часть -->
@@ -111,8 +111,8 @@ const backToMainMenu = () => {
           <!-- Стрелка всегда справа -->
           <Icon
             v-if="!sidebar.collapsed"
-            name="heroicons:chevron-right"
-            class="w-5 h-5 text-muted-foreground"
+            name="tabler:chevron-right"
+            class="w-6 h-6 text-muted-foreground"
           />
         </button>
       </template>
