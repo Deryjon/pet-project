@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
+type DashboardPeriod = "yesterday" | "today" | "week" | "month" | "year";
+
 export const useDashboardStore = defineStore("dashboard", () => {
   // магазины
   const shops = ref([
@@ -24,17 +26,15 @@ export const useDashboardStore = defineStore("dashboard", () => {
   }
 
   // периоды
-  const periods = [
+  const periods: Array<{ label: string; value: DashboardPeriod }> = [
     { label: "Вчера", value: "yesterday" },
     { label: "Сегодня", value: "today" },
     { label: "Неделя", value: "week" },
     { label: "Месяц", value: "month" },
     { label: "Год", value: "year" },
   ];
-  const selectedPeriod = ref<"yesterday" | "today" | "week" | "month" | "year">(
-    "today"
-  );
-  function setPeriod(value: "yesterday" | "today" | "week" | "month" | "year") {
+  const selectedPeriod = ref<DashboardPeriod>("today");
+  function setPeriod(value: DashboardPeriod) {
     selectedPeriod.value = value;
   }
 
