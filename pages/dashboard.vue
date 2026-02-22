@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { defineAsyncComponent } from 'vue';
 import ShopSelector from "@/components/dashboard/ShopSelector.vue";
 import PeriodSelector from "@/components/dashboard/PeriodSelector.vue";
@@ -7,9 +7,13 @@ import TransactionsCard from "@/components/dashboard/TransactionsCard.vue";
 import TopSellers from "@/components/dashboard/TopSellers.vue";
 import TopProducts from "@/components/dashboard/TopProducts.vue";
 
+useSeoMeta({
+  title: 'Дашбоард',
+  description: 'Главная страница',
+});
+
 // Load Chart only on client to avoid SSR errors
 const SalesChart = defineAsyncComponent(() => import('@/components/dashboard/SalesChart.vue'));
-
 </script>
 
 <template>

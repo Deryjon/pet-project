@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import Menu from "./Menu.vue";
 import User from "./User.vue";
 import { useSidebarStore } from "../store/useSidebar";
