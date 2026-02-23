@@ -19,7 +19,7 @@ const SalesChart = defineAsyncComponent(() => import('@/components/dashboard/Sal
 <template>
   <section class="space-y-6">
     <ShopSelector />
-    <PeriodSelector />
+    <PeriodSelector class="" />
     <ClientOnly>
       <SalesChart />
     </ClientOnly>
