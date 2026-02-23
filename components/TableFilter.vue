@@ -2,83 +2,27 @@
   <div
     class="w-full border-2 bg-[#262626] text-white rounded-[20px] flex flex-wrap gap-y-[30px] gap-x-[15px] p-[20px]"
   >
-    <!-- Магазин -->
-    <div class="w-[370px]">
+    <div
+      v-for="field in selectFields"
+      :key="field.key"
+      class="w-[370px]"
+    >
       <CustomSelect
-        label="Магазин"
-        :options="['Магазин 1', 'Магазин 2', 'Магазин 3']"
-        placeholder="Выберите магазин"
-        v-model="store"
-      />
-    </div>
-
-    <!-- Категория -->
-    <div class="w-[370px]">
-      <CustomSelect
-        label="Категория"
-        :options="['Наушники', 'Зарядное устройство', 'Чехлы']"
-        placeholder="Введите категорию"
-        v-model="category"
-      />
-    </div>
-
-    <!-- Артикул -->
-    <div class="w-[370px]">
-      <CustomSelect
-        label="Артикул"
-        :options="['AAA', 'BBB', 'CCC']"
-        placeholder="Введите артикул"
-        v-model="article"
-      />
-    </div>
-
-    <!-- Бренд -->
-    <div class="w-[370px]">
-      <CustomSelect
-        label="Бренд"
-        :options="['Apple', 'Samsung', 'Xiaomi']"
-        placeholder="Введите бренд"
-        v-model="brand"
-      />
-    </div>
-
-    <!-- Поставщик -->
-    <div class="w-[370px]">
-      <CustomSelect
-        label="Поставщик"
-        :options="['Apple', 'Samsung', 'Xiaomi']"
-        placeholder="Введите поставщика"
-        v-model="supplier"
-      />
-    </div>
-
-    <!-- Единица измерения -->
-    <div class="w-[370px]">
-      <CustomSelect
-        label="Единица измерения"
-        :options="['Шт', 'Упаковка', 'Коробка']"
-        placeholder="Выберите единицу"
-        v-model="unit"
+        :label="field.label"
+        :options="field.options"
+        :placeholder="field.placeholder"
+        v-model="filters[field.key]"
       />
     </div>
 
     <PriceRange
-      label="Цена поставки"
-      v-model:min="supplyPriceMin"
-      v-model:max="supplyPriceMax"
-    />
-    <PriceRange
-      label="Цена продажи"
-      v-model:min="salePriceMin"
-      v-model:max="salePriceMax"
-    />
-    <PriceRange
-      label="Оптовая цена"
-      v-model:min="wholesalePriceMin"
-      v-model:max="wholesalePriceMax"
+      v-for="field in priceFields"
+      :key="field.key"
+      :label="field.label"
+      v-model:min="prices[field.key].min"
+      v-model:max="prices[field.key].max"
     />
 
-    <!-- Свободная цена -->
     <div class="w-[370px] flex flex-col gap-2">
       <span class="text-sm text-[#bdbdbd] font-bold">Свободная цена</span>
       <div class="flex gap-2">
@@ -103,7 +47,6 @@
       </div>
     </div>
 
-    <!-- Сбросить -->
     <div class="w-full flex gap-4 mt-4">
       <button
         @click="resetFilters"
@@ -122,42 +65,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import CustomSelect from "./ui/CustomSelect.vue";
 import PriceRange from "./ui/PriceRange.vue";
-// Селекты
-const store = ref("");
-const category = ref("");
-const article = ref("");
-const brand = ref("");
-const supplier = ref("");
-const unit = ref("");
 
-// Цены
-const supplyPriceMin = ref("");
-const supplyPriceMax = ref("");
-const salePriceMin = ref("");
-const salePriceMax = ref("");
-const wholesalePriceMin = ref("");
-const wholesalePriceMax = ref("");
+type SelectFieldKey =
+  | "store"
+  | "category"
+  | "article"
+  | "brand"
+  | "supplier"
+  | "unit";
 
-// Свободная цена
+type PriceFieldKey = "supply" | "sale" | "wholesale";
+
+const selectFields: Array<{
+  key: SelectFieldKey;
+  label: string;
+  placeholder: string;
+  options: string[];
+}> = [
+  {
+    key: "store",
+    label: "Магазин",
+    placeholder: "Выберите магазин",
+    options: ["Магазин 1", "Магазин 2", "Магазин 3"],
+  },
+  {
+    key: "category",
+    label: "Категория",
+    placeholder: "Введите категорию",
+    options: ["Наушники", "Зарядное устройство", "Чехлы"],
+  },
+  {
+    key: "article",
+    label: "Артикул",
+    placeholder: "Введите артикул",
+    options: ["AAA", "BBB", "CCC"],
+  },
+  {
+    key: "brand",
+    label: "Бренд",
+    placeholder: "Введите бренд",
+    options: ["Apple", "Samsung", "Xiaomi"],
+  },
+  {
+    key: "supplier",
+    label: "Поставщик",
+    placeholder: "Введите поставщика",
+    options: ["Apple", "Samsung", "Xiaomi"],
+  },
+  {
+    key: "unit",
+    label: "Единица измерения",
+    placeholder: "Выберите единицу",
+    options: ["Шт", "Упаковка", "Коробка"],
+  },
+];
+
+const priceFields: Array<{ key: PriceFieldKey; label: string }> = [
+  { key: "supply", label: "Цена поставки" },
+  { key: "sale", label: "Цена продажи" },
+  { key: "wholesale", label: "Оптовая цена" },
+];
+
+const filters = reactive<Record<SelectFieldKey, string>>({
+  store: "",
+  category: "",
+  article: "",
+  brand: "",
+  supplier: "",
+  unit: "",
+});
+
+const prices = reactive<Record<PriceFieldKey, { min: string; max: string }>>({
+  supply: { min: "", max: "" },
+  sale: { min: "", max: "" },
+  wholesale: { min: "", max: "" },
+});
+
 const freePrice = ref(false);
 
-const resetFilters = () => {
-  store.value = "";
-  category.value = "";
-  article.value = "";
-  brand.value = "";
-  supplier.value = "";
-  unit.value = "";
-  supplyPriceMin.value = "";
-  supplyPriceMax.value = "";
-  salePriceMin.value = "";
-  salePriceMax.value = "";
-  wholesalePriceMin.value = "";
-  wholesalePriceMax.value = "";
+function resetFilters() {
+  for (const field of selectFields) {
+    filters[field.key] = "";
+  }
+  for (const field of priceFields) {
+    prices[field.key].min = "";
+    prices[field.key].max = "";
+  }
   freePrice.value = false;
-};
-const acceptFilters = () => {};
+}
+
+function acceptFilters() {}
 </script>

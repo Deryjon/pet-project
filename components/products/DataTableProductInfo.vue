@@ -1,9 +1,59 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 
+type TableSection = {
+  title: string;
+  columns: string[];
+  rows: string[][];
+};
+
 const store = useCatalogDataTableStore();
+
 const selectedProduct = computed(() => store.selectedProduct);
 const showProductSidebar = computed(() => !!store.selectedProduct);
+
+const tableSections: TableSection[] = [
+  {
+    title: "История продукта",
+    columns: ["Дата", "Действие", "Кол-во", "Магазин"],
+    rows: [["18.08.2025\n16:02:42", "Импорт #892933", "1", "Samarqand Darvoza"]],
+  },
+  {
+    title: "Цены",
+    columns: [
+      "Магазин",
+      "Цена поставки",
+      "Наценка",
+      "Цена продажи",
+      "Оптовая",
+      "Скидочная",
+    ],
+    rows: [["Samarqand Darvoza", "70 000 UZS", "164.28 %", "185 000 UZS", "-", "-"]],
+  },
+  {
+    title: "Остатки",
+    columns: ["Магазин", "Активные", "Неактивные", "Малый остаток"],
+    rows: [["Samarqand Darvoza", "1", "0", "0"]],
+  },
+];
+
+const characteristics = computed(() => [
+  { label: "Артикул", value: selectedProduct.value?.sku || "XSN-29015" },
+  { label: "Баркод", value: selectedProduct.value?.barcode || "2000000013404" },
+  { label: "Ед. изм.", value: "Штука" },
+  { label: "Бренд", value: "-" },
+  { label: "Весовой продукт", value: "Нет" },
+  { label: "Маркировка", value: "Нет" },
+  { label: "Поставщики", value: "-" },
+  { label: "Категория", value: selectedProduct.value?.category || "Товар" },
+]);
+
+const productMeta = computed(() => {
+  const p = selectedProduct.value;
+  if (!p) return "";
+  return `${p.sku || "-"} / ${p.barcode || "-"} / ${p.category || "-"} / ${p.sale_price || 0} UZS`;
+});
 
 function closeSidebar() {
   store.closeProductSidebar();
@@ -15,119 +65,73 @@ function closeSidebar() {
     <teleport to="body">
       <div
         v-if="showProductSidebar"
-        class="fixed top-0 right-0 h-full w-full max-w-[768px] bg-[#2b2b2b] text-white shadow-lg px-16 py-14 rounded-l-[60px] z-[9999] overflow-y-auto"
+        class="fixed top-0 right-0 z-[9999] h-full w-full max-w-[768px] overflow-y-auto rounded-l-[60px] bg-[#2b2b2b] px-16 py-14 text-white shadow-lg"
       >
-        <!-- Заголовок -->
-        <div class="flex justify-between items-center mb-6">
-          <div class="border-gray-600 flex gap-[20px]">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex gap-[20px] border-gray-600">
             <img
               src="../../assets/images/placeholder_img.svg"
               alt=""
-              class="rounded-[20px] w-[60px] h-[60px] object-cover"
+              class="h-[60px] w-[60px] rounded-[20px] object-cover"
             />
             <div class="flex flex-col font-semibold">
               <p class="text-[24px]">{{ selectedProduct?.name }}</p>
-              <p class="text-[#bdbdbd] text-[16px]">
-                {{ selectedProduct?.sku }} / {{ selectedProduct?.barcode }} /
-                {{ selectedProduct?.category }} /
-                {{ selectedProduct?.sale_price }} UZS
-              </p>
+              <p class="text-[16px] text-[#bdbdbd]">{{ productMeta }}</p>
             </div>
           </div>
           <button
             @click="closeSidebar"
-            class="flex items-center justify-center text-white bg-[#404040] rounded-full w-10 h-10 hover:bg-gray-400"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-[#404040] text-white hover:bg-gray-400"
           >
-            <Icon name="heroicons:x-mark" class="w-6 h-6" />
+            <Icon name="heroicons:x-mark" class="h-6 w-6" />
           </button>
         </div>
-        <div class="mb-6">
-          <h3 class="text-lg font-bold mb-3">История продукта</h3>
-          <table
-            class="w-full text-sm border border-gray-700 rounded-lg overflow-hidden"
-          >
+
+        <div
+          v-for="section in tableSections"
+          :key="section.title"
+          class="mb-6"
+        >
+          <h3 class="mb-3 text-lg font-bold">{{ section.title }}</h3>
+          <table class="w-full overflow-hidden rounded-lg border border-gray-700 text-sm">
             <thead class="bg-[#3a3a3a] text-left">
               <tr>
-                <th class="p-2">Дата</th>
-                <th class="p-2">Действие</th>
-                <th class="p-2">Кол-во</th>
-                <th class="p-2">Магазин</th>
+                <th
+                  v-for="column in section.columns"
+                  :key="column"
+                  class="p-2"
+                >
+                  {{ column }}
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr class="border-t border-gray-700">
-                <td class="p-2">18.08.2025<br />16:02:42</td>
-                <td class="p-2">Импорт #892933</td>
-                <td class="p-2">1</td>
-                <td class="p-2">Samarqand Darvoza</td>
+              <tr
+                v-for="(row, rowIndex) in section.rows"
+                :key="`${section.title}-${rowIndex}`"
+                class="border-t border-gray-700"
+              >
+                <td
+                  v-for="(cell, cellIndex) in row"
+                  :key="`${section.title}-${rowIndex}-${cellIndex}`"
+                  class="p-2 whitespace-pre-line"
+                >
+                  {{ cell }}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <!-- Цены -->
+
         <div class="mb-6">
-          <h3 class="text-lg font-bold mb-3">Цены</h3>
-          <table
-            class="w-full text-sm border border-gray-700 rounded-lg overflow-hidden"
-          >
-            <thead class="bg-[#3a3a3a] text-left">
-              <tr>
-                <th class="p-2">Магазин</th>
-                <th class="p-2">Цена поставки</th>
-                <th class="p-2">Наценка</th>
-                <th class="p-2">Цена продажи</th>
-                <th class="p-2">Оптовая</th>
-                <th class="p-2">Скидочная</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="border-t border-gray-700">
-                <td class="p-2">Samarqand Darvoza</td>
-                <td class="p-2">70 000 UZS</td>
-                <td class="p-2">164.28 %</td>
-                <td class="p-2">185 000 UZS</td>
-                <td class="p-2">-</td>
-                <td class="p-2">-</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <!-- Остатки -->
-        <div class="mb-6">
-          <h3 class="text-lg font-bold mb-3">Остатки</h3>
-          <table
-            class="w-full text-sm border border-gray-700 rounded-lg overflow-hidden"
-          >
-            <thead class="bg-[#3a3a3a] text-left">
-              <tr>
-                <th class="p-2">Магазин</th>
-                <th class="p-2">Активные</th>
-                <th class="p-2">Неактивные</th>
-                <th class="p-2">Малый остаток</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="border-t border-gray-700">
-                <td class="p-2">Samarqand Darvoza</td>
-                <td class="p-2">1</td>
-                <td class="p-2">0</td>
-                <td class="p-2">0</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <!-- Характеристики -->
-        <div class="mb-6">
-          <h3 class="text-lg font-bold mb-3">Характеристики</h3>
+          <h3 class="mb-3 text-lg font-bold">Характеристики</h3>
           <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#bdbdbd]">
-            <p><b>Артикул:</b> XSN-29015</p>
-            <p><b>Баркод:</b> 2000000013404</p>
-            <p><b>Ед. изм.:</b> Штука</p>
-            <p><b>Бренд:</b> -</p>
-            <p><b>Весовой продукт:</b> Нет</p>
-            <p><b>Маркировка:</b> Нет</p>
-            <p><b>Поставщики:</b> -</p>
-            <p><b>Категория:</b> Товар</p>
+            <p
+              v-for="item in characteristics"
+              :key="item.label"
+            >
+              <b>{{ item.label }}:</b> {{ item.value }}
+            </p>
           </div>
         </div>
       </div>

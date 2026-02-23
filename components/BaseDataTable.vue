@@ -18,7 +18,7 @@ defineProps<{
     <!-- Таблица -->
     <table
       v-else
-      class="min-w-full text-sm text-left text-[15px] text-[#bdbdbd]"
+      class="min-w-full text-sm text-left text-[17px] text-[#bdbdbd]"
     >
       <thead class="border-t border-b rounded-[0px]">
         <tr
@@ -56,7 +56,7 @@ defineProps<{
           <td
             v-for="(cell, i) in row.getVisibleCells()"
             :key="cell.id"
-            class="text-left text-[15px] font-bold whitespace-nowrap"
+            class="text-left text-[17px] font-normal whitespace-nowrap"
             :class="[ 
               'px-[20px] py-[25px]',
               index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',

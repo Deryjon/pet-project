@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 interface ActionButton {
@@ -20,6 +20,7 @@ const props = defineProps<{
   modelValue?: string;
   showSearch?: boolean;
   showFilters?: boolean;
+  filtersOpen?: boolean;
   filtersSlot?: boolean;
   actionButtons?: ActionButton[];
   createButton?: {
@@ -27,8 +28,8 @@ const props = defineProps<{
     to?: string;
     onClick?: () => void;
   };
-  statFilters?: StatFilter[]; // 👉 передаём фильтры снаружи
-  activeFilter?: string; // 👉 выбранный фильтр
+  statFilters?: StatFilter[];
+  activeFilter?: string;
 }>();
 
 const emit = defineEmits<{
@@ -37,121 +38,135 @@ const emit = defineEmits<{
   (e: "update:activeFilter", value: string): void;
 }>();
 
-// v-model для поиска
-const searchInput = ref(props.modelValue ?? "");
-watch(searchInput, (val) => emit("update:modelValue", val));
+const router = useRouter();
 
-// активный фильтр
-const activeFilter = ref(
-  props.activeFilter ?? (props.statFilters?.[0]?.key || "")
+const searchInput = computed({
+  get: () => props.modelValue ?? "",
+  set: (value: string) => emit("update:modelValue", value),
+});
+
+const selectedFilterKey = computed({
+  get: () => props.activeFilter ?? props.statFilters?.[0]?.key ?? "",
+  set: (key: string) => emit("update:activeFilter", key),
+});
+
+const resolvedSearchPlaceholder = computed(
+  () => props.searchPlaceholder || "Поиск..."
 );
+
+const isFiltersOpen = ref(!!props.filtersOpen);
+
 watch(
-  () => props.activeFilter,
-  (val) => {
-    if (val) activeFilter.value = val;
+  () => props.filtersOpen,
+  (value) => {
+    if (typeof value === "boolean") {
+      isFiltersOpen.value = value;
+    }
   }
 );
+
 function selectFilter(key: string) {
-  activeFilter.value = key;
-  emit("update:activeFilter", key);
+  selectedFilterKey.value = key;
 }
 
-const router = useRouter();
+function onToggleFilters() {
+  isFiltersOpen.value = !isFiltersOpen.value;
+  emit("toggleFilters");
+}
+
+function onCreateClick() {
+  if (!props.createButton) return;
+  if (props.createButton.onClick) {
+    props.createButton.onClick();
+    return;
+  }
+  if (props.createButton.to) {
+    router.push(props.createButton.to);
+  }
+}
 </script>
 
 <template>
-  <!-- Верхняя панель фильтров -->
-  <div v-if="statFilters?.length" class="flex gap-1 mb-4">
-    <button
+  <div v-if="statFilters?.length" class="mb-6 flex gap-1">
+    <UButton
       v-for="f in statFilters"
       :key="f.key"
+      color="neutral"
+      variant="ghost"
       @click="selectFilter(f.key)"
-      class="flex items-center py-1 px-3 rounded-[20px] transition-colors duration-300 text-[#bdbdbd]"
-      :class="[activeFilter === f.key ? 'bg-[#404040]' : '']"
+      class="text-[18px] font-extralight flex items-center rounded-[20px] px-3 py-1 text-[#bdbdbd] transition-colors duration-300 cursor-pointer hover:bg-[#505050] active:bg-[#505050] data-[state=open]:bg-[#505050] focus-visible:ring-0"
+      :class="[
+        selectedFilterKey === f.key ? 'bg-[#404040] text-white' : 'text-[#bdbdbd]',
+      ]"
     >
-      <span
-        class="min-w-[28px] h-[28px] flex items-center justify-center rounded-full text-[18px] font-semibold"
-        >{{ f.label }}</span
-      >
-      <span
-        class="min-w-[28px] h-[28px] flex items-center justify-center rounded-full text-[16px] font-semibold"
-        :class="activeFilter === f.key ? '' : ''"
-      >
-        ({{ f.count }})
-      </span>
-    </button>
+      <span>{{ f.label }}</span>
+      <span>({{ f.count }})</span>
+    </UButton>
   </div>
 
-  <!-- Основной топбар -->
   <div class="top flex justify-between gap-[10px]">
-    <!-- Поиск -->
     <div
       v-if="showSearch"
-      class="pl-[17px] w-full bg-[#404040] rounded-[15px] flex items-center gap-[10px] hover:bg-[#5e5e5e] transition-colors duration-300"
+      class="group flex w-full items-center gap-[10px] rounded-[15px] border-3 border-transparent bg-[#404040] pl-[17px] transition-colors duration-300 hover:bg-[#5e5e5e] focus-within:border-[#4993dd]"
     >
-      <svg
-        width="16"
-        height="17"
-        viewBox="0 0 16 17"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M15.7812 13.8438L12.6562 10.7188C12.5 10.5938 12.3125 10.5 12.125 10.5H11.625C12.4688 9.40625 13 8.03125 13 6.5C13 2.9375 10.0625 0 6.5 0C2.90625 0 0 2.9375 0 6.5C0 10.0938 2.90625 13 6.5 13C8 13 9.375 12.5 10.5 11.625V12.1562C10.5 12.3438 10.5625 12.5312 10.7188 12.6875L13.8125 15.7812C14.125 16.0938 14.5938 16.0938 14.875 15.7812L15.75 14.9062C16.0625 14.625 16.0625 14.1562 15.7812 13.8438ZM6.5 10.5C4.28125 10.5 2.5 8.71875 2.5 6.5C2.5 4.3125 4.28125 2.5 6.5 2.5C8.6875 2.5 10.5 4.3125 10.5 6.5C10.5 8.71875 8.6875 10.5 6.5 10.5Z"
-          fill="#BDBDBD"
-        ></path>
-      </svg>
-      <input
+      <Icon name="heroicons:magnifying-glass-20-solid" class="h-4 w-4 text-[#bdbdbd]" />
+      <UInput
         v-model="searchInput"
-        type="text"
-        :placeholder="searchPlaceholder || 'Поиск...'"
-        class="bg-transparent w-full text-[#bdbdbd] text-[17px] font-bold"
+        :placeholder="resolvedSearchPlaceholder"
+        class="w-full"
+        :ui="{
+          root: 'w-full',
+          base: 'w-full border-0 bg-transparent text-[17px] font-bold text-[#bdbdbd] placeholder:text-[#bdbdbd] ring-0 outline-none focus:border-0 focus:ring-0 focus-visible:ring-0',
+        }"
       />
     </div>
 
-    <!-- Фильтры -->
     <div v-if="showFilters" class="filters">
-      <button
-        class="filter bg-[#404040] rounded-[15px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
-        @click="emit('toggleFilters')"
-        :aria-expanded="showFilters"
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="w-full flex items-center gap-[15px] rounded-[15px] bg-[#404040] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0"
+        @click="onToggleFilters"
+        :aria-expanded="isFiltersOpen"
       >
-        <Icon name="heroicons:funnel" class="w-5 h-5 text-[#4993dd]" />
+        <Icon
+          name="tabler:chevron-down"
+          class="h-5 w-5 text-white transition-transform duration-200"
+          :class="{ 'rotate-180': isFiltersOpen }"
+        />
+        <Icon name="iconoir:filter-solid" class="h-5 w-5 text-[#4993dd]" />
         Фильтры
-      </button>
+      </UButton>
     </div>
 
-    <!-- Действия -->
     <div v-if="actionButtons?.length" class="flex gap-2">
-      <button
+      <UButton
         v-for="(btn, i) in actionButtons"
-        :key="i"
-        class="filter rounded-[15px] flex items-center gap-[10px] p-[17px] text-[17px] font-bold text-white hover:bg-[#5e5e5e] transition-colors duration-300"
+        :key="`${btn.label}-${i}`"
+        color="neutral"
+        variant="ghost"
+        class="filter flex items-center gap-[10px] rounded-[15px] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0"
         :class="[btn.color || 'bg-[#404040]']"
         @click="btn.onClick"
       >
+              <Icon name="mynaui:box-solid" class="h-5 w-5 text-[#4993dd]" />
+
         {{ btn.label }}
-      </button>
+      </UButton>
     </div>
 
-    <!-- Создать -->
     <div v-if="createButton" class="action">
-      <button
-        class="bg-[#1f78ff] rounded-[15px] flex items-center justify-center gap-2 p-[17px] text-[17px] font-bold text-white hover:bg-[#2a6ed9] transition-colors duration-300"
-        @click="
-          createButton.onClick
-            ? createButton.onClick()
-            : createButton.to
-            ? router.push(createButton.to)
-            : null
-        "
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="flex items-center justify-center gap-2 rounded-[15px] bg-[#1f78ff] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#2a6ed9] active:bg-[#2a6ed9] data-[state=open]:bg-[#2a6ed9] focus-visible:ring-0"
+        @click="onCreateClick"
       >
-        <Icon name="heroicons:plus" class="w-6 h-6 font-extrabold" />
+        <Icon name="qlementine-icons:plus-16" class="h-6 w-6 font-extrabold" />
         <span class="truncate">{{ createButton.label }}</span>
-      </button>
+      </UButton>
     </div>
   </div>
 
-  <!-- Слот для фильтров -->
   <slot name="filters" />
 </template>
