@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted } from "vue";
-import { useLocationStore } from "./store/useLocationStore"; // путь поправь если нужно
+import { useLocationStore } from "./store/useLocationStore"; // РїСѓС‚СЊ РїРѕРїСЂР°РІСЊ РµСЃР»Рё РЅСѓР¶РЅРѕ
 
 const locationStore = useLocationStore();
 
@@ -19,7 +19,7 @@ onMounted(() => {
 <style>
 body {
   color: white;
-  font-family: "Inter", sans-serif;
+  font-family: "Gilroy-Bold", "Helvetica Neue", Arial, sans-serif;
 }
 body.no-scroll {
   overflow: hidden !important;
@@ -29,15 +29,16 @@ body.no-scroll {
   border-radius: 20px;
   box-shadow: 0px 0px 20px rgba(255, 255, 255, 0.08);
 }
-/* Для Chrome, Safari, Edge */
+/* Р”Р»СЏ Chrome, Safari, Edge */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Для Firefox */
+/* Р”Р»СЏ Firefox */
 input[type="number"] {
   -moz-appearance: textfield;
 }
 </style>
+

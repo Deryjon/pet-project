@@ -1,8 +1,21 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "@nuxt/ui";
 
+@font-face {
+  font-family: "Gilroy-Bold";
+  src:
+    local("☞Gilroy-Bold"),
+    local("Gilroy-Bold"),
+    url("/fonts/Gilroy-Bold.woff2") format("woff2"),
+    url("/fonts/Gilroy-Bold.woff") format("woff"),
+    url("/fonts/Gilroy-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 body {
-  font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: "Gilroy-Bold", "Helvetica Neue", Arial, sans-serif;
   color: var(--app-text);
   background:
     radial-gradient(circle at top, rgba(16, 185, 129, 0.18), transparent 55%),

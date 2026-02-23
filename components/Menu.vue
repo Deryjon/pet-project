@@ -38,13 +38,13 @@ const isMenuItemActive = (item: IMenuItem) => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-[5px] text-white text-md font-semibold transition-colors duration-300">
+  <div class="flex flex-col gap-[5px] text-white text-[16px] font-medium transition-colors duration-300">
     <template v-if="activeMenu">
       <div class="flex flex-col gap-2">
         <h2
           @click="backToMainMenu"
           :class="[
-            'w-full text-lg font-semibold py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e] duration-300',
+            'w-full text-[16px] font-medium py-2 cursor-pointer flex items-center gap-3 hover:bg-[#5e5e5e] duration-300',
             sidebar.collapsed ? 'px-[10px]' : 'px-[20px]',
           ]"
         >
@@ -62,7 +62,7 @@ const isMenuItemActive = (item: IMenuItem) => {
           @click="closeMenu"
           :class="[
             'block w-full py-3 cursor-pointer hover:bg-[#5e5e5e] transition-colors duration-300',
-            isSubItemActive(subItem.url) ? 'bg-[#5e5e5e] text-[#3b82f6]' : '',
+            isSubItemActive(subItem.url) ? 'bg-[#5e5e5e] text-[#5489dd]' : '',
             sidebar.collapsed ? 'px-[15px]' : 'px-[25px]',
           ]"
         >
@@ -89,7 +89,7 @@ const isMenuItemActive = (item: IMenuItem) => {
             <p
               v-if="!sidebar.collapsed"
               :key="`item-link-${i}`"
-              :class="['truncate', isMenuItemActive(item) ? 'text-[#3b82f6]' : '']"
+              :class="['truncate', isMenuItemActive(item) ? 'text-[#5489dd]' : '']"
             >
               {{ item.name }}
             </p>
@@ -116,7 +116,7 @@ const isMenuItemActive = (item: IMenuItem) => {
               <p
                 v-if="!sidebar.collapsed"
                 :key="`item-btn-${i}`"
-                :class="['truncate', isMenuItemActive(item) ? 'text-[#3b82f6]' : '']"
+                :class="['truncate', isMenuItemActive(item) ? 'text-[#5489dd]' : '']"
               >
                 {{ item.name }}
               </p>
