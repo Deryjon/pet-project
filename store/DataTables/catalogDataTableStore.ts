@@ -119,14 +119,25 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     {
       accessorKey: "photo",
       header: "\u0424\u043e\u0442\u043e",
+      meta: {
+        tdClass: "align-middle",
+      },
       cell: ({ getValue }: any) => {
         const url = getValue();
         const imageUrl = url ? url : placeholderImgUrl;
-        return h("img", {
-          src: imageUrl,
-          alt: "\u0424\u043e\u0442\u043e \u0442\u043e\u0432\u0430\u0440\u0430",
-          class: "w-12 h-12 object-cover rounded-full",
-        });
+        return h(
+          "div",
+          {
+            class: "w-12 h-12 min-w-12 min-h-12",
+          },
+          [
+            h("img", {
+              src: imageUrl,
+              alt: "\u0424\u043e\u0442\u043e \u0442\u043e\u0432\u0430\u0440\u0430",
+              class: "w-full h-full object-cover rounded-[10px]",
+            }),
+          ]
+        );
       },
     },
     { accessorKey: "name", header: "\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435" },

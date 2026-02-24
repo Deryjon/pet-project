@@ -11,41 +11,59 @@ type TableSection = {
 const store = useCatalogDataTableStore();
 
 const selectedProduct = computed(() => store.selectedProduct);
-const showProductSidebar = computed(() => !!store.selectedProduct);
+const showProductSidebar = computed({
+  get: () => !!store.selectedProduct,
+  set: (isOpen: boolean) => {
+    if (!isOpen) {
+      closeSidebar();
+    }
+  },
+});
 
-const tableSections: TableSection[] = [
-  {
-    title: "История продукта",
-    columns: ["Дата", "Действие", "Кол-во", "Магазин"],
-    rows: [["18.08.2025\n16:02:42", "Импорт #892933", "1", "Samarqand Darvoza"]],
-  },
-  {
-    title: "Цены",
-    columns: [
-      "Магазин",
-      "Цена поставки",
-      "Наценка",
-      "Цена продажи",
-      "Оптовая",
-      "Скидочная",
-    ],
-    rows: [["Samarqand Darvoza", "70 000 UZS", "164.28 %", "185 000 UZS", "-", "-"]],
-  },
-  {
-    title: "Остатки",
-    columns: ["Магазин", "Активные", "Неактивные", "Малый остаток"],
-    rows: [["Samarqand Darvoza", "1", "0", "0"]],
-  },
-];
+const formatUZS = (value: unknown) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "-";
+  return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
+};
+
+const tableSections = computed<TableSection[]>(() => {
+  const p = selectedProduct.value;
+  if (!p) return [];
+
+  const supplierOrStore = p.suppliers || "-";
+  const quantity = Number(p.quantity ?? 0);
+  const purchasePrice = Number(p.purchase_price ?? 0);
+  const salePrice = Number(p.sale_price ?? 0);
+  const markup =
+    purchasePrice > 0 ? `${(((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(2)} %` : "-";
+
+  return [
+    {
+      title: "История продукта",
+      columns: ["Дата", "Действие", "Кол-во", "Источник"],
+      rows: [[new Date().toLocaleString("ru-RU"), "Выбран из каталога", String(quantity), supplierOrStore]],
+    },
+    {
+      title: "Цены",
+      columns: ["Источник", "Цена поставки", "Наценка", "Цена продажи", "Оптовая", "Скидочная"],
+      rows: [[supplierOrStore, formatUZS(p.purchase_price), markup, formatUZS(p.sale_price), "-", formatUZS(p.discount_price)]],
+    },
+    {
+      title: "Остатки",
+      columns: ["Источник", "Активные", "Неактивные", "Малый остаток"],
+      rows: [[supplierOrStore, String(quantity), "0", quantity > 0 ? "0" : "1"]],
+    },
+  ];
+});
 
 const characteristics = computed(() => [
   { label: "Артикул", value: selectedProduct.value?.sku || "XSN-29015" },
   { label: "Баркод", value: selectedProduct.value?.barcode || "2000000013404" },
   { label: "Ед. изм.", value: "Штука" },
-  { label: "Бренд", value: "-" },
+  { label: "Бренд", value: selectedProduct.value?.brand || "-" },
   { label: "Весовой продукт", value: "Нет" },
   { label: "Маркировка", value: "Нет" },
-  { label: "Поставщики", value: "-" },
+  { label: "Поставщики", value: selectedProduct.value?.suppliers || "-" },
   { label: "Категория", value: selectedProduct.value?.category || "Товар" },
 ]);
 
@@ -61,17 +79,22 @@ function closeSidebar() {
 </script>
 
 <template>
-  <transition name="slide">
-    <teleport to="body">
-      <div
-        v-if="showProductSidebar"
-        class="fixed top-0 right-0 z-[9999] h-full w-full max-w-[768px] overflow-y-auto rounded-l-[60px] bg-[#2b2b2b] px-16 py-14 text-white shadow-lg"
-      >
+  <USlideover
+    v-model:open="showProductSidebar"
+    side="right"
+    :ui="{
+      content:
+        'z-[9999] h-full w-full max-w-[768px] overflow-y-auto rounded-l-[15px] bg-[#2b2b2b] px-16 py-14 text-white shadow-lg',
+    }"
+    :close="false"
+  >
+    <template #content>
+      <div>
         <div class="mb-6 flex items-center justify-between">
           <div class="flex gap-[20px] border-gray-600">
             <img
-              src="../../assets/images/placeholder_img.svg"
-              alt=""
+              :src="selectedProduct?.photo || '../../assets/images/placeholder_img.svg'"
+              alt="Фото товара"
               class="h-[60px] w-[60px] rounded-[20px] object-cover"
             />
             <div class="flex flex-col font-semibold">
@@ -135,6 +158,6 @@ function closeSidebar() {
           </div>
         </div>
       </div>
-    </teleport>
-  </transition>
+    </template>
+  </USlideover>
 </template>

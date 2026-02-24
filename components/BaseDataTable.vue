@@ -73,7 +73,9 @@ defineProps<{
               cell.column.id === 'select'
                 ? 'w-[50px] text-center align-middle'
                 : '',
+              cell.column.columnDef.meta?.tdClass ?? '',
             ]"
+            :style="cell.column.columnDef.meta?.tdStyle ?? null"
             @click="
               cell.column.id === 'name' ? store.openProduct(row.original) : null
             "

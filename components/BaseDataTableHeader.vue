@@ -125,7 +125,7 @@ function onCreateClick() {
       <UButton
         color="neutral"
         variant="ghost"
-        class="w-full flex items-center gap-[15px] rounded-[15px] bg-[#404040] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0"
+        class="cursor-pointer w-full flex items-center gap-[15px] rounded-[15px] bg-[#404040] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0"
         @click="onToggleFilters"
         :aria-expanded="isFiltersOpen"
       >
@@ -145,7 +145,7 @@ function onCreateClick() {
         :key="`${btn.label}-${i}`"
         color="neutral"
         variant="ghost"
-        class="filter flex items-center gap-[10px] rounded-[15px] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0"
+        class="cursor-pointer filter flex items-center gap-[10px] rounded-[15px] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0"
         :class="[btn.color || 'bg-[#404040]']"
         @click="btn.onClick"
       >
@@ -159,7 +159,7 @@ function onCreateClick() {
       <UButton
         color="neutral"
         variant="ghost"
-        class="flex items-center justify-center gap-2 rounded-[15px] bg-[#1f78ff] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#2a6ed9] active:bg-[#2a6ed9] data-[state=open]:bg-[#2a6ed9] focus-visible:ring-0"
+        class="cursor-pointer flex items-center justify-center gap-2 rounded-[15px] bg-[#1f78ff] p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#2a6ed9] active:bg-[#2a6ed9] data-[state=open]:bg-[#2a6ed9] focus-visible:ring-0"
         @click="onCreateClick"
       >
         <Icon name="qlementine-icons:plus-16" class="h-6 w-6 font-extrabold" />
