@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useHead } from "#imports";
 import { useProducts } from "~/composables/useProducts";
@@ -29,6 +29,7 @@ const mainRef = ref<HTMLElement | null>(null);
 const pricesRef = ref<HTMLElement | null>(null);
 const stocksRef = ref<HTMLElement | null>(null);
 const featuresRef = ref<HTMLElement | null>(null);
+const activeSection = ref<"main" | "prices" | "stocks" | "features">("main");
 
 function scrollTo(section: string) {
   const map: Record<string, HTMLElement | null> = {
@@ -38,33 +39,79 @@ function scrollTo(section: string) {
     features: featuresRef.value,
   };
 
+  if (section in map) {
+    activeSection.value = section as "main" | "prices" | "stocks" | "features";
+  }
+
   const el = map[section];
   if (el) {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 
+function updateActiveSectionByScroll() {
+  const sections: Array<{
+    key: "main" | "prices" | "stocks" | "features";
+    el: HTMLElement | null;
+  }> = [
+    { key: "main", el: mainRef.value },
+    { key: "prices", el: pricesRef.value },
+    { key: "stocks", el: stocksRef.value },
+    { key: "features", el: featuresRef.value },
+  ];
+
+  const headerOffset = 140;
+  let current: "main" | "prices" | "stocks" | "features" = "main";
+
+  for (const section of sections) {
+    if (!section.el) continue;
+    const top = section.el.getBoundingClientRect().top;
+    if (top <= headerOffset) {
+      current = section.key;
+    }
+  }
+
+  activeSection.value = current;
+}
+
+onMounted(() => {
+  window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
+  updateActiveSectionByScroll();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", updateActiveSectionByScroll);
+});
+
 async function onCreate() {
   if (submitting.value) return;
   submitting.value = true;
+
   try {
-    const totalQty = (store.stores || []).reduce((sum, s: any) => sum + (s?.qty || 0), 0);
+    const totalQty = (store.stores || []).reduce(
+      (sum, s: any) => sum + (s?.qty || 0),
+      0
+    );
 
     // map UI selections to API enums with safe defaults
     const product_type = (() => {
-      // assume first option is goods, second is service if present
-      const idx = (store as any).productTypes?.indexOf((store as any).selectedProductType) ?? 0;
-      return idx === 0 ? 'goods' : 'service';
-    })();
-    const variant_type = (() => {
-      const idx = (store as any).productVariants?.indexOf((store as any).selectedVariant) ?? 0;
-      return idx === 0 ? 'simple' : 'variant';
+      const idx =
+        (store as any).productTypes?.indexOf(
+          (store as any).selectedProductType
+        ) ?? 0;
+      return idx === 0 ? "goods" : "service";
     })();
 
-    const unit = (store as any).selectedUnit || 'Штука';
+    const variant_type = (() => {
+      const idx =
+        (store as any).productVariants?.indexOf((store as any).selectedVariant) ??
+        0;
+      return idx === 0 ? "simple" : "variant";
+    })();
+
+    const unit = (store as any).selectedUnit || "Штука";
     const markup_percent = (store as any).markup_percent ?? 0;
 
-    // Start with required/base fields only
     const payload: any = {
       name: (store as any).name || "",
       sku: store.article || "",
@@ -79,29 +126,29 @@ async function onCreate() {
       sale_price: Number((store as any).sale_price) || 0,
     };
 
-    // photo: send only if provided (prefer null over empty string; else omit)
     const photo = (store as any).photo;
-    if (typeof photo === 'string' && photo.trim().length > 0) {
+    if (typeof photo === "string" && photo.trim().length > 0) {
       payload.photo = photo.trim();
     }
 
-    // category_id / brand_id: send only if valid positive ids
     const categoryId = (store as any).category_id;
-    if (typeof categoryId === 'number' && categoryId > 0) {
+    if (typeof categoryId === "number" && categoryId > 0) {
       payload.category_id = categoryId;
     }
+
     const brandId = (store as any).brand_id;
-    if (typeof brandId === 'number' && brandId > 0) {
+    if (typeof brandId === "number" && brandId > 0) {
       payload.brand_id = brandId;
     }
 
-    // stocks: include only valid branch_code entries (>=2 chars) and deduplicate by branch_code
     const rawStocks = (store.stores || [])
       .map((s: any) => {
-        const code = (s?.code ?? '').toString().trim();
+        const code = (s?.code ?? "").toString().trim();
         if (!code || code.length < 2) return null;
+
         const qty = Number(s?.qty) || 0;
         if (qty <= 0) return null;
+
         return {
           branch_code: code,
           quantity: qty,
@@ -124,7 +171,6 @@ async function onCreate() {
     router.push("/products/catalog");
   } catch (e) {
     console.error("Failed to create product", e);
-    // Optionally handle error UI here
   } finally {
     submitting.value = false;
   }
@@ -134,9 +180,10 @@ async function onCreate() {
 <template>
   <section class="operations">
     <CreateProductHeader @create="onCreate" />
-    <div class="flex gap-10 mx-auto px-[144px] mt-8">
+
+    <div class="mx-auto mt-8 flex gap-10 px-[144px]">
       <!-- Sidebar ловит клики -->
-      <CreateProductSidebar @scrollTo="scrollTo" />
+      <CreateProductSidebar :active-section="activeSection" @scrollTo="scrollTo" />
 
       <div class="right flex-1 px-8">
         <div ref="mainRef">
@@ -158,9 +205,4 @@ async function onCreate() {
 
 <style>
 @reference "tailwindcss";
-
-input,
-select {
-  @apply bg-[#404040] p-[15px] text-[16px] font-semibold rounded-[15px] transition-all duration-300 hover:bg-[#5e5e5e];
-}
 </style>

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+const props = defineProps<{
+  activeSection: "main" | "prices" | "stocks" | "features";
+}>();
+
 const emit = defineEmits<{
   (e: "scrollTo", section: string): void;
 }>();
@@ -9,32 +13,63 @@ function go(section: string) {
 </script>
 
 <template>
-  <aside class="bg-[#404040] p-1 rounded-[15px] sticky top-[96px] h-fit">
-    <nav class="flex flex-col gap-2">
-      <button
-        class="bg-[#262626] text-[#4993dd] px-[10px] w-[185px] font-bold py-[10px] text-left rounded-[15px]"
+  <aside class="sticky top-[96px] h-fit rounded-[12px] bg-[#404040] p-1">
+    <nav class="flex flex-col gap-1">
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
+        :class="
+          props.activeSection === 'main'
+            ? 'bg-[#262626] text-[#4993dd]'
+            : 'text-white hover:bg-[#262626]'
+        "
         @click="go('main')"
       >
         Основные
-      </button>
-      <button
-        class="hover:bg-[#262626] duration-300 px-[10px] w-[185px] font-bold py-[10px] text-left rounded-[15px]"
+      </UButton>
+
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
+        :class="
+          props.activeSection === 'prices'
+            ? 'bg-[#262626] text-[#4993dd]'
+            : 'text-white hover:bg-[#262626]'
+        "
         @click="go('prices')"
       >
         Цены
-      </button>
-      <button
-        class="hover:bg-[#262626] duration-300 px-[10px] w-[185px] font-bold py-[10px] text-left rounded-[15px]"
+      </UButton>
+
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
+        :class="
+          props.activeSection === 'stocks'
+            ? 'bg-[#262626] text-[#4993dd]'
+            : 'text-white hover:bg-[#262626]'
+        "
         @click="go('stocks')"
       >
         Остатки
-      </button>
-      <button
-        class="hover:bg-[#262626] duration-300 px-[10px] w-[185px] font-bold py-[10px] text-left rounded-[15px]"
+      </UButton>
+
+      <UButton
+        color="neutral"
+        variant="ghost"
+        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
+        :class="
+          props.activeSection === 'features'
+            ? 'bg-[#262626] text-[#4993dd]'
+            : 'text-white hover:bg-[#262626]'
+        "
         @click="go('features')"
       >
         Характеристики
-      </button>
+      </UButton>
     </nav>
   </aside>
 </template>
