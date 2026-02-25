@@ -24,6 +24,11 @@ body {
   min-height: 100vh;
 }
 
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
 .app-shell {
   position: relative;
   min-height: 100vh;
