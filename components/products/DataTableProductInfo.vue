@@ -41,10 +41,15 @@ const selectedShop = ref("Все магазины");
 
 const actionOptions = [
   "Все действия",
-  "Продажа",
-  "Поступление",
+  "Инвентаризация",
+  "Импорт",
+  "Трансфер",
   "Списание",
-  "Перемещение",
+  "Оценка",
+  "Возврат",
+  "Отложка",
+  "Заказ",
+  "Продажа",
 ];
 const shopOptions = ["Все магазины", "Склад 1", "Склад 2", "Магазин 1"];
 
@@ -222,7 +227,7 @@ function formatSingleDate(value: any) {
                 :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
                 :ui="{
                   content:
-                    'z-50 w-[320px] rounded-[12px] bg-[#262626] p-3 shadow-xl',
+                    'z-[10050] w-[320px] rounded-[12px] bg-[#262626] p-3 shadow-xl',
                 }"
               >
                 <UButton
@@ -253,7 +258,7 @@ function formatSingleDate(value: any) {
                 :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
                 :ui="{
                   content:
-                    'z-50 w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 shadow-xl text-md ',
+                    'z-[10050] w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 shadow-xl text-md ',
                 }"
               >
                 <UButton
@@ -287,7 +292,7 @@ function formatSingleDate(value: any) {
                 :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
                 :ui="{
                   content:
-                    'text-md  z-50 w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 shadow-xl',
+                    'text-md z-[10050] w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 shadow-xl',
                 }"
               >
                 <UButton
