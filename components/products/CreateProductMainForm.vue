@@ -1,57 +1,83 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useProductStore } from "@/store/productStore";
 
 const store = useProductStore();
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <h3 class="mb-4 text-xl font-semibold">Основные</h3>
+  <div class="flex flex-col gap-2">
+    <div class="flex gap-4">
+      <h3 class="mb-4 text-2xl font-semibold">Основные</h3>
+      <div
+        class="relative my-4 w-full after:block after:h-[0.8px] after:w-full after:bg-[repeating-linear-gradient(to_right,#6f6f6f_0_12px,transparent_12px_24px)] after:content-['']"
+      ></div>
+    </div>
 
-    <div>
-      <label class="font-medium">Тип товара</label>
+    <div class="">
+      <label class="font-base text-lg">Тип продукта</label>
       <div class="mt-4 flex gap-4">
         <UButton
           v-for="type in store.productTypes"
           :key="type"
           color="neutral"
           variant="ghost"
-          class="flex w-full items-center justify-center rounded-[15px] p-[17px]"
+          type="button"
+          class="flex w-full items-center justify-start gap-2 rounded-[15px] p-[17px] text-left"
           :class="
             store.selectedProductType === type
-              ? 'bg-[#1f78ff] text-white'
-              : 'bg-[#404040] text-white hover:bg-[#5e5e5e]'
+              ? 'bg-[#1f78ff] text-white hover:bg-[#1f78ff] active:bg-[#1f78ff]'
+              : 'bg-[#404040] text-white hover:bg-[#5e5e5e] active:bg-[#5e5e5e]'
           "
           @click="store.selectedProductType = type"
         >
-          {{ type }}
+          <span
+            class="flex h-3 w-3 items-center justify-center rounded-full border text-xs leading-none"
+            :class="
+              store.selectedProductType === type
+                ? 'border-white bg-white text-[#1f78ff]'
+                : 'border-white text-transparent'
+            "
+          >
+            <Icon name="heroicons:check-20-solid" class="h-3 w-3" />
+          </span>
+          <span>{{ type }}</span>
         </UButton>
       </div>
     </div>
-
-    <div class="mt-6">
-      <label class="font-medium">Вариантность товара</label>
+    <div class="mt-4">
+      <label class="font-base text-lg">Вариативность товара</label>
       <div class="mt-4 flex gap-4">
         <UButton
           v-for="variant in store.productVariants"
           :key="variant"
           color="neutral"
           variant="ghost"
-          class="flex w-full items-center justify-center rounded-[15px] p-[17px]"
+          type="button"
+          class="flex w-full items-center justify-start gap-2 rounded-[15px] p-[17px] text-left"
           :class="
             store.selectedVariant === variant
-              ? 'bg-[#1f78ff] text-white'
-              : 'bg-[#404040] text-white hover:bg-[#5e5e5e]'
+              ? 'bg-[#1f78ff] text-white hover:bg-[#1f78ff] active:bg-[#1f78ff]'
+              : 'bg-[#404040] text-white hover:bg-[#5e5e5e] active:bg-[#5e5e5e]'
           "
           @click="store.selectedVariant = variant"
         >
-          {{ variant }}
+          <span
+            class="flex h-3 w-3 items-center justify-center rounded-full border text-xs leading-none"
+            :class="
+              store.selectedVariant === variant
+                ? 'border-white bg-white text-[#1f78ff]'
+                : 'border-white text-transparent'
+            "
+          >
+            <Icon name="heroicons:check-20-solid" class="h-3 w-3" />
+          </span>
+          <span>{{ variant }}</span>
         </UButton>
       </div>
     </div>
 
-    <div>
-      <label class="font-medium"
+    <div class="mt-4">
+      <label class="font-base text-lg"
         >Наименование <span class="text-red-500">*</span></label
       >
       <UInput
@@ -65,7 +91,7 @@ const store = useProductStore();
       />
     </div>
 
-    <div class="flex gap-4">
+    <div class="flex gap-4 mt-4">
       <div class="w-full">
         <label class="font-medium">Артикул</label>
         <div class="mt-4 flex gap-2 rounded-[15px] bg-[#404040] pr-[15px]">
@@ -114,7 +140,7 @@ const store = useProductStore();
       <USelect
         v-model="store.selectedUnit"
         :items="store.units"
-        class="w-1/2"
+        class="w-full md:w-1/2"
         :ui="{ base: 'rounded-lg bg-[#404040] p-3 text-white ring-0' }"
       />
     </div>
@@ -124,6 +150,7 @@ const store = useProductStore();
       <UButton
         color="neutral"
         variant="ghost"
+        type="button"
         class="mt-4 flex cursor-pointer flex-col items-center justify-center gap-6 rounded-lg border-2 border-dashed border-gray-300 bg-[#404040] p-6 text-center hover:bg-[#5e5e5e]"
       >
         <p>Перетащите файл или нажмите для загрузки</p>

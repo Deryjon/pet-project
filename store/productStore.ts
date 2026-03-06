@@ -1,11 +1,11 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 
 export const useProductStore = defineStore('product', {
   state: () => ({
     name: '' as string,
     selectedProductType: 'Товар',
     selectedVariant: 'Простой',
-    productTypes: ['Товар', 'Услуга'],
+    productTypes: ['Товар', 'Услуга', 'Комплект'],
     productVariants: ['Простой', 'Вариативный'],
     units: ['Штука', 'Литр', 'Килограмм'],
     selectedUnit: null as string | null,
@@ -37,6 +37,6 @@ export const useProductStore = defineStore('product', {
       const store = this.stores.find(s => s.name === name)
       if (store) store.qty = qty
     }
-    
+
   }
 })

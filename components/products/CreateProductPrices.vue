@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, watch } from "vue";
 import { useProductStore } from "@/store/productStore";
 
@@ -28,13 +28,18 @@ watch(
     } else {
       store.markup_percent = 0;
     }
-  }
+  },
 );
 </script>
 
 <template>
   <section>
-    <h3 class="mb-4 text-xl font-semibold">Цены</h3>
+    <div class="flex">
+      <h3 class="mb-4 text-2xl font-semibold">Цены</h3>
+      <div
+        class="relative my-4 w-full after:block after:h-[0.8px] after:w-full after:bg-[repeating-linear-gradient(to_right,#6f6f6f_0_12px,transparent_12px_24px)] after:content-['']"
+      ></div>
+    </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div>
         <label class="font-medium">Закупочная цена</label>

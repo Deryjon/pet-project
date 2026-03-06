@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useHead } from "#imports";
@@ -206,3 +206,4 @@ async function onCreate() {
 <style>
 @reference "tailwindcss";
 </style>
+

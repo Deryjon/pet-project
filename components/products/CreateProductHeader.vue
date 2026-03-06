@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -18,18 +18,18 @@ const emit = defineEmits<{ (e: "create"): void }>();
             @click="router.back()"
           >
             <Icon
-              name="heroicons:chevron-left"
+              name="tabler:chevron-left"
               class="h-6 w-6 text-[#1f78ff]"
             />
           </UButton>
-          <h2 class="text-[28px] font-bold">Новый продукт</h2>
+          <h2 class="text-4xl font-bold">Новый продукт</h2>
         </div>
 
         <UButton
           @click="emit('create')"
           color="primary"
           variant="solid"
-          class="rounded-[20px] bg-[#1f78ff] px-[30px] py-[12px] text-[16px] font-semibold hover:bg-[#4d94ff]"
+          class="rounded-[18px] bg-[#1f78ff] px-[30px] py-[12px] text-[16px] font-semibold hover:bg-[#4d94ff]"
         >
           Создать
         </UButton>
