@@ -45,7 +45,7 @@ function sanitizeVariationStock(variationId: string, storeName: string, value: n
               type="number"
               min="0"
               class="w-32"
-              :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+              :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
               @blur="sanitizeSimpleStock(s.name, s.qty)"
             />
           </td>
@@ -69,7 +69,7 @@ function sanitizeVariationStock(variationId: string, storeName: string, value: n
               type="number"
               min="0"
               class="w-32"
-              :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+              :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
               @blur="sanitizeVariationStock(variation.id, s.name, variation.stocks[s.name] ?? 0)"
             />
           </td>
@@ -78,3 +78,5 @@ function sanitizeVariationStock(variationId: string, storeName: string, value: n
     </table>
   </section>
 </template>
+
+

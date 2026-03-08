@@ -11,7 +11,6 @@ import {
 import { useProducts } from "~/composables/useProducts";
 import { useProductStore } from "~/store/productStore";
 
-import CreateProductActions from "@/components/products/CreateProductActions.vue";
 import CreateProductFeatures from "@/components/products/CreateProductFeatures.vue";
 import CreateProductHeader from "@/components/products/CreateProductHeader.vue";
 import CreateProductMainForm from "@/components/products/CreateProductMainForm.vue";
@@ -268,13 +267,6 @@ async function submitForm(mode: "save" | "save-and-new") {
         <div ref="featuresRef" class="mt-12">
           <CreateProductFeatures />
         </div>
-
-        <CreateProductActions
-          :submitting="submitting"
-          @cancel="router.back()"
-          @save="submitForm('save')"
-          @save-and-new="submitForm('save-and-new')"
-        />
       </div>
     </div>
   </section>

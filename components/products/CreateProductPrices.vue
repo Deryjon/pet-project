@@ -92,7 +92,7 @@ function updateVariationMarkup(variationId: string) {
             min="0"
             class="w-full"
             placeholder="0"
-            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+            :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
           />
           <span class="text-sm text-gray-300">UZS</span>
         </div>
@@ -106,7 +106,7 @@ function updateVariationMarkup(variationId: string) {
             min="0"
             class="w-full"
             placeholder="0"
-            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+            :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
           />
           <span class="text-sm text-gray-300">%</span>
         </div>
@@ -120,7 +120,7 @@ function updateVariationMarkup(variationId: string) {
             min="0"
             class="w-full"
             placeholder="0"
-            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+            :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
           />
           <span class="text-sm text-gray-300">UZS</span>
         </div>
@@ -150,7 +150,7 @@ function updateVariationMarkup(variationId: string) {
                 type="number"
                 min="0"
                 class="w-44"
-                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
                 @blur="updateVariationSale(variation.id)"
               />
             </td>
@@ -160,7 +160,7 @@ function updateVariationMarkup(variationId: string) {
                 type="number"
                 min="0"
                 class="w-44"
-                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
                 @blur="updateVariationSale(variation.id)"
               />
             </td>
@@ -170,7 +170,7 @@ function updateVariationMarkup(variationId: string) {
                 type="number"
                 min="0"
                 class="w-44"
-                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
                 @blur="updateVariationMarkup(variation.id)"
               />
             </td>
@@ -180,3 +180,5 @@ function updateVariationMarkup(variationId: string) {
     </div>
   </section>
 </template>
+
+

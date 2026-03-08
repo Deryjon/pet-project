@@ -22,7 +22,7 @@ const isVariantGoods = computed(
           type="text"
           placeholder="Введите бренд"
           class="w-full"
-          :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
         />
       </div>
 
@@ -33,7 +33,7 @@ const isVariantGoods = computed(
           type="text"
           placeholder="Введите поставщика"
           class="w-full"
-          :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
         />
       </div>
 
@@ -44,7 +44,7 @@ const isVariantGoods = computed(
           type="text"
           placeholder="Дополнительное поле, характеризующее ваш товар"
           class="w-full"
-          :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
         />
       </div>
 
@@ -55,9 +55,13 @@ const isVariantGoods = computed(
           :items="store.categories"
           placeholder="Выберите категорию"
           class="w-full"
-          :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          :ui="{
+            base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+          }"
         />
       </div>
     </div>
   </section>
 </template>
+
+

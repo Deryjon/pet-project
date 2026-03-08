@@ -108,7 +108,7 @@ function selectVariationType(type: VariationTypeLabel) {
         placeholder="Введите наименование"
         class="mt-4 w-full"
         :ui="{
-          base: 'rounded-[15px] bg-[#404040] p-[18px] text-[18px] font-semibold text-white',
+          base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
         }"
       />
     </div>
@@ -122,7 +122,9 @@ function selectVariationType(type: VariationTypeLabel) {
             type="text"
             placeholder="Введите артикул"
             class="flex-1"
-            :ui="{ base: 'bg-transparent p-[16px] text-[17px] text-white ring-0' }"
+            :ui="{
+              base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+            }"
           />
           <UButton
             color="neutral"
@@ -143,7 +145,9 @@ function selectVariationType(type: VariationTypeLabel) {
             type="text"
             placeholder="Введите баркод"
             class="flex-1"
-            :ui="{ base: 'bg-transparent p-[16px] text-[17px] text-white ring-0' }"
+            :ui="{
+              base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+            }"
           />
           <UButton
             color="neutral"
@@ -163,7 +167,9 @@ function selectVariationType(type: VariationTypeLabel) {
         v-model="store.form.unit"
         :items="store.units"
         class="w-full md:w-1/2"
-        :ui="{ base: 'rounded-lg bg-[#404040] p-4 text-[17px] text-white ring-0' }"
+        :ui="{
+          base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+        }"
       />
     </div>
 
@@ -181,7 +187,9 @@ function selectVariationType(type: VariationTypeLabel) {
           type="text"
           class="mt-2 w-full"
           placeholder="Например: Цвет"
-          :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          :ui="{
+            base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+          }"
         />
       </div>
 
@@ -196,7 +204,9 @@ function selectVariationType(type: VariationTypeLabel) {
             type="text"
             class="flex-1"
             placeholder="Название вариации"
-            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+            :ui="{
+              base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+            }"
           />
           <UButton
             color="neutral"
@@ -239,7 +249,9 @@ function selectVariationType(type: VariationTypeLabel) {
                 v-model="item.name"
                 type="text"
                 placeholder="Введите товар"
-                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                :ui="{
+                  base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+                }"
               />
             </td>
             <td class="p-3">
@@ -248,7 +260,9 @@ function selectVariationType(type: VariationTypeLabel) {
                 type="number"
                 min="1"
                 class="w-32"
-                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                :ui="{
+                  base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+                }"
                 @update:model-value="store.setBundleItemQty(item.id, Number($event))"
               />
             </td>
@@ -279,3 +293,5 @@ function selectVariationType(type: VariationTypeLabel) {
     </div>
   </div>
 </template>
+
+
