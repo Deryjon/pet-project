@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 const props = defineProps<{
   activeSection: "main" | "prices" | "stocks" | "features";
+  showStocks: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -13,7 +14,7 @@ function go(section: string) {
 </script>
 
 <template>
-  <aside class="sticky top-[96px] h-fit rounded-[12px] bg-[#404040] p-1">
+  <aside class="sticky top-[120px] self-start rounded-[12px] bg-[#404040] p-1">
     <nav class="flex flex-col gap-1">
       <UButton
         color="neutral"
@@ -21,7 +22,7 @@ function go(section: string) {
         class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
         :class="
           props.activeSection === 'main'
-            ? 'bg-[#262626] text-[#4993dd]'
+            ? 'bg-[#262626] text-white'
             : 'text-white hover:bg-[#262626]'
         "
         @click="go('main')"
@@ -35,7 +36,7 @@ function go(section: string) {
         class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
         :class="
           props.activeSection === 'prices'
-            ? 'bg-[#262626] text-[#4993dd]'
+            ? 'bg-[#262626] text-white'
             : 'text-white hover:bg-[#262626]'
         "
         @click="go('prices')"
@@ -44,12 +45,13 @@ function go(section: string) {
       </UButton>
 
       <UButton
+        v-if="props.showStocks"
         color="neutral"
         variant="ghost"
         class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
         :class="
           props.activeSection === 'stocks'
-            ? 'bg-[#262626] text-[#4993dd]'
+            ? 'bg-[#262626] text-white'
             : 'text-white hover:bg-[#262626]'
         "
         @click="go('stocks')"
@@ -63,7 +65,7 @@ function go(section: string) {
         class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
         :class="
           props.activeSection === 'features'
-            ? 'bg-[#262626] text-[#4993dd]'
+            ? 'bg-[#262626] text-white'
             : 'text-white hover:bg-[#262626]'
         "
         @click="go('features')"
@@ -73,3 +75,4 @@ function go(section: string) {
     </nav>
   </aside>
 </template>
+

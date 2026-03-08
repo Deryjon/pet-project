@@ -1,7 +1,28 @@
 ﻿<script setup lang="ts">
+import { computed } from "vue";
+import CreateProductImageUpload from "@/components/products/CreateProductImageUpload.vue";
 import { useProductStore } from "@/store/productStore";
+import type { ProductTypeLabel, VariationTypeLabel } from "~/types/product-create";
 
 const store = useProductStore();
+
+const isGoods = computed(() => store.form.productType === "Товар");
+const isVariantGoods = computed(
+  () => isGoods.value && store.form.variationType === "Вариативный",
+);
+const isSimpleGoods = computed(
+  () => isGoods.value && store.form.variationType === "Простой",
+);
+const isService = computed(() => store.form.productType === "Услуга");
+const isBundle = computed(() => store.form.productType === "Комплект");
+
+function selectProductType(type: ProductTypeLabel) {
+  store.setProductType(type);
+}
+
+function selectVariationType(type: VariationTypeLabel) {
+  store.setVariationType(type);
+}
 </script>
 
 <template>
@@ -13,7 +34,7 @@ const store = useProductStore();
       ></div>
     </div>
 
-    <div class="">
+    <div>
       <label class="font-base text-lg">Тип продукта</label>
       <div class="mt-4 flex gap-4">
         <UButton
@@ -24,16 +45,16 @@ const store = useProductStore();
           type="button"
           class="flex w-full items-center justify-start gap-2 rounded-[15px] p-[17px] text-left"
           :class="
-            store.selectedProductType === type
+            store.form.productType === type
               ? 'bg-[#1f78ff] text-white hover:bg-[#1f78ff] active:bg-[#1f78ff]'
               : 'bg-[#404040] text-white hover:bg-[#5e5e5e] active:bg-[#5e5e5e]'
           "
-          @click="store.selectedProductType = type"
+          @click="selectProductType(type)"
         >
           <span
             class="flex h-3 w-3 items-center justify-center rounded-full border text-xs leading-none"
             :class="
-              store.selectedProductType === type
+              store.form.productType === type
                 ? 'border-white bg-white text-[#1f78ff]'
                 : 'border-white text-transparent'
             "
@@ -44,8 +65,9 @@ const store = useProductStore();
         </UButton>
       </div>
     </div>
-    <div class="mt-4">
-      <label class="font-base text-lg">Вариативность товара</label>
+
+    <div v-if="isGoods" class="mt-4">
+      <label class="font-base text-lg">Вариативность продукта</label>
       <div class="mt-4 flex gap-4">
         <UButton
           v-for="variant in store.productVariants"
@@ -55,16 +77,16 @@ const store = useProductStore();
           type="button"
           class="flex w-full items-center justify-start gap-2 rounded-[15px] p-[17px] text-left"
           :class="
-            store.selectedVariant === variant
+            store.form.variationType === variant
               ? 'bg-[#1f78ff] text-white hover:bg-[#1f78ff] active:bg-[#1f78ff]'
               : 'bg-[#404040] text-white hover:bg-[#5e5e5e] active:bg-[#5e5e5e]'
           "
-          @click="store.selectedVariant = variant"
+          @click="selectVariationType(variant)"
         >
           <span
             class="flex h-3 w-3 items-center justify-center rounded-full border text-xs leading-none"
             :class="
-              store.selectedVariant === variant
+              store.form.variationType === variant
                 ? 'border-white bg-white text-[#1f78ff]'
                 : 'border-white text-transparent'
             "
@@ -81,26 +103,26 @@ const store = useProductStore();
         >Наименование <span class="text-red-500">*</span></label
       >
       <UInput
-        v-model="store.name"
+        v-model="store.form.name"
         type="text"
         placeholder="Введите наименование"
         class="mt-4 w-full"
         :ui="{
-          base: 'rounded-[15px] bg-[#404040] p-[15px] text-[16px] font-semibold text-white',
+          base: 'rounded-[15px] bg-[#404040] p-[18px] text-[18px] font-semibold text-white',
         }"
       />
     </div>
 
-    <div class="flex gap-4 mt-4">
+    <div class="mt-4 flex gap-4">
       <div class="w-full">
         <label class="font-medium">Артикул</label>
         <div class="mt-4 flex gap-2 rounded-[15px] bg-[#404040] pr-[15px]">
           <UInput
-            v-model="store.article"
+            v-model="store.form.sku"
             type="text"
             placeholder="Введите артикул"
             class="flex-1"
-            :ui="{ base: 'bg-transparent p-[15px] text-white ring-0' }"
+            :ui="{ base: 'bg-transparent p-[16px] text-[17px] text-white ring-0' }"
           />
           <UButton
             color="neutral"
@@ -113,15 +135,15 @@ const store = useProductStore();
         </div>
       </div>
 
-      <div class="w-full">
-        <label class="font-medium">Штрихкод</label>
+      <div v-if="!isVariantGoods" class="w-full">
+        <label class="font-medium">Баркод</label>
         <div class="mt-4 flex gap-2 rounded-[15px] bg-[#404040] pr-[15px]">
           <UInput
-            v-model="store.barcode"
+            v-model="store.form.barcode"
             type="text"
-            placeholder="Введите штрихкод"
+            placeholder="Введите баркод"
             class="flex-1"
-            :ui="{ base: 'bg-transparent p-[15px] text-white ring-0' }"
+            :ui="{ base: 'bg-transparent p-[16px] text-[17px] text-white ring-0' }"
           />
           <UButton
             color="neutral"
@@ -135,27 +157,124 @@ const store = useProductStore();
       </div>
     </div>
 
-    <div class="flex flex-col">
+    <div v-if="isSimpleGoods || isVariantGoods || isService" class="mt-4 flex flex-col">
       <label class="mb-2 font-medium">Единица измерения</label>
       <USelect
-        v-model="store.selectedUnit"
+        v-model="store.form.unit"
         :items="store.units"
         class="w-full md:w-1/2"
-        :ui="{ base: 'rounded-lg bg-[#404040] p-3 text-white ring-0' }"
+        :ui="{ base: 'rounded-lg bg-[#404040] p-4 text-[17px] text-white ring-0' }"
       />
     </div>
 
-    <div>
+    <div class="mt-4">
       <label class="mb-2 font-medium">Фото</label>
+      <CreateProductImageUpload v-model="store.form.images" />
+    </div>
+
+    <div v-if="isVariantGoods" class="mt-4 rounded-[15px] bg-[#2f2f2f] p-4">
+      <h4 class="text-lg font-semibold">Вариации</h4>
+      <div class="mt-4">
+        <label class="font-medium">Выберите атрибут вариации</label>
+        <UInput
+          v-model="store.form.variationAttribute"
+          type="text"
+          class="mt-2 w-full"
+          placeholder="Например: Цвет"
+          :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+        />
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <div
+          v-for="variation in store.form.variations"
+          :key="variation.id"
+          class="flex items-center gap-3"
+        >
+          <UInput
+            v-model="variation.value"
+            type="text"
+            class="flex-1"
+            placeholder="Название вариации"
+            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            type="button"
+            class="rounded-lg bg-[#404040]"
+            @click="store.removeVariation(variation.id)"
+          >
+            Удалить
+          </UButton>
+        </div>
+      </div>
+
       <UButton
-        color="neutral"
-        variant="ghost"
+        color="primary"
+        variant="soft"
         type="button"
-        class="mt-4 flex cursor-pointer flex-col items-center justify-center gap-6 rounded-lg border-2 border-dashed border-gray-300 bg-[#404040] p-6 text-center hover:bg-[#5e5e5e]"
+        class="mt-4 rounded-lg"
+        @click="store.addVariation()"
       >
-        <p>Перетащите файл или нажмите для загрузки</p>
-        <p class="text-sm text-gray-500">- или -</p>
-        <p class="text-blue-500">Выберите файл с устройства</p>
+        Добавить вариацию
+      </UButton>
+    </div>
+
+    <div v-if="isBundle" class="mt-4 rounded-[15px] bg-[#2f2f2f] p-4">
+      <h4 class="text-lg font-semibold">Набор товаров</h4>
+
+      <table class="mt-4 w-full overflow-hidden rounded-lg border-gray-300">
+        <thead>
+          <tr>
+            <th class="p-3 text-left">Товар</th>
+            <th class="p-3 text-left">Количество</th>
+            <th class="p-3 text-left"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in store.form.bundleItems" :key="item.id" class="border-t border-[#454545]">
+            <td class="p-3">
+              <UInput
+                v-model="item.name"
+                type="text"
+                placeholder="Введите товар"
+                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+              />
+            </td>
+            <td class="p-3">
+              <UInput
+                :model-value="item.quantity"
+                type="number"
+                min="1"
+                class="w-32"
+                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                @update:model-value="store.setBundleItemQty(item.id, Number($event))"
+              />
+            </td>
+            <td class="p-3 text-right">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                type="button"
+                class="rounded-lg bg-[#404040]"
+                @click="store.removeBundleItem(item.id)"
+              >
+                Удалить
+              </UButton>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <UButton
+        color="primary"
+        variant="soft"
+        type="button"
+        class="mt-4 rounded-lg"
+        @click="store.addBundleItem()"
+      >
+        Добавить товар
       </UButton>
     </div>
   </div>

@@ -1,35 +1,76 @@
 ﻿<script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import {
+  calculateMarkup,
+  calculateSalePrice,
+  nonNegative,
+} from "~/composables/useCreateProductForm";
 import { useProductStore } from "@/store/productStore";
 
 const store = useProductStore();
 const internalUpdate = ref(false);
 
-watch([() => store.purchase_price, () => store.markup_percent], ([pp, mu]) => {
-  internalUpdate.value = true;
-  const p = Number(pp) || 0;
-  const m = Number(mu) || 0;
-  store.sale_price = Math.round(p * (1 + m / 100) * 100) / 100;
-  queueMicrotask(() => {
-    internalUpdate.value = false;
-  });
-});
+const isVariantGoods = computed(
+  () =>
+    store.form.productType === "Товар" &&
+    store.form.variationType === "Вариативный",
+);
 
 watch(
-  () => store.sale_price,
-  (sp) => {
-    if (internalUpdate.value) return;
+  [() => store.form.prices.purchasePrice, () => store.form.prices.markupPercent],
+  ([purchasePrice, markupPercent]) => {
+    if (isVariantGoods.value) return;
 
-    const p = Number(store.purchase_price) || 0;
-    const s = Number(sp) || 0;
-    if (p > 0) {
-      const mu = ((s - p) / p) * 100;
-      store.markup_percent = Math.round(mu * 100) / 100;
-    } else {
-      store.markup_percent = 0;
-    }
+    internalUpdate.value = true;
+    store.form.prices.purchasePrice = nonNegative(purchasePrice);
+    store.form.prices.markupPercent = nonNegative(markupPercent);
+    store.form.prices.salePrice = calculateSalePrice(
+      store.form.prices.purchasePrice,
+      store.form.prices.markupPercent,
+    );
+
+    queueMicrotask(() => {
+      internalUpdate.value = false;
+    });
   },
 );
+
+watch(
+  () => store.form.prices.salePrice,
+  (salePrice) => {
+    if (isVariantGoods.value || internalUpdate.value) return;
+
+    store.form.prices.salePrice = nonNegative(salePrice);
+    store.form.prices.markupPercent = calculateMarkup(
+      store.form.prices.purchasePrice,
+      store.form.prices.salePrice,
+    );
+  },
+);
+
+function updateVariationSale(variationId: string) {
+  const variation = store.form.variations.find((v) => v.id === variationId);
+  if (!variation) return;
+
+  variation.prices.purchasePrice = nonNegative(variation.prices.purchasePrice);
+  variation.prices.markupPercent = nonNegative(variation.prices.markupPercent);
+  variation.prices.salePrice = calculateSalePrice(
+    variation.prices.purchasePrice,
+    variation.prices.markupPercent,
+  );
+}
+
+function updateVariationMarkup(variationId: string) {
+  const variation = store.form.variations.find((v) => v.id === variationId);
+  if (!variation) return;
+
+  variation.prices.purchasePrice = nonNegative(variation.prices.purchasePrice);
+  variation.prices.salePrice = nonNegative(variation.prices.salePrice);
+  variation.prices.markupPercent = calculateMarkup(
+    variation.prices.purchasePrice,
+    variation.prices.salePrice,
+  );
+}
 </script>
 
 <template>
@@ -40,37 +81,102 @@ watch(
         class="relative my-4 w-full after:block after:h-[0.8px] after:w-full after:bg-[repeating-linear-gradient(to_right,#6f6f6f_0_12px,transparent_12px_24px)] after:content-['']"
       ></div>
     </div>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+    <div v-if="!isVariantGoods" class="grid grid-cols-1 gap-4 md:grid-cols-3">
       <div>
-        <label class="font-medium">Закупочная цена</label>
-        <UInput
-          v-model.number="store.purchase_price"
-          type="number"
-          class="mt-4 w-full"
-          placeholder="0"
-          :ui="{ base: 'rounded-lg p-3 text-white bg-[#404040] ring-0' }"
-        />
+        <label class="font-medium">Цена прихода</label>
+        <div class="mt-2 flex items-center gap-2">
+          <UInput
+            v-model.number="store.form.prices.purchasePrice"
+            type="number"
+            min="0"
+            class="w-full"
+            placeholder="0"
+            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          />
+          <span class="text-sm text-gray-300">UZS</span>
+        </div>
       </div>
       <div>
-        <label class="font-medium">Наценка (%)</label>
-        <UInput
-          v-model.number="store.markup_percent"
-          type="number"
-          class="mt-4 w-full"
-          placeholder="0"
-          :ui="{ base: 'rounded-lg p-3 text-white bg-[#404040] ring-0' }"
-        />
+        <label class="font-medium">Наценка</label>
+        <div class="mt-2 flex items-center gap-2">
+          <UInput
+            v-model.number="store.form.prices.markupPercent"
+            type="number"
+            min="0"
+            class="w-full"
+            placeholder="0"
+            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          />
+          <span class="text-sm text-gray-300">%</span>
+        </div>
       </div>
       <div>
         <label class="font-medium">Цена продажи</label>
-        <UInput
-          v-model.number="store.sale_price"
-          type="number"
-          class="mt-4 w-full"
-          placeholder="0"
-          :ui="{ base: 'rounded-lg p-3 text-white bg-[#404040] ring-0' }"
-        />
+        <div class="mt-2 flex items-center gap-2">
+          <UInput
+            v-model.number="store.form.prices.salePrice"
+            type="number"
+            min="0"
+            class="w-full"
+            placeholder="0"
+            :ui="{ base: 'rounded-lg p-4 text-[17px] text-white bg-[#404040] ring-0' }"
+          />
+          <span class="text-sm text-gray-300">UZS</span>
+        </div>
       </div>
+    </div>
+
+    <div v-else>
+      <table class="mt-4 w-full overflow-hidden rounded-lg">
+        <thead>
+          <tr>
+            <th class="p-3 text-left">Вариация</th>
+            <th class="p-3 text-left">Цена прихода</th>
+            <th class="p-3 text-left">Наценка</th>
+            <th class="p-3 text-left">Цена продажи</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="variation in store.form.variations"
+            :key="variation.id"
+            class="border-t border-[#454545]"
+          >
+            <td class="p-3">{{ variation.value || "Без названия" }}</td>
+            <td class="p-3">
+              <UInput
+                v-model.number="variation.prices.purchasePrice"
+                type="number"
+                min="0"
+                class="w-44"
+                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                @blur="updateVariationSale(variation.id)"
+              />
+            </td>
+            <td class="p-3">
+              <UInput
+                v-model.number="variation.prices.markupPercent"
+                type="number"
+                min="0"
+                class="w-44"
+                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                @blur="updateVariationSale(variation.id)"
+              />
+            </td>
+            <td class="p-3">
+              <UInput
+                v-model.number="variation.prices.salePrice"
+                type="number"
+                min="0"
+                class="w-44"
+                :ui="{ base: 'rounded-lg p-3 text-[16px] text-white bg-[#404040] ring-0' }"
+                @blur="updateVariationMarkup(variation.id)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 </template>
