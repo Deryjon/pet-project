@@ -1,21 +1,20 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useRouter } from "vue-router";
 import { useImportDataTableStore } from "@/store/DataTables/importDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
-import TableFilter from "./TableFilter.vue"; // поправь путь если не совпадает
+import TableFilter from "./TableFilter.vue";
+
+const emit = defineEmits<{
+  (e: "create"): void;
+}>();
 
 const store = useImportDataTableStore();
-const router = useRouter();
-
-// локальный инпут
 const globalFilterInput = ref(store.globalFilter);
 const showFilters = ref(false);
 
-// синхронизация с стором
 watch(globalFilterInput, (val) => {
   store.globalFilter = val;
-  store.fetchData({ search: val });
+  store.fetchData();
 });
 </script>
 
@@ -25,10 +24,9 @@ watch(globalFilterInput, (val) => {
     :showSearch="true"
     searchPlaceholder="ID, наименование, магазин"
     :showFilters="true"
-    :createButton="{ label: 'Новый импорт', to: '/import/create' }"
+    :createButton="{ label: 'Новый импорт', onClick: () => emit('create') }"
     @toggleFilters="showFilters = !showFilters"
   />
 
-  <!-- Фильтры блок -->
   <TableFilter v-if="showFilters" />
 </template>

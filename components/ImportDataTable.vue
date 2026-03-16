@@ -4,11 +4,14 @@ import DataTableBody from "@/components/import/DataTableBody.vue";
 import DataTablePagination from "@/components/products/DataTablePagination.vue";
 import DataTableProductInfo from "@/components/products/DataTableProductInfo.vue";
 
+defineEmits<{
+  (e: "create"): void;
+}>();
 </script>
 
 <template>
   <div class="space-y-4">
-    <DataTableHeader />
+    <DataTableHeader @create="$emit('create')" />
     <DataTableBody />
     <DataTablePagination />
     <DataTableProductInfo />
