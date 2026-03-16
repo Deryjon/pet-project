@@ -34,7 +34,7 @@ import { ref, watch, computed } from "vue";
 import { useProducts } from "~/composables/useProducts";
 import { useCartStore } from "~/store/cart";
 
-useHead({ title: "New Sale | Konkurent.cases" });
+useHead({ title: "Новая продажа | Konkurent.cases" });
 
 const { listProducts } = useProducts();
 const cartStore = useCartStore();

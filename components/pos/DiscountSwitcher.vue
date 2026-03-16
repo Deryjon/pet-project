@@ -1,80 +1,144 @@
 <template>
-    <div class="flex flex-col gap-6 mt-6">
-      <div class="flex items-center justify-between">
+  <div class="mt-6 flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div>
         <label class="block text-[18px] font-semibold">Скидка</label>
-        <button class="text-[#4993dd] rounded-[15px]">Ввести код</button>
       </div>
-  
-      <div class="flex items-center gap-1">
-        <input
-          type="number"
+
+      <button
+        v-if="hasDiscount"
+        type="button"
+        class="rounded-[12px] px-3 py-2 text-[13px] font-semibold text-[#4993dd] transition hover:bg-white/5"
+        @click="resetDiscount"
+      >
+        Сбросить
+      </button>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="min-w-0 flex-1">
+        <UInput
           v-model.number="cartStore.discountValue"
-          :placeholder="activeSwitcher === '%' ? 'Введите скидку %' : 'Введите сумму'"
-          class="bg-[#404040] p-4 rounded-[15px] w-1/2 text-white"
-        />
-        <div class="switcher bg-[#404040] w-1/2 flex p-1 rounded-[15px]">
-          <div
-            :class="['p-3 rounded-[15px] cursor-pointer text-center w-1/2 transition',
-            activeSwitcher === '%' ? 'bg-[#262626] text-white' : 'text-[#bdbdbd] hover:bg-[#5e5e5e]']"
-            @click="setType('%')"
-          >
-            %
-          </div>
-          <div
-            :class="['p-3 rounded-[15px] cursor-pointer text-center w-1/2 transition',
-            activeSwitcher === 'uzs' ? 'bg-[#262626] text-white' : 'text-[#bdbdbd] hover:bg-[#5e5e5e]']"
-            @click="setType('uzs')"
-          >
-            uzs
-          </div>
-        </div>
-      </div>
-  
-      <div class="flex items-center gap-2">
-        <div
-          v-for="item in options"
-          :key="item"
-          class="flex-1 bg-[#404040] hover:bg-[#5e5e5e] text-white text-center p-3 rounded-[15px] cursor-pointer transition"
-          @click="applyQuickDiscount(item)"
+          class="w-full"
+          type="number"
+          size="xl"
+          color="neutral"
+          variant="none"
+          :placeholder="inputPlaceholder"
+          :ui="{
+            root: 'w-full',
+            base: 'h-[58px] rounded-[15px] border-0 bg-[#404040] px-4 text-[17px] font-semibold text-white placeholder:text-[#8f8f8f] focus:outline-none focus:ring-0',
+            trailing: 'pe-4'
+          }"
         >
-          {{ item }}
-        </div>
+          <template #trailing>
+            <span class="text-[12px] font-bold uppercase tracking-[0.08em] text-[#8f8f8f]">
+              {{ activeSwitcher }}
+            </span>
+          </template>
+        </UInput>
+      </div>
+
+      <div class="flex w-full max-w-[180px] rounded-[15px] bg-[#404040] p-1">
+        <button type="button" :class="switcherClass('%')" @click="setType('%')">%</button>
+        <button type="button" :class="switcherClass('uzs')" @click="setType('uzs')">uzs</button>
       </div>
     </div>
-  </template>
+
+    <div class="flex items-center gap-2">
+      <button
+        v-for="item in options"
+        :key="item.value"
+        type="button"
+        :class="presetClass(item.value)"
+        @click="applyQuickDiscount(item.value)"
+      >
+        {{ item.label }}
+      </button>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from "vue";
-import { useCartStore } from "@/store/cart";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useCartStore } from "~/store/cart";
 
 const cartStore = useCartStore();
-const activeSwitcher = ref(cartStore.discountType);
+const { formatPrice } = useFormatPrice();
+const activeSwitcher = ref<"%" | "uzs">(cartStore.discountType);
 
-const uzsOptions = ["50000", "100000", "500000", "1000000"]; // лучше сразу числа
-const percentOptions = ["15", "30", "50", "75"]; // проценты без символов
+const percentOptions = [15, 30, 50, 75];
+const uzsOptions = [50000, 100000, 500000, 1000000];
 
 const options = computed(() =>
-  activeSwitcher.value === "%" ? percentOptions : uzsOptions
+  activeSwitcher.value === "%"
+    ? percentOptions.map((value) => ({ value, label: `${value}%` }))
+    : uzsOptions.map((value) => ({ value, label: shortMoney(value) }))
+);
+
+const inputPlaceholder = computed(() =>
+  activeSwitcher.value === "%" ? "Введите скидку %" : "Введите сумму"
+);
+
+const hasDiscount = computed(() => Number(cartStore.discountValue || 0) > 0);
+
+const statusText = computed(() => {
+  if (cartStore.discountLoading) return "Применяем скидку...";
+
+  const value = Number(cartStore.discountValue || 0);
+  if (!value) return activeSwitcher.value === "%" ? "Скидка в процентах" : "Скидка в сумме";
+
+  return activeSwitcher.value === "%"
+    ? `Текущая скидка: ${value}%`
+    : `Текущая скидка: ${formatPrice(value)} UZS`;
+});
+
+watch(
+  () => cartStore.discountType,
+  (value) => {
+    activeSwitcher.value = value;
+  }
 );
 
 function setType(type: "%" | "uzs") {
+  if (activeSwitcher.value === type) return;
   activeSwitcher.value = type;
   cartStore.discountType = type;
-  cartStore.discountValue = 0; // сбрасываем при переключении
+  cartStore.discountValue = 0;
 }
 
-function applyQuickDiscount(val: string) {
-  if (activeSwitcher.value === "%") {
-    cartStore.discountValue = parseInt(val.replace("%", "")); // "15%" → 15
-  } else {
-    cartStore.discountValue = parseInt(val.replace("K", "000").replace("M", "000000")); 
-    // "50K" → 50000, "1M" → 1000000
-  }
+function applyQuickDiscount(value: number) {
+  cartStore.discountValue = value;
 }
 
+function resetDiscount() {
+  cartStore.discountValue = 0;
+}
 
+function shortMoney(value: number) {
+  if (value >= 1000000) return `${value / 1000000}M`;
+  if (value >= 1000) return `${value / 1000}K`;
+  return String(value);
+}
 
-// Debounced apply to backend
-let t: any = null;
+function switcherClass(type: "%" | "uzs") {
+  return [
+    'w-1/2 rounded-[12px] p-3 text-center text-[14px] font-semibold uppercase transition',
+    activeSwitcher.value === type
+      ? 'bg-[#262626] text-white'
+      : 'text-[#bdbdbd] hover:bg-[#5e5e5e]'
+  ];
+}
+
+function presetClass(value: number) {
+  const isActive = Number(cartStore.discountValue || 0) === value;
+  return [
+    'flex-1 rounded-[15px] p-3 text-center text-white transition',
+    isActive ? 'bg-[#262626] ring-1 ring-[#4993dd]' : 'bg-[#404040] hover:bg-[#5e5e5e]'
+  ];
+}
+
+let t: ReturnType<typeof setTimeout> | null = null;
 watch(
   () => [cartStore.discountType, cartStore.discountValue],
   () => {
@@ -84,6 +148,8 @@ watch(
     }, 400);
   }
 );
-onBeforeUnmount(() => { if (t) clearTimeout(t); });
-</script>
 
+onBeforeUnmount(() => {
+  if (t) clearTimeout(t);
+});
+</script>
