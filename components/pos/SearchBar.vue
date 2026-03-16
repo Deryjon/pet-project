@@ -53,7 +53,7 @@
         v-for="product in filteredProducts"
         :key="product.id"
         type="button"
-        class="flex cursor-pointer items-center justify-between bg-[#262626] p-3 text-left text-[16px] font-semibold"
+        class="flex cursor-pointer items-center justify-between rounded-[12px] bg-[#262626] p-3 text-left text-[16px] font-semibold transition hover:bg-[#303030]"
         @click="addToCart(product)"
       >
         <div class="flex items-center gap-4">

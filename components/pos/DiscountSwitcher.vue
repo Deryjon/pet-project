@@ -18,9 +18,11 @@
     <div class="flex items-center gap-2">
       <div class="min-w-0 flex-1">
         <UInput
-          v-model.number="cartStore.discountValue"
+          :model-value="discountInput"
+          @update:model-value="onDiscountInput"
           class="w-full"
-          type="number"
+          type="text"
+          inputmode="numeric"
           size="xl"
           color="neutral"
           variant="none"
@@ -61,9 +63,11 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useCartStore } from "~/store/cart";
 
 const cartStore = useCartStore();
+const { subtotal, itemDiscounts } = storeToRefs(cartStore);
 const { formatPrice } = useFormatPrice();
 const activeSwitcher = ref<"%" | "uzs">(cartStore.discountType);
 
@@ -77,10 +81,18 @@ const options = computed(() =>
 );
 
 const inputPlaceholder = computed(() =>
-  activeSwitcher.value === "%" ? "Введите скидку %" : "Введите сумму"
+  activeSwitcher.value === "%" ? "Введите скидку %" : "Введите итоговую сумму"
 );
 
 const hasDiscount = computed(() => Number(cartStore.discountValue || 0) > 0);
+const globalDiscountBase = computed(() =>
+  Math.max(0, Number(subtotal.value || 0) - Number(itemDiscounts.value || 0))
+);
+const discountInput = computed(() =>
+  activeSwitcher.value === "uzs"
+    ? formatCommaMoney(Math.max(0, globalDiscountBase.value - Number(cartStore.discountValue || 0)))
+    : String(cartStore.discountValue || "")
+);
 
 const statusText = computed(() => {
   if (cartStore.discountLoading) return "Применяем скидку...";
@@ -108,17 +120,51 @@ function setType(type: "%" | "uzs") {
 }
 
 function applyQuickDiscount(value: number) {
-  cartStore.discountValue = value;
+  if (activeSwitcher.value === "%") {
+    cartStore.discountValue = value;
+  } else {
+    cartStore.discountValue =
+      value > 0 ? Math.max(0, globalDiscountBase.value - value) : 0;
+  }
+  if (!cartStore.saleId) {
+    cartStore.payableTotal = 0 as any;
+  }
 }
 
 function resetDiscount() {
   cartStore.discountValue = 0;
+  if (!cartStore.saleId) {
+    cartStore.payableTotal = 0 as any;
+  }
 }
 
 function shortMoney(value: number) {
   if (value >= 1000000) return `${value / 1000000}M`;
   if (value >= 1000) return `${value / 1000}K`;
   return String(value);
+}
+
+function formatCommaMoney(value: number | string) {
+  const numeric = Number(value || 0);
+  return numeric.toLocaleString("ru-RU");
+}
+
+function onDiscountInput(value: string | number) {
+  const raw = String(value ?? "");
+
+  if (activeSwitcher.value === "%") {
+    const numeric = Number(raw.replace(/[^\d.]/g, ""));
+    cartStore.discountValue = Number.isFinite(numeric) ? numeric : 0;
+  } else {
+    const numeric = Number(raw.replace(/[^\d]/g, ""));
+    const finalAmount = Number.isFinite(numeric) ? numeric : 0;
+    cartStore.discountValue =
+      finalAmount > 0 ? Math.max(0, globalDiscountBase.value - finalAmount) : 0;
+  }
+
+  if (!cartStore.saleId) {
+    cartStore.payableTotal = 0 as any;
+  }
 }
 
 function switcherClass(type: "%" | "uzs") {
@@ -131,7 +177,9 @@ function switcherClass(type: "%" | "uzs") {
 }
 
 function presetClass(value: number) {
-  const isActive = Number(cartStore.discountValue || 0) === value;
+  const isActive = activeSwitcher.value === "%"
+    ? Number(cartStore.discountValue || 0) === value
+    : Math.max(0, globalDiscountBase.value - Number(cartStore.discountValue || 0)) === value;
   return [
     'flex-1 rounded-[15px] p-3 text-center text-white transition',
     isActive ? 'bg-[#262626] ring-1 ring-[#4993dd]' : 'bg-[#404040] hover:bg-[#5e5e5e]'

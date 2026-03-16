@@ -16,7 +16,7 @@
             color="error"
             variant="ghost"
             :loading="store.cancelLoading"
-            class="flex h-8 w-8 items-center justify-center rounded-[15px] p-0 text-red-400 hover:bg-transparent hover:text-red-500 disabled:pointer-events-none disabled:opacity-50"
+            class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[15px] p-0 text-red-400 hover:bg-transparent hover:text-red-500 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             @click="store.cancelSale"
           >
             <Icon name="ic:baseline-delete" class="h-6 w-6 " />
@@ -33,7 +33,7 @@
       <UButton
         color="primary"
         variant="solid"
-        class="rounded-[20px] bg-[#1f78ff] px-4 py-2 hover:bg-[#4993dd]"
+        class="cursor-pointer rounded-[20px] bg-[#1f78ff] px-4 py-2 hover:bg-[#4993dd]"
       >
         <span class="text-[16px] font-semibold">
           {{ selectedSeller ? selectedSeller.name : "Все продавцы" }}
@@ -43,7 +43,7 @@
       <UButton
         color="neutral"
         variant="soft"
-        class="flex items-center justify-center rounded-[20px] bg-[#404040] px-4 py-1 hover:bg-[#5e5e5e]"
+        class="flex cursor-pointer items-center justify-center rounded-[20px] bg-[#404040] px-4 py-1 hover:bg-[#5e5e5e]"
         @click="openSellerModal"
       >
         <svg
@@ -104,7 +104,7 @@
             <UButton
               color="neutral"
               variant="ghost"
-              class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
+              class="cursor-pointer rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
               @click="closeDiscountPanel"
             >
               <Icon name="mingcute:close-fill" class="h-5 w-5" />
@@ -146,7 +146,7 @@
             <UButton
               block
               color="success"
-              class="justify-center rounded-xl py-3 font-bold"
+              class="cursor-pointer justify-center rounded-xl py-3 font-bold"
               @click="applyDiscount"
             >
               Применить
@@ -154,7 +154,7 @@
             <UButton
               block
               color="error"
-              class="justify-center rounded-xl py-3 font-bold"
+              class="cursor-pointer justify-center rounded-xl py-3 font-bold"
               @click="closeDiscountPanel"
             >
               Отмена
@@ -187,7 +187,7 @@
             <UButton
               color="neutral"
               variant="ghost"
-              class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
+              class="cursor-pointer rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
               @click="sellerModalOpen = false"
             >
               <Icon name="mingcute:close-fill" class="h-5 w-5" />
@@ -236,8 +236,8 @@
               class="flex w-full items-center justify-between rounded-[16px] px-4 py-3 text-left transition"
               :class="
                 selectedSeller?.id === seller.id
-                  ? 'bg-[#1f78ff] text-white'
-                  : 'bg-[#2a2a2a] text-white hover:bg-[#343434]'
+                  ? 'cursor-pointer bg-[#1f78ff] text-white'
+                  : 'cursor-pointer bg-[#2a2a2a] text-white hover:bg-[#343434]'
               "
               @click="selectSeller(seller)"
             >
@@ -261,7 +261,7 @@
             <UButton
               block
               color="primary"
-              class="justify-center rounded-[16px] py-3 font-semibold"
+              class="cursor-pointer justify-center rounded-[16px] py-3 font-semibold disabled:cursor-not-allowed"
               :disabled="!selectedSeller"
               @click="sellerModalOpen = false"
             >
@@ -272,7 +272,7 @@
               block
               color="neutral"
               variant="soft"
-              class="justify-center rounded-[16px] bg-[#404040] py-3 font-semibold text-white hover:bg-[#5e5e5e]"
+              class="cursor-pointer justify-center rounded-[16px] bg-[#404040] py-3 font-semibold text-white hover:bg-[#5e5e5e]"
               @click="clearSeller"
             >
               Сбросить

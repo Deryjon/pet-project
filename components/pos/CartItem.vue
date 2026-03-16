@@ -11,21 +11,21 @@
             v-model.number="item.quantity"
             type="number"
             min="1"
-            class="w-5 bg-transparent text-center text-[15px] font-semibold outline-none"
+            class="w-5 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none"
           />
           <span class="text-sm font-semibold text-[#9f9f9f]">ШТ</span>
 
           <div class="flex flex-col">
             <button
               type="button"
-              class="flex h-4 items-center justify-center text-[#9f9f9f] transition hover:text-white"
+              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
               @click="item.quantity++"
             >
               <Icon name="heroicons:chevron-up-20-solid" class="h-4 w-4" />
             </button>
             <button
               type="button"
-              class="flex h-4 items-center justify-center text-[#9f9f9f] transition hover:text-white"
+              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
               @click="decreaseQuantity"
             >
               <Icon name="heroicons:chevron-down-20-solid" class="h-4 w-4" />
@@ -59,7 +59,7 @@
         <div class="flex flex-col items-end">
           <button
             type="button"
-            class="flex items-center gap-2 rounded-[14px] px-2 py-0.5 transition hover:bg-white/5"
+            class="flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-0.5 transition hover:bg-white/5"
             @click="$emit('edit-discount', props.item)"
           >
             <template v-if="finalPrice < props.item.price">
@@ -92,10 +92,10 @@
         <UButton
           color="error"
           variant="ghost"
-          class="h-10 w-10 rounded-[16px] p-0 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
           @click="$emit('remove')"
         >
-          <Icon name="ic:baseline-delete" class="h-5 w-5" />
+          <Icon name="ic:baseline-delete" class="h-4 w-4" />
         </UButton>
       </div>
     </div>

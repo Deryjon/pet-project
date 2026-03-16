@@ -1,14 +1,15 @@
-// store/cart.ts
 import { defineStore } from "pinia";
-import { ref, computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 
 export const useCartStore = defineStore("cart", () => {
   const STORAGE_KEY = "pos-cart-state";
+
   const cart = ref<any[]>([]);
   const saleId = ref<string | number | null>(null);
   const saleNumber = ref<string | null>(null);
   const receipt = ref<any | null>(null);
+
   const productsLoading = ref(false);
   const creatingSale = ref(false);
   const loadingSale = ref(false);
@@ -16,6 +17,7 @@ export const useCartStore = defineStore("cart", () => {
   const payLoading = ref(false);
   const cancelLoading = ref(false);
   const discountLoading = ref(false);
+
   const discountPercent = ref<number>(0);
   const discountAmount = ref<number>(0);
   const payableTotal = ref<number>(0);
@@ -52,10 +54,8 @@ export const useCartStore = defineStore("cart", () => {
   ]);
 
   const searchQuery = ref("");
-
-  // 👉 глобальная скидка (для всей корзины)
-  const discountValue = ref(0); // число (либо % либо UZS)
-  const discountType = ref<"%" | "uzs">("%"); // текущий тип скидки
+  const discountValue = ref(0);
+  const discountType = ref<"%" | "uzs">("%");
 
   const filteredProducts = computed(() => {
     const q = searchQuery.value.toLowerCase();
@@ -120,8 +120,7 @@ export const useCartStore = defineStore("cart", () => {
       localStorage.removeItem(STORAGE_KEY);
     }
   }
-  
-  // Server-backed sale flow
+
   async function initSale() {
     if (saleId.value) return saleId.value;
     creatingSale.value = true;
@@ -142,27 +141,34 @@ export const useCartStore = defineStore("cart", () => {
   async function loadSale(sid?: string | number | null) {
     const id = sid ?? saleId.value;
     if (!id) return null;
+
     loadingSale.value = true;
-    const { apiFetch } = useApi();
-    const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
-    const items = Array.isArray(res?.items) ? res.items : [];
-    cart.value = items.map((it: any) => ({
-      id: it.product_id ?? it.id ?? it.product?.id,
-      name: it.name,
-      price: it.sale_price,
-      barcode: it.barcode ?? "",
-      article: it.sku ?? "",
-      quantity: it.quantity ?? 1,
-      discountValue: 0,
-      discountType: "%",
-    }));
-    saleId.value = res?.id ?? saleId.value;
-    saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
-    discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
-    discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
-    payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
-    loadingSale.value = false;
-    return res;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
+      const items = Array.isArray(res?.items) ? res.items : [];
+
+      cart.value = items.map((it: any) => ({
+        id: it.product_id ?? it.id ?? it.product?.id,
+        name: it.name,
+        price: Number(it.sale_price ?? 0),
+        barcode: it.barcode ?? "",
+        article: it.sku ?? "",
+        quantity: Number(it.quantity ?? 1),
+        discountValue: 0,
+        discountType: "%",
+      }));
+
+      saleId.value = res?.id ?? saleId.value;
+      saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+      discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
+      discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
+      payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
+
+      return res;
+    } finally {
+      loadingSale.value = false;
+    }
   }
 
   async function addToCartServer(product: any) {
@@ -170,13 +176,14 @@ export const useCartStore = defineStore("cart", () => {
       addingItem.value = true;
       const sid = saleId.value || (await initSale());
       if (!sid) throw new Error("sale not created");
+
       const { apiFetch } = useApi();
       await apiFetch(`/new-sale/${sid}/items`, {
         method: "POST",
         body: { product_id: product.id, quantity: 1, sale_price: product.price },
       });
       await loadSale(sid);
-    } catch (_) {
+    } catch {
       upsertCartItem(product, 1);
     } finally {
       addingItem.value = false;
@@ -184,7 +191,6 @@ export const useCartStore = defineStore("cart", () => {
     }
   }
 
-  
   function addToCart(product: any) {
     upsertCartItem(product, 1);
     searchQuery.value = "";
@@ -200,6 +206,7 @@ export const useCartStore = defineStore("cart", () => {
 
   async function paySale() {
     if (!saleId.value) return null;
+
     const { apiFetch } = useApi();
     payLoading.value = true;
     try {
@@ -212,126 +219,164 @@ export const useCartStore = defineStore("cart", () => {
       discountAmount.value = 0;
       payableTotal.value = 0;
       return res;
-    } catch (_) { return null; } finally { payLoading.value = false; }
+    } catch {
+      return null;
+    } finally {
+      payLoading.value = false;
+    }
   }
 
   async function cancelSale() {
     const { apiFetch } = useApi();
     cancelLoading.value = true;
-    if (saleId.value) {
-      try {
-        await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
-      } catch (_) {}
+    try {
+      if (saleId.value) {
+        try {
+          await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
+        } catch {}
+      }
+
+      cart.value = [];
+      saleId.value = null;
+      saleNumber.value = null;
+      discountPercent.value = 0;
+      discountAmount.value = 0;
+      payableTotal.value = 0;
+    } finally {
+      cancelLoading.value = false;
     }
-    cart.value = [];
-    saleId.value = null;
-    saleNumber.value = null;
-    discountPercent.value = 0;
-    discountAmount.value = 0;
-    payableTotal.value = 0;
-    cancelLoading.value = false;
   }
 
   async function applySaleDiscount() {
     if (!saleId.value) {
       await initSale();
     }
+
     const sid = saleId.value;
     if (!sid) return;
+
     discountLoading.value = true;
-    const { apiFetch } = useApi();
     try {
+      const { apiFetch } = useApi();
       const body: any = {};
+
       if (discountType.value === "%") {
         body.discount_percent = Number(discountValue.value || 0);
       } else {
         body.discount_amount = Number(discountValue.value || 0);
       }
-      const res: any = await apiFetch(`/new-sale/${sid}/discount`, { method: "PUT", body });
+
+      const res: any = await apiFetch(`/new-sale/${sid}/discount`, {
+        method: "PUT",
+        body,
+      });
+
       discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
       discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
       payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
-    } catch (_) {
-      // ignore for now
+    } catch {
+      // ignore in local POS mode
     } finally {
       discountLoading.value = false;
     }
   }
 
-  /** 👉 обновить скидку для конкретного товара */
   function updateDiscount(id: number, value: number, type: "%" | "uzs") {
     const product = cart.value.find((c) => c.id === id);
-    if (product) {
-      product.discountValue = value;
-      product.discountType = type;
-    }
+    if (!product) return;
+
+    product.discountValue = value;
+    product.discountType = type;
   }
 
-  /** Цена товара с учётом его собственной скидки */
   function itemFinalPrice(item: any) {
+    const basePrice = Number(item.price || 0);
     const dv = Number(item.discountValue || 0);
     const dt = item.discountType || "%";
+
     if (dt === "%") {
-      return Math.max(0, item.price - (item.price * dv) / 100);
-    } else {
-      return Math.max(0, item.price - dv);
+      return Math.max(0, Math.round(basePrice - (basePrice * dv) / 100));
     }
+
+    return Math.max(0, Math.round(basePrice - dv));
   }
 
-  // Подытог (без скидок)
   const subtotal = computed(() =>
-    cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  );
-
-  // Сумма скидок только по товарам
-  const itemDiscounts = computed(() =>
     cart.value.reduce(
-      (sum, item) => sum + (item.price - itemFinalPrice(item)) * item.quantity,
+      (sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)),
       0
     )
   );
 
-  // 👉 глобальная скидка (поверх товарных)
-  function globalDiscountAmount() {
-    const base = subtotal.value - itemDiscounts.value; // база после товарных скидок
-    if (discountType.value === "%") {
-      return Math.max(0, (base * discountValue.value) / 100);
-    } else {
-      return Math.min(base, discountValue.value); // не больше чем сама база
-    }
-  }
-
-  // Итог к оплате
-  const total = computed(() => {
-    const afterItemDiscounts = subtotal.value - itemDiscounts.value;
-    const global = globalDiscountAmount();
-    return Math.max(0, afterItemDiscounts - global);
-  });
-
-  // Общая сумма скидок (товарные + глобальная)
-  const totalDiscount = computed(
-    () => itemDiscounts.value + globalDiscountAmount()
+  const itemDiscounts = computed(() =>
+    cart.value.reduce((sum, item) => {
+      const basePrice = Number(item.price || 0);
+      const quantity = Math.max(1, Number(item.quantity || 1));
+      return sum + (basePrice - itemFinalPrice(item)) * quantity;
+    }, 0)
   );
 
-  /** Цена товара с учётом и товарной скидки, и общей */
-function itemFinalPriceWithGlobal(item: any) {
-  // Сначала считаем цену после индивидуальной скидки
-  let price = itemFinalPrice(item);
+  function globalDiscountAmount() {
+    const base = Math.max(0, subtotal.value - itemDiscounts.value);
 
-  // Потом применяем глобальную
-  const baseSubtotal = subtotal.value - itemDiscounts.value; // база для глобальной скидки
-  if (baseSubtotal <= 0) return price;
+    if (discountType.value === "%") {
+      return Math.max(0, Math.round((base * discountValue.value) / 100));
+    }
 
-  let factor = 1;
-  if (discountType.value === "%") {
-    factor = 1 - discountValue.value / 100;
-  } else {
-    // сумма делится пропорционально на все товары
-    factor = (baseSubtotal - globalDiscountAmount()) / baseSubtotal;
+    return Math.round(Math.min(base, discountValue.value));
   }
 
-  return Math.max(0, price * factor);
-}
+  const total = computed(() => {
+    const afterItemDiscounts = subtotal.value - itemDiscounts.value;
+    return Math.max(0, afterItemDiscounts - globalDiscountAmount());
+  });
+
+  const totalDiscount = computed(() => itemDiscounts.value + globalDiscountAmount());
+
+  function itemGlobalDiscountShare(item: any) {
+    const totalGlobalDiscount = globalDiscountAmount();
+    const lineBases = cart.value.map((cartItem) => ({
+      id: cartItem.id,
+      quantity: Math.max(1, Number(cartItem.quantity || 1)),
+      lineBase: itemFinalPrice(cartItem) * Math.max(1, Number(cartItem.quantity || 1)),
+    }));
+
+    const totalBase = lineBases.reduce((sum, entry) => sum + entry.lineBase, 0);
+    if (totalGlobalDiscount <= 0 || totalBase <= 0) return 0;
+
+    const rawShares = lineBases.map((entry) => {
+      const exactShare = (entry.lineBase / totalBase) * totalGlobalDiscount;
+      const flooredShare = Math.floor(exactShare);
+      return {
+        id: entry.id,
+        flooredShare,
+        fraction: exactShare - flooredShare,
+      };
+    });
+
+    let assigned = rawShares.reduce((sum, entry) => sum + entry.flooredShare, 0);
+    let remainder = totalGlobalDiscount - assigned;
+
+    rawShares
+      .sort((a, b) => b.fraction - a.fraction)
+      .forEach((entry) => {
+        if (remainder <= 0) return;
+        entry.flooredShare += 1;
+        remainder -= 1;
+      });
+
+    return rawShares.find((entry) => entry.id === item.id)?.flooredShare ?? 0;
+  }
+
+  function itemFinalPriceWithGlobal(item: any) {
+    const unitPrice = itemFinalPrice(item);
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    const lineBase = unitPrice * quantity;
+    const lineDiscount = itemGlobalDiscountShare(item);
+    const lineFinal = Math.max(0, lineBase - lineDiscount);
+
+    return Math.max(0, Math.round(lineFinal / quantity));
+  }
 
   loadLocalState();
 
