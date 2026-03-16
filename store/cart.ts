@@ -1,9 +1,10 @@
 // store/cart.ts
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 
 export const useCartStore = defineStore("cart", () => {
+  const STORAGE_KEY = "pos-cart-state";
   const cart = ref<any[]>([]);
   const saleId = ref<string | number | null>(null);
   const saleNumber = ref<string | null>(null);
@@ -65,6 +66,60 @@ export const useCartStore = defineStore("cart", () => {
         p.barcode.toLowerCase().includes(q)
     );
   });
+
+  function upsertCartItem(product: any, quantity = 1) {
+    const existing = cart.value.find((c) => c.id === product.id);
+    if (existing) {
+      existing.quantity += quantity;
+      return;
+    }
+
+    cart.value.push({
+      ...product,
+      quantity,
+      discountValue: Number(product?.discountValue ?? 0),
+      discountType: product?.discountType === "uzs" ? "uzs" : "%",
+    });
+  }
+
+  function saveLocalState() {
+    if (!process.client) return;
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        cart: cart.value,
+        saleId: saleId.value,
+        saleNumber: saleNumber.value,
+        discountValue: discountValue.value,
+        discountType: discountType.value,
+        discountPercent: discountPercent.value,
+        discountAmount: discountAmount.value,
+        payableTotal: payableTotal.value,
+      })
+    );
+  }
+
+  function loadLocalState() {
+    if (!process.client) return;
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      cart.value = Array.isArray(parsed?.cart) ? parsed.cart : [];
+      saleId.value = parsed?.saleId ?? null;
+      saleNumber.value = parsed?.saleNumber ?? null;
+      discountValue.value = Number(parsed?.discountValue ?? 0);
+      discountType.value = parsed?.discountType === "uzs" ? "uzs" : "%";
+      discountPercent.value = Number(parsed?.discountPercent ?? 0);
+      discountAmount.value = Number(parsed?.discountAmount ?? 0);
+      payableTotal.value = Number(parsed?.payableTotal ?? 0);
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }
   
   // Server-backed sale flow
   async function initSale() {
@@ -122,7 +177,7 @@ export const useCartStore = defineStore("cart", () => {
       });
       await loadSale(sid);
     } catch (_) {
-      // optionally show error
+      upsertCartItem(product, 1);
     } finally {
       addingItem.value = false;
       searchQuery.value = "";
@@ -131,17 +186,7 @@ export const useCartStore = defineStore("cart", () => {
 
   
   function addToCart(product: any) {
-    const existing = cart.value.find((c) => c.id === product.id);
-    if (existing) {
-      existing.quantity += 1;
-    } else {
-      cart.value.push({
-        ...product,
-        quantity: 1,
-        discountValue: 0, // индивидуальная скидка
-        discountType: "%", // тип скидки
-      });
-    }
+    upsertCartItem(product, 1);
     searchQuery.value = "";
   }
 
@@ -287,6 +332,25 @@ function itemFinalPriceWithGlobal(item: any) {
 
   return Math.max(0, price * factor);
 }
+
+  loadLocalState();
+
+  watch(
+    [
+      cart,
+      saleId,
+      saleNumber,
+      discountValue,
+      discountType,
+      discountPercent,
+      discountAmount,
+      payableTotal,
+    ],
+    () => {
+      saveLocalState();
+    },
+    { deep: true }
+  );
 
   return {
     cart,

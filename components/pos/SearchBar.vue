@@ -22,16 +22,16 @@
 
     <div class="relative z-30 flex gap-2">
       <UButton
-        color="neutral"
-        variant="soft"
-        class="h-[58px] w-[58px] justify-center rounded-[15px] bg-[#404040] text-[#bdbdbd] hover:bg-[#5e5e5e]"
+        color="primary"
+        variant="solid"
+        class="h-[58px] w-[58px] justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd]"
       >
         <Icon name="fa7-solid:exchange" class="h-5 w-5" />
       </UButton>
       <UButton
-        color="neutral"
-        variant="soft"
-        class="h-[58px] w-[58px] justify-center rounded-[15px] bg-[#404040] text-[#bdbdbd] hover:bg-[#5e5e5e]"
+        color="primary"
+        variant="solid"
+        class="h-[58px] w-[58px] justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd]"
       >
         <Icon name="heroicons:clock" class="h-5 w-5" />
       </UButton>
@@ -79,7 +79,7 @@ import { useCartStore } from "~/store/cart";
 const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 const { searchQuery, filteredProducts } = storeToRefs(store);
-const addToCart = store.addToCartServer;
+const addToCart = store.addToCart;
 const showResults = computed(
   () => Boolean(searchQuery.value) && filteredProducts.value.length > 0
 );

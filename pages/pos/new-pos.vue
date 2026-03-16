@@ -1,6 +1,7 @@
 <template>
   <section class="bg-[#262626] text-white rounded-2xl flex h-full">
-    <div class="w-full border-r border-[#404040] pr-7 h-full flex flex-col overflow-y-auto relative">
+    <div class="relative flex h-full w-full flex-col overflow-y-auto pr-7">
+      <div class="pointer-events-none absolute right-0 top-8 h-[calc(100%-64px)] w-px bg-[#404040]" />
       <SearchBar />
       <Cart />
       <div
