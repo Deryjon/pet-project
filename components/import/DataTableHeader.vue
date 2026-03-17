@@ -12,8 +12,8 @@ const store = useImportDataTableStore();
 const globalFilterInput = ref(store.globalFilter);
 const showFilters = ref(false);
 
-watch(globalFilterInput, (val) => {
-  store.globalFilter = val;
+watch(globalFilterInput, (value) => {
+  store.globalFilter = value;
   store.fetchData();
 });
 </script>
@@ -24,6 +24,7 @@ watch(globalFilterInput, (val) => {
     :showSearch="true"
     searchPlaceholder="ID, наименование, магазин"
     :showFilters="true"
+    :filtersOpen="showFilters"
     :createButton="{ label: 'Новый импорт', onClick: () => emit('create') }"
     @toggleFilters="showFilters = !showFilters"
   />

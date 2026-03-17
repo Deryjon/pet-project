@@ -31,7 +31,7 @@
 
             <button
               type="button"
-              class="flex h-12 w-12 items-center justify-center rounded-full bg-[#404040] transition-colors duration-200 hover:bg-[#5e5e5e]"
+              class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#404040] transition-colors duration-200 hover:bg-[#5e5e5e]"
               @click="closeImportModal"
             >
               <Icon name="heroicons:x-mark-20-solid" class="h-6 w-6" />
@@ -39,6 +39,13 @@
           </div>
 
           <div class="flex-1 space-y-6 overflow-y-auto px-8 py-8">
+            <CustomSelect
+              v-model="form.importType"
+              label="Тип импорта"
+              :options="importTypeOptions"
+              placeholder="Выберите тип импорта"
+            />
+
             <div class="space-y-2">
               <label class="text-[16px] font-bold text-white">Наименование</label>
               <input
@@ -105,7 +112,7 @@
 
                 <button
                   type="button"
-                  class="text-[14px] font-bold text-[#ff8c8c] transition-colors duration-200 hover:text-[#ffb0b0]"
+                  class="cursor-pointer text-[14px] font-bold text-[#ff8c8c] transition-colors duration-200 hover:text-[#ffb0b0]"
                   @click="removeFile"
                 >
                   Удалить
@@ -121,7 +128,7 @@
               <a
                 href="/templates/product-import-template.xlsx"
                 download
-                class="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#404040] px-4 py-3 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
+                class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-[14px] bg-[#404040] px-4 py-3 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
               >
                 <Icon name="heroicons:arrow-down-tray-20-solid" class="h-5 w-5 text-[#4993dd]" />
                 Скачать шаблон
@@ -193,14 +200,14 @@
             <div class="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                class="flex-1 rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
+                class="flex-1 cursor-pointer rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
                 @click="closeImportModal"
               >
                 Отмена
               </button>
               <button
                 type="button"
-                class="flex-1 rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
+                class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
                 :disabled="isParsing"
                 @click="confirmImport"
               >
@@ -227,6 +234,7 @@ import { useUserStore } from "@/store/useUserStore";
 interface ImportFormState {
   name: string;
   store: string;
+  importType: string;
 }
 
 interface ParsedImportRow {
@@ -261,6 +269,7 @@ const importStore = useImportDataTableStore();
 const locationStore = useLocationStore();
 const userStore = useUserStore();
 const { locations } = storeToRefs(locationStore);
+const importTypeOptions = ["Поступление", "Приход остатков", "Корректировка"];
 
 const isImportModalOpen = ref(false);
 const isDragging = ref(false);
@@ -272,6 +281,7 @@ const errors = ref<string[]>([]);
 const form = ref<ImportFormState>({
   name: "",
   store: "",
+  importType: importTypeOptions[0],
 });
 
 const locationOptions = computed(() => locations.value.map((location) => location.name));
@@ -281,6 +291,9 @@ const totalQuantity = computed(() =>
 );
 const totalAmount = computed(() =>
   parsedRows.value.reduce((sum, row) => sum + row.quantity * row.retailPrice, 0)
+);
+const totalPurchaseAmount = computed(() =>
+  parsedRows.value.reduce((sum, row) => sum + row.quantity * row.supplyPrice, 0)
 );
 
 const createDefaultImportName = () => {
@@ -326,6 +339,7 @@ const resetForm = () => {
   form.value = {
     name: createDefaultImportName(),
     store: locationStore.selectedLocation?.name ?? "",
+    importType: importTypeOptions[0],
   };
   selectedFile.value = null;
   parsedRows.value = [];
@@ -523,7 +537,9 @@ const confirmImport = () => {
     name: form.value.name.trim(),
     store: form.value.store,
     qty: totalQuantity.value,
+    confirmedQty: totalQuantity.value,
     total: totalAmount.value,
+    purchaseTotal: totalPurchaseAmount.value,
     status: "Завершен",
     createdAt: new Intl.DateTimeFormat("ru-RU", {
       day: "2-digit",
@@ -534,6 +550,9 @@ const confirmImport = () => {
       second: "2-digit",
     }).format(new Date()),
     createdBy: userStore.fullName || userStore.user.name || "Current User",
+    finishedBy: userStore.fullName || userStore.user.name || "Current User",
+    importType: form.value.importType,
+    salesProgress: "0%",
   });
 
   closeImportModal();
