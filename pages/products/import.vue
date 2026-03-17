@@ -553,6 +553,19 @@ const confirmImport = () => {
     finishedBy: userStore.fullName || userStore.user.name || "Current User",
     importType: form.value.importType,
     salesProgress: "0%",
+    items: parsedRows.value.map((row) => ({
+      name: row.name,
+      article: row.article,
+      barcode: row.barcode,
+      quantity: row.quantity,
+      supplyPrice: row.supplyPrice,
+      retailPrice: row.retailPrice,
+      category: row.category || "Отсутствует",
+      brand: row.brand || "Отсутствует",
+      unit: row.unit || "Штука",
+      wholesalePrice: null,
+      supplier: row.supplier || "Отсутствует",
+    })),
   });
 
   closeImportModal();

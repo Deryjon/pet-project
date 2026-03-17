@@ -1,3 +1,4 @@
+import { navigateTo } from "#app";
 import { defineStore } from "pinia";
 import { computed, h, ref, watch } from "vue";
 import {
@@ -7,8 +8,23 @@ import {
   useVueTable,
 } from "@tanstack/vue-table";
 
+export interface ImportLineItem {
+  name: string;
+  article: string;
+  barcode: string;
+  quantity: number;
+  supplyPrice: number;
+  retailPrice: number;
+  category: string;
+  brand: string;
+  unit: string;
+  wholesalePrice: number | null;
+  supplier: string;
+}
+
 export interface ImportRow {
   id: number;
+  detailId: string;
   name: string;
   store: string;
   qty: number;
@@ -21,6 +37,7 @@ export interface ImportRow {
   finishedBy: string;
   importType: string;
   salesProgress: string;
+  items: ImportLineItem[];
 }
 
 const getStatusClasses = (status: string) => {
@@ -53,7 +70,8 @@ const formatMoney = (value: number) =>
 const initialData: ImportRow[] = [
   {
     id: 268645,
-    name: "Product Import 268645",
+    detailId: "db1ada86-e6a2-4034-aab4-4d6665c553a0",
+    name: "Import db1ada86",
     store: "Globus Mall",
     qty: 1,
     confirmedQty: 1,
@@ -65,10 +83,26 @@ const initialData: ImportRow[] = [
     finishedBy: "Iskandarjon Yusupov",
     importType: "Поступление",
     salesProgress: "27%",
+    items: [
+      {
+        name: "Naushnik 15 Original",
+        article: "EHX-69829",
+        barcode: "2000000011783",
+        quantity: 1,
+        supplyPrice: 100000,
+        retailPrice: 365000,
+        category: "Наушник > Проводные",
+        brand: "Отсутствует",
+        unit: "Штука",
+        wholesalePrice: null,
+        supplier: "Отсутствует",
+      },
+    ],
   },
   {
     id: 879991,
-    name: "Product Import 879991",
+    detailId: "a31a6506-89fb-4ac1-bd95-4df47a312100",
+    name: "Import a31a6506",
     store: "Globus Mall",
     qty: 4,
     confirmedQty: 4,
@@ -80,10 +114,39 @@ const initialData: ImportRow[] = [
     finishedBy: "Iskandarjon Yusupov",
     importType: "Приход остатков",
     salesProgress: "100%",
+    items: [
+      {
+        name: "Mouse X2",
+        article: "MSX-10001",
+        barcode: "2000000011001",
+        quantity: 2,
+        supplyPrice: 40000,
+        retailPrice: 65000,
+        category: "Аксессуары > Мышки",
+        brand: "X-Brand",
+        unit: "Штука",
+        wholesalePrice: 55000,
+        supplier: "Tech Import",
+      },
+      {
+        name: "Keyboard TKL",
+        article: "KBD-2200",
+        barcode: "2000000011002",
+        quantity: 2,
+        supplyPrice: 50000,
+        retailPrice: 60000,
+        category: "Аксессуары > Клавиатуры",
+        brand: "KeyLab",
+        unit: "Штука",
+        wholesalePrice: null,
+        supplier: "Tech Import",
+      },
+    ],
   },
   {
     id: 359296,
-    name: "Product Import 359296",
+    detailId: "d6fbf0d6-3f4c-4636-a76f-663eeef30f12",
+    name: "Import d6fbf0d6",
     store: "Samarqand Darvoza",
     qty: 2,
     confirmedQty: 2,
@@ -95,6 +158,21 @@ const initialData: ImportRow[] = [
     finishedBy: "Iskandarjon Yusupov",
     importType: "Корректировка",
     salesProgress: "100%",
+    items: [
+      {
+        name: "Cable USB-C",
+        article: "CBL-9090",
+        barcode: "2000000011003",
+        quantity: 2,
+        supplyPrice: 60000,
+        retailPrice: 82500,
+        category: "Аксессуары > Кабели",
+        brand: "Отсутствует",
+        unit: "Штука",
+        wholesalePrice: null,
+        supplier: "Отсутствует",
+      },
+    ],
   },
 ];
 
@@ -109,7 +187,10 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     if (!globalFilter.value) return rawData.value;
     const q = globalFilter.value.toLowerCase();
     return rawData.value.filter((row) =>
-      Object.values(row).join(" ").toLowerCase().includes(q)
+      Object.values({ ...row, items: row.items.map((item) => Object.values(item).join(" ")).join(" ") })
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
     );
   });
 
@@ -131,12 +212,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       header: "Кол-во",
       cell: ({ row }: any) =>
         h("div", { class: "space-y-1.5" }, [
-          h("div", { class: "text-[14px] font-bold text-white" }, `${row.original.qty} `),
-          h(
-            "div",
-            { class: "text-[13px] text-[#bdbdbd]" },
-            `${row.original.confirmedQty} `
-          ),
+          h("div", { class: "text-[14px] font-bold text-white" }, `${row.original.qty} приход`),
+          h("div", { class: "text-[13px] text-[#bdbdbd]" }, `${row.original.confirmedQty} подтверждено`),
         ]),
     },
     {
@@ -144,16 +221,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       header: "Сумма",
       cell: ({ row }: any) =>
         h("div", { class: "space-y-1.5" }, [
-          h(
-            "div",
-            { class: "text-[14px] font-bold text-white" },
-            `${formatMoney(row.original.purchaseTotal)}`
-          ),
-          h(
-            "div",
-            { class: "text-[13px] text-[#bdbdbd]" },
-            `${formatMoney(row.original.total)}`
-          ),
+          h("div", { class: "text-[14px] font-bold text-white" }, `${formatMoney(row.original.purchaseTotal)} сумма прихода`),
+          h("div", { class: "text-[13px] text-[#bdbdbd]" }, `${formatMoney(row.original.total)} сумма продажи`),
         ]),
     },
     {
@@ -223,13 +292,22 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     loading.value = false;
   }
 
-  function addImport(importRow: Omit<ImportRow, "id">) {
+  function getImportByDetailId(detailId: string) {
+    return rawData.value.find((row) => row.detailId === detailId) ?? null;
+  }
+
+  function openProduct(importRow: ImportRow) {
+    return navigateTo(`/products/import/list/${importRow.detailId}?limit=5&page=1`);
+  }
+
+  function addImport(importRow: Omit<ImportRow, "id" | "detailId"> & { detailId?: string }) {
     const nextId =
       rawData.value.reduce((maxId, row) => Math.max(maxId, row.id), 100000) + 1;
 
     rawData.value = [
       {
         id: nextId,
+        detailId: importRow.detailId ?? crypto.randomUUID(),
         ...importRow,
       },
       ...rawData.value,
@@ -252,5 +330,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     table,
     addImport,
     fetchData,
+    openProduct,
+    getImportByDetailId,
+    formatMoney,
   };
 });
