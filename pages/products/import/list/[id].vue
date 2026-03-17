@@ -68,6 +68,7 @@
               <th class="px-4 py-3">Единица измерения</th>
               <th class="px-4 py-3">Оптовая цена</th>
               <th class="px-4 py-3">Поставщик</th>
+              <th class="px-4 py-3">Описание</th>
             </tr>
           </thead>
 
@@ -94,8 +95,11 @@
               <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">
                 {{ item.wholesalePrice ? formatCompactMoney(item.wholesalePrice) : "-" }}
               </td>
-              <td class="rounded-r-[18px] bg-[#363636] px-4 py-4 text-[15px] text-white">
+              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">
                 {{ item.supplier }}
+              </td>
+              <td class="rounded-r-[18px] bg-[#363636] px-4 py-4 text-[15px] text-white">
+                {{ item.description || "-" }}
               </td>
             </tr>
           </tbody>
