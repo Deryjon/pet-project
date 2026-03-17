@@ -1,4 +1,4 @@
-import { navigateTo } from "#app";
+import { useRouter } from "#app";
 import { defineStore } from "pinia";
 import { computed, h, ref, watch } from "vue";
 import {
@@ -177,6 +177,7 @@ const initialData: ImportRow[] = [
 ];
 
 export const useImportDataTableStore = defineStore("importDataTableStore", () => {
+  const router = useRouter();
   const rawData = ref<ImportRow[]>([...initialData]);
   const loading = ref(false);
   const globalFilter = ref("");
@@ -212,8 +213,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       header: "Кол-во",
       cell: ({ row }: any) =>
         h("div", { class: "space-y-1.5" }, [
-          h("div", { class: "text-[14px] font-bold text-white" }, `${row.original.qty} приход`),
-          h("div", { class: "text-[13px] text-[#bdbdbd]" }, `${row.original.confirmedQty} подтверждено`),
+          h("div", { class: "text-[14px] font-bold text-white" }, `${row.original.qty} `),
+          h("div", { class: "text-[13px] text-[#bdbdbd]" }, `${row.original.confirmedQty} `),
         ]),
     },
     {
@@ -221,8 +222,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       header: "Сумма",
       cell: ({ row }: any) =>
         h("div", { class: "space-y-1.5" }, [
-          h("div", { class: "text-[14px] font-bold text-white" }, `${formatMoney(row.original.purchaseTotal)} сумма прихода`),
-          h("div", { class: "text-[13px] text-[#bdbdbd]" }, `${formatMoney(row.original.total)} сумма продажи`),
+          h("div", { class: "text-[14px] font-bold text-white" }, `${formatMoney(row.original.purchaseTotal)} `),
+          h("div", { class: "text-[13px] text-[#bdbdbd]" }, `${formatMoney(row.original.total)} `),
         ]),
     },
     {
@@ -297,7 +298,10 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
   }
 
   function openProduct(importRow: ImportRow) {
-    return navigateTo(`/products/import/list/${importRow.detailId}?limit=5&page=1`);
+    return router.push({
+      path: `/products/import/list/${importRow.detailId}`,
+      query: { limit: "5", page: "1" },
+    });
   }
 
   function addImport(importRow: Omit<ImportRow, "id" | "detailId"> & { detailId?: string }) {

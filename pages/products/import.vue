@@ -1,5 +1,5 @@
 <template>
-  <section class="catalog">
+  <section v-if="!isDetailsRoute" class="catalog">
     <div class="top flex justify-between">
       <h2 class="text-[36px] font-bold text-white">Импорт</h2>
     </div>
@@ -219,11 +219,12 @@
       </transition>
     </Teleport>
   </section>
+  <NuxtPage v-else />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useHead } from "#imports";
+import { useHead, useRoute } from "#imports";
 import { storeToRefs } from "pinia";
 import DataTable from "@/components/ImportDataTable.vue";
 import CustomSelect from "@/components/ui/CustomSelect.vue";
@@ -268,7 +269,9 @@ const EXPECTED_HEADERS = [
 const importStore = useImportDataTableStore();
 const locationStore = useLocationStore();
 const userStore = useUserStore();
+const route = useRoute();
 const { locations } = storeToRefs(locationStore);
+const isDetailsRoute = computed(() => route.path.startsWith("/products/import/list/"));
 const importTypeOptions = ["Поступление", "Приход остатков", "Корректировка"];
 
 const isImportModalOpen = ref(false);
