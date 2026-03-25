@@ -1,5 +1,5 @@
 <template>
-  <div class="relative flex items-start justify-between gap-2">
+  <div class="relative flex flex-col items-stretch gap-2 sm:flex-row sm:items-start sm:justify-between">
     <div class="relative z-30 min-w-0 flex-1">
       <UInput
         v-model="searchQuery"
@@ -20,18 +20,18 @@
       </UInput>
     </div>
 
-    <div class="relative z-30 flex gap-2">
+    <div class="relative z-30 flex gap-2 sm:w-auto">
       <UButton
         color="primary"
         variant="solid"
-        class="h-[58px] w-[58px] justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd]"
+        class="h-[58px] flex-1 justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd] sm:w-[58px] sm:flex-none"
       >
         <Icon name="fa7-solid:exchange" class="h-5 w-5" />
       </UButton>
       <UButton
         color="primary"
         variant="solid"
-        class="h-[58px] w-[58px] justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd]"
+        class="h-[58px] flex-1 justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd] sm:w-[58px] sm:flex-none"
       >
         <Icon name="heroicons:clock" class="h-5 w-5" />
       </UButton>

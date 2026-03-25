@@ -1,8 +1,8 @@
 ﻿<template>
   <section class="catalog">
-    <div class="top flex justify-between">
-      <h2 class="text-[36px] font-bold text-white">Каталог</h2>
-      <div class="flex items-center gap-4">
+    <div class="top flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div
           class="flex cursor-pointer items-center gap-[10px] text-[#b5b4b4]"
           @click="toggleStats"
@@ -17,7 +17,7 @@
           </p>
         </div>
 
-        <div class="buttons flex items-center justify-between gap-2">
+        <div class="buttons flex items-center gap-2">
           <UTooltip
             v-for="action in actions"
             :key="action.tooltip"
@@ -37,7 +37,7 @@
       </div>
     </div>
     <transition name="fade">
-      <div v-if="showStats" class="grid grid-cols-4 gap-[20px] mt-[10px]">
+      <div v-if="showStats" class="mt-[10px] grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4">
         <StatsBox
           v-for="item in statsItems"
           :key="item.label"

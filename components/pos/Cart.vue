@@ -1,13 +1,13 @@
 <template>
   <div class="relative mt-[30px] rounded-xl">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <h3 class="text-[36px] font-semibold">Корзина</h3>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex flex-wrap items-center gap-3">
+        <h3 class="text-[28px] font-semibold sm:text-[36px]">Корзина</h3>
 
         <UBadge
           color="neutral"
           variant="soft"
-          class="inline-flex items-center gap-2 rounded-[30px] bg-[#404040] px-4 py-2 text-[24px] font-bold text-white"
+          class="inline-flex items-center gap-2 rounded-[30px] bg-[#404040] px-4 py-2 text-[18px] font-bold text-white sm:text-[24px]"
         >
           <span class="min-w-[24px] text-center leading-none">{{ totalQuantity }}</span>
 
@@ -24,12 +24,12 @@
         </UBadge>
       </div>
 
-      <span class="text-[36px] font-bold text-[#bdbdbd]">
+      <span class="break-all text-[24px] font-bold text-[#bdbdbd] sm:text-[36px]">
         {{ saleDisplayNumber }}
       </span>
     </div>
 
-    <div class="sellers mt-[15px] flex gap-4">
+    <div class="sellers mt-[15px] flex flex-wrap gap-4">
       <UButton
         color="primary"
         variant="solid"
@@ -68,8 +68,8 @@
         body: 'flex h-full flex-col items-center justify-center p-[20px]',
       }"
     >
-      <span class="text-[24px] font-bold">Корзинка пока что пуста</span>
-      <span class="w-[340px] text-center text-[18px] font-bold text-[#5e5e5e]">
+      <span class="text-center text-[20px] font-bold sm:text-[24px]">Корзинка пока что пуста</span>
+      <span class="w-full max-w-[340px] text-center text-[16px] font-bold text-[#5e5e5e] sm:text-[18px]">
         Нажмите “/” для поиска товаров или отсканируйте товары
       </span>
     </UCard>

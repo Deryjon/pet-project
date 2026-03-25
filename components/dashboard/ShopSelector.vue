@@ -14,12 +14,12 @@ const open = ref(false);
   >
     <button
       type="button"
-      class="cursor-pointer text-4xl font-semibold flex items-center gap-2 text-white flex items-center justify-between"
+      class="flex w-full items-center justify-between gap-2 text-left text-[28px] font-semibold text-white sm:w-auto sm:text-4xl"
     >
       {{ store.selectedShopName }}
       <Icon
         name="tabler:chevron-down"
-        :class="['w-8 h-8 transition-transform', open ? 'rotate-180' : '']"
+        :class="['h-7 w-7 shrink-0 transition-transform sm:h-8 sm:w-8', open ? 'rotate-180' : '']"
       />
     </button>
 

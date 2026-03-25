@@ -1,7 +1,7 @@
 <template>
-  <section class="bg-[#262626] text-white rounded-2xl flex h-full">
-    <div class="relative flex h-full w-full flex-col overflow-y-auto pr-7">
-      <div class="pointer-events-none absolute right-0 top-8 h-[calc(100%-64px)] w-px bg-[#404040]" />
+  <section class="flex h-full flex-col rounded-2xl bg-[#262626] text-white xl:flex-row">
+    <div class="relative flex h-full w-full flex-col overflow-y-auto p-4 sm:p-6 xl:pr-7">
+      <div class="pointer-events-none absolute right-0 top-8 hidden h-[calc(100%-64px)] w-px bg-[#404040] xl:block" />
       <SearchBar />
       <Cart />
       <div
@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <div class="pl-[15px] flex flex-col justify-between w-[450px] h-full">
+    <div class="flex h-full w-full flex-col justify-between border-t border-white/10 p-4 sm:p-6 xl:w-[450px] xl:border-l xl:border-t-0 xl:border-white/10 xl:pl-[15px]">
       <div class="flex flex-col">
         <ClientForm />
         <DiscountSwitcher />
