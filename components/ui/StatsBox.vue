@@ -11,4 +11,3 @@
     value: string | number
   }>()
   </script>
-  

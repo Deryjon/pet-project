@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="catalog">
     <div class="top flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
       <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
