@@ -412,7 +412,19 @@ function setPaymentMode(mode: "mixed" | "single") {
 async function confirmPay() {
   if (!canConfirmPayment.value) return;
 
-  await cartStore.paySale();
+  const payments =
+    paymentMode.value === "single"
+      ? buildSinglePayment()
+      : buildMixedPayments();
+
+  if (!payments.length) return;
+
+  await cartStore.paySale({
+    comment: "",
+    payments,
+    with_cashback: 0,
+    without_cashback: false,
+  });
   closePaymentPanel();
   selectedPaymentMethod.value = "";
   resetMixedPayments();
@@ -451,5 +463,47 @@ function resetMixedPayments() {
     click: 0,
     transfer: 0,
   };
+}
+
+function buildSinglePayment() {
+  const method = selectedPaymentMethod.value as
+    | "cash"
+    | "card"
+    | "payme"
+    | "click"
+    | "transfer";
+  if (!method) return [];
+
+  const companyPaymentTypeId = cartStore.paymentTypeIdByMethod(method);
+  if (!companyPaymentTypeId) return [];
+
+  return [
+    {
+      company_payment_type_id: companyPaymentTypeId,
+      paid_amount: payableAmount.value,
+      returned_amount: 0,
+      skip_ofd: false,
+    },
+  ];
+}
+
+function buildMixedPayments() {
+  return selectedMixedPayments.value
+    .map((entry) => {
+      const companyPaymentTypeId = cartStore.paymentTypeIdByMethod(
+        entry.value as "cash" | "card" | "payme" | "click" | "transfer",
+      );
+      const paidAmount = Number(mixedPayments.value[entry.value] || 0);
+
+      if (!companyPaymentTypeId || paidAmount <= 0) return null;
+
+      return {
+        company_payment_type_id: companyPaymentTypeId,
+        paid_amount: paidAmount,
+        returned_amount: 0,
+        skip_ofd: false,
+      };
+    })
+    .filter(Boolean);
 }
 </script>

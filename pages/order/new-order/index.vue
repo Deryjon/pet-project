@@ -6,9 +6,9 @@
       <Cart />
       <div
         v-if="cartStore.productsLoading || cartStore.creatingSale || cartStore.loadingSale || cartStore.addingItem"
-        class="absolute top-2 right-3 text-[#bdbdbd] flex items-center gap-2"
+        class="absolute right-3 top-2 flex items-center gap-2 text-[#bdbdbd]"
       >
-        <Icon name="heroicons:arrow-path" class="w-4 h-4 animate-spin" />
+        <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Loading...
       </div>
     </div>
@@ -29,15 +29,14 @@ import Cart from "@/components/pos/Cart.vue";
 import ClientForm from "@/components/pos/ClientForm.vue";
 import DiscountSwitcher from "@/components/pos/DiscountSwitcher.vue";
 import Summary from "@/components/pos/SummaryBlock.vue";
-
 import { useHead } from "#imports";
-import { ref, watch, computed } from "vue";
-import { useProducts } from "~/composables/useProducts";
+import { computed, ref, watch } from "vue";
+import { useApi } from "~/composables/useApi";
 import { useCartStore } from "~/store/cart";
 
 useHead({ title: "Новая продажа | Konkurent.cases" });
 
-const { listProducts } = useProducts();
+const { apiFetch } = useApi();
 const cartStore = useCartStore();
 
 const page = ref(1);
@@ -48,18 +47,30 @@ async function fetchProducts() {
   try {
     cartStore.productsLoading = true as any;
     const pageSize = Math.min(Math.max(limit.value, 1), 100);
-    const items = await listProducts({
-      search: search.value || undefined,
-      page: page.value,
-      pageSize,
+    const response: any = await apiFetch("/v2/new-sale/products", {
+      method: "GET",
+      query: {
+        page: page.value,
+        limit: pageSize,
+        search: search.value || undefined,
+        shop_id: cartStore.resolveCurrentShopId() || undefined,
+      },
     });
+
+    const items = Array.isArray(response?.products)
+      ? response.products
+      : Array.isArray(response?.items)
+        ? response.items
+        : Array.isArray(response)
+          ? response
+          : [];
 
     const mapped = items.map((p: any) => ({
       id: p.id,
-      name: p.name,
-      price: p.sale_price ?? 0,
-      barcode: p.barcode ?? "",
-      article: p.sku ?? "",
+      name: String(p.name ?? p.product?.name ?? ""),
+      price: Number(p.sale_price ?? p.retail_price ?? p.price ?? 0),
+      barcode: String(p.barcode ?? p.product?.barcode ?? ""),
+      article: String(p.sku ?? p.article ?? p.product?.sku ?? ""),
     }));
 
     try {
@@ -76,13 +87,13 @@ async function fetchProducts() {
   }
 }
 
-let t: any = null;
+let t: ReturnType<typeof setTimeout> | null = null;
 watch(
   [search, page, limit],
   () => {
     if (t) clearTimeout(t);
     t = setTimeout(fetchProducts, 250);
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>

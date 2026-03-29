@@ -1,13 +1,19 @@
 <script setup lang="ts">
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
+
 const store = useCatalogDataTableStore();
 const router = useRouter();
 
-// локальный инпут
 const globalFilterInput = ref(store.globalFilter);
-const selectedFilter = ref("all");
+const selectedFilter = computed({
+  get: () => store.activeStatusFilter,
+  set: (value: string) => {
+    store.activeStatusFilter = value;
+  },
+});
 const showFilters = ref(false);
 
 function goToActions() {
@@ -22,32 +28,23 @@ function goToActions() {
   });
 }
 
-// синхронизация с стором
 watch(globalFilterInput, (val) => {
   store.globalFilter = val;
-  store.fetchData({ search: val }); // если хочешь передавать параметр поиска
 });
 </script>
 
 <template>
-<BaseDataTableHeader
-  v-model="globalFilterInput"
-  v-model:activeFilter="selectedFilter"
-  :showSearch="true"
-  searchPlaceholder="Артикул, баркод, наименование"
-  :showFilters="true"
-  :createButton="{ label: 'Создать', to: '/products/create?page=1' }"
-  @toggleFilters="showFilters = !showFilters"
-  :actionButtons="[{ label: 'Действия', onClick: goToActions }]"
-  :statFilters="[
-    { key: 'all', label: 'Все', count: 126 },
-    { key: 'active', label: 'Активные', count: 87 },
-    { key: 'inactive', label: 'Неактивные', count: 12 },
-    { key: 'low', label: 'Малый остаток', count: 18 },
-    { key: 'zero', label: 'Нулевой остаток', count: 8 }
-  ]"
-/>
+  <BaseDataTableHeader
+    v-model="globalFilterInput"
+    v-model:activeFilter="selectedFilter"
+    :showSearch="true"
+    searchPlaceholder="Артикул, баркод, наименование"
+    :showFilters="true"
+    :createButton="{ label: 'Создать', to: '/products/create?page=1' }"
+    @toggleFilters="showFilters = !showFilters"
+    :actionButtons="[{ label: 'Действия', onClick: goToActions }]"
+    :statFilters="store.statusFilters"
+  />
 
-<TableFilter v-if="showFilters" />
-
+  <TableFilter v-if="showFilters" />
 </template>

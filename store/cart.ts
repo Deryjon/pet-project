@@ -1,6 +1,22 @@
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
+import { useLocationStore } from "./useLocationStore";
+import { useUserStore } from "./useUserStore";
+
+type PaymentMethodCode = "cash" | "card" | "payme" | "click" | "transfer";
+
+type OrderPaymentPayload = {
+  comment: string;
+  payments: Array<{
+    company_payment_type_id: string;
+    paid_amount: number;
+    returned_amount: number;
+    skip_ofd: boolean;
+  }>;
+  with_cashback: number;
+  without_cashback: boolean;
+};
 
 export const useCartStore = defineStore("cart", () => {
   const STORAGE_KEY = "pos-cart-state";
@@ -21,6 +37,7 @@ export const useCartStore = defineStore("cart", () => {
   const discountPercent = ref<number>(0);
   const discountAmount = ref<number>(0);
   const payableTotal = ref<number>(0);
+  const orderRaw = ref<any | null>(null);
 
   const products = ref([
     {
@@ -67,6 +84,32 @@ export const useCartStore = defineStore("cart", () => {
     );
   });
 
+  function resolveCurrentShopId() {
+    const locationStore = useLocationStore();
+    const userStore = useUserStore();
+
+    return (
+      locationStore.selectedLocation?.id ||
+      userStore.location?.id ||
+      userStore.user.currentShopId ||
+      userStore.user.branchCode ||
+      ""
+    );
+  }
+
+  function paymentTypeIdByMethod(method: PaymentMethodCode) {
+    const config = useRuntimeConfig();
+    const mapping = (config.public as any)?.posPaymentTypeIds as
+      | Partial<Record<PaymentMethodCode, string>>
+      | undefined;
+
+    return String(
+      mapping?.[method] ||
+        mapping?.cash ||
+        "41839fa3-4121-4572-ab19-394e3a7319fe",
+    );
+  }
+
   function upsertCartItem(product: any, quantity = 1) {
     const existing = cart.value.find((c) => c.id === product.id);
     if (existing) {
@@ -91,6 +134,7 @@ export const useCartStore = defineStore("cart", () => {
         cart: cart.value,
         saleId: saleId.value,
         saleNumber: saleNumber.value,
+        orderRaw: orderRaw.value,
         discountValue: discountValue.value,
         discountType: discountType.value,
         discountPercent: discountPercent.value,
@@ -111,6 +155,7 @@ export const useCartStore = defineStore("cart", () => {
       cart.value = Array.isArray(parsed?.cart) ? parsed.cart : [];
       saleId.value = parsed?.saleId ?? null;
       saleNumber.value = parsed?.saleNumber ?? null;
+      orderRaw.value = parsed?.orderRaw ?? null;
       discountValue.value = Number(parsed?.discountValue ?? 0);
       discountType.value = parsed?.discountType === "uzs" ? "uzs" : "%";
       discountPercent.value = Number(parsed?.discountPercent ?? 0);
@@ -126,9 +171,22 @@ export const useCartStore = defineStore("cart", () => {
     creatingSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch("/new-sale", { method: "POST" });
-      saleId.value = res?.id ?? res?.sid ?? null;
-      saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+      const shopId = resolveCurrentShopId();
+      const res: any = await apiFetch("/v2/order", {
+        method: "POST",
+        body: shopId ? { shop_id: shopId } : {},
+      });
+      const orderId = res?.id ?? res?.data?.id ?? res?.order?.id ?? null;
+      saleId.value = orderId != null ? String(orderId) : null;
+      saleNumber.value = String(
+        res?.order_number ??
+          res?.number ??
+          res?.data?.order_number ??
+          res?.data?.number ??
+          saleNumber.value ??
+          "",
+      ) || saleNumber.value;
+      orderRaw.value = res;
       discountPercent.value = Number(res?.discount_percent ?? 0);
       discountAmount.value = Number(res?.discount_amount ?? 0);
       payableTotal.value = Number(res?.payable_total ?? 0);
@@ -145,25 +203,43 @@ export const useCartStore = defineStore("cart", () => {
     loadingSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
-      const items = Array.isArray(res?.items) ? res.items : [];
+      const res: any = await apiFetch(`/v2/order/${id}`, { method: "GET" });
+      const items = extractOrderItems(res);
 
       cart.value = items.map((it: any) => ({
         id: it.product_id ?? it.id ?? it.product?.id,
-        name: it.name,
-        price: Number(it.sale_price ?? 0),
-        barcode: it.barcode ?? "",
-        article: it.sku ?? "",
+        name: it.name ?? it.product?.name ?? "Товар",
+        price: Number(it.sale_price ?? it.price ?? it.retail_price ?? 0),
+        barcode: it.barcode ?? it.product?.barcode ?? "",
+        article: it.sku ?? it.article ?? it.product?.sku ?? "",
         quantity: Number(it.quantity ?? 1),
         discountValue: 0,
         discountType: "%",
       }));
 
-      saleId.value = res?.id ?? saleId.value;
-      saleNumber.value = res?.number ? String(res.number) : saleNumber.value;
+      saleId.value = String(res?.id ?? res?.data?.id ?? saleId.value ?? "");
+      saleNumber.value = String(
+        res?.order_number ??
+          res?.number ??
+          res?.data?.order_number ??
+          res?.data?.number ??
+          saleNumber.value ??
+          "",
+      ) || saleNumber.value;
+      orderRaw.value = res;
       discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
       discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
-      payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
+      payableTotal.value = Number(
+        res?.payable_total ??
+          res?.total_price ??
+          res?.order_detail?.total_price ??
+          res?.data?.total_price ??
+          res?.total ??
+          res?.amount ??
+          res?.grand_total ??
+          payableTotal.value ??
+          0,
+      );
 
       return res;
     } finally {
@@ -192,8 +268,7 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   function addToCart(product: any) {
-    upsertCartItem(product, 1);
-    searchQuery.value = "";
+    void addToCartServer(product);
   }
 
   function removeFromCart(id: number) {
@@ -204,17 +279,21 @@ export const useCartStore = defineStore("cart", () => {
     cart.value = [];
   }
 
-  async function paySale() {
+  async function paySale(payload: OrderPaymentPayload) {
     if (!saleId.value) return null;
 
     const { apiFetch } = useApi();
     payLoading.value = true;
     try {
-      const res: any = await apiFetch(`/new-sale/${saleId.value}/pay`, { method: "POST" });
+      const res: any = await apiFetch(`/v2/order-payment/${saleId.value}`, {
+        method: "POST",
+        body: payload,
+      });
       receipt.value = res;
       cart.value = [];
       saleId.value = null;
       saleNumber.value = null;
+      orderRaw.value = null;
       discountPercent.value = 0;
       discountAmount.value = 0;
       payableTotal.value = 0;
@@ -239,6 +318,7 @@ export const useCartStore = defineStore("cart", () => {
       cart.value = [];
       saleId.value = null;
       saleNumber.value = null;
+      orderRaw.value = null;
       discountPercent.value = 0;
       discountAmount.value = 0;
       payableTotal.value = 0;
@@ -402,6 +482,7 @@ export const useCartStore = defineStore("cart", () => {
     saleId,
     saleNumber,
     receipt,
+    orderRaw,
     productsLoading,
     creatingSale,
     loadingSale,
@@ -434,5 +515,21 @@ export const useCartStore = defineStore("cart", () => {
     discountValue,
     discountType,
     globalDiscountAmount,
+    resolveCurrentShopId,
+    paymentTypeIdByMethod,
   };
 });
+
+function extractOrderItems(res: any) {
+  if (Array.isArray(res?.items)) return res.items;
+  if (Array.isArray(res?.products)) return res.products;
+  if (Array.isArray(res?.data?.items)) return res.data.items;
+  if (Array.isArray(res?.data?.products)) return res.data.products;
+  if (Array.isArray(res?.order_items)) return res.order_items;
+  if (Array.isArray(res?.order_detail?.order_items)) return res.order_detail.order_items;
+  if (Array.isArray(res?.data?.order_items)) return res.data.order_items;
+  if (Array.isArray(res?.data?.order_detail?.order_items)) {
+    return res.data.order_detail.order_items;
+  }
+  return [];
+}

@@ -79,7 +79,7 @@ import { useCartStore } from "~/store/cart";
 const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 const { searchQuery, filteredProducts } = storeToRefs(store);
-const addToCart = store.addToCart;
+const addToCart = store.addToCartServer;
 const showResults = computed(
   () => Boolean(searchQuery.value) && filteredProducts.value.length > 0
 );

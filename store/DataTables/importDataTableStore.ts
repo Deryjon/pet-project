@@ -7,6 +7,7 @@ import {
   getSortedRowModel,
   useVueTable,
 } from "@tanstack/vue-table";
+import { useApi } from "~/composables/useApi";
 
 export interface ImportLineItem {
   name: string;
@@ -128,6 +129,18 @@ const FIELD_LABELS: Record<keyof ParsedImportRow, string> = {
   description: "ОПИСАНИЕ",
 };
 
+type ProductCharacteristicResponse = {
+  active_count?: number;
+  deleted_count?: number;
+  product_characteristics?: unknown[];
+};
+
+type ImportTargetFieldOption = {
+  value: string;
+  label: string;
+  source: "base" | "characteristic";
+};
+
 const getStatusClasses = (status: string) => {
   const normalizedStatus = status.trim().toLowerCase();
 
@@ -237,12 +250,29 @@ const initialData: ImportRow[] = [
 
 export const useImportDataTableStore = defineStore("importDataTableStore", () => {
   const router = useRouter();
+  const { apiFetch } = useApi();
   const rawData = ref<ImportRow[]>([...initialData]);
   const drafts = ref<Record<string, ImportDraft>>({});
   const loading = ref(false);
+  const characteristicsLoading = ref(false);
+  const characteristicsLoaded = ref(false);
+  const characteristicsError = ref("");
+  const characteristicFieldOptions = ref<ImportTargetFieldOption[]>([]);
   const globalFilter = ref("");
   const pagination = ref({ pageSize: 10, pageIndex: 0 });
   const sorting = ref<any[]>([]);
+
+  const targetFieldOptions = computed(() => [
+    ...TARGET_FIELD_OPTIONS,
+    ...characteristicFieldOptions.value.map((option) => option.value),
+  ]);
+
+  const targetFieldLabels = computed<Record<string, string>>(() => ({
+    ...TARGET_FIELD_LABELS,
+    ...Object.fromEntries(
+      characteristicFieldOptions.value.map((option) => [option.value, option.label]),
+    ),
+  }));
 
   const filteredData = computed(() => {
     if (!globalFilter.value) return rawData.value;
@@ -352,6 +382,68 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     loading.value = true;
     await new Promise((resolve) => setTimeout(resolve, 100));
     loading.value = false;
+  }
+
+  function normalizeCharacteristicOption(raw: any): ImportTargetFieldOption | null {
+    const name = String(
+      raw?.name ??
+        raw?.title ??
+        raw?.label ??
+        raw?.characteristic_name ??
+        raw?.value ??
+        "",
+    ).trim();
+
+    if (!name) return null;
+
+    const value = String(raw?.slug ?? raw?.code ?? raw?.key ?? raw?.id ?? name).trim();
+    if (!value) return null;
+
+    return {
+      value: `characteristic:${value}`,
+      label: name,
+      source: "characteristic",
+    };
+  }
+
+  async function fetchProductCharacteristics(force = false) {
+    if (characteristicsLoading.value) return;
+    if (characteristicsLoaded.value && !force) return;
+
+    characteristicsLoading.value = true;
+    characteristicsError.value = "";
+
+    try {
+      const response = await apiFetch<ProductCharacteristicResponse>(
+        "/v2/product-characteristic",
+        {
+          method: "GET",
+          query: { limit: 1000 },
+        },
+      );
+
+      const items = Array.isArray(response?.product_characteristics)
+        ? response.product_characteristics
+        : [];
+
+      const seen = new Set<string>();
+      characteristicFieldOptions.value = items
+        .map(normalizeCharacteristicOption)
+        .filter((item): item is ImportTargetFieldOption => Boolean(item))
+        .filter((item) => {
+          if (seen.has(item.value)) return false;
+          seen.add(item.value);
+          return true;
+        });
+      characteristicsLoaded.value = true;
+    } catch (error: any) {
+      characteristicFieldOptions.value = [];
+      characteristicsLoaded.value = false;
+      characteristicsError.value =
+        error?.data?.message || error?.message || "Failed to load product characteristics";
+    } finally {
+      characteristicsLoading.value = false;
+    }
   }
 
   function getImportByDetailId(detailId: string) {
@@ -492,11 +584,15 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     paginatedData,
     totalPages,
     table,
-    targetFieldOptions: TARGET_FIELD_OPTIONS,
-    targetFieldLabels: TARGET_FIELD_LABELS,
+    characteristicsLoading,
+    characteristicsLoaded,
+    characteristicsError,
+    targetFieldOptions,
+    targetFieldLabels,
     addImport,
     createDraft,
     fetchData,
+    fetchProductCharacteristics,
     getDraftByDetailId,
     getImportByDetailId,
     openDraft,

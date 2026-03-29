@@ -1,49 +1,215 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useHead } from "#imports";
 import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
+import { useApi } from "~/composables/useApi";
 
 useHead({ title: "Настройки профиля | Konkurent.cases" });
 
+type ProfileResponse = {
+  id?: number | string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  phone_number?: string;
+  avatar_url?: string | null;
+  language?: string | null;
+  theme?: string | null;
+};
+
 const userStore = useUserStore();
 const { user, fullName } = storeToRefs(userStore);
+const { apiFetch } = useApi();
 
 const firstName = ref("");
 const lastName = ref("");
-const password = ref("");
-const language = ref("Русский");
-const theme = ref("Авто");
+const currentPassword = ref("");
+const newPassword = ref("");
+const language = ref("ru");
+const theme = ref("auto");
 const avatarPreview = ref("");
 const avatarFileName = ref("Avatar is not choosen");
 const avatarError = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
+const loading = ref(false);
+const profileSaving = ref(false);
+const passwordSaving = ref(false);
+const avatarSaving = ref(false);
+const successMessage = ref("");
+const errorMessage = ref("");
+const objectUrl = ref<string | null>(null);
 
-watch(
-  () => user.value,
-  (currentUser) => {
-    firstName.value = currentUser.firstName || "";
-    lastName.value = currentUser.lastName || "";
-    avatarPreview.value = currentUser.avatarUrl || "";
-  },
-  { immediate: true, deep: true },
-);
+const languageOptions = [
+  { label: "Русский", value: "ru" },
+  { label: "O'zbekcha", value: "uz" },
+  { label: "English", value: "en" },
+];
 
-const profileName = computed(() => {
-  return fullName.value || [firstName.value, lastName.value].filter(Boolean).join(" ") || "Пользователь";
+const themeOptions = [
+  { label: "Авто", value: "auto" },
+  { label: "Светлая", value: "light" },
+  { label: "Темная", value: "dark" },
+];
+
+const selectedLanguageLabel = computed(() => {
+  return languageOptions.find((option) => option.value === language.value)?.label || "Русский";
 });
 
-const themeOptions = ["Авто", "Светлая", "Темная"];
+const profileName = computed(() => {
+  return (
+    [firstName.value, lastName.value].filter(Boolean).join(" ") ||
+    fullName.value ||
+    user.value.name ||
+    "Пользователь"
+  );
+});
+
+function clearMessages() {
+  successMessage.value = "";
+  errorMessage.value = "";
+}
+
+function revokePreviewUrl() {
+  if (objectUrl.value) {
+    URL.revokeObjectURL(objectUrl.value);
+    objectUrl.value = null;
+  }
+}
+
+async function fetchProfile() {
+  loading.value = true;
+  clearMessages();
+
+  try {
+    const profile = await apiFetch<ProfileResponse>("/user/profile", { method: "GET" });
+    firstName.value = profile?.first_name || "";
+    lastName.value = profile?.last_name || "";
+    language.value = profile?.language || "ru";
+    theme.value = profile?.theme || "auto";
+    avatarPreview.value = profile?.avatar_url || user.value.avatarUrl || "";
+    avatarFileName.value = profile?.avatar_url ? "Current avatar" : "Avatar is not choosen";
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.message || error?.message || "Не удалось загрузить профиль";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function syncUser() {
+  await userStore.fetchMe();
+}
+
+async function saveProfile() {
+  profileSaving.value = true;
+  clearMessages();
+
+  try {
+    await apiFetch("/user/profile", {
+      method: "PATCH",
+      body: {
+        first_name: firstName.value.trim(),
+        last_name: lastName.value.trim(),
+        language: language.value,
+        theme: theme.value,
+      },
+    });
+
+    await fetchProfile();
+    await syncUser();
+    successMessage.value = "Профиль обновлён";
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.message || error?.message || "Не удалось сохранить профиль";
+  } finally {
+    profileSaving.value = false;
+  }
+}
+
+async function savePassword() {
+  passwordSaving.value = true;
+  clearMessages();
+
+  try {
+    await apiFetch("/user/profile/password", {
+      method: "PATCH",
+      body: {
+        current_password: currentPassword.value,
+        new_password: newPassword.value,
+      },
+    });
+
+    currentPassword.value = "";
+    newPassword.value = "";
+    successMessage.value = "Пароль обновлён";
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.message || error?.message || "Не удалось обновить пароль";
+  } finally {
+    passwordSaving.value = false;
+  }
+}
 
 function openFilePicker() {
   fileInput.value?.click();
 }
 
-function handleAvatarChange(event: Event) {
+async function uploadAvatar(file: File) {
+  avatarSaving.value = true;
+  clearMessages();
+
+  try {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await apiFetch<{ avatar_url?: string | null }>("/user/profile/avatar", {
+      method: "POST",
+      body: formData as any,
+    });
+
+    avatarPreview.value = response?.avatar_url || avatarPreview.value;
+    avatarFileName.value = file.name;
+    await fetchProfile();
+    await syncUser();
+    successMessage.value = "Аватар обновлён";
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.message || error?.message || "Не удалось загрузить аватар";
+  } finally {
+    avatarSaving.value = false;
+  }
+}
+
+async function removeAvatar() {
+  avatarSaving.value = true;
+  clearMessages();
+
+  try {
+    await apiFetch("/user/profile/avatar", { method: "DELETE" });
+    revokePreviewUrl();
+    avatarPreview.value = "";
+    avatarFileName.value = "Avatar is not choosen";
+    if (fileInput.value) {
+      fileInput.value.value = "";
+    }
+    await fetchProfile();
+    await syncUser();
+    successMessage.value = "Аватар удалён";
+  } catch (error: any) {
+    errorMessage.value =
+      error?.data?.message || error?.message || "Не удалось удалить аватар";
+  } finally {
+    avatarSaving.value = false;
+  }
+}
+
+async function handleAvatarChange(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
 
   avatarError.value = "";
+  clearMessages();
 
   if (!file) {
     return;
@@ -64,9 +230,16 @@ function handleAvatarChange(event: Event) {
     return;
   }
 
+  revokePreviewUrl();
+  objectUrl.value = URL.createObjectURL(file);
   avatarFileName.value = file.name;
-  avatarPreview.value = URL.createObjectURL(file);
+  avatarPreview.value = objectUrl.value;
+
+  await uploadAvatar(file);
 }
+
+onMounted(fetchProfile);
+onBeforeUnmount(revokePreviewUrl);
 </script>
 
 <template>
@@ -99,6 +272,10 @@ function handleAvatarChange(event: Event) {
       </div>
     </div>
 
+    <div v-if="loading" class="status-banner status-neutral">Загружаем профиль...</div>
+    <div v-else-if="successMessage" class="status-banner status-success">{{ successMessage }}</div>
+    <div v-else-if="errorMessage" class="status-banner status-error">{{ errorMessage }}</div>
+
     <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <div class="space-y-6">
         <article class="settings-card">
@@ -107,6 +284,15 @@ function handleAvatarChange(event: Event) {
               <p class="card-eyebrow">Основные</p>
               <h2 class="card-title">Личные данные</h2>
             </div>
+
+            <button
+              type="button"
+              class="secondary-action"
+              :disabled="profileSaving"
+              @click="saveProfile"
+            >
+              {{ profileSaving ? "Сохраняем..." : "Сохранить" }}
+            </button>
           </div>
 
           <div class="grid gap-4 md:grid-cols-2">
@@ -144,8 +330,13 @@ function handleAvatarChange(event: Event) {
             </div>
 
             <div class="avatar-controls">
-              <button type="button" class="primary-action" @click="openFilePicker">
-                Выберите аватарку
+              <button
+                type="button"
+                class="primary-action"
+                :disabled="avatarSaving"
+                @click="openFilePicker"
+              >
+                {{ avatarSaving ? "Загружаем..." : "Выберите аватарку" }}
               </button>
 
               <div class="divider-line">
@@ -164,6 +355,18 @@ function handleAvatarChange(event: Event) {
                 <span class="upload-file">{{ avatarFileName }}</span>
               </label>
 
+              <div class="flex flex-wrap gap-3">
+                <button
+                  v-if="avatarPreview"
+                  type="button"
+                  class="danger-action"
+                  :disabled="avatarSaving"
+                  @click="removeAvatar"
+                >
+                  Удалить фото
+                </button>
+              </div>
+
               <p v-if="avatarError" class="text-sm text-[#ff9a9a]">{{ avatarError }}</p>
               <p class="upload-hint">
                 Формат загружаемого фото: JPG или PNG. Максимальный размер: 5МБ.
@@ -180,17 +383,38 @@ function handleAvatarChange(event: Event) {
               <p class="card-eyebrow">Безопасность</p>
               <h2 class="card-title">Доступ</h2>
             </div>
+
+            <button
+              type="button"
+              class="secondary-action"
+              :disabled="passwordSaving || !currentPassword || !newPassword"
+              @click="savePassword"
+            >
+              {{ passwordSaving ? "Сохраняем..." : "Обновить" }}
+            </button>
           </div>
 
-          <label class="field-group">
-            <span class="field-label">Пароль</span>
-            <input
-              v-model="password"
-              type="password"
-              class="field-input"
-              placeholder="Введите новый пароль"
-            />
-          </label>
+          <div class="space-y-4">
+            <label class="field-group">
+              <span class="field-label">Текущий пароль</span>
+              <input
+                v-model="currentPassword"
+                type="password"
+                class="field-input"
+                placeholder="Введите текущий пароль"
+              />
+            </label>
+
+            <label class="field-group">
+              <span class="field-label">Новый пароль</span>
+              <input
+                v-model="newPassword"
+                type="password"
+                class="field-input"
+                placeholder="Введите новый пароль"
+              />
+            </label>
+          </div>
         </article>
 
         <article class="settings-card">
@@ -204,8 +428,20 @@ function handleAvatarChange(event: Event) {
           <div class="space-y-5">
             <div class="field-group">
               <span class="field-label">Язык</span>
+              <div class="theme-grid">
+                <button
+                  v-for="option in languageOptions"
+                  :key="option.value"
+                  type="button"
+                  class="theme-option"
+                  :class="{ 'theme-option-active': language === option.value }"
+                  @click="language = option.value"
+                >
+                  <span>{{ option.label }}</span>
+                </button>
+              </div>
               <div class="choice-pill w-fit min-w-[180px] justify-between">
-                <span>{{ language }}</span>
+                <span>{{ selectedLanguageLabel }}</span>
                 <Icon name="heroicons:language" class="h-5 w-5 text-[#7ba9d8]" />
               </div>
             </div>
@@ -215,13 +451,13 @@ function handleAvatarChange(event: Event) {
               <div class="theme-grid">
                 <button
                   v-for="option in themeOptions"
-                  :key="option"
+                  :key="option.value"
                   type="button"
                   class="theme-option"
-                  :class="{ 'theme-option-active': theme === option }"
-                  @click="theme = option"
+                  :class="{ 'theme-option-active': theme === option.value }"
+                  @click="theme = option.value"
                 >
-                  <span>{{ option }}</span>
+                  <span>{{ option.label }}</span>
                 </button>
               </div>
             </div>
@@ -300,6 +536,29 @@ function handleAvatarChange(event: Event) {
   width: 84px;
   height: 84px;
   flex-shrink: 0;
+}
+
+.status-banner {
+  margin-bottom: 18px;
+  border-radius: 18px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-neutral {
+  background: rgba(73, 147, 221, 0.14);
+  color: #b7d9ff;
+}
+
+.status-success {
+  background: rgba(75, 133, 77, 0.24);
+  color: #9ee5a0;
+}
+
+.status-error {
+  background: rgba(157, 61, 61, 0.24);
+  color: #ffb3b3;
 }
 
 .settings-card {
@@ -386,19 +645,55 @@ function handleAvatarChange(event: Event) {
   gap: 14px;
 }
 
-.primary-action {
+.primary-action,
+.secondary-action,
+.danger-action {
   width: fit-content;
   border-radius: 16px;
-  background: #1f78ff;
   padding: 14px 18px;
-  color: white;
   font-weight: 700;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.primary-action {
+  background: #1f78ff;
+  color: white;
+}
+
+.secondary-action {
+  background: #404040;
+  color: white;
+}
+
+.danger-action {
+  background: #6f3030;
+  color: white;
+}
+
+.primary-action:hover,
+.secondary-action:hover,
+.danger-action:hover {
+  transform: translateY(-1px);
 }
 
 .primary-action:hover {
   background: #2a84ff;
-  transform: translateY(-1px);
+}
+
+.secondary-action:hover {
+  background: #4a4a4a;
+}
+
+.danger-action:hover {
+  background: #823838;
+}
+
+.primary-action:disabled,
+.secondary-action:disabled,
+.danger-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .divider-line {
@@ -533,6 +828,10 @@ function handleAvatarChange(event: Event) {
     width: 140px;
     height: 140px;
     font-size: 34px;
+  }
+
+  .card-header {
+    flex-direction: column;
   }
 }
 </style>

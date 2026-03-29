@@ -192,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useHead, useRoute, useRouter } from "#imports";
 import { useImportDataTableStore, type ParsedImportRow, type UploadMode } from "@/store/DataTables/importDataTableStore";
 
@@ -243,6 +243,10 @@ const startUpload = async (mode: UploadMode) => {
 
 const formatMoney = (value: number) =>
   `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value)} UZS`;
+
+onMounted(() => {
+  importStore.fetchProductCharacteristics();
+});
 
 useHead({
   title: computed(() =>
