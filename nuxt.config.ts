@@ -19,11 +19,11 @@ export default defineNuxtConfig({
     serverBundle: false,
   },
   runtimeConfig: {
+    apiProxyTarget: process.env.NUXT_API_PROXY_TARGET || '',
     public: {
       // Use same-origin path for API to enable cookies/CSRF on localhost and prod.
       // Can be overridden by NUXT_PUBLIC_API_BASE
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',
-      // Example local backend: 'http://127.0.0.1:8000/api'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001/api',
     },
   },
 })

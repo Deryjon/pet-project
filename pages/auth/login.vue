@@ -3,6 +3,8 @@ import { useField, useForm } from "vee-validate";
 import * as yup from "yup";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useApi } from "~/composables/useApi";
+import { useUserStore } from "~/store/useUserStore";
 
 definePageMeta({ layout: "auth" });
 
@@ -32,6 +34,8 @@ const { value: phone, errorMessage: phoneError } = useField<string>("phone");
 const { value: password, errorMessage: passwordError } = useField<string>("password");
 
 const router = useRouter();
+const userStore = useUserStore();
+const { apiFetch } = useApi();
 const loading = ref(false);
 const serverError = ref<string | null>(null);
 const showDropdown = ref(false);
@@ -97,9 +101,28 @@ const onSubmit = handleSubmit(async () => {
   loading.value = true;
 
   try {
+    const code = String(countryCode.value || "").replace(/^\+/, "");
+    const digits = String(phone.value || "").replace(/\D/g, "");
+    const response: any = await apiFetch("/auth/login", {
+      method: "POST",
+      body: {
+        phone_number: `${code}${digits}`,
+        password: String(password.value || ""),
+      },
+    });
+
+    const token = response?.access_token ?? response?.token;
+    if (!token) {
+      throw new Error("Token not found in login response");
+    }
+
+    userStore.login(token, response?.user ?? {});
+    await userStore.fetchMe();
     await router.push("/");
   } catch (error: unknown) {
-    serverError.value = error instanceof Error ? error.message : "Ошибка входа";
+    serverError.value =
+      (error as any)?.data?.message ||
+      (error instanceof Error ? error.message : "Ошибка входа");
   } finally {
     loading.value = false;
   }

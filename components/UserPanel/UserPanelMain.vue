@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { usePanelStore } from "@/store/usePanelStore";
 import { useUserStore } from "@/store/useUserStore";
@@ -14,6 +15,28 @@ defineProps<{
 const panel = usePanelStore();
 const { user, fullName } = storeToRefs(useUserStore());
 const { selectedLocation } = storeToRefs(useLocationStore());
+
+const displayName = computed(() => {
+  return fullName.value || user.value.name || user.value.phone || "Пользователь";
+});
+
+const displayLocation = computed(() => {
+  return (
+    selectedLocation.value?.name ||
+    user.value.currentShopName ||
+    user.value.branchTitle ||
+    user.value.branchCode ||
+    "Магазин не указан"
+  );
+});
+
+const displayPhone = computed(() => {
+  return user.value.phone || "Телефон не указан";
+});
+
+const displayRole = computed(() => {
+  return user.value.role || "Роль не указана";
+});
 </script>
 
 <template>
@@ -48,12 +71,19 @@ const { selectedLocation } = storeToRefs(useLocationStore());
             class="h-[40px] w-[40px] rounded-full object-cover"
           />
           <div>
-            <p class="max-w-[300px] truncate text-white">
-              {{ fullName || user.username || user.name || "..." }}
-            </p>
-            <p class="max-w-[300px] truncate text-[#bdbdbd]">
-              {{ selectedLocation?.name || user.branchTitle || user.branch_title || "..." }}
-            </p>
+            <p class="max-w-[300px] truncate text-white">{{ displayName }}</p>
+            <p class="max-w-[300px] truncate text-[#bdbdbd]">{{ displayLocation }}</p>
+          </div>
+        </div>
+
+        <div class="mt-4 space-y-2 rounded-[24px] bg-[#404040] p-5">
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[#bdbdbd]">Телефон</span>
+            <span class="max-w-[220px] truncate text-right text-white">{{ displayPhone }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[#bdbdbd]">Роль</span>
+            <span class="max-w-[220px] truncate text-right text-white">{{ displayRole }}</span>
           </div>
         </div>
 

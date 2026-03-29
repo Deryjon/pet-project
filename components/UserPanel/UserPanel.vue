@@ -7,12 +7,17 @@ import UserPanelMain from "./UserPanelMain.vue";
 
 const panel = usePanelStore();
 const userStore = useUserStore();
+const canUseBody = import.meta.client && typeof document !== "undefined";
 
 let unlockTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
   () => panel.isOpen,
   (isOpen) => {
+    if (!canUseBody) {
+      return;
+    }
+
     if (unlockTimer) {
       clearTimeout(unlockTimer);
       unlockTimer = null;
@@ -33,7 +38,9 @@ onBeforeUnmount(() => {
   if (unlockTimer) {
     clearTimeout(unlockTimer);
   }
-  document.body.style.overflow = "";
+  if (canUseBody) {
+    document.body.style.overflow = "";
+  }
 });
 </script>
 
