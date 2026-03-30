@@ -1,87 +1,103 @@
 <template>
   <div
-    class="flex justify-between items-center bg-[#404040] p-[24px] rounded-[20px] mb-[10px] text-[16px]"
+    class="mb-3 rounded-[24px] border border-white/5 bg-[#3a3a3a] px-4 py-3 text-[16px] text-white shadow-xl"
   >
-    <!-- Левая часть -->
-    <div class="flex items-center gap-[10px]">
-      <div class="flex items-center gap-2 bg-[#1e1e1e] text-white rounded-[15px] border border-[#404040] focus:outline-none appearance-none p-2">
-        <input
-          type="number"
-          v-model.number="item.quantity"
-          min="1"
-          class="w-[10px] bg-transparent h-[38px] text-center font-semibold text-[16px] "
-        />
-        <span>шт</span>
-        <div class="buttons flex flex-col">
-          <Icon
-            name="heroicons:chevron-up"
-            class="w-4 h-4 cursor-pointer"
-            @click="item.quantity++"
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex min-w-0 items-center gap-4">
+        <div
+          class="flex items-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5"
+        >
+          <input
+            v-model.number="item.quantity"
+            type="number"
+            min="1"
+            class="w-5 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none"
           />
-          <Icon
-            name="heroicons:chevron-down"
-            class="w-4 h-4 cursor-pointer"
-            @click="item.quantity--"
+          <span class="text-sm font-semibold text-[#9f9f9f]">ШТ</span>
+
+          <div class="flex flex-col">
+            <button
+              type="button"
+              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
+              @click="item.quantity++"
+            >
+              <Icon name="heroicons:chevron-up-20-solid" class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
+              @click="decreaseQuantity"
+            >
+              <Icon name="heroicons:chevron-down-20-solid" class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="flex h-[50px] w-[50px] items-center justify-center rounded-[18px]"
+        >
+          <img
+            src="../../assets/images/placeholder_img.svg"
+            alt="Товар"
+            class="h-full w-full rounded-[12px] object-cover"
           />
+        </div>
+
+        <div class="min-w-0 flex flex-col">
+          <div class="truncate text-[16px] font-bold uppercase tracking-[0.08em] text-white">
+            {{ item.name }}
+          </div>
+          <div class="mt-1 flex items-center gap-2 text-[14px] font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">
+            <span class="truncate">{{ item.barcode }}</span>
+            <span class="text-[#5f5f5f]">/</span>
+            <span class="truncate">{{ item.article }}</span>
+          </div>
         </div>
       </div>
 
-      <img
-        src="../../assets/images/placeholder_img.svg"
-        class="object-cover w-[50px] h-[50px] rounded-[8px] object-cover mb-[5px]"
-      ></img>
+      <div class="flex shrink-0 items-center gap-3">
+        <div class="flex flex-col items-end">
+          <button
+            type="button"
+            class="flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-0.5 transition hover:bg-white/5"
+            @click="$emit('edit-discount', props.item)"
+          >
+            <template v-if="finalPrice < props.item.price">
+              <span class="text-[13px] text-[#8b8b8b] line-through">
+                {{ formatPrice(props.item.price) }} UZS
+              </span>
+              <span class="text-[17px] font-bold text-[#4993dd]">
+                {{ formatPrice(finalPrice) }} UZS
+              </span>
+            </template>
 
-      <div class="flex flex-col">
-        <span class="font-bold text-[16px]">{{ item.name }}</span>
-        <div class="bar-art flex items-center gap-4">
-          <span>{{ item.barcode }}</span> /
-          <span>{{ item.article }}</span>
-        </div>
+            <template v-else>
+              <span class="text-[17px] font-bold text-[#4993dd]">
+                {{ formatPrice(finalPrice) }} UZS
+              </span>
+            </template>
+
+            <span
+              class="flex h-9 w-9 items-center justify-center rounded-[14px] text-[#4993dd] transition"
+            >
+              <Icon name="boxicons:pencil-filled" class="h-5 w-5" />
+            </span>
+          </button>
+
+          <span class="mt-1 text-lg font-medium tracking-[0.02em] ">
+            Iskandarjon Yusupov
+          </span>
+        </div>  
+
+        <UButton
+          color="error"
+          variant="ghost"
+          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
+          @click="$emit('remove')"
+        >
+          <Icon name="ic:baseline-delete" class="h-4 w-4" />
+        </UButton>
       </div>
-    </div>
-
-    <!-- Правая часть -->
-    <div class="flex gap-[10px] items-center">
-      <div class="flex flex-col items-end">
-  <div class="flex items-center gap-2">
-    <!-- Если есть скидка -->
-    <template v-if="finalPrice < props.item.price">
-  <span class="text-gray-400 line-through text-[14px]">
-    {{ formatPrice(props.item.price) }} UZS
-  </span>
-  <span class="text-[16px] font-bold text-green-400">
-    {{ formatPrice(finalPrice) }} UZS
-  </span>
-</template>
-
-
-
-    <!-- Если скидки нет -->
-    <template v-else>
-      <span class="text-[16px] font-bold">
-        {{ formatPrice(finalPrice) }} UZS
-      </span>
-    </template>
-
-    <!-- Кнопка редактирования скидки -->
-    <button
-      @click="$emit('edit-discount', props.item)"
-      class="text-gray-300 hover:text-white"
-    >
-      <Icon name="heroicons:pencil-square" class="w-5 h-5" />
-    </button>
-  </div>
-
-  <span class="text-sm text-gray-300">Iskandarjon Yusupov</span>
-</div>
-
-
-      <button
-        @click="$emit('remove')"
-        class="p-[15px] rounded-[15px] text-center text-red-400 hover:bg-red-500 duration-300 text-[14px]"
-      >
-      <svg width="14" height="16" viewBox="0 0 14 16" fill="#BDBDBD" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 1H9.75L9.4375 0.4375C9.3125 0.1875 9.0625 0 8.78125 0H5.1875C4.90625 0 4.65625 0.1875 4.53125 0.4375L4.25 1H0.5C0.21875 1 0 1.25 0 1.5V2.5C0 2.78125 0.21875 3 0.5 3H13.5C13.75 3 14 2.78125 14 2.5V1.5C14 1.25 13.75 1 13.5 1ZM1.65625 14.5938C1.6875 15.4062 2.34375 16 3.15625 16H10.8125C11.625 16 12.2812 15.4062 12.3125 14.5938L13 4H1L1.65625 14.5938Z" fill="inherit"></path></svg>
-      </button>
     </div>
   </div>
 </template>
@@ -92,19 +108,17 @@ import { useCartStore } from "@/store/cart";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
 const props = defineProps<{ item: any }>();
+defineEmits<{
+  remove: [];
+  "edit-discount": [item: any];
+}>();
+
 const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 
 const finalPrice = computed(() => store.itemFinalPriceWithGlobal(props.item));
-</script>
 
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
+function decreaseQuantity() {
+  props.item.quantity = Math.max(1, Number(props.item.quantity || 1) - 1);
 }
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>
+</script>

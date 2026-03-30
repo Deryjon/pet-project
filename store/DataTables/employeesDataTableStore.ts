@@ -8,6 +8,7 @@ import {
   useVueTable,
 } from "@tanstack/vue-table";
 import { useApi } from "~/composables/useApi";
+import { useUserStore } from "@/store/useUserStore";
 
 type RawEmployee = {
   id?: number | string;
@@ -28,6 +29,7 @@ export const useEmployeesDataTableStore = defineStore(
   () => {
     const router = useRouter();
     const { apiFetch } = useApi();
+    const userStore = useUserStore();
 
     const rawData = ref<any[]>([]);
     const globalFilter = ref("");
@@ -36,11 +38,13 @@ export const useEmployeesDataTableStore = defineStore(
     const pagination = ref({ pageSize: 10, pageIndex: 0 });
     const sorting = ref<any[]>([]);
 
+    const canManageEmployees = computed(() => userStore.isAdmin);
+
     const filteredData = computed(() => {
       if (!globalFilter.value) return rawData.value;
       const q = globalFilter.value.toLowerCase();
       return rawData.value.filter((item) =>
-        Object.values(item).join(" ").toLowerCase().includes(q)
+        Object.values(item).join(" ").toLowerCase().includes(q),
       );
     });
 
@@ -51,7 +55,6 @@ export const useEmployeesDataTableStore = defineStore(
       loading.value = true;
       rawData.value = [];
       try {
-        // Load from API; try known endpoints
         let data: any = null;
         for (const path of candidates) {
           try {
@@ -62,16 +65,16 @@ export const useEmployeesDataTableStore = defineStore(
               data = arr;
               break;
             }
-          } catch (_) {
-            // try next
-          }
+          } catch (_) {}
         }
+
         const items: RawEmployee[] = Array.isArray(data) ? data : [];
         rawData.value = items.map((u) => {
           const fullName = (
             (u.first_name || u.firstName || "") +
             (u.last_name || u.lastName ? ` ${u.last_name || u.lastName}` : "")
           ).trim();
+
           return {
             id: u.id ?? u.phone_number,
             name: (u.name || fullName || "").trim(),
@@ -88,7 +91,6 @@ export const useEmployeesDataTableStore = defineStore(
 
     watch(globalFilter, async () => {
       pagination.value.pageIndex = 0;
-      // Filtering is local for now
     });
 
     function idFor(row: any) {
@@ -96,12 +98,16 @@ export const useEmployeesDataTableStore = defineStore(
     }
 
     async function deleteEmployee(row: any) {
+      if (!canManageEmployees.value) return;
+
       const id = idFor(row);
       if (!id) return;
+
       const delCandidates = [
         ...(chosenListEndpoint.value ? [chosenListEndpoint.value] : []),
         ...candidates,
       ].map((base) => `${base}/${encodeURIComponent(String(id))}`);
+
       for (const path of delCandidates) {
         try {
           await apiFetch(path, { method: "DELETE" });
@@ -109,10 +115,11 @@ export const useEmployeesDataTableStore = defineStore(
           return;
         } catch (_) {}
       }
-      // If nothing worked, do nothing; UI stays unchanged
     }
 
     function editEmployee(row: any) {
+      if (!canManageEmployees.value) return;
+
       const id = idFor(row);
       if (!id) return;
       router.push(`/management/employees/${encodeURIComponent(String(id))}`);
@@ -124,18 +131,16 @@ export const useEmployeesDataTableStore = defineStore(
         header: () =>
           h("input", {
             type: "checkbox",
-            class: "w-3.5 h-3.5 accent-[#4993dd] cursor-pointer",
+            class: "h-3.5 w-3.5 cursor-pointer accent-[#4993dd]",
             onChange: (e: Event) => {
               const checked = (e.target as HTMLInputElement).checked;
-              table
-                .getRowModel()
-                .rows.forEach((row: any) => row.toggleSelected(checked));
+              table.getRowModel().rows.forEach((row: any) => row.toggleSelected(checked));
             },
           }),
         cell: ({ row }: any) =>
           h("input", {
             type: "checkbox",
-            class: "w-3.5 h-3.5 accent-[#4993dd] cursor-pointer",
+            class: "h-3.5 w-3.5 cursor-pointer accent-[#4993dd]",
             checked: row.getIsSelected?.(),
             onChange: (e: Event) => row.toggleSelected?.((e.target as HTMLInputElement).checked),
           }),
@@ -150,33 +155,34 @@ export const useEmployeesDataTableStore = defineStore(
       {
         id: "actions",
         header: "Действия",
-        cell: ({ row }: any) =>
-          h(
-            "div",
-            { class: "flex gap-2" },
-            [
-              h(
-                "button",
-                {
-                  class:
-                    "px-3 py-1 rounded-md bg-[#404040] text-white hover:bg-[#5e5e5e] transition",
-                  onClick: () => editEmployee(row.original),
+        cell: ({ row }: any) => {
+          if (!canManageEmployees.value) {
+            return h("span", { class: "text-[#8f8f8f]" }, "Недоступно");
+          }
+
+          return h("div", { class: "flex gap-2" }, [
+            h(
+              "button",
+              {
+                class:
+                  "rounded-md bg-[#404040] px-3 py-1 text-white transition hover:bg-[#5e5e5e]",
+                onClick: () => editEmployee(row.original),
+              },
+              "Изменить",
+            ),
+            h(
+              "button",
+              {
+                class:
+                  "rounded-md bg-red-600 px-3 py-1 text-white transition hover:bg-red-700",
+                onClick: async () => {
+                  if (confirm("Удалить сотрудника?")) await deleteEmployee(row.original);
                 },
-                "Изменить"
-              ),
-              h(
-                "button",
-                {
-                  class:
-                    "px-3 py-1 rounded-md bg-red-600 text-white hover:bg-red-700 transition",
-                  onClick: async () => {
-                    if (confirm("Удалить сотрудника?")) await deleteEmployee(row.original);
-                  },
-                },
-                "Удалить"
-              ),
-            ]
-          ),
+              },
+              "Удалить",
+            ),
+          ]);
+        },
       },
     ];
 
@@ -208,16 +214,16 @@ export const useEmployeesDataTableStore = defineStore(
     function previousPage() {
       table.previousPage();
     }
+
     function nextPage() {
       table.nextPage();
     }
 
     function openProduct(row: any) {
-      // Reuse BaseDataTable clickable name behavior to open edit
+      if (!canManageEmployees.value) return;
       editEmployee(row);
     }
 
-    // initial load
     fetchData();
 
     return {
@@ -227,6 +233,7 @@ export const useEmployeesDataTableStore = defineStore(
       pagination,
       sorting,
       filteredData,
+      canManageEmployees,
       table,
       fetchData,
       previousPage,
@@ -235,6 +242,5 @@ export const useEmployeesDataTableStore = defineStore(
       deleteEmployee,
       openProduct,
     };
-  }
+  },
 );
-

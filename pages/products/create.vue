@@ -99,94 +99,110 @@ onBeforeUnmount(() => {
 
 function buildPayload() {
   const form = store.form;
-  const productType = mapProductType(form.productType);
   const variationType = mapVariationType(form.variationType);
 
-  const isVariantGoods = productType === "goods" && variationType === "variant";
-  const isSimpleGoods = productType === "goods" && variationType === "simple";
+  const isVariative = variationType === "variant";
 
-  const totalQuantity = isVariantGoods
+  const totalQuantity = isVariative
     ? form.variations.reduce(
         (sum, variation) =>
           sum + Object.values(variation.stocks).reduce((inner, qty) => inner + nonNegative(qty), 0),
         0,
       )
-    : isSimpleGoods
+    : form.productType === "Товар"
       ? form.stocks.reduce((sum, stock) => sum + nonNegative(stock.qty), 0)
       : 0;
 
-  const prices = isVariantGoods
+  const prices = isVariative
     ? form.variations[0]?.prices ?? { purchasePrice: 0, markupPercent: 0, salePrice: 0 }
     : form.prices;
 
-  const payload: Record<string, any> = {
+  const stockRows = form.stocks.map((stock) => ({
+    shop_id: stock.name,
+    retail_price: nonNegative(prices.salePrice),
+    supply_price: nonNegative(prices.purchasePrice),
+    wholesale_price: 0,
+    min_price: 0,
+    max_price: 0,
+  }));
+
+  const shipmentRows = form.stocks
+    .map((stock) => ({
+      has_trigger: false,
+      measurement_value: nonNegative(stock.qty),
+      shop_id: stock.name,
+      small_left_measurement_value: 0,
+      total_measurement_value: nonNegative(stock.qty),
+      supplier_id: form.attributes.supplier.trim() || undefined,
+    }))
+    .filter((stock) => stock.total_measurement_value > 0);
+
+  const payload = {
+    id: "",
+    stocktaking_id: "",
     name: form.name.trim(),
     sku: form.sku.trim(),
     barcode: form.barcode.trim(),
-    supplier_ids: [],
-    product_type: productType,
-    variant_type: variationType,
-    unit: form.unit || "Штука",
-    purchase_price: nonNegative(prices.purchasePrice),
-    markup_percent: nonNegative(prices.markupPercent),
-    sale_price: nonNegative(prices.salePrice),
-    quantity: totalQuantity,
-    photo: null,
-    metadata: {
-      attributes: {
-        brand: form.attributes.brand.trim(),
-        supplier: form.attributes.supplier.trim(),
-        optional_field: form.attributes.optionalField.trim(),
-      },
-      category: form.category,
-      variation_attribute: form.variationAttribute.trim(),
-      variations: form.variations.map((variation) => ({
-        id: variation.id,
-        value: variation.value.trim(),
-        purchase_price: nonNegative(variation.prices.purchasePrice),
-        markup_percent: nonNegative(variation.prices.markupPercent),
-        sale_price: nonNegative(variation.prices.salePrice),
-        stocks: variation.stocks,
-      })),
-      bundle_items: form.bundleItems.map((item) => ({
+    additional_barcodes: [],
+    brand_id: "",
+    brand_name: form.attributes.brand.trim(),
+    category_ids: form.category ? [form.category] : [],
+    company_id: "",
+    description: form.attributes.optionalField.trim()
+      ? `<p>${form.attributes.optionalField.trim()}</p>`
+      : "<p></p>",
+    has_expiration_date: false,
+    images: form.images.map((image) => image.name),
+    is_auto_delivery: true,
+    is_auto_tax: true,
+    is_divisible: false,
+    is_variative: isVariative,
+    max_modificators_count: 0,
+    measurement_type: "",
+    measurement_unit_id: form.unit || "",
+    packages: [],
+    product_custom_fields: [],
+    product_modificators: [],
+    product_type_id: mapProductType(form.productType),
+    profit_margin: nonNegative(prices.markupPercent),
+    related_product_ids: [],
+    required_modificators_count: 0,
+    retail_price: nonNegative(prices.salePrice),
+    selected_attributes: [],
+    set_products: form.bundleItems
+      .filter((item) => item.name.trim())
+      .map((item) => ({
         name: item.name.trim(),
         quantity: Math.max(1, item.quantity),
       })),
+    shipments: shipmentRows,
+    shop_measurement_values: shipmentRows,
+    supplier_ids: [],
+    supply_price: nonNegative(prices.purchasePrice),
+    tax_tariff_id: "",
+    variants: isVariative
+      ? form.variations.map((variation) => ({
+          id: variation.id,
+          name: variation.value.trim(),
+          retail_price: nonNegative(variation.prices.salePrice),
+          supply_price: nonNegative(variation.prices.purchasePrice),
+          profit_margin: nonNegative(variation.prices.markupPercent),
+          stocks: variation.stocks,
+        }))
+      : [],
+    is_marked: false,
+    scale_plu: null,
+    shop_free_prices: form.stocks.map((stock) => ({
+      shop_id: stock.name,
+    })),
+    shop_prices: stockRows,
+    metadata: {
+      ui_unit: form.unit || "Штука",
+      total_quantity: totalQuantity,
+      supplier_name: form.attributes.supplier.trim(),
+      variation_attribute: form.variationAttribute.trim(),
     },
   };
-
-  const firstImage = form.images.at(0);
-  if (firstImage) {
-    payload.photo = firstImage.name;
-  }
-
-  if (isSimpleGoods) {
-    payload.stocks = form.stocks
-      .map((stock) => ({
-        branch_code: stock.name,
-        quantity: nonNegative(stock.qty),
-        purchase_price: nonNegative(form.prices.purchasePrice),
-        sale_price: nonNegative(form.prices.salePrice),
-      }))
-      .filter((stock) => stock.quantity > 0);
-  }
-
-  if (isVariantGoods) {
-    payload.stocks = form.stocks
-      .map((stock) => {
-        const quantity = form.variations.reduce(
-          (sum, variation) => sum + nonNegative(variation.stocks[stock.name] ?? 0),
-          0,
-        );
-        return {
-          branch_code: stock.name,
-          quantity,
-          purchase_price: nonNegative(prices.purchasePrice),
-          sale_price: nonNegative(prices.salePrice),
-        };
-      })
-      .filter((stock) => stock.quantity > 0);
-  }
 
   return payload;
 }

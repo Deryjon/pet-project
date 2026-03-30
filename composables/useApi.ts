@@ -24,14 +24,21 @@ export function useApi() {
         (p) => typeof path === "string" && (path === p || (path as string).startsWith(p + "/"))
       );
 
+    const isFormData =
+      typeof FormData !== "undefined" &&
+      opts?.body instanceof FormData;
+
     const headers: Record<string, string> = {
       ...(opts?.headers as Record<string, string> | undefined),
       ...(needsToken ? { Authorization: `Bearer ${user.token}` } : {}),
-      "Content-Type": "application/json",
       Accept: "application/json",
       // Help some backends detect AJAX and CSRF contexts
       "X-Requested-With": "XMLHttpRequest",
     };
+
+    if (!isFormData) {
+      headers["Content-Type"] = "application/json";
+    }
 
     return $fetch<T>(path, {
       baseURL: apiBase,

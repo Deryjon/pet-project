@@ -1,11 +1,11 @@
 <template>
   <div
-    class="w-full border-2 bg-[#262626] text-white rounded-[20px] flex flex-wrap gap-y-[30px] gap-x-[15px] p-[20px]"
+    class="flex w-full flex-wrap gap-x-[15px] gap-y-[20px] rounded-[20px] border-2 bg-[#262626] p-[20px] text-white"
   >
     <div
       v-for="field in selectFields"
       :key="field.key"
-      class="w-[370px]"
+      class="w-full sm:w-[370px]"
     >
       <CustomSelect
         :label="field.label"
@@ -23,7 +23,7 @@
       v-model:max="prices[field.key].max"
     />
 
-    <div class="w-[370px] flex flex-col gap-2">
+    <div class="flex w-full flex-col gap-2 sm:w-[370px]">
       <span class="text-sm text-[#bdbdbd] font-bold">Свободная цена</span>
       <div class="flex gap-2">
         <button
@@ -47,7 +47,7 @@
       </div>
     </div>
 
-    <div class="w-full flex gap-4 mt-4">
+    <div class="mt-4 flex w-full flex-col gap-4 sm:flex-row">
       <button
         @click="resetFilters"
         class="bg-[#505050] hover:bg-[#606060] p-[15px] rounded-lg font-bold w-full"

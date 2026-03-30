@@ -26,8 +26,8 @@ export const MENU_DATA: IMenuItem[] = [
     icon: "boxicons:scan-filled",
     url: "/order",
     items: [
-      { title: "Новая продажа", url: "/pos/new-pos" },
-      { title: "Все продажи", url: "/pos/all" },
+      { title: "Новая продажа", url: "/order/new-order" },
+      { title: "Все продажи", url: "/order/all" },
     ],
   },
   {

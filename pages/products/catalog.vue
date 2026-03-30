@@ -1,15 +1,15 @@
-﻿<template>
+<template>
   <section class="catalog">
-    <div class="top flex justify-between">
-      <h2 class="text-[36px] font-bold text-white">Каталог</h2>
-      <div class="flex items-center gap-4">
+    <div class="top flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div
           class="flex cursor-pointer items-center gap-[10px] text-[#b5b4b4]"
           @click="toggleStats"
         >
           <Icon
             name="tabler:chevron-down"
-            class="w-5 h-5 text-muted-foreground transition-transform duration-200"
+            class="h-5 w-5 text-muted-foreground transition-transform duration-200"
             :class="{ 'rotate-180': showStats }"
           />
           <p class="text-[17px] font-normal">
@@ -17,7 +17,7 @@
           </p>
         </div>
 
-        <div class="buttons flex items-center justify-between gap-2">
+        <div class="buttons flex items-center gap-2">
           <UTooltip
             v-for="action in actions"
             :key="action.tooltip"
@@ -36,8 +36,12 @@
         </div>
       </div>
     </div>
+
     <transition name="fade">
-      <div v-if="showStats" class="grid grid-cols-4 gap-[20px] mt-[10px]">
+      <div
+        v-if="showStats"
+        class="mt-[10px] grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatsBox
           v-for="item in statsItems"
           :key="item.label"
@@ -56,14 +60,11 @@ import { computed, ref } from "vue";
 import { useHead } from "#imports";
 import DataTable from "@/components/DataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
+import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 
+const store = useCatalogDataTableStore();
 const showStats = ref(false);
-const statsItems = [
-  { label: "Наименований", value: "851 шт" },
-  { label: "Товарных единиц", value: "7 926 ед." },
-  { label: "Сумма по цене поставки", value: "73 035 912 UZS" },
-  { label: "Сумма по цене продажи", value: "449 603 000 UZS" },
-];
+const statsItems = computed(() => store.statsCards);
 
 const actions = [
   {
@@ -79,10 +80,10 @@ const actions = [
 ];
 
 const actionButtonClass =
-  "flex h-[56px] w-[56px] items-center justify-center cursor-pointer rounded-[15px] bg-[#404040] hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0";
+  "flex h-[56px] w-[56px] cursor-pointer items-center justify-center rounded-[15px] bg-[#404040] hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0";
 
 const statsToggleLabel = computed(() =>
-  showStats.value ? "Скрыть статистику" : "Показать статистику"
+  showStats.value ? "Скрыть статистику" : "Показать статистику",
 );
 
 function toggleStats() {

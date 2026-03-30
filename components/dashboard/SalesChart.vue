@@ -61,11 +61,10 @@ const chartOptions = {
 </script>
 
 <template>
-  <div class="bg-[#262626] rounded-lg flex shadow-style">
-    <!-- Левая часть -->
-    <div class="left-side w-[800px] border-r p-7">
-      <div class="mb-2 flex items-center justify-between gap-4">
-        <h3 class="font-bold text-[24px]">Продажи</h3>
+  <div class="flex flex-col rounded-lg bg-[#262626] shadow-style xl:flex-row">
+    <div class="left-side w-full border-b border-white/10 p-4 sm:p-7 xl:border-b-0 xl:border-r xl:border-white/10">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 class="text-[22px] font-bold sm:text-[24px]">Продажи</h3>
 
         <UPopover
           v-model:open="granularityOpen"
@@ -75,7 +74,7 @@ const chartOptions = {
           <UButton
             color="neutral"
             variant="ghost"
-            class="w-[300px] bg-[#404040] text-white rounded-[12px] px-3 py-4 text-[14px] outline-none flex items-center justify-between cursor-pointer hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0 data-[state=open]:bg-[#505050]"
+            class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-3 py-4 text-[14px] text-white outline-none hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0 data-[state=open]:bg-[#505050] sm:w-[300px]"
           >
             <div class="flex gap-2">
               <span>Детализация:</span>
@@ -106,19 +105,17 @@ const chartOptions = {
         </UPopover>
       </div>
 
-      <!-- Фиксированная высота контейнера -->
-      <div class="h-[500px]">
+      <div class="h-[320px] sm:h-[500px]">
         <Line :data="store.chartData" :options="chartOptions" />
       </div>
     </div>
 
-    <!-- Правая часть (фикс ширина) -->
     <div
-      class="right-side font-semibold p-7 w-[385px] flex flex-col justify-between"
+      class="right-side flex w-full flex-col justify-between p-4 font-semibold sm:p-7 xl:w-[385px]"
     >
-      <h3 class="font-bold mb-2 text-[24px]">Общий график</h3>
+      <h3 class="mb-2 text-[22px] font-bold sm:text-[24px]">Общий график</h3>
 
-      <div class="location-items flex flex-col gap-2 mt-[30px] h-[385px]">
+      <div class="location-items mt-6 flex max-h-[385px] flex-col gap-2 overflow-y-auto xl:h-[385px]">
         <button
           v-for="branch in store.branchesSales"
           :key="branch.name"
@@ -140,9 +137,9 @@ const chartOptions = {
         </button>
       </div>
 
-      <div class="border-dashed-t  pt-4">
+      <div class="border-dashed-t pt-4">
         <p class="text-[16px]">Общая сумма:</p>
-        <p class="text-[24px]">
+        <p class="break-words text-[22px] sm:text-[24px]">
           {{ store.filteredTotalSales.toLocaleString() }} UZS
         </p>
       </div>

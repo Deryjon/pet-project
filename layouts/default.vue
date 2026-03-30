@@ -1,48 +1,136 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import MobileBottomNav from "../components/MobileBottomNav.vue";
 import LayoutSidebar from "../components/Sidebar.vue";
 import { useUserStore } from "../store/useUserStore";
 import { useSidebarStore } from "../store/useSidebar";
 
 const userStore = useUserStore();
 const sidebar = useSidebarStore();
+const route = useRoute();
+const mobileSidebarOpen = ref(false);
+const isMobileViewport = ref(false);
+
+const syncViewport = () => {
+  isMobileViewport.value = window.innerWidth < 1024;
+
+  if (isMobileViewport.value) {
+    sidebar.collapsed = false;
+  } else {
+    mobileSidebarOpen.value = false;
+  }
+};
+
+const sidebarWidthClass = computed(() => {
+  if (isMobileViewport.value) {
+    return "w-[256px] min-w-[256px] max-w-[256px]";
+  }
+
+  return sidebar.collapsed
+    ? "w-[95px] min-w-[95px] max-w-[95px]"
+    : "w-[256px] min-w-[256px] max-w-[256px]";
+});
+
+const sidebarPositionClass = computed(() => {
+  if (!isMobileViewport.value) {
+    return "translate-x-0";
+  }
+
+  return mobileSidebarOpen.value ? "translate-x-0" : "-translate-x-full";
+});
+
+watch(
+  () => route.path,
+  () => {
+    mobileSidebarOpen.value = false;
+  }
+);
+
+watch([isMobileViewport, mobileSidebarOpen], ([mobile, open]) => {
+  document.body.classList.toggle("no-scroll", mobile && open);
+});
 
 onMounted(() => {
   userStore.init();
+  syncViewport();
+  window.addEventListener("resize", syncViewport);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", syncViewport);
+  document.body.classList.remove("no-scroll");
 });
 </script>
 
 <template>
-  <section class="app-shell flex">
-    <!-- Sidebar -->
+  <section class="app-shell relative flex min-h-screen bg-[#1f1f1f]">
+    <transition name="fade-overlay">
+      <div
+        v-if="isMobileViewport && mobileSidebarOpen"
+        class="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+        @click="mobileSidebarOpen = false"
+      />
+    </transition>
+
     <div
       :class="[
-        'fixed left-0 top-0 h-screen app-sidebar pt-5 transition-all duration-400 ease-in-out',
-        sidebar.collapsed
-          ? 'w-[95px] min-w-[95px] max-w-[95px]'
-          : 'w-[256px] min-w-[256px] max-w-[256px]',
+        'fixed left-0 top-0 z-40 h-screen app-sidebar bg-[#262626] pt-5 transition-all duration-300 ease-in-out',
+        sidebarWidthClass,
+        sidebarPositionClass,
       ]"
     >
-      <!-- Sidebar content -->
-      <LayoutSidebar class="h-full " :collapsed="sidebar.collapsed" />
+      <LayoutSidebar
+        class="h-full"
+        :collapsed="isMobileViewport ? false : sidebar.collapsed"
+        :is-mobile="isMobileViewport"
+        @close-mobile="mobileSidebarOpen = false"
+      />
     </div>
 
-    <!-- Main content -->
     <div
       :class="[
-        'app-main-content w-full min-h-screen pt-[40px] px-[30px] transition-all duration-400 ease-in-out text-white',
-        sidebar.collapsed ? 'ml-[80px]' : 'ml-[256px]',
+        'app-main-content w-full min-h-screen px-4 pb-24 pt-4 text-white transition-all duration-300 ease-in-out sm:px-6 sm:pb-28 lg:px-[30px] lg:pb-6 lg:pt-[40px]',
+        isMobileViewport ? 'ml-0' : sidebar.collapsed ? 'lg:ml-[80px]' : 'lg:ml-[256px]',
       ]"
       style="max-width: 100vw; overflow-x: hidden"
     >
+      <div class="sticky top-0 z-20 -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:hidden">
+        <UButton
+          color="neutral"
+          variant="soft"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#404040] text-white hover:bg-[#4f4f4f]"
+          @click="mobileSidebarOpen = true"
+        >
+          <Icon name="tabler:menu-2" class="h-5 w-5" />
+        </UButton>
+      </div>
+
       <slot />
     </div>
+
+    <MobileBottomNav
+      v-if="isMobileViewport"
+      @open-menu="mobileSidebarOpen = true"
+    />
 
     <div
       v-if="userStore.initializing"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
     >
-      <div class="h-14 w-14 rounded-full border-4 border-white/30  animate-spin"></div>
+      <div class="h-14 w-14 animate-spin rounded-full border-4 border-white/30"></div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.fade-overlay-enter-active,
+.fade-overlay-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-overlay-enter-from,
+.fade-overlay-leave-to {
+  opacity: 0;
+}
+</style>

@@ -4,68 +4,114 @@ import User from "./User.vue";
 import { useSidebarStore } from "../store/useSidebar";
 import { useRouter } from "vue-router";
 
+const props = withDefaults(
+  defineProps<{
+    collapsed?: boolean;
+    isMobile?: boolean;
+  }>(),
+  {
+    collapsed: false,
+    isMobile: false,
+  }
+);
+
+const emit = defineEmits<{
+  (e: "close-mobile"): void;
+}>();
+
 const router = useRouter();
+const sidebar = useSidebarStore();
+
 const goToSidebar = () => {
   router.push("/");
 };
-const sidebar = useSidebarStore();
+
+const handleSidebarAction = () => {
+  if (props.isMobile) {
+    emit("close-mobile");
+    return;
+  }
+
+  sidebar.toggle();
+};
 </script>
 
 <template>
   <div
-    class="flex flex-col justify-between transition-[padding] duration-300 ease-in-out"
-    :class="sidebar.collapsed ? 'px-[10px]' : 'px-[20px]'"
+    class="flex h-full flex-col justify-between overflow-y-auto transition-[padding] duration-300 ease-in-out"
+    :class="props.collapsed ? 'px-[10px]' : 'px-[20px] py-2'"
   >
     <div class="flex flex-col gap-[30px]">
       <div
         :class="[
-          'logo font-bold text-[20px] text-white p-[5px] flex items-center transition-all duration-300 ease-in-out',
-          sidebar.collapsed ? 'relative justify-center' : 'justify-between',
+          'logo flex items-center p-[5px] text-[20px] font-bold text-white transition-all duration-300 ease-in-out',
+          props.collapsed ? 'relative justify-center' : 'justify-between',
         ]"
       >
         <transition name="sidebar-label" mode="out-in">
           <h1
-            v-if="sidebar.collapsed"
+            v-if="props.collapsed"
             key="logo-short"
             class="cursor-pointer"
             @click="goToSidebar"
           >
             K
           </h1>
-          <h1 v-else key="logo-full" class="cursor-pointer" @click="goToSidebar">Konkurent</h1>
+          <h1
+            v-else
+            key="logo-full"
+            class="cursor-pointer"
+            @click="goToSidebar"
+          >
+            Konkurent
+          </h1>
         </transition>
 
         <Icon
-          @click="sidebar.toggle"
+          @click="handleSidebarAction"
           :name="
-            sidebar.collapsed ? 'tabler:chevrons-right' : 'tabler:chevrons-left'
+            props.isMobile
+              ? 'mingcute:close-line'
+              : props.collapsed
+                ? 'tabler:chevrons-right'
+                : 'tabler:chevrons-left'
           "
           :class="[
-            'w-6 h-6 cursor-pointer',
-            sidebar.collapsed ? 'absolute right-0' : '',
+            'h-6 w-6 cursor-pointer',
+            props.collapsed ? 'absolute right-0' : '',
           ]"
         />
       </div>
 
-      <Menu :class="sidebar.collapsed ? '-mx-[10px]' : '-mx-[20px]'" />
+      <Menu :class="props.collapsed ? '-mx-[10px]' : '-mx-[20px]'" />
     </div>
 
-    <div :class="['flex flex-col gap-5 transition-all duration-300 ease-in-out', sidebar.collapsed ? 'items-center mb-3' : '']">
+    <div
+      :class="[
+        'flex flex-col gap-5 transition-all duration-300 ease-in-out',
+        props.collapsed ? 'mb-3 items-center' : 'pb-4',
+      ]"
+    >
       <User />
       <UButton
         :class="[
-          'text-white [&_*]:text-white opacity-100 text-[16px] bg-[#5e5e5e] hover:bg-[#4d4c4c] flex items-center font-semibold cursor-pointer transition-all duration-300 ease-in-out',
-          sidebar.collapsed
-            ? 'w-11 h-11 p-0 justify-center rounded-[12px] self-center'
-            : '-ml-[20px] w-[calc(100%+40px)] px-[20px] py-5 rounded-none gap-2',
+          'flex cursor-pointer items-center bg-[#5e5e5e] text-[16px] font-semibold text-white opacity-100 transition-all duration-300 ease-in-out hover:bg-[#4d4c4c] [&_*]:text-white',
+          props.collapsed
+            ? 'h-11 w-11 justify-center self-center rounded-[12px] p-0'
+            : '-ml-[20px] w-[calc(100%+40px)] gap-2 rounded-none px-[20px] py-5',
         ]"
       >
         <Icon
           name="solar:help-bold"
-          :class="['w-5 h-5 text-white', sidebar.collapsed ? 'relative -top-0.5' : '']"
+          :class="[
+            'h-5 w-5 text-white',
+            props.collapsed ? 'relative -top-0.5' : '',
+          ]"
         />
         <transition name="sidebar-label" mode="out-in">
-          <span v-if="!sidebar.collapsed" key="support-label">Написать в поддержку</span>
+          <span v-if="!props.collapsed" key="support-label">
+            Написать в поддержку
+          </span>
         </transition>
       </UButton>
     </div>
