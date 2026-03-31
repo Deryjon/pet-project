@@ -6,6 +6,8 @@ export interface UserLocationOption {
   id: string;
   name: string;
   relationId?: string;
+  branchCode?: string;
+  companyId?: string;
 }
 
 export const useLocationStore = defineStore("location", {
@@ -17,6 +19,13 @@ export const useLocationStore = defineStore("location", {
   }),
   actions: {
     async setLocation(location: UserLocationOption) {
+      const { useUserStore } = await import("./useUserStore");
+      const userStore = useUserStore();
+
+      if (!userStore.user.canSwitchShops) {
+        return;
+      }
+
       if (this.isSwitching) {
         return;
       }
@@ -45,8 +54,6 @@ export const useLocationStore = defineStore("location", {
           method: "PATCH",
         });
 
-        const { useUserStore } = await import("./useUserStore");
-        const userStore = useUserStore();
         await userStore.fetchMe();
         panel.closeAll();
       } catch (error: any) {
@@ -72,7 +79,7 @@ export const useLocationStore = defineStore("location", {
       const mappedLocations: UserLocationOption[] = Array.isArray(user?.shops)
         ? user.shops
             .map((item: any) => {
-              const id = String(item?.shop_id ?? item?.id ?? "");
+              const id = String(item?.id ?? item?.shop_id ?? item?.shop?.id ?? "");
               const name = String(item?.shop?.name ?? item?.name ?? "");
 
               if (!id || !name) {
@@ -83,6 +90,8 @@ export const useLocationStore = defineStore("location", {
                 id,
                 name,
                 relationId: item?.id ? String(item.id) : undefined,
+                branchCode: item?.branch_code ? String(item.branch_code) : undefined,
+                companyId: item?.company_id ? String(item.company_id) : undefined,
               };
             })
             .filter(Boolean)
@@ -100,7 +109,7 @@ export const useLocationStore = defineStore("location", {
 
       const savedLocationId = this.selectedLocation?.id;
       const currentShopId = String(
-        user?.current_shop_id ?? user?.current_shop?.shop_id ?? "",
+        user?.current_shop_id ?? user?.current_shop?.id ?? user?.current_shop?.shop_id ?? "",
       );
 
       const nextSelectedLocation =
@@ -108,7 +117,7 @@ export const useLocationStore = defineStore("location", {
         mappedLocations.find((location) => location.id === currentShopId) ||
         mappedLocations[0];
 
-      this.selectedLocation = nextSelectedLocation;
+      this.selectedLocation = nextSelectedLocation || null;
 
       if (process.client && nextSelectedLocation) {
         localStorage.setItem("selectedLocation", JSON.stringify(nextSelectedLocation));

@@ -8,7 +8,17 @@ import { useUserStore } from "~/store/useUserStore";
 
 definePageMeta({ layout: "auth" });
 
+interface ConfirmedCompany {
+  login: string;
+  name: string;
+  id?: string;
+  companyId?: string;
+  subdomain?: string;
+  isActive?: boolean;
+}
+
 const schema = yup.object({
+  companyLogin: yup.string().trim().required("Укажите компанию"),
   countryCode: yup.string().required("Выберите код"),
   phone: yup
     .string()
@@ -20,15 +30,17 @@ const schema = yup.object({
     .min(6, "Минимум 6 символов"),
 });
 
-const { handleSubmit } = useForm({
+const { handleSubmit, setFieldError, setFieldValue } = useForm({
   validationSchema: schema,
   initialValues: {
+    companyLogin: "",
     countryCode: "+998",
     phone: "",
     password: "",
   },
 });
 
+const { value: companyLogin, errorMessage: companyLoginError } = useField<string>("companyLogin");
 const { value: countryCode, errorMessage: codeError } = useField<string>("countryCode");
 const { value: phone, errorMessage: phoneError } = useField<string>("phone");
 const { value: password, errorMessage: passwordError } = useField<string>("password");
@@ -36,7 +48,11 @@ const { value: password, errorMessage: passwordError } = useField<string>("passw
 const router = useRouter();
 const userStore = useUserStore();
 const { apiFetch } = useApi();
+
+const currentStep = ref<"company" | "credentials">("company");
+const confirmedCompany = ref<ConfirmedCompany | null>(null);
 const loading = ref(false);
+const shopChecking = ref(false);
 const serverError = ref<string | null>(null);
 const showDropdown = ref(false);
 const showPassword = ref(false);
@@ -61,6 +77,18 @@ watch(phone, (newValue) => {
   const formatted = formatPhone(newValue || "");
   if (formatted !== newValue) {
     phone.value = formatted;
+  }
+});
+
+watch(companyLogin, () => {
+  serverError.value = null;
+
+  if (
+    confirmedCompany.value &&
+    String(companyLogin.value || "").trim() !== confirmedCompany.value.login
+  ) {
+    confirmedCompany.value = null;
+    currentStep.value = "company";
   }
 });
 
@@ -96,20 +124,94 @@ onBeforeUnmount(() => {
   document.removeEventListener("keydown", handleEscape);
 });
 
-const onSubmit = handleSubmit(async () => {
+function resolveServerMessage(error: unknown, fallback: string) {
+  const message = (error as any)?.data?.message;
+
+  if (Array.isArray(message)) {
+    return message.join(", ");
+  }
+
+  return message || (error instanceof Error ? error.message : fallback);
+}
+
+async function verifyCompany() {
   serverError.value = null;
+
+  const normalizedCompanyLogin = String(companyLogin.value || "").trim();
+  setFieldValue("companyLogin", normalizedCompanyLogin);
+
+  if (!normalizedCompanyLogin) {
+    setFieldError("companyLogin", "Укажите компанию");
+    return;
+  }
+
+  shopChecking.value = true;
+
+  try {
+    const response: any = await apiFetch("/auth/company-login", {
+      method: "POST",
+      body: {
+        company_login: normalizedCompanyLogin,
+      },
+    });
+
+    if (response?.company?.is_active === false) {
+      throw new Error("Компания отключена");
+    }
+
+    confirmedCompany.value = {
+      login: normalizedCompanyLogin,
+      name:
+        String(response?.company?.name || "").trim() || "Компания найдена",
+      id: response?.company?.id ? String(response.company.id) : undefined,
+      companyId: response?.company?.company_id ? String(response.company.company_id) : undefined,
+      subdomain: response?.company?.subdomain ? String(response.company.subdomain) : undefined,
+      isActive: Boolean(response?.company?.is_active),
+    };
+    currentStep.value = "credentials";
+  } catch (error: unknown) {
+    confirmedCompany.value = null;
+    currentStep.value = "company";
+    serverError.value = resolveServerMessage(error, "Не удалось найти компанию");
+  } finally {
+    shopChecking.value = false;
+  }
+}
+
+function resetCompanySelection() {
+  confirmedCompany.value = null;
+  currentStep.value = "company";
+  serverError.value = null;
+}
+
+const onLogin = handleSubmit(async () => {
+  serverError.value = null;
+
+  const activeCompanyLogin =
+    confirmedCompany.value?.login || String(companyLogin.value || "").trim();
+  if (!activeCompanyLogin) {
+    currentStep.value = "company";
+    setFieldError("companyLogin", "Укажите компанию");
+    return;
+  }
+
   loading.value = true;
 
   try {
-    const code = String(countryCode.value || "").replace(/^\+/, "");
     const digits = String(phone.value || "").replace(/\D/g, "");
     const response: any = await apiFetch("/auth/login", {
       method: "POST",
       body: {
-        phone_number: `${code}${digits}`,
+        company_login: activeCompanyLogin,
+        phone_number: `${String(countryCode.value || "").trim()}${digits}`,
         password: String(password.value || ""),
       },
     });
+    const userType = String(response?.user?.user_type ?? "");
+
+    if (userType && userType !== "company") {
+      throw new Error("Этот аккаунт нужно открывать в platform admin panel");
+    }
 
     const token = response?.access_token ?? response?.token;
     if (!token) {
@@ -120,13 +222,20 @@ const onSubmit = handleSubmit(async () => {
     await userStore.fetchMe();
     await router.push("/");
   } catch (error: unknown) {
-    serverError.value =
-      (error as any)?.data?.message ||
-      (error instanceof Error ? error.message : "Ошибка входа");
+    serverError.value = resolveServerMessage(error, "Ошибка входа");
   } finally {
     loading.value = false;
   }
 });
+
+async function handleSubmitAction() {
+  if (currentStep.value === "company") {
+    await verifyCompany();
+    return;
+  }
+
+  await onLogin();
+}
 </script>
 
 <template>
@@ -140,101 +249,168 @@ const onSubmit = handleSubmit(async () => {
     </div>
 
     <div class="headline">
+      <span class="step-badge">
+        {{ currentStep === "company" ? "Шаг 1 из 2" : "Шаг 2 из 2" }}
+      </span>
       <h1>Вход</h1>
-      <p>Введите номер телефона и пароль, чтобы продолжить работу.</p>
+      <p v-if="currentStep === 'company'">
+        Сначала укажите компанию. После подтверждения откроется
+        вход сотрудника в аккаунт этой компании.
+      </p>
+      <p v-else>
+        Введите номер телефона и пароль для компании
+        <strong>{{ confirmedCompany?.name || companyLogin }}</strong>.
+      </p>
     </div>
 
-    <form class="form-stack" @submit.prevent="onSubmit">
+    <form class="form-stack" @submit.prevent="handleSubmitAction">
       <div class="field">
-        <label for="phone" class="label">Номер телефона</label>
-        <div
-          :class="[
-            'field-control',
-            phoneGroupError ? 'field-control-error' : 'field-control-default',
-          ]"
-        >
-          <div ref="countrySelectRef" class="relative w-[104px] shrink-0">
-            <button
-              type="button"
-              class="code-button"
-              :aria-expanded="showDropdown ? 'true' : 'false'"
-              @click.stop="toggleDropdown"
-            >
-              <span>{{ countryCode }}</span>
-              <Icon
-                name="heroicons:chevron-down"
-                class="h-4 w-4 transition-transform duration-200"
-                :class="showDropdown ? 'rotate-180' : ''"
-              />
-            </button>
-
-            <transition name="fade">
-              <ul v-if="showDropdown" class="code-menu">
-                <li v-for="option in options" :key="option">
-                  <button
-                    type="button"
-                    class="code-item"
-                    @click="selectOption(option)"
-                  >
-                    {{ option }}
-                  </button>
-                </li>
-              </ul>
-            </transition>
-          </div>
-
-          <div class="divider" aria-hidden="true"></div>
-
-          <input
-            id="phone"
-            v-model="phone"
-            type="tel"
-            inputmode="numeric"
-            autocomplete="tel-national"
-            placeholder="90 123 45 67"
-            class="text-input"
-          />
-        </div>
-        <p v-if="codeError || phoneError" class="help error">{{ codeError || phoneError }}</p>
-      </div>
-
-      <div class="field">
-        <label for="password" class="label">Пароль</label>
+        <label for="company-login" class="label">Компания</label>
         <div
           :class="[
             'field-control field-control-single',
-            passwordError ? 'field-control-error' : 'field-control-default',
+            companyLoginError ? 'field-control-error' : 'field-control-default',
+            currentStep === 'credentials' ? 'field-control-locked' : '',
           ]"
         >
           <input
-            id="password"
-            v-model="password"
-            :type="showPassword ? 'text' : 'password'"
-            autocomplete="current-password"
-            placeholder="Ваш пароль"
+            id="company-login"
+            v-model="companyLogin"
+            type="text"
+            autocomplete="organization"
+            placeholder="konkurentcases"
             class="text-input"
+            :readonly="currentStep === 'credentials'"
           />
 
           <button
+            v-if="currentStep === 'credentials'"
             type="button"
-            class="password-toggle"
-            @click="showPassword = !showPassword"
+            class="inline-action"
+            @click="resetCompanySelection"
           >
-            {{ showPassword ? 'Скрыть' : 'Показать' }}
+            Сменить
           </button>
         </div>
-        <p v-if="passwordError" class="help error">{{ passwordError }}</p>
+        <p v-if="companyLoginError" class="help error">{{ companyLoginError }}</p>
+        <p v-else class="help hint">
+          Например, <code>konkurentcases</code>.
+        </p>
       </div>
+
+      <div v-if="currentStep === 'credentials'" class="shop-preview">
+        <div>
+          <p class="shop-preview-label">Выбранная компания</p>
+          <p class="shop-preview-name">{{ confirmedCompany?.name }}</p>
+          <p class="shop-preview-login">Логин: {{ confirmedCompany?.login }}</p>
+        </div>
+        <Icon name="heroicons:building-office-2" class="h-6 w-6 text-sky-300" />
+      </div>
+
+      <template v-if="currentStep === 'credentials'">
+        <div class="field">
+          <label for="phone" class="label">Номер телефона</label>
+          <div
+            :class="[
+              'field-control',
+              phoneGroupError ? 'field-control-error' : 'field-control-default',
+            ]"
+          >
+            <div ref="countrySelectRef" class="relative w-[104px] shrink-0">
+              <button
+                type="button"
+                class="code-button"
+                :aria-expanded="showDropdown ? 'true' : 'false'"
+                @click.stop="toggleDropdown"
+              >
+                <span>{{ countryCode }}</span>
+                <Icon
+                  name="heroicons:chevron-down"
+                  class="h-4 w-4 transition-transform duration-200"
+                  :class="showDropdown ? 'rotate-180' : ''"
+                />
+              </button>
+
+              <transition name="fade">
+                <ul v-if="showDropdown" class="code-menu">
+                  <li v-for="option in options" :key="option">
+                    <button
+                      type="button"
+                      class="code-item"
+                      @click="selectOption(option)"
+                    >
+                      {{ option }}
+                    </button>
+                  </li>
+                </ul>
+              </transition>
+            </div>
+
+            <div class="divider" aria-hidden="true"></div>
+
+            <input
+              id="phone"
+              v-model="phone"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel-national"
+              placeholder="90 123 45 67"
+              class="text-input"
+            />
+          </div>
+          <p v-if="codeError || phoneError" class="help error">{{ codeError || phoneError }}</p>
+        </div>
+
+        <div class="field">
+          <label for="password" class="label">Пароль</label>
+          <div
+            :class="[
+              'field-control field-control-single',
+              passwordError ? 'field-control-error' : 'field-control-default',
+            ]"
+          >
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="current-password"
+              placeholder="Ваш пароль"
+              class="text-input"
+            />
+
+            <button
+              type="button"
+              class="password-toggle"
+              @click="showPassword = !showPassword"
+            >
+              {{ showPassword ? "Скрыть" : "Показать" }}
+            </button>
+          </div>
+          <p v-if="passwordError" class="help error">{{ passwordError }}</p>
+        </div>
+      </template>
 
       <button
         type="submit"
         class="submit-btn"
-        :disabled="loading"
-        :aria-busy="loading ? 'true' : 'false'"
+        :disabled="loading || shopChecking"
+        :aria-busy="loading || shopChecking ? 'true' : 'false'"
       >
         <span class="flex items-center justify-center gap-2">
-          <Icon v-if="loading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-          {{ loading ? 'Входим...' : 'Войти' }}
+          <Icon
+            v-if="loading || shopChecking"
+            name="heroicons:arrow-path"
+            class="h-4 w-4 animate-spin"
+          />
+          {{
+            currentStep === "company"
+              ? shopChecking
+                ? "Проверяем компанию..."
+                : "Продолжить"
+              : loading
+                ? "Входим..."
+                : "Войти"
+          }}
         </span>
       </button>
     </form>
@@ -302,12 +478,27 @@ const onSubmit = handleSubmit(async () => {
   font-size: 2rem;
   font-weight: 600;
   letter-spacing: -0.03em;
+  margin-top: 12px;
 }
 
 .headline p {
   margin-top: 8px;
   color: rgba(255, 255, 255, 0.62);
   line-height: 1.5;
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(31, 120, 255, 0.14);
+  border: 1px solid rgba(86, 148, 233, 0.22);
+  color: rgba(196, 225, 255, 0.94);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .form-stack {
@@ -353,6 +544,67 @@ const onSubmit = handleSubmit(async () => {
   box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.08);
 }
 
+.field-control-locked {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.text-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0 16px;
+  background: transparent;
+  color: #fff;
+  outline: none;
+}
+
+.text-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.inline-action,
+.password-toggle {
+  align-self: center;
+  padding: 0 12px;
+  color: rgba(125, 176, 244, 0.9);
+  font-size: 0.82rem;
+  transition: color 0.2s ease;
+}
+
+.inline-action:hover,
+.password-toggle:hover {
+  color: rgba(203, 225, 255, 0.95);
+}
+
+.shop-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(19, 34, 52, 0.92) 0%, rgba(13, 24, 39, 0.92) 100%);
+  border: 1px solid rgba(86, 148, 233, 0.18);
+}
+
+.shop-preview-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(150, 198, 255, 0.8);
+}
+
+.shop-preview-name {
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.shop-preview-login {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.56);
+}
+
 .code-button {
   display: flex;
   align-items: center;
@@ -394,31 +646,6 @@ const onSubmit = handleSubmit(async () => {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.text-input {
-  flex: 1;
-  min-width: 0;
-  padding: 0 16px;
-  background: transparent;
-  color: #fff;
-  outline: none;
-}
-
-.text-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.password-toggle {
-  align-self: center;
-  padding: 0 12px;
-  color: rgba(125, 176, 244, 0.9);
-  font-size: 0.82rem;
-  transition: color 0.2s ease;
-}
-
-.password-toggle:hover {
-  color: rgba(203, 225, 255, 0.95);
-}
-
 .submit-btn {
   min-height: 56px;
   border-radius: 16px;
@@ -446,6 +673,10 @@ const onSubmit = handleSubmit(async () => {
 .help.error,
 .help.server {
   color: rgba(248, 113, 113, 0.96);
+}
+
+.help.hint {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .help.server {
@@ -476,6 +707,10 @@ const onSubmit = handleSubmit(async () => {
 
   .code-button {
     padding: 0 12px;
+  }
+
+  .shop-preview {
+    align-items: flex-start;
   }
 }
 </style>

@@ -21,8 +21,12 @@ const displayLocation = computed(() => {
     user.value.currentShopName ||
     user.value.branchTitle ||
     user.value.branchCode ||
-    "Магазин не указан"
+    "Филиал не указан"
   );
+});
+
+const displayCompany = computed(() => {
+  return user.value.company?.name || "Компания не указана";
 });
 </script>
 
@@ -42,7 +46,8 @@ const displayLocation = computed(() => {
     <transition name="user-label" mode="out-in">
       <div v-if="!collapsed" key="user-label-expanded" class="min-w-0">
         <p class="max-w-[160px] truncate text-white">{{ displayName }}</p>
-        <p class="max-w-[160px] truncate text-[#bdbdbd]">{{ displayLocation }}</p>
+        <p class="max-w-[160px] truncate text-[#bdbdbd]">{{ displayCompany }}</p>
+        <p class="max-w-[160px] truncate text-[12px] text-[#8f8f8f]">{{ displayLocation }}</p>
       </div>
     </transition>
   </div>

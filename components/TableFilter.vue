@@ -8,39 +8,39 @@
       class="w-full sm:w-[370px]"
     >
       <CustomSelect
+        v-model="store.filters[field.key]"
         :label="field.label"
         :options="field.options"
         :placeholder="field.placeholder"
-        v-model="filters[field.key]"
       />
     </div>
 
     <PriceRange
       v-for="field in priceFields"
       :key="field.key"
+      v-model:min="store.prices[field.key].min"
+      v-model:max="store.prices[field.key].max"
       :label="field.label"
-      v-model:min="prices[field.key].min"
-      v-model:max="prices[field.key].max"
     />
 
     <div class="flex w-full flex-col gap-2 sm:w-[370px]">
-      <span class="text-sm text-[#bdbdbd] font-bold">Свободная цена</span>
+      <span class="text-sm font-bold text-[#bdbdbd]">Свободная цена</span>
       <div class="flex gap-2">
         <button
-          @click="freePrice = true"
           :class="[
             'flex-1 rounded-lg py-2 font-bold',
-            freePrice ? 'bg-green-600' : 'bg-[#404040]',
+            store.freePrice ? 'bg-green-600' : 'bg-[#404040]',
           ]"
+          @click="store.freePrice = true"
         >
           Вкл
         </button>
         <button
-          @click="freePrice = false"
           :class="[
             'flex-1 rounded-lg py-2 font-bold',
-            !freePrice ? 'bg-red-600' : 'bg-[#404040]',
+            !store.freePrice ? 'bg-red-600' : 'bg-[#404040]',
           ]"
+          @click="store.freePrice = false"
         >
           Выкл
         </button>
@@ -49,14 +49,14 @@
 
     <div class="mt-4 flex w-full flex-col gap-4 sm:flex-row">
       <button
-        @click="resetFilters"
-        class="bg-[#505050] hover:bg-[#606060] p-[15px] rounded-lg font-bold w-full"
+        class="w-full rounded-lg bg-[#505050] p-[15px] font-bold hover:bg-[#606060]"
+        @click="store.resetFilters()"
       >
         Сбросить фильтры
       </button>
       <button
-        @click="acceptFilters"
-        class="bg-[#1f78ff] hover:bg-[#606060] p-[15px] rounded-lg font-bold w-full"
+        class="w-full rounded-lg bg-[#1f78ff] p-[15px] font-bold hover:bg-[#606060]"
+        @click="store.applyFilters()"
       >
         Применить фильтры
       </button>
@@ -65,9 +65,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed } from "vue";
 import CustomSelect from "./ui/CustomSelect.vue";
 import PriceRange from "./ui/PriceRange.vue";
+import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 
 type SelectFieldKey =
   | "store"
@@ -79,83 +80,55 @@ type SelectFieldKey =
 
 type PriceFieldKey = "supply" | "sale" | "wholesale";
 
-const selectFields: Array<{
+const store = useCatalogDataTableStore();
+
+const selectFields = computed<Array<{
   key: SelectFieldKey;
   label: string;
   placeholder: string;
   options: string[];
-}> = [
+}>>(() => [
   {
     key: "store",
     label: "Магазин",
     placeholder: "Выберите магазин",
-    options: ["Магазин 1", "Магазин 2", "Магазин 3"],
+    options: store.filterOptions.store,
   },
   {
     key: "category",
     label: "Категория",
     placeholder: "Введите категорию",
-    options: ["Наушники", "Зарядное устройство", "Чехлы"],
+    options: store.filterOptions.category,
   },
   {
     key: "article",
     label: "Артикул",
     placeholder: "Введите артикул",
-    options: ["AAA", "BBB", "CCC"],
+    options: store.filterOptions.article,
   },
   {
     key: "brand",
     label: "Бренд",
     placeholder: "Введите бренд",
-    options: ["Apple", "Samsung", "Xiaomi"],
+    options: store.filterOptions.brand,
   },
   {
     key: "supplier",
     label: "Поставщик",
     placeholder: "Введите поставщика",
-    options: ["Apple", "Samsung", "Xiaomi"],
+    options: store.filterOptions.supplier,
   },
   {
     key: "unit",
     label: "Единица измерения",
     placeholder: "Выберите единицу",
-    options: ["Шт", "Упаковка", "Коробка"],
+    options: store.filterOptions.unit,
   },
-];
+]);
 
 const priceFields: Array<{ key: PriceFieldKey; label: string }> = [
   { key: "supply", label: "Цена поставки" },
   { key: "sale", label: "Цена продажи" },
   { key: "wholesale", label: "Оптовая цена" },
 ];
-
-const filters = reactive<Record<SelectFieldKey, string>>({
-  store: "",
-  category: "",
-  article: "",
-  brand: "",
-  supplier: "",
-  unit: "",
-});
-
-const prices = reactive<Record<PriceFieldKey, { min: string; max: string }>>({
-  supply: { min: "", max: "" },
-  sale: { min: "", max: "" },
-  wholesale: { min: "", max: "" },
-});
-
-const freePrice = ref(false);
-
-function resetFilters() {
-  for (const field of selectFields) {
-    filters[field.key] = "";
-  }
-  for (const field of priceFields) {
-    prices[field.key].min = "";
-    prices[field.key].max = "";
-  }
-  freePrice.value = false;
-}
-
-function acceptFilters() {}
 </script>

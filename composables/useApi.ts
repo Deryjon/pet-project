@@ -17,7 +17,7 @@ export function useApi() {
       } catch {}
     }
 
-    const tokenlessAuth = ["/auth/login"];
+    const tokenlessAuth = ["/auth/login", "/auth/company-login", "/auth/platform-login"];
     const needsToken =
       !!user.token &&
       !tokenlessAuth.some(

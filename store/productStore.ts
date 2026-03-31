@@ -1,10 +1,13 @@
-﻿import { defineStore } from "pinia";
+import { defineStore } from "pinia";
 import {
   createBundleItem,
   createInitialProductFormState,
+  createStockRows,
   createVariation,
   nonNegative,
+  type ProductFormShopOption,
 } from "~/composables/useCreateProductForm";
+import { useApi } from "~/composables/useApi";
 import type {
   CreateProductFormState,
   ProductImage,
@@ -23,6 +26,15 @@ interface ProductStoreState {
   productVariants: VariationTypeLabel[];
   units: string[];
   categories: string[];
+  availableShops: ProductFormShopOption[];
+}
+
+function fallbackSku() {
+  return `SKU-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+}
+
+function fallbackBarcode() {
+  return `2${Date.now().toString().slice(-12)}`;
 }
 
 export const useProductStore = defineStore("product", {
@@ -32,10 +44,46 @@ export const useProductStore = defineStore("product", {
     productVariants: [...PRODUCT_VARIANTS],
     units: [...UNITS],
     categories: [...CATEGORIES],
+    availableShops: [],
   }),
   actions: {
+    syncAvailableShops(shops: ProductFormShopOption[] = []) {
+      const normalized = shops
+        .map((shop) => ({
+          id: String(shop?.id || "").trim(),
+          name: String(shop?.name || "").trim(),
+        }))
+        .filter((shop) => shop.id && shop.name);
+
+      this.availableShops = normalized;
+
+      const previousStocksById = new Map(this.form.stocks.map((stock) => [stock.id, stock.qty]));
+      this.form.stocks = createStockRows(normalized).map((stock) => ({
+        ...stock,
+        qty: previousStocksById.get(stock.id) ?? 0,
+      }));
+
+      this.form.variations = this.form.variations.map((variation) => {
+        const nextStocks = normalized.reduce(
+          (acc, shop) => {
+            acc[shop.id] = nonNegative(variation.stocks[shop.id] ?? 0);
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
+
+        return {
+          ...variation,
+          stocks: nextStocks,
+        };
+      });
+
+      if (!this.form.variations.length) {
+        this.form.variations = [createVariation(normalized)];
+      }
+    },
     resetForm() {
-      this.form = createInitialProductFormState();
+      this.form = createInitialProductFormState(this.availableShops);
     },
     setProductType(type: ProductTypeLabel) {
       this.form.productType = type;
@@ -46,15 +94,35 @@ export const useProductStore = defineStore("product", {
     setVariationType(type: VariationTypeLabel) {
       this.form.variationType = type;
       if (type === "Вариативный" && this.form.variations.length === 0) {
-        this.form.variations = [createVariation(this.form.stocks.map((s) => s.name))];
+        this.form.variations = [createVariation(this.availableShops)];
       }
     },
-    generateCode(type: "article" | "barcode") {
-      const randomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-      if (type === "article") {
-        this.form.sku = `ART-${randomCode}`;
-      } else {
-        this.form.barcode = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    async generateCode(type: "article" | "barcode") {
+      try {
+        const { apiFetch } = useApi();
+
+        if (type === "article") {
+          const res: any = await apiFetch("/v2/product/generate-sku", {
+            method: "POST",
+            body: {
+              name: this.form.name.trim() || undefined,
+            },
+          });
+          this.form.sku = String(res?.sku || fallbackSku());
+          return;
+        }
+
+        const res: any = await apiFetch("/v2/product/generate-barcode", {
+          method: "POST",
+        });
+        this.form.barcode = String(res?.barcode || fallbackBarcode());
+      } catch {
+        if (type === "article") {
+          this.form.sku = fallbackSku();
+          return;
+        }
+
+        this.form.barcode = fallbackBarcode();
       }
     },
     addImage(image: ProductImage) {
@@ -69,21 +137,21 @@ export const useProductStore = defineStore("product", {
       this.form.images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
       this.form.images = [];
     },
-    setStoreQty(storeName: string, qty: number) {
-      const store = this.form.stocks.find((s) => s.name === storeName);
+    setStoreQty(storeId: string, qty: number) {
+      const store = this.form.stocks.find((s) => s.id === storeId);
       if (store) store.qty = nonNegative(qty);
     },
     addVariation() {
-      this.form.variations.push(createVariation(this.form.stocks.map((s) => s.name)));
+      this.form.variations.push(createVariation(this.availableShops));
     },
     removeVariation(id: string) {
       if (this.form.variations.length <= 1) return;
       this.form.variations = this.form.variations.filter((v) => v.id !== id);
     },
-    setVariationStock(variationId: string, storeName: string, qty: number) {
+    setVariationStock(variationId: string, storeId: string, qty: number) {
       const variation = this.form.variations.find((v) => v.id === variationId);
       if (!variation) return;
-      variation.stocks[storeName] = nonNegative(qty);
+      variation.stocks[storeId] = nonNegative(qty);
     },
     addBundleItem() {
       this.form.bundleItems.push(createBundleItem());

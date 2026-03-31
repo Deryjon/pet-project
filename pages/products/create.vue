@@ -1,14 +1,13 @@
-﻿<script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useHead } from "#imports";
 import {
-  mapProductType,
-  mapVariationType,
-  nonNegative,
+  buildCreateProductPayload,
   validateCreateProductForm,
 } from "~/composables/useCreateProductForm";
-import { useProducts } from "~/composables/useProducts";
+import { normalizeApiError, useProducts } from "~/composables/useProducts";
+import { useLocationStore } from "~/store/useLocationStore";
 import { useProductStore } from "~/store/productStore";
 
 import CreateProductFeatures from "@/components/products/CreateProductFeatures.vue";
@@ -22,6 +21,7 @@ definePageMeta({ layout: "empty" });
 
 const router = useRouter();
 const store = useProductStore();
+const locationStore = useLocationStore();
 const { createProduct } = useProducts();
 
 const submitting = ref(false);
@@ -89,123 +89,22 @@ function updateActiveSectionByScroll() {
 }
 
 onMounted(() => {
+  store.syncAvailableShops(locationStore.locations);
   window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
   updateActiveSectionByScroll();
 });
 
+watch(
+  () => locationStore.locations,
+  (locations) => {
+    store.syncAvailableShops(locations);
+  },
+  { deep: true },
+);
+
 onBeforeUnmount(() => {
   window.removeEventListener("scroll", updateActiveSectionByScroll);
 });
-
-function buildPayload() {
-  const form = store.form;
-  const variationType = mapVariationType(form.variationType);
-
-  const isVariative = variationType === "variant";
-
-  const totalQuantity = isVariative
-    ? form.variations.reduce(
-        (sum, variation) =>
-          sum + Object.values(variation.stocks).reduce((inner, qty) => inner + nonNegative(qty), 0),
-        0,
-      )
-    : form.productType === "Товар"
-      ? form.stocks.reduce((sum, stock) => sum + nonNegative(stock.qty), 0)
-      : 0;
-
-  const prices = isVariative
-    ? form.variations[0]?.prices ?? { purchasePrice: 0, markupPercent: 0, salePrice: 0 }
-    : form.prices;
-
-  const stockRows = form.stocks.map((stock) => ({
-    shop_id: stock.name,
-    retail_price: nonNegative(prices.salePrice),
-    supply_price: nonNegative(prices.purchasePrice),
-    wholesale_price: 0,
-    min_price: 0,
-    max_price: 0,
-  }));
-
-  const shipmentRows = form.stocks
-    .map((stock) => ({
-      has_trigger: false,
-      measurement_value: nonNegative(stock.qty),
-      shop_id: stock.name,
-      small_left_measurement_value: 0,
-      total_measurement_value: nonNegative(stock.qty),
-      supplier_id: form.attributes.supplier.trim() || undefined,
-    }))
-    .filter((stock) => stock.total_measurement_value > 0);
-
-  const payload = {
-    id: "",
-    stocktaking_id: "",
-    name: form.name.trim(),
-    sku: form.sku.trim(),
-    barcode: form.barcode.trim(),
-    additional_barcodes: [],
-    brand_id: "",
-    brand_name: form.attributes.brand.trim(),
-    category_ids: form.category ? [form.category] : [],
-    company_id: "",
-    description: form.attributes.optionalField.trim()
-      ? `<p>${form.attributes.optionalField.trim()}</p>`
-      : "<p></p>",
-    has_expiration_date: false,
-    images: form.images.map((image) => image.name),
-    is_auto_delivery: true,
-    is_auto_tax: true,
-    is_divisible: false,
-    is_variative: isVariative,
-    max_modificators_count: 0,
-    measurement_type: "",
-    measurement_unit_id: form.unit || "",
-    packages: [],
-    product_custom_fields: [],
-    product_modificators: [],
-    product_type_id: mapProductType(form.productType),
-    profit_margin: nonNegative(prices.markupPercent),
-    related_product_ids: [],
-    required_modificators_count: 0,
-    retail_price: nonNegative(prices.salePrice),
-    selected_attributes: [],
-    set_products: form.bundleItems
-      .filter((item) => item.name.trim())
-      .map((item) => ({
-        name: item.name.trim(),
-        quantity: Math.max(1, item.quantity),
-      })),
-    shipments: shipmentRows,
-    shop_measurement_values: shipmentRows,
-    supplier_ids: [],
-    supply_price: nonNegative(prices.purchasePrice),
-    tax_tariff_id: "",
-    variants: isVariative
-      ? form.variations.map((variation) => ({
-          id: variation.id,
-          name: variation.value.trim(),
-          retail_price: nonNegative(variation.prices.salePrice),
-          supply_price: nonNegative(variation.prices.purchasePrice),
-          profit_margin: nonNegative(variation.prices.markupPercent),
-          stocks: variation.stocks,
-        }))
-      : [],
-    is_marked: false,
-    scale_plu: null,
-    shop_free_prices: form.stocks.map((stock) => ({
-      shop_id: stock.name,
-    })),
-    shop_prices: stockRows,
-    metadata: {
-      ui_unit: form.unit || "Штука",
-      total_quantity: totalQuantity,
-      supplier_name: form.attributes.supplier.trim(),
-      variation_attribute: form.variationAttribute.trim(),
-    },
-  };
-
-  return payload;
-}
 
 async function submitForm(mode: "save" | "save-and-new") {
   if (submitting.value) return;
@@ -220,8 +119,8 @@ async function submitForm(mode: "save" | "save-and-new") {
 
   submitting.value = true;
   try {
-    const payload = buildPayload();
-    await createProduct(payload as any);
+    const payload = buildCreateProductPayload(store.form);
+    await createProduct(payload);
 
     if (mode === "save-and-new") {
       store.resetForm();
@@ -232,7 +131,9 @@ async function submitForm(mode: "save" | "save-and-new") {
     }
 
     await router.push("/products/catalog");
-  } catch (error) {
+  } catch (error: any) {
+    validationMessages.value = [normalizeApiError(error)];
+    window.scrollTo({ top: 0, behavior: "smooth" });
     console.error("Failed to create product", error);
   } finally {
     submitting.value = false;

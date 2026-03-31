@@ -26,7 +26,7 @@ const displayLocation = computed(() => {
     user.value.currentShopName ||
     user.value.branchTitle ||
     user.value.branchCode ||
-    "Магазин не указан"
+    "Филиал не указан"
   );
 });
 
@@ -36,6 +36,14 @@ const displayPhone = computed(() => {
 
 const displayRole = computed(() => {
   return user.value.role || "Роль не указана";
+});
+
+const displayCompany = computed(() => {
+  return user.value.company?.name || "Компания не указана";
+});
+
+const canChangeShop = computed(() => {
+  return Boolean(user.value.canSwitchShops && user.value.shops?.length);
 });
 </script>
 
@@ -78,6 +86,10 @@ const displayRole = computed(() => {
 
         <div class="mt-4 space-y-2 rounded-[24px] bg-[#404040] p-5">
           <div class="flex items-center justify-between gap-4">
+            <span class="text-[#bdbdbd]">Компания</span>
+            <span class="max-w-[220px] truncate text-right text-white">{{ displayCompany }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
             <span class="text-[#bdbdbd]">Телефон</span>
             <span class="max-w-[220px] truncate text-right text-white">{{ displayPhone }}</span>
           </div>
@@ -98,12 +110,13 @@ const displayRole = computed(() => {
         </teleport>
 
         <button
+          v-if="canChangeShop"
           class="mt-4 flex w-full cursor-pointer items-center justify-between rounded-[20px] bg-[#404040] px-5 py-3 font-semibold transition-colors duration-300 hover:bg-[#5e5e5e]"
           @click="panel.openChange"
         >
           <div class="flex items-center gap-2">
             <Icon name="heroicons:shopping-bag" class="h-4 w-4" />
-            Сменить магазин
+            Сменить филиал
           </div>
           <Icon name="heroicons:arrow-right" class="h-4 w-4" />
         </button>

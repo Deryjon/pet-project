@@ -51,13 +51,59 @@ const actionOptions = [
   "Заказ",
   "Продажа",
 ];
-const shopOptions = ["Все магазины", "Склад 1", "Склад 2", "Магазин 1"];
+const shopOptions = computed(() => ["Все магазины", ...store.filterOptions.store]);
 
 const formatUZS = (value: unknown) => {
   const num = Number(value);
   if (!Number.isFinite(num)) return "-";
   return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
 };
+
+const stockRows = computed<string[][]>(() => {
+  const p = selectedProduct.value;
+  if (!p) return [];
+
+  const original = p._original ?? {};
+  const productSupplyStock = Array.isArray(original.product_supply_stock)
+    ? original.product_supply_stock
+    : [];
+  const shopMeasurementValues = Array.isArray(original.shop_measurement_values)
+    ? original.shop_measurement_values
+    : [];
+
+  const source = productSupplyStock.length ? productSupplyStock : shopMeasurementValues;
+
+  if (source.length) {
+    return source.map((item: any) => {
+      const shopName =
+        String(
+          item?.shop?.name ??
+          item?.shop_name ??
+          item?.branch?.name ??
+          item?.branch_name ??
+          p.shop_name ??
+          "-",
+        ).trim() || "-";
+      const active = Number(
+        item?.measurement_value ??
+        item?.total_measurement_value ??
+        item?.quantity ??
+        0,
+      );
+      const inactive = Number(item?.inactive_measurement_value ?? item?.inactive_quantity ?? 0);
+      const low = Number(item?.small_left_measurement_value ?? item?.low_quantity ?? 0);
+
+      return [shopName, String(active), String(inactive), String(low)];
+    });
+  }
+
+  return [[
+    String(p.shop_name || "-"),
+    String(Number(p.quantity ?? 0)),
+    "0",
+    "0",
+  ]];
+});
 
 const tableSections = computed<TableSection[]>(() => {
   const p = selectedProduct.value;
@@ -108,10 +154,8 @@ const tableSections = computed<TableSection[]>(() => {
     },
     {
       title: "Остатки",
-      columns: ["Источник", "Активные", "Неактивные", "Малый остаток"],
-      rows: [
-        [supplierOrStore, String(quantity), "0", quantity > 0 ? "0" : "1"],
-      ],
+      columns: ["Магазин", "Активные", "Неактивные", "Малый остаток"],
+      rows: stockRows.value,
     },
   ];
 });
