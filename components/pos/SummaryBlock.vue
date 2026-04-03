@@ -327,26 +327,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useCartStore } from "@/store/cart";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
 const cartStore = useCartStore();
-const { subtotal, totalDiscount, total, cart } = storeToRefs(cartStore);
+const { subtotal, totalDiscount, total, cart, paymentMethods, paymentMethodsLoading } = storeToRefs(cartStore);
 const { formatPrice } = useFormatPrice();
 
 const paymentPanelOpen = ref(false);
 const paymentMode = ref<"mixed" | "single">("mixed");
 const selectedPaymentMethod = ref<string>("");
-const activeMixedMethod = ref<string>("cash");
-const mixedPayments = ref<Record<string, number>>({
-  cash: 0,
-  card: 0,
-  payme: 0,
-  click: 0,
-  transfer: 0,
-});
+const activeMixedMethod = ref<string>("");
+const mixedPayments = ref<Record<string, number>>({});
 
 const paymentModes = [
   { value: "mixed", label: "Смешанная" },

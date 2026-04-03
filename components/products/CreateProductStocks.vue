@@ -16,12 +16,12 @@ const isVariantGoods = computed(
     store.form.variationType === "Вариативный",
 );
 
-function sanitizeSimpleStock(name: string, value: number) {
-  store.setStoreQty(name, nonNegative(value));
+function sanitizeSimpleStock(storeId: string, value: number) {
+  store.setStoreQty(storeId, nonNegative(value));
 }
 
-function sanitizeVariationStock(variationId: string, storeName: string, value: number) {
-  store.setVariationStock(variationId, storeName, nonNegative(value));
+function sanitizeVariationStock(variationId: string, storeId: string, value: number) {
+  store.setVariationStock(variationId, storeId, nonNegative(value));
 }
 </script>
 
@@ -37,7 +37,7 @@ function sanitizeVariationStock(variationId: string, storeName: string, value: n
         </tr>
       </thead>
       <tbody>
-        <tr v-for="s in store.form.stocks" :key="s.name" class="border-t">
+        <tr v-for="s in store.form.stocks" :key="s.id" class="border-t">
           <td class="p-3 text-[16px]">{{ s.name }}</td>
           <td class="p-3">
             <UInput
@@ -46,7 +46,7 @@ function sanitizeVariationStock(variationId: string, storeName: string, value: n
               min="0"
               class="w-32"
               :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-              @blur="sanitizeSimpleStock(s.name, s.qty)"
+              @blur="sanitizeSimpleStock(s.id, s.qty)"
             />
           </td>
         </tr>
@@ -57,20 +57,20 @@ function sanitizeVariationStock(variationId: string, storeName: string, value: n
       <thead>
         <tr>
           <th class="p-3 text-left text-base">Вариация</th>
-          <th v-for="s in store.form.stocks" :key="s.name" class="p-3 text-left text-base">{{ s.name }}</th>
+          <th v-for="s in store.form.stocks" :key="s.id" class="p-3 text-left text-base">{{ s.name }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="variation in store.form.variations" :key="variation.id" class="border-t">
           <td class="p-3 text-[16px]">{{ variation.value || "Без названия" }}</td>
-          <td v-for="s in store.form.stocks" :key="`${variation.id}-${s.name}`" class="p-3">
+          <td v-for="s in store.form.stocks" :key="`${variation.id}-${s.id}`" class="p-3">
             <UInput
-              v-model.number="variation.stocks[s.name]"
+              v-model.number="variation.stocks[s.id]"
               type="number"
               min="0"
               class="w-32"
               :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-              @blur="sanitizeVariationStock(variation.id, s.name, variation.stocks[s.name] ?? 0)"
+              @blur="sanitizeVariationStock(variation.id, s.id, variation.stocks[s.id] ?? 0)"
             />
           </td>
         </tr>

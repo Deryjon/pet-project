@@ -6,6 +6,14 @@ import { useUserStore } from "./useUserStore";
 
 type PaymentMethodCode = "cash" | "card" | "payme" | "click" | "transfer";
 
+type CompanyPaymentMethod = {
+  id: string;
+  name: string;
+  paymentTypeId?: string;
+  paymentTypeName?: string;
+  isCash?: boolean;
+};
+
 type OrderPaymentPayload = {
   comment: string;
   payments: Array<{
@@ -25,6 +33,7 @@ export const useCartStore = defineStore("cart", () => {
   const saleId = ref<string | number | null>(null);
   const saleNumber = ref<string | null>(null);
   const receipt = ref<any | null>(null);
+  const saleShopId = ref<string>("");
 
   const productsLoading = ref(false);
   const creatingSale = ref(false);
@@ -33,11 +42,14 @@ export const useCartStore = defineStore("cart", () => {
   const payLoading = ref(false);
   const cancelLoading = ref(false);
   const discountLoading = ref(false);
+  const paymentMethodsLoading = ref(false);
 
   const discountPercent = ref<number>(0);
   const discountAmount = ref<number>(0);
   const payableTotal = ref<number>(0);
   const orderRaw = ref<any | null>(null);
+  const lastCartError = ref<string>("");
+  const paymentMethods = ref<CompanyPaymentMethod[]>([]);
 
   const products = ref([
     {
@@ -98,6 +110,22 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   function paymentTypeIdByMethod(method: PaymentMethodCode) {
+    const normalizedMethod = String(method || "").trim().toLowerCase();
+    const fromLoaded = paymentMethods.value.find((item) => {
+      const id = String(item.id || "").trim().toLowerCase();
+      const name = String(item.name || "").trim().toLowerCase();
+      const paymentTypeName = String(item.paymentTypeName || "").trim().toLowerCase();
+      return (
+        id === normalizedMethod ||
+        name === normalizedMethod ||
+        paymentTypeName === normalizedMethod
+      );
+    });
+
+    if (fromLoaded?.id) {
+      return String(fromLoaded.id);
+    }
+
     const config = useRuntimeConfig();
     const mapping = (config.public as any)?.posPaymentTypeIds as
       | Partial<Record<PaymentMethodCode, string>>
@@ -110,19 +138,98 @@ export const useCartStore = defineStore("cart", () => {
     );
   }
 
+  async function loadPaymentMethods(inputCompanyId?: string) {
+    const userStore = useUserStore();
+    const companyId = String(
+      inputCompanyId ||
+      userStore.user.companyId ||
+      userStore.user.company?.companyId ||
+      userStore.user.company?.id ||
+      "",
+    ).trim();
+
+    paymentMethodsLoading.value = true;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch("/company-payment-type", {
+        method: "GET",
+        query: companyId ? { company_id: companyId } : {},
+      });
+
+      const items = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.company_payment_types)
+          ? res.company_payment_types
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res?.data?.company_payment_types)
+              ? res.data.company_payment_types
+              : [];
+
+      paymentMethods.value = items
+        .map((item: any) => ({
+          id: String(item?.id ?? ""),
+          name: String(item?.name ?? item?.payment_type_name ?? ""),
+          paymentTypeId: item?.payment_type_id ? String(item.payment_type_id) : undefined,
+          paymentTypeName: item?.payment_type_name ? String(item.payment_type_name) : undefined,
+          isCash: Boolean(item?.is_cash_payment_type),
+        }))
+        .filter((item: CompanyPaymentMethod) => Boolean(item.id && item.name));
+    } catch {
+      paymentMethods.value = [];
+    } finally {
+      paymentMethodsLoading.value = false;
+    }
+  }
+
   function upsertCartItem(product: any, quantity = 1) {
     const existing = cart.value.find((c) => c.id === product.id);
+    const availableQuantity = Math.max(
+      0,
+      Number(product?.availableQuantity ?? existing?.availableQuantity ?? 0),
+    );
+
     if (existing) {
-      existing.quantity += quantity;
+      existing.availableQuantity = availableQuantity;
+      existing.shopId = String(product?.shopId ?? existing?.shopId ?? resolveCurrentShopId() ?? "");
+      existing.quantity = availableQuantity > 0
+        ? Math.min(
+            Math.max(1, Number(existing.quantity || 1) + quantity),
+            availableQuantity,
+          )
+        : 0;
       return;
     }
 
     cart.value.push({
       ...product,
-      quantity,
+      quantity: availableQuantity > 0
+        ? Math.min(Math.max(1, quantity), availableQuantity)
+        : 0,
+      availableQuantity,
+      shopId: String(product?.shopId ?? resolveCurrentShopId() ?? ""),
       discountValue: Number(product?.discountValue ?? 0),
       discountType: product?.discountType === "uzs" ? "uzs" : "%",
     });
+  }
+
+  function getCartItemQuantity(productId: number | string) {
+    const existing = cart.value.find((item) => String(item.id) === String(productId));
+    return Number(existing?.quantity ?? 0);
+  }
+
+  function setCartItemQuantity(productId: number | string, nextQuantity: number) {
+    const item = cart.value.find((entry) => String(entry.id) === String(productId));
+    if (!item) return;
+
+    const availableQuantity = Math.max(0, Number(item.availableQuantity ?? 0));
+    if (availableQuantity <= 0) {
+      item.quantity = 0;
+      return;
+    }
+
+    const normalizedQuantity = Math.max(1, Number(nextQuantity || 1));
+    item.quantity = Math.min(normalizedQuantity, availableQuantity);
   }
 
   function saveLocalState() {
@@ -133,6 +240,7 @@ export const useCartStore = defineStore("cart", () => {
       JSON.stringify({
         cart: cart.value,
         saleId: saleId.value,
+        saleShopId: saleShopId.value,
         saleNumber: saleNumber.value,
         orderRaw: orderRaw.value,
         discountValue: discountValue.value,
@@ -154,6 +262,7 @@ export const useCartStore = defineStore("cart", () => {
       const parsed = JSON.parse(raw);
       cart.value = Array.isArray(parsed?.cart) ? parsed.cart : [];
       saleId.value = parsed?.saleId ?? null;
+      saleShopId.value = String(parsed?.saleShopId ?? "");
       saleNumber.value = parsed?.saleNumber ?? null;
       orderRaw.value = parsed?.orderRaw ?? null;
       discountValue.value = Number(parsed?.discountValue ?? 0);
@@ -178,6 +287,13 @@ export const useCartStore = defineStore("cart", () => {
       });
       const orderId = res?.id ?? res?.data?.id ?? res?.order?.id ?? null;
       saleId.value = orderId != null ? String(orderId) : null;
+      saleShopId.value = String(
+        res?.shop_id ??
+          res?.data?.shop_id ??
+          res?.order?.shop_id ??
+          shopId ??
+          "",
+      );
       saleNumber.value = String(
         res?.order_number ??
           res?.number ??
@@ -212,12 +328,45 @@ export const useCartStore = defineStore("cart", () => {
         price: Number(it.sale_price ?? it.price ?? it.retail_price ?? 0),
         barcode: it.barcode ?? it.product?.barcode ?? "",
         article: it.sku ?? it.article ?? it.product?.sku ?? "",
-        quantity: Number(it.quantity ?? 1),
+        quantity: Number(it.quantity ?? it.qty ?? 1),
+        availableQuantity: Number(
+          it?.shop_measurement_values?.[0]?.total_active_measurement_value ??
+            it?.measurement_values?.total_active_measurement_value ??
+            it?.measurement_values?.total_measurement_value ??
+            it?.product_stock?.quantity ??
+            it?.stock?.quantity ??
+            it?.available_quantity ??
+            it?.product?.shop_measurement_values?.[0]?.total_active_measurement_value ??
+            it?.product?.measurement_values?.total_active_measurement_value ??
+            it?.product?.measurement_values?.total_measurement_value ??
+            it?.product?.product_stock?.quantity ??
+            0,
+        ),
+        shopId: String(
+          it?.shop_measurement_values?.[0]?.shop_id ??
+            it?.shop_prices?.[0]?.shop_id ??
+            it?.shop_id ??
+            it?.product_stock?.shop_id ??
+            it?.stock?.shop_id ??
+            it?.product?.shop_measurement_values?.[0]?.shop_id ??
+            it?.product?.shop_prices?.[0]?.shop_id ??
+            saleShopId.value ??
+            resolveCurrentShopId() ??
+            "",
+        ),
         discountValue: 0,
         discountType: "%",
       }));
 
       saleId.value = String(res?.id ?? res?.data?.id ?? saleId.value ?? "");
+      saleShopId.value = String(
+        res?.shop_id ??
+          res?.data?.shop_id ??
+          res?.order?.shop_id ??
+          saleShopId.value ??
+          resolveCurrentShopId() ??
+          "",
+      );
       saleNumber.value = String(
         res?.order_number ??
           res?.number ??
@@ -250,6 +399,20 @@ export const useCartStore = defineStore("cart", () => {
   async function addToCartServer(product: any) {
     try {
       addingItem.value = true;
+      lastCartError.value = "";
+      const availableQuantity = Math.max(0, Number(product?.availableQuantity ?? 0));
+      const currentQuantity = getCartItemQuantity(product.id);
+
+      if (availableQuantity <= 0) {
+        lastCartError.value = "В выбранном филиале нет остатка";
+        return;
+      }
+
+      if (currentQuantity >= availableQuantity) {
+        lastCartError.value = "Недостаточно остатка в выбранном филиале";
+        return;
+      }
+
       const sid = saleId.value || (await initSale());
       if (!sid) throw new Error("sale not created");
 
@@ -290,8 +453,10 @@ export const useCartStore = defineStore("cart", () => {
         body: payload,
       });
       receipt.value = res;
+      lastCartError.value = "";
       cart.value = [];
       saleId.value = null;
+      saleShopId.value = "";
       saleNumber.value = null;
       orderRaw.value = null;
       discountPercent.value = 0;
@@ -317,8 +482,10 @@ export const useCartStore = defineStore("cart", () => {
 
       cart.value = [];
       saleId.value = null;
+      saleShopId.value = "";
       saleNumber.value = null;
       orderRaw.value = null;
+      lastCartError.value = "";
       discountPercent.value = 0;
       discountAmount.value = 0;
       payableTotal.value = 0;
@@ -464,6 +631,7 @@ export const useCartStore = defineStore("cart", () => {
     [
       cart,
       saleId,
+      saleShopId,
       saleNumber,
       discountValue,
       discountType,
@@ -480,15 +648,19 @@ export const useCartStore = defineStore("cart", () => {
   return {
     cart,
     saleId,
+    saleShopId,
     saleNumber,
     receipt,
     orderRaw,
+    lastCartError,
     productsLoading,
     creatingSale,
     loadingSale,
     addingItem,
     payLoading,
     cancelLoading,
+    paymentMethods,
+    paymentMethodsLoading,
     products,
     searchQuery,
     filteredProducts,
@@ -501,9 +673,11 @@ export const useCartStore = defineStore("cart", () => {
     loadSale,
     addToCartServer,
     addToCart,
+    setCartItemQuantity,
     removeFromCart,
     applySaleDiscount,
     paySale,
+    loadPaymentMethods,
     cancelSale,
     updateDiscount,
     itemFinalPrice,
@@ -515,6 +689,7 @@ export const useCartStore = defineStore("cart", () => {
     discountValue,
     discountType,
     globalDiscountAmount,
+    getCartItemQuantity,
     resolveCurrentShopId,
     paymentTypeIdByMethod,
   };
@@ -523,13 +698,51 @@ export const useCartStore = defineStore("cart", () => {
 function extractOrderItems(res: any) {
   if (Array.isArray(res?.items)) return res.items;
   if (Array.isArray(res?.products)) return res.products;
+  if (Array.isArray(res?.order_detail?.items)) return res.order_detail.items;
   if (Array.isArray(res?.data?.items)) return res.data.items;
   if (Array.isArray(res?.data?.products)) return res.data.products;
   if (Array.isArray(res?.order_items)) return res.order_items;
   if (Array.isArray(res?.order_detail?.order_items)) return res.order_detail.order_items;
   if (Array.isArray(res?.data?.order_items)) return res.data.order_items;
+  if (Array.isArray(res?.data?.order_detail?.items)) return res.data.order_detail.items;
   if (Array.isArray(res?.data?.order_detail?.order_items)) {
     return res.data.order_detail.order_items;
   }
   return [];
+}
+
+function resolveSaleItemName(item: any) {
+  return (
+    item?.name ??
+    item?.product_name ??
+    item?.title ??
+    item?.product?.name ??
+    item?.product?.product_name ??
+    item?.product?.title ??
+    "Товар"
+  );
+}
+
+function resolveSaleItemBarcode(item: any) {
+  return String(
+    item?.barcode ??
+      item?.product_barcode ??
+      item?.plu_code ??
+      item?.product?.barcode ??
+      item?.product?.product_barcode ??
+      item?.product?.plu_code ??
+      "",
+  );
+}
+
+function resolveSaleItemArticle(item: any) {
+  return String(
+    item?.sku ??
+      item?.article ??
+      item?.vendor_code ??
+      item?.product?.sku ??
+      item?.product?.article ??
+      item?.product?.vendor_code ??
+      "",
+  );
 }

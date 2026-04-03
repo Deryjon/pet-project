@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import {
   Chart as ChartJS,
   Title,
@@ -13,7 +13,6 @@ import { Line } from "vue-chartjs";
 import { computed, ref } from "vue";
 import { useDashboardStore } from "@/store/dashboard";
 
-// Регистрируем все модули Chart.js
 ChartJS.register(
   Title,
   Tooltip,
@@ -21,27 +20,26 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
-  LineElement
+  LineElement,
 );
 
 const store = useDashboardStore();
-const selectedGranularity = ref<"hour" | "halfHour">("hour");
 const granularityOpen = ref(false);
 
-const granularityOptions: Array<{ label: string; value: "hour" | "halfHour" }> = [
+const granularityOptions: Array<{ label: string; value: "hour" | "day" }> = [
   { label: "по часам", value: "hour" },
-  { label: "по 30 минут", value: "halfHour" },
+  { label: "по дням", value: "day" },
 ];
 
 const selectedGranularityLabel = computed(
   () =>
-    granularityOptions.find((item) => item.value === selectedGranularity.value)?.label ??
-    "по часам"
+    granularityOptions.find((item) => item.value === store.selectedGranularity)?.label ??
+    "по часам",
 );
 
 const chartOptions = {
   responsive: true,
-  maintainAspectRatio: false, // убираем фиксированное соотношение сторон
+  maintainAspectRatio: false,
   plugins: {
     legend: {
       labels: { color: "#fff" },
@@ -62,14 +60,16 @@ const chartOptions = {
 
 <template>
   <div class="flex flex-col rounded-lg bg-[#262626] shadow-style xl:flex-row">
-    <div class="left-side w-full border-b border-white/10 p-4 sm:p-7 xl:border-b-0 xl:border-r xl:border-white/10">
+    <div
+      class="left-side w-full border-b border-white/10 p-4 sm:p-7 xl:border-b-0 xl:border-r xl:border-white/10"
+    >
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="text-[22px] font-bold sm:text-[24px]">Продажи</h3>
 
         <UPopover
           v-model:open="granularityOpen"
           :content="{ align: 'end', side: 'bottom', sideOffset: 8 }"
-          :ui="{ content: 'z-50 w-[300px] p-0 rounded-[12px] bg-[#404040] border border-[#404040] shadow-lg overflow-hidden' }"
+          :ui="{ content: 'z-50 w-[300px] overflow-hidden rounded-[12px] border border-[#404040] bg-[#404040] p-0 shadow-lg' }"
         >
           <UButton
             color="neutral"
@@ -83,7 +83,7 @@ const chartOptions = {
 
             <Icon
               name="tabler:chevron-down"
-              :class="['w-4 h-4 transition-transform', granularityOpen ? 'rotate-180' : '']"
+              :class="['h-4 w-4 transition-transform', granularityOpen ? 'rotate-180' : '']"
             />
           </UButton>
 
@@ -92,10 +92,10 @@ const chartOptions = {
               <li
                 v-for="item in granularityOptions"
                 :key="item.value"
-                @click="selectedGranularity = item.value; granularityOpen = false"
+                @click="store.setGranularity(item.value); granularityOpen = false"
                 :class="[
-                  'w-full px-3 py-2 cursor-pointer text-[14px] text-white',
-                  selectedGranularity === item.value ? 'bg-[#404040]' : 'bg-[#202020]'
+                  'w-full cursor-pointer px-3 py-2 text-[14px] text-white',
+                  store.selectedGranularity === item.value ? 'bg-[#404040]' : 'bg-[#202020]',
                 ]"
               >
                 {{ item.label }}
@@ -118,29 +118,36 @@ const chartOptions = {
       <div class="location-items mt-6 flex max-h-[385px] flex-col gap-2 overflow-y-auto xl:h-[385px]">
         <button
           v-for="branch in store.branchesSales"
-          :key="branch.name"
-          class="flex items-center bg-[#404040] px-4 py-1 rounded-[15px] w-full gap-4"
+          :key="branch.id"
+          class="flex w-full items-center gap-4 rounded-[15px] bg-[#404040] px-4 py-1"
         >
           <div
-            class="circle w-[20px] h-[20px] rounded-full"
+            class="circle h-[20px] w-[20px] rounded-full"
             :style="{ backgroundColor: branch.color }"
-          ></div>
+          />
 
           <div class="flex flex-col text-left">
-            <span class="text-left font-semibold text-[16px]">
+            <span class="text-left text-[16px] font-semibold">
               {{ branch.name }}
             </span>
             <span class="text-left text-[#4993dd]">
-              {{ branch.total.toLocaleString() }} сум
+              {{ branch.total.toLocaleString() }} {{ store.reportCurrency }}
             </span>
           </div>
         </button>
+
+        <div
+          v-if="store.branchesSales.length === 0"
+          class="rounded-[15px] bg-[#404040] px-4 py-4 text-sm text-[#bdbdbd]"
+        >
+          Нет данных по филиалам
+        </div>
       </div>
 
       <div class="border-dashed-t pt-4">
         <p class="text-[16px]">Общая сумма:</p>
         <p class="break-words text-[22px] sm:text-[24px]">
-          {{ store.filteredTotalSales.toLocaleString() }} UZS
+          {{ store.filteredTotalSales.toLocaleString() }} {{ store.reportCurrency }}
         </p>
       </div>
     </div>

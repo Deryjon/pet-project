@@ -408,10 +408,10 @@ function normalizeSale(raw: any): SaleView {
     ?? "Не указан";
 
   const pointLabel =
-    raw?.branch_title
+    raw?.shop?.name
+    ?? raw?.branch_title
     ?? raw?.branch_name
     ?? raw?.location?.name
-    ?? raw?.shop?.name
     ?? raw?.point?.name
     ?? raw?.branch_code
     ?? "Не указана";
@@ -427,7 +427,8 @@ function normalizeSale(raw: any): SaleView {
     pointLabel,
     amountLabel: `${formatPrice(totalAmount)} UZS`,
     paymentLabel: formatPaymentMethod(
-      raw?.payment_method
+      raw?.payment?.name
+      ?? raw?.payment_method
       ?? raw?.payment_type
       ?? raw?.paymentType
       ?? raw?.payment?.method

@@ -1,5 +1,6 @@
 import { useState } from "#imports";
 import { useApi } from "~/composables/useApi";
+import type { CreateProductApiPayload } from "~/types/product-create";
 
 export interface ProductStockPayload {
   branch_code: string;
@@ -36,88 +37,48 @@ export interface ProductDTO {
   brand?: ProductCategoryOrBrand | null;
   suppliers?: ProductSupplier[];
   shop_name?: string;
+  _original?: any;
 }
 
-export interface CreateProductPayload {
-  id?: string;
-  stocktaking_id?: string;
-  barcode: string;
-  additional_barcodes?: string[];
-  brand_id?: string;
-  brand_name?: string;
-  category_ids?: string[];
-  company_id?: string;
-  description?: string;
-  has_expiration_date?: boolean;
-  images?: string[];
-  is_auto_delivery?: boolean;
-  is_auto_tax?: boolean;
-  is_divisible?: boolean;
-  is_variative?: boolean;
-  max_modificators_count?: number;
-  measurement_type?: string;
-  measurement_unit_id?: string;
-  name: string;
-  packages?: unknown[];
-  product_custom_fields?: unknown[];
-  product_modificators?: unknown[];
-  product_type_id?: string;
-  profit_margin?: number;
-  related_product_ids?: string[];
-  required_modificators_count?: number;
-  retail_price?: number;
-  selected_attributes?: unknown[];
-  set_products?: unknown[];
-  shipments?: Array<{
-    has_trigger?: boolean;
-    measurement_value?: number;
-    shop_id?: string;
-    small_left_measurement_value?: number;
-    total_measurement_value?: number;
-    supplier_id?: string;
-  }>;
-  shop_measurement_values?: Array<{
-    has_trigger?: boolean;
-    measurement_value?: number;
-    shop_id?: string;
-    small_left_measurement_value?: number;
-    total_measurement_value?: number;
-    supplier_id?: string;
-  }>;
-  sku: string;
-  supplier_ids?: string[];
-  supply_price?: number;
-  tax_tariff_id?: string;
-  variants?: unknown[];
-  is_marked?: boolean;
-  scale_plu?: string | null;
-  shop_free_prices?: Array<{ shop_id?: string }>;
-  shop_prices?: Array<{
-    shop_id?: string;
-    retail_price?: number;
-    supply_price?: number;
-    wholesale_price?: number;
-    min_price?: number;
-    max_price?: number;
-  }>;
-  metadata?: Record<string, unknown>;
+export function normalizeApiError(error: any) {
+  const message = error?.data?.message ?? error?.response?.data?.message;
+
+  if (Array.isArray(message)) {
+    return message.join(", ");
+  }
+
+  if (typeof message === "string" && message.trim()) {
+    return message;
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Произошла ошибка";
 }
 
 export interface ProductSearchPayload {
+  page?: number;
+  limit?: number;
+  search?: string;
+  field_search_key?: string;
+  statistics?: boolean;
+  brand_ids?: Array<number | string>;
+  supplier_ids?: Array<number | string>;
+  shop_ids?: Array<number | string>;
+  category_ids?: Array<number | string>;
   status?: string;
   order?: string[];
-  group_variations?: boolean;
-  product_field_filters?: unknown[];
-  field_search_key?: string;
   archived_list?: boolean;
-  brand_ids?: Array<number | string>;
-  is_free_price?: boolean | null;
-  limit?: number;
-  measurement_unit_ids?: Array<number | string>;
-  page?: number;
-  plu_codes?: Array<number | string>;
-  statistics?: boolean;
-  supplier_ids?: Array<number | string>;
+  sku?: string;
+  measurement_type?: string;
+  supply_price_from?: number;
+  supply_price_to?: number;
+  retail_price_from?: number;
+  retail_price_to?: number;
+  wholesale_price?: number;
+  free_price?: boolean;
 }
 
 export interface ProductListResult {
@@ -168,19 +129,12 @@ function seedProducts(): ProductDTO[] {
 
 export function useProducts() {
   const products = useState<ProductDTO[]>("mock-products", seedProducts);
-  const idCounter = useState<number>(
-    "mock-products-id-counter",
-    () => Math.max(...products.value.map((p) => p.id), 0) + 1,
-  );
   const { apiFetch } = useApi();
 
-  async function createProduct(payload: CreateProductPayload) {
+  async function createProduct(payload: CreateProductApiPayload) {
     try {
-      const res = await apiFetch<any>("/v2/product", {
+      const res = await apiFetch<any>("/v2/product/create", {
         method: "POST",
-        query: {
-          "Konkurent-Response-Channel": "HTTP",
-        },
         body: payload,
       });
 
@@ -194,29 +148,8 @@ export function useProducts() {
       const created = normalizeCatalogProduct(createdRaw);
       products.value = [created, ...products.value.filter((item) => item.id !== created.id)];
       return { success: true, item: created };
-    } catch {
-      const nextId = idCounter.value++;
-      const created: ProductDTO = {
-        id: nextId,
-        name: payload.name || `Product ${nextId}`,
-        sku: payload.sku || `SKU-${nextId}`,
-        barcode: payload.barcode || `${Date.now()}${nextId}`,
-        photo: payload.photo ?? null,
-        product_type: payload.product_type || "goods",
-        variant_type: payload.variant_type || "simple",
-        unit: payload.unit || "piece",
-        markup_percent: Number(payload.markup_percent || 0),
-        quantity: Number(payload.quantity || 0),
-        purchase_price: Number(payload.purchase_price || 0),
-        sale_price: Number(payload.sale_price || 0),
-        branch_code: payload.branch_code,
-        category: null,
-        brand: null,
-        suppliers: [],
-      };
-
-      products.value = [created, ...products.value];
-      return { success: true, item: created };
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
     }
   }
 
@@ -229,6 +162,17 @@ export function useProducts() {
       status?: string;
       brandIds?: Array<number | string>;
       supplierIds?: Array<number | string>;
+      shopIds?: Array<number | string>;
+      categoryIds?: Array<number | string>;
+      sku?: string;
+      measurementType?: string;
+      supplyPriceFrom?: number;
+      supplyPriceTo?: number;
+      retailPriceFrom?: number;
+      retailPriceTo?: number;
+      wholesalePrice?: number;
+      freePrice?: boolean;
+      order?: string[];
     },
   ): Promise<ProductListResult> {
     const search = (params?.search || "").trim();
@@ -236,69 +180,85 @@ export function useProducts() {
     const pageSize = Math.max(1, Number(params?.pageSize || 10));
     const statistics = params?.statistics ?? true;
     const payload: ProductSearchPayload = {
-      status: params?.status || "all",
-      order: [""],
-      group_variations: false,
-      product_field_filters: [],
-      field_search_key: search,
-      archived_list: false,
-      brand_ids: params?.brandIds ?? [],
-      is_free_price: null,
-      limit: pageSize,
-      measurement_unit_ids: [],
       page,
-      plu_codes: [],
+      limit: pageSize,
+      search: search || undefined,
+      field_search_key: search,
       statistics,
+      status: params?.status || undefined,
+      order: params?.order ?? undefined,
+      brand_ids: params?.brandIds ?? [],
       supplier_ids: params?.supplierIds ?? [],
+      shop_ids: params?.shopIds ?? [],
+      category_ids: params?.categoryIds ?? [],
+      sku: params?.sku ?? undefined,
+      measurement_type: params?.measurementType ?? undefined,
+      supply_price_from: params?.supplyPriceFrom,
+      supply_price_to: params?.supplyPriceTo,
+      retail_price_from: params?.retailPriceFrom,
+      retail_price_to: params?.retailPriceTo,
+      wholesale_price: params?.wholesalePrice,
+      free_price: params?.freePrice,
     };
 
     try {
-      const res = await apiFetch<any>("/v2/product-search-with-filters", {
-        method: "POST",
-        body: payload,
-      });
+      const shouldUsePostFallback = hasHeavyFilters(payload);
+      const [productsResponse, statsResponse] = shouldUsePostFallback
+        ? await Promise.all([
+            apiFetch<any>("/v2/product-search-with-filters", {
+              method: "POST",
+              body: payload,
+            }),
+            statistics
+              ? apiFetch<any>("/v2/product-search-stats-with-filters", {
+                  method: "POST",
+                  body: payload,
+                })
+              : Promise.resolve(null),
+          ])
+        : await Promise.all([
+            apiFetch<any>(buildCatalogGetPath("/v2/product", payload)),
+            statistics
+              ? apiFetch<any>(buildCatalogGetPath("/v2/product-stats", payload))
+              : Promise.resolve(null),
+          ]);
 
-      const items = Array.isArray(res?.products) ? res.products : [];
+      const items = Array.isArray(productsResponse?.products) ? productsResponse.products : [];
       const normalized = items.map(normalizeCatalogProduct);
       products.value = normalized;
       return {
         products: normalized,
-        count: Number(res?.count ?? normalized.length ?? 0),
-        total: Number(res?.total ?? normalized.length ?? 0),
-        fields: Array.isArray(res?.fields) ? res.fields : [],
-        statistics: isRecord(res?.statistics) ? res.statistics : null,
-        statisticsByStatus: isRecord(res?.statistics_by_status)
-          ? res.statistics_by_status
-          : null,
+        count: Number(productsResponse?.count ?? normalized.length ?? 0),
+        total: Number(productsResponse?.total ?? normalized.length ?? 0),
+        fields: Array.isArray(productsResponse?.fields) ? productsResponse.fields : [],
+        statistics: extractStatistics(statsResponse, productsResponse),
+        statisticsByStatus: extractStatisticsByStatus(statsResponse, productsResponse)
+          ?? null,
       };
     } catch {
       try {
-        const res = await apiFetch<any>("/products", {
-          method: "GET",
-          query: {
-            page,
-            limit: pageSize,
-            search: search || undefined,
-          },
+        const res = await apiFetch<any>("/v2/product-search-with-filters", {
+          method: "POST",
+          body: payload,
         });
 
-        const items = Array.isArray(res)
-          ? res
-          : Array.isArray(res?.items)
-            ? res.items
-            : Array.isArray(res?.data)
-              ? res.data
-              : [];
+        const statsRes = statistics
+          ? await apiFetch<any>("/v2/product-search-stats-with-filters", {
+              method: "POST",
+              body: payload,
+            })
+          : null;
 
-        const normalized = items.map(normalizeProduct);
+        const items = Array.isArray(res?.products) ? res.products : [];
+        const normalized = items.map(normalizeCatalogProduct);
         products.value = normalized;
         return {
           products: normalized,
-          count: normalized.length,
-          total: normalized.length,
-          fields: [],
-          statistics: null,
-          statisticsByStatus: null,
+          count: Number(res?.count ?? normalized.length ?? 0),
+          total: Number(res?.total ?? normalized.length ?? 0),
+          fields: Array.isArray(res?.fields) ? res.fields : [],
+          statistics: extractStatistics(statsRes, res),
+          statisticsByStatus: extractStatisticsByStatus(statsRes, res) ?? null,
         };
       } catch {
         const loweredSearch = search.toLowerCase();
@@ -323,7 +283,133 @@ export function useProducts() {
     }
   }
 
-  return { createProduct, listProducts };
+  async function generateSku(input?: { name?: string; prefix?: string }) {
+    const res = await apiFetch<any>("/v2/product/generate-sku", {
+      method: "POST",
+      body: {
+        ...(input?.name ? { name: input.name } : {}),
+        ...(input?.prefix ? { prefix: input.prefix } : {}),
+      },
+    });
+
+    return String(res?.sku || "");
+  }
+
+  async function generateBarcode() {
+    const res = await apiFetch<any>("/v2/product/generate-barcode", {
+      method: "POST",
+    });
+
+    return String(res?.barcode || "");
+  }
+
+  return { createProduct, listProducts, generateSku, generateBarcode };
+}
+
+function buildCatalogGetPath(basePath: string, payload: ProductSearchPayload) {
+  const params = new URLSearchParams();
+
+  appendQueryValue(params, "page", payload.page);
+  appendQueryValue(params, "limit", payload.limit);
+  appendQueryValue(params, "search", payload.search);
+  appendQueryValue(params, "field_search_key", payload.field_search_key);
+  appendQueryValue(params, "statistics", payload.statistics);
+  appendQueryValue(params, "status", payload.status);
+  appendQueryValue(params, "sku", payload.sku);
+  appendQueryValue(params, "measurement_type", payload.measurement_type);
+  appendQueryValue(params, "supply_price_from", payload.supply_price_from);
+  appendQueryValue(params, "supply_price_to", payload.supply_price_to);
+  appendQueryValue(params, "retail_price_from", payload.retail_price_from);
+  appendQueryValue(params, "retail_price_to", payload.retail_price_to);
+  appendQueryValue(params, "wholesale_price", payload.wholesale_price);
+  appendQueryValue(params, "free_price", payload.free_price);
+  appendArrayQueryValue(params, "brand_ids", payload.brand_ids);
+  appendArrayQueryValue(params, "supplier_ids", payload.supplier_ids);
+  appendArrayQueryValue(params, "shop_ids", payload.shop_ids);
+  appendArrayQueryValue(params, "category_ids", payload.category_ids);
+  appendArrayQueryValue(params, "order", payload.order);
+
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+function hasHeavyFilters(payload: ProductSearchPayload) {
+  const arraySize =
+    (payload.brand_ids?.length ?? 0) +
+    (payload.supplier_ids?.length ?? 0) +
+    (payload.shop_ids?.length ?? 0) +
+    (payload.category_ids?.length ?? 0) +
+    (payload.order?.length ?? 0);
+
+  if (arraySize > 12) {
+    return true;
+  }
+
+  return buildCatalogGetPath("/v2/product", payload).length > 1500;
+}
+
+function appendQueryValue(params: URLSearchParams, key: string, value: unknown) {
+  if (value == null || value === "") {
+    return;
+  }
+
+  params.append(key, String(value));
+}
+
+function appendArrayQueryValue(
+  params: URLSearchParams,
+  key: string,
+  values?: Array<number | string>,
+) {
+  if (!Array.isArray(values)) {
+    return;
+  }
+
+  for (const value of values) {
+    if (value == null || value === "") {
+      continue;
+    }
+
+    params.append(key, String(value));
+  }
+}
+
+function extractStatistics(
+  statsResponse: any,
+  productsResponse: any,
+): Record<string, unknown> | null {
+  if (isRecord(statsResponse?.statistics)) {
+    return statsResponse.statistics;
+  }
+
+  if (isRecord(statsResponse)) {
+    return statsResponse;
+  }
+
+  if (isRecord(productsResponse?.statistics)) {
+    return productsResponse.statistics;
+  }
+
+  return null;
+}
+
+function extractStatisticsByStatus(
+  statsResponse: any,
+  productsResponse: any,
+): Record<string, unknown> | null {
+  if (isRecord(statsResponse?.statistics_by_status)) {
+    return statsResponse.statistics_by_status;
+  }
+
+  if (isRecord(statsResponse?.by_status)) {
+    return statsResponse.by_status;
+  }
+
+  if (isRecord(productsResponse?.statistics_by_status)) {
+    return productsResponse.statistics_by_status;
+  }
+
+  return null;
 }
 
 function normalizeProduct(raw: any): ProductDTO {
@@ -346,16 +432,24 @@ function normalizeProduct(raw: any): ProductDTO {
     suppliers: Array.isArray(raw?.suppliers)
       ? raw.suppliers
           .map(normalizeNamedEntity)
-          .filter((item): item is ProductSupplier => Boolean(item))
+          .filter((item: ProductCategoryOrBrand | null): item is ProductSupplier => Boolean(item))
       : [],
     shop_name: typeof raw?.shop_name === "string" ? raw.shop_name : undefined,
+    _original: raw,
   };
 }
 
 function normalizeBillzProduct(raw: any): ProductDTO {
   const primaryShopPrice = Array.isArray(raw?.shop_prices) ? raw.shop_prices[0] : null;
   const primarySupplier = Array.isArray(raw?.suppliers) ? raw.suppliers[0] : null;
-  const primaryStock = Array.isArray(raw?.product_supply_stock) ? raw.product_supply_stock[0] : null;
+  const productSupplyStock = Array.isArray(raw?.product_supply_stock) ? raw.product_supply_stock : [];
+  const primaryStock = productSupplyStock[0] ?? null;
+  const totalActiveQuantity = productSupplyStock.length
+    ? productSupplyStock.reduce(
+        (sum: number, item: any) => sum + Number(item?.active_measurement_value ?? item?.measurement_value ?? 0),
+        0,
+      )
+    : Number(raw?.measurement_values?.total_measurement_value ?? 0);
 
   return {
     id: raw?.id ?? "",
@@ -367,7 +461,7 @@ function normalizeBillzProduct(raw: any): ProductDTO {
     variant_type: "simple",
     unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "piece"),
     markup_percent: 0,
-    quantity: Number(raw?.measurement_values?.total_measurement_value ?? 0),
+    quantity: totalActiveQuantity,
     purchase_price: Number(primaryShopPrice?.supply_price ?? 0),
     sale_price: Number(primaryShopPrice?.retail_price ?? 0),
     branch_code: primaryStock?.shop_id ?? undefined,
@@ -375,6 +469,7 @@ function normalizeBillzProduct(raw: any): ProductDTO {
     brand: normalizeNamedEntity(raw?.brand_name),
     suppliers: primarySupplier ? [normalizeNamedEntity(primarySupplier)].filter((item): item is ProductSupplier => Boolean(item)) : [],
     shop_name: typeof primaryStock?.shop_name === "string" ? primaryStock.shop_name : undefined,
+    _original: raw,
   };
 }
 
@@ -386,7 +481,7 @@ function normalizeCatalogProduct(raw: any): ProductDTO {
   const supplierList = Array.isArray(raw?.suppliers)
     ? raw.suppliers
         .map(normalizeNamedEntity)
-        .filter((item): item is ProductSupplier => Boolean(item))
+        .filter((item: ProductCategoryOrBrand | null): item is ProductSupplier => Boolean(item))
     : [];
 
   const firstFieldValue = Array.isArray(raw?.fields)
@@ -434,6 +529,7 @@ function normalizeCatalogProduct(raw: any): ProductDTO {
     brand: normalizeNamedEntity(raw?.brand ?? raw?.brand_name),
     suppliers: supplierList,
     shop_name: typeof raw?.shop_name === "string" ? raw.shop_name : undefined,
+    _original: raw,
   };
 }
 
