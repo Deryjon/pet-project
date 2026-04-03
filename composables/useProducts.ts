@@ -37,6 +37,7 @@ export interface ProductDTO {
   brand?: ProductCategoryOrBrand | null;
   suppliers?: ProductSupplier[];
   shop_name?: string;
+  _original?: any;
 }
 
 export function normalizeApiError(error: any) {
@@ -434,13 +435,21 @@ function normalizeProduct(raw: any): ProductDTO {
           .filter((item: ProductCategoryOrBrand | null): item is ProductSupplier => Boolean(item))
       : [],
     shop_name: typeof raw?.shop_name === "string" ? raw.shop_name : undefined,
+    _original: raw,
   };
 }
 
 function normalizeBillzProduct(raw: any): ProductDTO {
   const primaryShopPrice = Array.isArray(raw?.shop_prices) ? raw.shop_prices[0] : null;
   const primarySupplier = Array.isArray(raw?.suppliers) ? raw.suppliers[0] : null;
-  const primaryStock = Array.isArray(raw?.product_supply_stock) ? raw.product_supply_stock[0] : null;
+  const productSupplyStock = Array.isArray(raw?.product_supply_stock) ? raw.product_supply_stock : [];
+  const primaryStock = productSupplyStock[0] ?? null;
+  const totalActiveQuantity = productSupplyStock.length
+    ? productSupplyStock.reduce(
+        (sum: number, item: any) => sum + Number(item?.active_measurement_value ?? item?.measurement_value ?? 0),
+        0,
+      )
+    : Number(raw?.measurement_values?.total_measurement_value ?? 0);
 
   return {
     id: raw?.id ?? "",
@@ -452,7 +461,7 @@ function normalizeBillzProduct(raw: any): ProductDTO {
     variant_type: "simple",
     unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "piece"),
     markup_percent: 0,
-    quantity: Number(raw?.measurement_values?.total_measurement_value ?? 0),
+    quantity: totalActiveQuantity,
     purchase_price: Number(primaryShopPrice?.supply_price ?? 0),
     sale_price: Number(primaryShopPrice?.retail_price ?? 0),
     branch_code: primaryStock?.shop_id ?? undefined,
@@ -460,6 +469,7 @@ function normalizeBillzProduct(raw: any): ProductDTO {
     brand: normalizeNamedEntity(raw?.brand_name),
     suppliers: primarySupplier ? [normalizeNamedEntity(primarySupplier)].filter((item): item is ProductSupplier => Boolean(item)) : [],
     shop_name: typeof primaryStock?.shop_name === "string" ? primaryStock.shop_name : undefined,
+    _original: raw,
   };
 }
 
@@ -519,6 +529,7 @@ function normalizeCatalogProduct(raw: any): ProductDTO {
     brand: normalizeNamedEntity(raw?.brand ?? raw?.brand_name),
     suppliers: supplierList,
     shop_name: typeof raw?.shop_name === "string" ? raw.shop_name : undefined,
+    _original: raw,
   };
 }
 

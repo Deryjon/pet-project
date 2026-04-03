@@ -3,6 +3,15 @@
     <div class="relative flex h-full w-full flex-col overflow-y-auto p-4 sm:p-6 xl:pr-7">
       <div class="pointer-events-none absolute right-0 top-8 hidden h-[calc(100%-64px)] w-px bg-[#404040] xl:block" />
       <SearchBar />
+      <div
+        v-if="cartStore.lastCartError"
+        class="mt-3 rounded-[16px] border border-[#7f3d3d] bg-[#442f2f] px-4 py-3 text-[14px] font-medium text-[#ffd4d4]"
+      >
+        {{ cartStore.lastCartError }}
+      </div>
+      <div class="mt-3 text-[13px] text-[#9f9f9f]">
+        В поиске показывается остаток выбранного филиала.
+      </div>
       <Cart />
       <div
         v-if="cartStore.productsLoading || cartStore.creatingSale || cartStore.loadingSale || cartStore.addingItem"
@@ -67,10 +76,35 @@ async function fetchProducts() {
 
     const mapped = items.map((p: any) => ({
       id: p.id,
-      name: String(p.name ?? p.product?.name ?? ""),
-      price: Number(p.sale_price ?? p.retail_price ?? p.price ?? 0),
+      name: String(p.name ?? p.base_name ?? p.product?.name ?? ""),
+      price: Number(
+        p.retail_price ??
+          p.sale_price ??
+          p.shop_prices?.[0]?.retail_price ??
+          p.price ??
+          0,
+      ),
       barcode: String(p.barcode ?? p.product?.barcode ?? ""),
       article: String(p.sku ?? p.article ?? p.product?.sku ?? ""),
+      availableQuantity: Number(
+        p?.shop_measurement_values?.[0]?.total_active_measurement_value ??
+          p?.measurement_values?.total_active_measurement_value ??
+          p?.measurement_values?.total_measurement_value ??
+          p?.product_stock?.quantity ??
+          p?.stock?.quantity ??
+          p?.quantity ??
+          p?.active_measurement_value ??
+          0,
+      ),
+      shopId: String(
+        p?.shop_measurement_values?.[0]?.shop_id ??
+          p?.shop_prices?.[0]?.shop_id ??
+          p?.shop_id ??
+          p?.product_stock?.shop_id ??
+          p?.stock?.shop_id ??
+          cartStore.resolveCurrentShopId() ??
+          "",
+      ),
     }));
 
     try {

@@ -247,7 +247,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         brand:
           typeof (p as any).brand?.name === "string" ? (p as any).brand.name : "",
         unit: p.unit || "",
-        _original: p,
+        _original: (p as any)._original ?? p,
       }));
     } catch (e) {
       console.error("Failed to load products", e);
@@ -341,6 +341,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         label: "Сумма по цене поставки",
         value: formatMoneyStat(
           getStatisticValue(source, [
+            "total_supply_price",
             "purchase_price_total",
             "supply_price_total",
             "total_purchase_price",
