@@ -1,47 +1,43 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 import { useDashboardStore } from "@/store/dashboard";
 
 const store = useDashboardStore();
-const sellers = store.periodData.topSellers;
-
-// выбранный тип сортировки
 const sortType = ref<"sum" | "avgCheck" | "avgCount">("sum");
 const showOptions = ref(false);
 
 const options = [
   { label: "Сумма продаж", value: "sum" },
   { label: "Средний чек", value: "avgCheck" },
-  { label: "Среднее кол-во товаров чеке", value: "avgCount" },
+  { label: "Кол-во заказов", value: "avgCount" },
 ] as const;
 
 const sortedSellers = computed(() => {
-  return [...sellers].sort((a, b) => {
-    const valA = a[sortType.value] ?? 0;
-    const valB = b[sortType.value] ?? 0;
+  return [...store.periodData.topSellers].sort((a, b) => {
+    const valA = Number(a[sortType.value] ?? 0);
+    const valB = Number(b[sortType.value] ?? 0);
     return valB - valA;
   });
 });
 
 const currentLabel = computed(() => {
-  return options.find((o) => o.value === sortType.value)?.label || "";
+  return options.find((item) => item.value === sortType.value)?.label ?? "";
 });
 </script>
 
 <template>
-  <div class="p-7 bg-[#262626] rounded-lg shadow-style">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="font-bold text-[24px]">Топ-продавцы</h3>
+  <div class="rounded-lg bg-[#262626] p-7 shadow-style">
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-[24px] font-bold">Топ-продавцы</h3>
 
-      <!-- кастомный селект -->
       <div class="relative">
         <button
           @click="showOptions = !showOptions"
-          class=" rounded-lg text-sm flex items-center gap-2"
+          class="flex items-center gap-2 rounded-lg text-sm"
         >
           {{ currentLabel }}
           <svg
-            class="w-4 h-4 transition-transform duration-200"
+            class="h-4 w-4 transition-transform duration-200"
             :class="{ 'rotate-180': showOptions }"
             fill="none"
             stroke="currentColor"
@@ -59,16 +55,13 @@ const currentLabel = computed(() => {
         <transition name="fade-scale">
           <ul
             v-show="showOptions"
-            class="absolute right-0 mt-2 bg-[#2c2c2c] rounded-lg shadow-lg w-44 text-sm overflow-hidden z-50"
+            class="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-lg bg-[#2c2c2c] text-sm shadow-lg"
           >
             <li
               v-for="opt in options"
               :key="opt.value"
-              @click="
-                sortType = opt.value as 'sum' | 'avgCheck' | 'avgCount';
-                showOptions = false;
-              "
-              class="px-3 py-2 cursor-pointer hover:bg-[#3a3a3a] transition-colors"
+              @click="sortType = opt.value; showOptions = false"
+              class="cursor-pointer px-3 py-2 transition-colors hover:bg-[#3a3a3a]"
             >
               {{ opt.label }}
             </li>
@@ -79,28 +72,35 @@ const currentLabel = computed(() => {
 
     <div class="flex flex-col gap-2">
       <div
-        v-for="(s, i) in sortedSellers"
-        :key="i"
-        class="flex items-center bg-[#404040] px-4 py-4 rounded-[15px] w-full justify-between"
+        v-for="(seller, index) in sortedSellers"
+        :key="`${seller.name}-${index}`"
+        class="flex w-full items-center justify-between rounded-[15px] bg-[#404040] px-4 py-4"
       >
         <div class="left flex items-center gap-3">
           <div
-            class="circle w-[20px] h-[20px] rounded-full"
-            :style="{ backgroundColor: s.color || '#999' }"
-          ></div>
-          <p class="font-semibold text-[15px]">{{ s.name }}</p>
+            class="circle h-[20px] w-[20px] rounded-full"
+            :style="{ backgroundColor: seller.color || '#999' }"
+          />
+          <p class="text-[15px] font-semibold">{{ seller.name }}</p>
         </div>
-        <p class="text-sm text-[#4993dd] font-semibold">
+        <p class="text-sm font-semibold text-[#4993dd]">
           <span v-if="sortType === 'sum'">
-            {{ s.sum?.toLocaleString?.() ?? "0" }} UZS
+            {{ seller.sum?.toLocaleString?.() ?? "0" }} {{ store.reportCurrency }}
           </span>
           <span v-else-if="sortType === 'avgCheck'">
-            {{ s.avgCheck?.toLocaleString?.() ?? "0" }} UZS
+            {{ seller.avgCheck?.toLocaleString?.() ?? "0" }} {{ store.reportCurrency }}
           </span>
           <span v-else>
-            {{ s.avgCount?.toLocaleString?.() ?? "0" }} ШТ
+            {{ seller.avgCount?.toLocaleString?.() ?? "0" }} шт
           </span>
         </p>
+      </div>
+
+      <div
+        v-if="sortedSellers.length === 0"
+        class="rounded-[15px] bg-[#404040] px-4 py-4 text-sm text-[#bdbdbd]"
+      >
+        Нет данных по продавцам
       </div>
     </div>
   </div>

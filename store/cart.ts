@@ -6,6 +6,14 @@ import { useUserStore } from "./useUserStore";
 
 type PaymentMethodCode = "cash" | "card" | "payme" | "click" | "transfer";
 
+type CompanyPaymentMethod = {
+  id: string;
+  name: string;
+  paymentTypeId?: string;
+  paymentTypeName?: string;
+  isCash?: boolean;
+};
+
 type OrderPaymentPayload = {
   comment: string;
   payments: Array<{
@@ -34,12 +42,14 @@ export const useCartStore = defineStore("cart", () => {
   const payLoading = ref(false);
   const cancelLoading = ref(false);
   const discountLoading = ref(false);
+  const paymentMethodsLoading = ref(false);
 
   const discountPercent = ref<number>(0);
   const discountAmount = ref<number>(0);
   const payableTotal = ref<number>(0);
   const orderRaw = ref<any | null>(null);
   const lastCartError = ref<string>("");
+  const paymentMethods = ref<CompanyPaymentMethod[]>([]);
 
   const products = ref([
     {
@@ -100,6 +110,22 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   function paymentTypeIdByMethod(method: PaymentMethodCode) {
+    const normalizedMethod = String(method || "").trim().toLowerCase();
+    const fromLoaded = paymentMethods.value.find((item) => {
+      const id = String(item.id || "").trim().toLowerCase();
+      const name = String(item.name || "").trim().toLowerCase();
+      const paymentTypeName = String(item.paymentTypeName || "").trim().toLowerCase();
+      return (
+        id === normalizedMethod ||
+        name === normalizedMethod ||
+        paymentTypeName === normalizedMethod
+      );
+    });
+
+    if (fromLoaded?.id) {
+      return String(fromLoaded.id);
+    }
+
     const config = useRuntimeConfig();
     const mapping = (config.public as any)?.posPaymentTypeIds as
       | Partial<Record<PaymentMethodCode, string>>
@@ -110,6 +136,50 @@ export const useCartStore = defineStore("cart", () => {
         mapping?.cash ||
         "41839fa3-4121-4572-ab19-394e3a7319fe",
     );
+  }
+
+  async function loadPaymentMethods(inputCompanyId?: string) {
+    const userStore = useUserStore();
+    const companyId = String(
+      inputCompanyId ||
+      userStore.user.companyId ||
+      userStore.user.company?.companyId ||
+      userStore.user.company?.id ||
+      "",
+    ).trim();
+
+    paymentMethodsLoading.value = true;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch("/company-payment-type", {
+        method: "GET",
+        query: companyId ? { company_id: companyId } : {},
+      });
+
+      const items = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.company_payment_types)
+          ? res.company_payment_types
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res?.data?.company_payment_types)
+              ? res.data.company_payment_types
+              : [];
+
+      paymentMethods.value = items
+        .map((item: any) => ({
+          id: String(item?.id ?? ""),
+          name: String(item?.name ?? item?.payment_type_name ?? ""),
+          paymentTypeId: item?.payment_type_id ? String(item.payment_type_id) : undefined,
+          paymentTypeName: item?.payment_type_name ? String(item.payment_type_name) : undefined,
+          isCash: Boolean(item?.is_cash_payment_type),
+        }))
+        .filter((item: CompanyPaymentMethod) => Boolean(item.id && item.name));
+    } catch {
+      paymentMethods.value = [];
+    } finally {
+      paymentMethodsLoading.value = false;
+    }
   }
 
   function upsertCartItem(product: any, quantity = 1) {
@@ -589,6 +659,8 @@ export const useCartStore = defineStore("cart", () => {
     addingItem,
     payLoading,
     cancelLoading,
+    paymentMethods,
+    paymentMethodsLoading,
     products,
     searchQuery,
     filteredProducts,
@@ -605,6 +677,7 @@ export const useCartStore = defineStore("cart", () => {
     removeFromCart,
     applySaleDiscount,
     paySale,
+    loadPaymentMethods,
     cancelSale,
     updateDiscount,
     itemFinalPrice,
