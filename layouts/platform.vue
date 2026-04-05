@@ -8,10 +8,13 @@ import { usePlatformAdminSession } from "@/composables/usePlatformAdmin";
 const router = useRouter();
 const { authenticated, restore, signOut } = usePlatformAdminSession();
 const mobileSidebarOpen = ref(false);
+const checkingAccess = ref(true);
 
-onMounted(() => {
-  restore();
-  if (!authenticated.value) {
+onMounted(async () => {
+  const hasAccess = await restore();
+  checkingAccess.value = false;
+
+  if (!hasAccess) {
     router.replace("/platform/login");
   }
 });
@@ -27,7 +30,13 @@ function logout() {
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.06),transparent_30%)]" />
     <div class="absolute inset-0 opacity-[0.35]" style="background-image: linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px); background-size: 40px 40px;" />
 
-    <div class="relative z-10 flex min-h-screen">
+    <div v-if="checkingAccess" class="relative z-10 flex min-h-screen items-center justify-center">
+      <div class="rounded-[28px] border border-white/80 bg-white/85 px-8 py-6 text-[15px] text-slate-600 shadow-[0_20px_45px_rgba(15,23,42,0.06)] backdrop-blur">
+        Проверяем доступ к панели платформы...
+      </div>
+    </div>
+
+    <div v-else-if="authenticated" class="relative z-10 flex min-h-screen">
       <transition name="fade-sidebar">
         <div v-if="mobileSidebarOpen" class="fixed inset-0 z-30 bg-slate-950/25 backdrop-blur-sm lg:hidden" @click="mobileSidebarOpen = false" />
       </transition>

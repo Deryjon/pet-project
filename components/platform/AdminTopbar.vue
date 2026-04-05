@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { useUserStore } from "~/store/useUserStore";
 
 const emit = defineEmits<{ (e: "open-sidebar"): void; (e: "logout"): void }>();
 const route = useRoute();
+const userStore = useUserStore();
 
-const titleMap: Record<string, string> = {
-  "/platform": "Dashboard",
-  "/platform/companies": "Companies",
-  "/platform/shops": "Shops / Locations",
-  "/platform/users": "Users",
-  "/platform/settings": "Settings",
-};
+const pageTitle = computed(() => {
+  if (route.path === "/platform") return "Дашборд";
+  if (route.path === "/platform/companies") return "Компании";
+  if (route.path.startsWith("/platform/companies/") && route.path.endsWith("/shops")) return "Филиалы компании";
+  if (route.path.startsWith("/platform/companies/")) return "Карточка компании";
+  if (route.path === "/platform/users") return "Пользователи платформы";
+  return "Платформа";
+});
 
-const pageTitle = computed(() => titleMap[route.path] ?? "Platform");
+const roleLabel = computed(() => {
+  const role = String(userStore.normalizedRoles?.[0] || userStore.user.role || "").trim();
+  return role || "platform_admin";
+});
 </script>
 
 <template>
@@ -29,19 +35,11 @@ const pageTitle = computed(() => titleMap[route.path] ?? "Platform");
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="hidden min-w-[260px] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 md:flex">
-        <Icon name="heroicons:magnifying-glass" class="h-4 w-4 text-slate-400" />
-        <input type="text" placeholder="Search companies, shops, users" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
-      </div>
-      <button class="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700">
-        <Icon name="heroicons:bell" class="h-5 w-5" />
-        <span class="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white" />
-      </button>
       <div class="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:flex">
         <UAvatar size="md" alt="Platform Admin" src="https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=facearea&w=160&h=160&q=80" />
         <div>
-          <p class="text-[14px] font-semibold text-slate-900">Platform Admin</p>
-          <p class="text-[12px] text-slate-500">Super Admin</p>
+          <p class="text-[14px] font-semibold text-slate-900">{{ userStore.fullName || "Пользователь платформы" }}</p>
+          <p class="text-[12px] text-slate-500">{{ roleLabel }}</p>
         </div>
         <UButton color="neutral" variant="ghost" class="rounded-xl text-slate-500 hover:bg-slate-100" @click="emit('logout')">
           <Icon name="heroicons:arrow-right-on-rectangle" class="h-5 w-5" />

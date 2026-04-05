@@ -15,6 +15,7 @@ const form = reactive({
 
 const loading = ref(false);
 const showPassword = ref(false);
+const serverError = ref("");
 const errors = reactive({
   phone: "",
   password: "",
@@ -42,27 +43,39 @@ watch(
   },
 );
 
-restore();
-if (authenticated.value) {
-  router.replace("/platform");
-}
+restore().then((hasAccess) => {
+  if (hasAccess || authenticated.value) {
+    router.replace("/platform");
+  }
+});
 
-function submit() {
-  const phoneDigits = form.phone.replace(/\D/g, "");
+async function submit() {
+  const digits = form.phone.replace(/\D/g, "");
 
-  errors.phone = phoneDigits.length === 9 ? "" : "Введите номер телефона";
+  errors.phone = digits.length === 9 ? "" : "Введите номер телефона";
   errors.password = form.password.trim() ? "" : "Введите пароль";
+  serverError.value = "";
 
   if (errors.phone || errors.password) {
     return;
   }
 
   loading.value = true;
-  setTimeout(() => {
-    signIn();
+
+  try {
+    await signIn({
+      phone_number: `+998${digits}`,
+      password: form.password.trim(),
+    });
     router.push("/platform");
+  } catch (error: any) {
+    const message = error?.data?.message;
+    serverError.value = Array.isArray(message)
+      ? message.join(", ")
+      : message || error?.message || "Не удалось войти в панель платформы";
+  } finally {
     loading.value = false;
-  }, 650);
+  }
 }
 </script>
 
@@ -81,24 +94,24 @@ function submit() {
         </div>
 
         <h1 class="mt-8 max-w-3xl text-[42px] font-semibold leading-[1.02] tracking-[-0.05em] text-slate-950 sm:text-[56px]">
-          Безопасный вход в панель управления платформой CRM.
+          Вход в административную панель платформы.
         </h1>
         <p class="mt-6 max-w-2xl text-[17px] leading-8 text-slate-600">
-          Единое рабочее пространство для управления платформой, компаниями и операционными процессами всей CRM-системы.
+          Отдельный контур для platform admin и support с доступом к компаниям, филиалам, пользователям и общим показателям.
         </p>
 
         <div class="mt-8 grid gap-4 sm:grid-cols-3">
           <div class="rounded-[28px] border border-white/80 bg-white/75 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Безопасный вход</p>
-            <p class="mt-3 text-[15px] font-semibold text-slate-900">Защищённая точка входа только для администраторов платформы.</p>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Компании</p>
+            <p class="mt-3 text-[15px] font-semibold text-slate-900">Список, карточка и управление статусом компаний.</p>
           </div>
           <div class="rounded-[28px] border border-white/80 bg-white/75 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Контроль платформы</p>
-            <p class="mt-3 text-[15px] font-semibold text-slate-900">Управляйте компаниями, филиалами и пользователями из одного окна.</p>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Филиалы</p>
+            <p class="mt-3 text-[15px] font-semibold text-slate-900">Создание и редактирование филиалов внутри компании.</p>
           </div>
           <div class="rounded-[28px] border border-white/80 bg-white/75 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Управление компаниями</p>
-            <p class="mt-3 text-[15px] font-semibold text-slate-900">Подключайте, настраивайте и масштабируйте клиентские организации.</p>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Доступы</p>
+            <p class="mt-3 text-[15px] font-semibold text-slate-900">Управление ролями `platform_admin` и `support`.</p>
           </div>
         </div>
       </div>
@@ -108,7 +121,7 @@ function submit() {
           <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Авторизация платформы</p>
           <h2 class="mt-3 text-[32px] font-semibold tracking-[-0.04em] text-slate-950">Вход</h2>
           <p class="mt-3 text-[15px] leading-7 text-slate-500">
-            Введите номер телефона и пароль администратора платформы, чтобы продолжить работу в системе управления.
+            Введите номер телефона и пароль пользователя платформы.
           </p>
         </div>
 
@@ -121,6 +134,7 @@ function submit() {
                 v-model="form.phone"
                 type="tel"
                 inputmode="numeric"
+                autocomplete="tel-national"
                 placeholder="90 123 45 67"
                 class="w-full bg-transparent px-3 py-3.5 text-[15px] text-slate-900 outline-none"
               />
@@ -135,6 +149,7 @@ function submit() {
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="Введите пароль"
+                autocomplete="current-password"
                 class="w-full bg-transparent px-4 py-3.5 text-[15px] text-slate-900 outline-none"
               />
               <button type="button" class="px-4 text-[13px] font-semibold text-slate-500 transition hover:text-slate-800" @click="showPassword = !showPassword">
@@ -144,18 +159,15 @@ function submit() {
             <p v-if="errors.password" class="text-[13px] text-rose-500">{{ errors.password }}</p>
           </div>
 
+          <p v-if="serverError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[14px] text-rose-600">
+            {{ serverError }}
+          </p>
+
           <UButton type="submit" color="neutral" class="h-14 w-full justify-center rounded-2xl bg-slate-950 text-[15px] font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] hover:bg-slate-800" :disabled="loading">
             <Icon v-if="loading" name="heroicons:arrow-path" class="mr-2 h-4 w-4 animate-spin" />
             {{ loading ? "Входим..." : "Войти" }}
           </UButton>
         </form>
-
-        <div class="mt-6 rounded-[24px] bg-slate-950 p-5 text-white">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-300">Слой безопасности</p>
-          <p class="mt-3 text-[14px] leading-7 text-slate-300">
-            Сейчас для этого интерфейса используется mock-авторизация на фронтенде. API можно подключить позже без переделки макета.
-          </p>
-        </div>
       </div>
     </div>
   </section>

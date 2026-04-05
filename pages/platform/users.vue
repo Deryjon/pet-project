@@ -1,136 +1,164 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
 import type { PlatformUser } from "@/composables/usePlatformAdmin";
-import { usePlatformAdminMock } from "@/composables/usePlatformAdmin";
+import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Users | Konkurent Platform" });
+useHead({ title: "Пользователи платформы | Konkurent Platform" });
 
-const { users, shops, companyOptions, shopOptions, userRoleOptions, upsertUser } = usePlatformAdminMock();
+const { getUsers, createUser } = usePlatformAdminApi();
 
+const loading = ref(true);
+const saving = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
+const users = ref<PlatformUser[]>([]);
 const search = ref("");
-const companyId = ref("all");
 const role = ref("all");
 const status = ref("all");
 const modalOpen = ref(false);
-const editing = ref<PlatformUser | null>(null);
-const loading = ref(true);
 
 const form = reactive({
   fullName: "",
   phone: "",
-  email: "",
-  companyId: "",
-  currentShopId: "",
-  role: "Admin",
-  status: "active" as "active" | "inactive",
+  password: "",
+  role: "platform_admin",
 });
+
+const roleOptions = [
+  { label: "platform_admin", value: "platform_admin" },
+  { label: "support", value: "support" },
+];
+
+watch(
+  () => form.phone,
+  (value) => {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
+    const parts = [
+      digits.slice(0, 2),
+      digits.slice(2, 5),
+      digits.slice(5, 7),
+      digits.slice(7, 9),
+    ].filter(Boolean);
+
+    const formatted = parts.join(" ");
+    if (formatted !== value) {
+      form.phone = formatted;
+    }
+  },
+);
 
 const filteredUsers = computed(() =>
   users.value.filter((user) => {
     const q = search.value.trim().toLowerCase();
     const matchesSearch =
-      !q || `${user.fullName} ${user.phone} ${user.email} ${user.companyName} ${user.currentShopName}`.toLowerCase().includes(q);
-    const matchesCompany = companyId.value === "all" || user.companyId === companyId.value;
+      !q || `${user.fullName} ${user.phone} ${user.email} ${user.role}`.toLowerCase().includes(q);
     const matchesRole = role.value === "all" || user.role === role.value;
     const matchesStatus = status.value === "all" || user.status === status.value;
-    return matchesSearch && matchesCompany && matchesRole && matchesStatus;
+    return matchesSearch && matchesRole && matchesStatus;
   }),
 );
 
-const companyShopOptions = computed(() => {
-  if (!form.companyId) return shopOptions.value;
-  return shops.value.filter((shop) => shop.companyId === form.companyId).map((shop) => ({ label: shop.name, value: shop.id }));
-});
+async function loadUsers() {
+  loading.value = true;
+  errorMessage.value = "";
 
-onMounted(() => {
-  window.setTimeout(() => {
+  try {
+    users.value = await getUsers();
+  } catch (error: any) {
+    const message = error?.data?.message;
+    errorMessage.value = Array.isArray(message)
+      ? message.join(", ")
+      : message || error?.message || "Не удалось загрузить пользователей платформы";
+  } finally {
     loading.value = false;
-  }, 650);
-});
+  }
+}
 
 function openCreate() {
-  editing.value = null;
   form.fullName = "";
   form.phone = "";
-  form.email = "";
-  form.companyId = companyOptions.value[0]?.value ?? "";
-  form.currentShopId = companyShopOptions.value[0]?.value ?? shopOptions.value[0]?.value ?? "";
-  form.role = "Admin";
-  form.status = "active";
+  form.password = "";
+  form.role = "platform_admin";
+  successMessage.value = "";
   modalOpen.value = true;
 }
 
-function openEdit(user: PlatformUser) {
-  editing.value = user;
-  form.fullName = user.fullName;
-  form.phone = user.phone;
-  form.email = user.email;
-  form.companyId = user.companyId;
-  form.currentShopId = user.currentShopId;
-  form.role = user.role;
-  form.status = user.status;
-  modalOpen.value = true;
+async function submit() {
+  saving.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const [firstName, ...rest] = form.fullName.trim().split(/\s+/).filter(Boolean);
+    const lastName = rest.join(" ");
+
+    await createUser({
+      first_name: firstName || form.fullName.trim(),
+      last_name: lastName,
+      phone_number: `+998${form.phone.replace(/\D/g, "")}`,
+      password: form.password.trim(),
+      role: form.role,
+    });
+
+    successMessage.value = "Пользователь платформы создан";
+    modalOpen.value = false;
+    await loadUsers();
+  } catch (error: any) {
+    const message = error?.data?.message;
+    errorMessage.value = Array.isArray(message)
+      ? message.join(", ")
+      : message || error?.message || "Не удалось создать пользователя платформы";
+  } finally {
+    saving.value = false;
+  }
 }
 
-function onCompanyChange(nextCompanyId: string) {
-  form.companyId = nextCompanyId;
-  form.currentShopId = companyShopOptions.value[0]?.value ?? "";
-}
-
-function handleCompanySelect(event: Event) {
-  onCompanyChange((event.target as HTMLSelectElement).value);
-}
-
-function submit() {
-  upsertUser({
-    id: editing.value?.id,
-    fullName: form.fullName,
-    phone: form.phone,
-    email: form.email,
-    companyId: form.companyId,
-    currentShopId: form.currentShopId,
-    role: form.role,
-    status: form.status,
-  });
-  modalOpen.value = false;
-}
+onMounted(loadUsers);
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Access Management" title="Users" description="Manage platform tenant users, roles and active assignments with a clean SaaS-grade interface.">
+    <PageHeader eyebrow="Пользователи" title="Пользователи платформы" description="Список и создание пользователей с ролями `platform_admin` и `support`.">
       <template #actions>
+        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadUsers">
+          <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
+          Обновить
+        </UButton>
         <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
-          Create user
+          Создать пользователя
         </UButton>
       </template>
     </PageHeader>
 
-    <DataPanel title="User directory" description="Reusable data table prepared for API-backed search, filtering and role workflows.">
+    <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">
+      {{ errorMessage }}
+    </div>
+
+    <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">
+      {{ successMessage }}
+    </div>
+
+    <DataPanel title="Список пользователей" description="Работа с `GET /platform/users` и `POST /platform/users`.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
           <div class="min-w-[240px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <input v-model="search" type="text" placeholder="Search by name, phone, email, company or shop" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
+            <input v-model="search" type="text" placeholder="Поиск по имени, телефону, email или роли" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
           </div>
-          <select v-model="companyId" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">All companies</option>
-            <option v-for="option in companyOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
           <select v-model="role" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">All roles</option>
-            <option v-for="option in userRoleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            <option value="all">Все роли</option>
+            <option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
           <select v-model="status" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">Все статусы</option>
+            <option value="active">Активные</option>
+            <option value="inactive">Отключенные</option>
           </select>
         </div>
       </template>
@@ -139,100 +167,63 @@ function submit() {
         <div v-for="item in 6" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" />
       </div>
 
-      <EmptyState v-else-if="!filteredUsers.length" title="No users found" description="Try changing filters or create the first platform user for a tenant company." icon="heroicons:users" />
+      <EmptyState v-else-if="!filteredUsers.length" title="Пользователи не найдены" description="Создайте первого пользователя платформы или измените фильтры." icon="heroicons:users" />
 
       <div v-else class="overflow-x-auto">
         <table class="min-w-full border-separate border-spacing-y-3">
           <thead>
             <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              <th class="px-4 py-2">User</th>
-              <th class="px-4 py-2">Company</th>
-              <th class="px-4 py-2">Current shop</th>
-              <th class="px-4 py-2">Role</th>
-              <th class="px-4 py-2">Status</th>
-              <th class="px-4 py-2">Created at</th>
-              <th class="px-4 py-2">Actions</th>
+              <th class="px-4 py-2">Пользователь</th>
+              <th class="px-4 py-2">Телефон</th>
+              <th class="px-4 py-2">Email</th>
+              <th class="px-4 py-2">Роль</th>
+              <th class="px-4 py-2">Статус</th>
+              <th class="px-4 py-2">Создан</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="user in filteredUsers" :key="user.id">
-              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
-                <div class="flex items-center gap-3">
-                  <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-100 via-white to-emerald-50 text-[14px] font-semibold text-slate-700">
-                    {{ user.fullName.split(" ").map((part) => part[0]).join("").slice(0, 2) }}
-                  </div>
-                  <div>
-                    <p class="font-semibold text-slate-950">{{ user.fullName }}</p>
-                    <p class="mt-1 text-[13px] text-slate-500">{{ user.phone }}</p>
-                    <p class="text-[13px] text-slate-400">{{ user.email }}</p>
-                  </div>
-                </div>
-              </td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.companyName }}</td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.currentShopName }}</td>
+              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4 font-semibold text-slate-950">{{ user.fullName }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.phone || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.email || "—" }}</td>
               <td class="bg-slate-50 px-4 py-4">
-                <span class="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">{{ user.role }}</span>
+                <span class="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">{{ user.role || "—" }}</span>
               </td>
               <td class="bg-slate-50 px-4 py-4"><StatusBadge :status="user.status" /></td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.createdAt }}</td>
-              <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
-                <div class="flex items-center gap-2">
-                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">Edit</UButton>
-                  <UButton color="neutral" variant="ghost" class="rounded-2xl text-slate-500 hover:bg-white">Details</UButton>
-                </div>
-              </td>
+              <td class="rounded-r-[22px] bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.createdAt || "—" }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </DataPanel>
 
-    <ModalForm :open="modalOpen" :title="editing ? 'Edit user' : 'Create user'" description="Validation-ready user form with clean spacing, company binding and current shop assignment." @close="modalOpen = false">
+    <ModalForm :open="modalOpen" title="Создать пользователя платформы" description="Создание пользователя с ролью `platform_admin` или `support`." @close="modalOpen = false">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2 md:col-span-2">
-          <span class="text-[13px] font-semibold text-slate-700">Full name</span>
+          <span class="text-[13px] font-semibold text-slate-700">ФИО</span>
           <input v-model="form.fullName" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
         </label>
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Phone</span>
-          <input v-model="form.phone" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white invalid:border-rose-300" />
+          <span class="text-[13px] font-semibold text-slate-700">Телефон</span>
+          <div class="flex items-center rounded-2xl border border-slate-200 bg-slate-50">
+            <span class="pl-4 text-[14px] font-medium text-slate-500">+998</span>
+            <input v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" class="w-full bg-transparent px-3 py-3 text-[14px] outline-none" />
+          </div>
         </label>
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Email</span>
-          <input v-model="form.email" type="email" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white invalid:border-rose-300" />
+          <span class="text-[13px] font-semibold text-slate-700">Пароль</span>
+          <input v-model="form.password" type="password" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
         </label>
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Company</span>
-          <select :value="form.companyId" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" @change="handleCompanySelect">
-            <option v-for="option in companyOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Current shop</span>
-          <select v-model="form.currentShopId" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option v-for="option in companyShopOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Role</span>
+          <span class="text-[13px] font-semibold text-slate-700">Роль</span>
           <select v-model="form.role" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option v-for="option in userRoleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            <option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
         </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Status</span>
-          <select v-model="form.status" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <p class="md:col-span-2 text-[12px] leading-6 text-slate-400">
-          Form structure is already separated for future API wiring: submit handler only needs backend mutation and response mapping.
-        </p>
         <div class="mt-2 flex justify-end gap-3 md:col-span-2">
-          <UButton color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Cancel</UButton>
-          <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800">
-            {{ editing ? "Save changes" : "Create user" }}
+          <UButton color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
+          <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
+            {{ saving ? "Создаём..." : "Создать" }}
           </UButton>
         </div>
       </form>

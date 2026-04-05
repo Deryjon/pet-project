@@ -7,11 +7,9 @@ const emit = defineEmits<{ (e: "logout"): void; (e: "close"): void }>();
 const route = useRoute();
 
 const items = computed(() => [
-  { label: "Dashboard", to: "/platform", icon: "heroicons:squares-2x2" },
-  { label: "Companies", to: "/platform/companies", icon: "heroicons:building-office-2" },
-  { label: "Shops / Locations", to: "/platform/shops", icon: "heroicons:map-pin" },
-  { label: "Users", to: "/platform/users", icon: "heroicons:users" },
-  { label: "Settings", to: "/platform/settings", icon: "heroicons:cog-6-tooth" },
+  { label: "Дашборд", to: "/platform", icon: "heroicons:squares-2x2" },
+  { label: "Компании", to: "/platform/companies", icon: "heroicons:building-office-2" },
+  { label: "Пользователи", to: "/platform/users", icon: "heroicons:users" },
 ]);
 
 function isActive(path: string) {
@@ -49,11 +47,11 @@ function isActive(path: string) {
     </nav>
 
     <div class="mt-6 rounded-[24px] bg-slate-950 p-4 text-white shadow-[0_20px_45px_rgba(15,23,42,0.2)]">
-      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Secure Access</p>
-      <p class="mt-2 text-[15px] font-semibold">Platform control and company management in one place.</p>
-      <p class="mt-2 text-[13px] leading-6 text-slate-300">Clean SaaS-grade workspace for onboarding, governance and operational oversight.</p>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Platform Access</p>
+      <p class="mt-2 text-[15px] font-semibold">Отдельная админка для platform admin и support.</p>
+      <p class="mt-2 text-[13px] leading-6 text-slate-300">Управление компаниями, филиалами и пользователями платформы без смешивания с company admin.</p>
       <UButton color="neutral" variant="soft" class="mt-4 w-full justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">
-        Logout
+        Выйти
       </UButton>
     </div>
   </aside>
