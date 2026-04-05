@@ -213,45 +213,10 @@ const createItemFromDraftRow = (
   };
 };
 
-const initialData: ImportRow[] = [
-  {
-    id: 268645,
-    detailId: "db1ada86-e6a2-4034-aab4-4d6665c553a0",
-    name: "Import db1ada86",
-    store: "Globus Mall",
-    qty: 1,
-    confirmedQty: 1,
-    total: 365000,
-    purchaseTotal: 100000,
-    status: "Завершен",
-    createdAt: "01.09.2025 22:50:07",
-    createdBy: "Iskandarjon Yusupov",
-    finishedBy: "Iskandarjon Yusupov",
-    importType: "Поступление",
-    salesProgress: "27%",
-    items: [
-      {
-        name: "Naushnik 15 Original",
-        article: "EHX-69829",
-        barcode: "2000000011783",
-        quantity: 1,
-        supplyPrice: 100000,
-        retailPrice: 365000,
-        category: "Наушник > Проводные",
-        brand: "Отсутствует",
-        unit: "Штука",
-        wholesalePrice: null,
-        supplier: "Отсутствует",
-        description: "",
-      },
-    ],
-  },
-];
-
 export const useImportDataTableStore = defineStore("importDataTableStore", () => {
   const router = useRouter();
   const { apiFetch } = useApi();
-  const rawData = ref<ImportRow[]>([...initialData]);
+  const rawData = ref<ImportRow[]>([]);
   const drafts = ref<Record<string, ImportDraft>>({});
   const loading = ref(false);
   const characteristicsLoading = ref(false);
@@ -380,7 +345,7 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
 
   async function fetchData() {
     loading.value = true;
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    rawData.value = [];
     loading.value = false;
   }
 
@@ -558,8 +523,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       purchaseTotal,
       status: mode === "with_validation" ? "Завершен" : "Завершен",
       createdAt: formatDateTime(),
-      createdBy: draft.createdBy || "Current User",
-      finishedBy: draft.createdBy || "Current User",
+      createdBy: draft.createdBy || "?? ??????",
+      finishedBy: draft.createdBy || "?? ??????",
       importType: draft.settings.importType,
       salesProgress: "0%",
       items,
@@ -604,3 +569,6 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     formatMoney,
   };
 });
+
+
+

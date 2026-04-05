@@ -23,7 +23,7 @@ export default defineNuxtConfig({
     public: {
       // Use same-origin path for API to enable cookies/CSRF on localhost and prod.
       // Can be overridden by NUXT_PUBLIC_API_BASE
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001/api',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://api.konkurent-group.uz/api',
       posPaymentTypeIds: {
         cash: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CASH || '41839fa3-4121-4572-ab19-394e3a7319fe',
         card: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CARD || '41839fa3-4121-4572-ab19-394e3a7319fe',
