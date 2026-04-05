@@ -1,14 +1,13 @@
-﻿<script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useHead } from "#imports";
 import {
-  mapProductType,
-  mapVariationType,
-  nonNegative,
+  buildCreateProductPayload,
   validateCreateProductForm,
 } from "~/composables/useCreateProductForm";
-import { useProducts } from "~/composables/useProducts";
+import { normalizeApiError, useProducts } from "~/composables/useProducts";
+import { useLocationStore } from "~/store/useLocationStore";
 import { useProductStore } from "~/store/productStore";
 
 import CreateProductFeatures from "@/components/products/CreateProductFeatures.vue";
@@ -22,6 +21,7 @@ definePageMeta({ layout: "empty" });
 
 const router = useRouter();
 const store = useProductStore();
+const locationStore = useLocationStore();
 const { createProduct } = useProducts();
 
 const submitting = ref(false);
@@ -89,107 +89,22 @@ function updateActiveSectionByScroll() {
 }
 
 onMounted(() => {
+  store.syncAvailableShops(locationStore.locations);
   window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
   updateActiveSectionByScroll();
 });
 
+watch(
+  () => locationStore.locations,
+  (locations) => {
+    store.syncAvailableShops(locations);
+  },
+  { deep: true },
+);
+
 onBeforeUnmount(() => {
   window.removeEventListener("scroll", updateActiveSectionByScroll);
 });
-
-function buildPayload() {
-  const form = store.form;
-  const productType = mapProductType(form.productType);
-  const variationType = mapVariationType(form.variationType);
-
-  const isVariantGoods = productType === "goods" && variationType === "variant";
-  const isSimpleGoods = productType === "goods" && variationType === "simple";
-
-  const totalQuantity = isVariantGoods
-    ? form.variations.reduce(
-        (sum, variation) =>
-          sum + Object.values(variation.stocks).reduce((inner, qty) => inner + nonNegative(qty), 0),
-        0,
-      )
-    : isSimpleGoods
-      ? form.stocks.reduce((sum, stock) => sum + nonNegative(stock.qty), 0)
-      : 0;
-
-  const prices = isVariantGoods
-    ? form.variations[0]?.prices ?? { purchasePrice: 0, markupPercent: 0, salePrice: 0 }
-    : form.prices;
-
-  const payload: Record<string, any> = {
-    name: form.name.trim(),
-    sku: form.sku.trim(),
-    barcode: form.barcode.trim(),
-    supplier_ids: [],
-    product_type: productType,
-    variant_type: variationType,
-    unit: form.unit || "Штука",
-    purchase_price: nonNegative(prices.purchasePrice),
-    markup_percent: nonNegative(prices.markupPercent),
-    sale_price: nonNegative(prices.salePrice),
-    quantity: totalQuantity,
-    photo: null,
-    metadata: {
-      attributes: {
-        brand: form.attributes.brand.trim(),
-        supplier: form.attributes.supplier.trim(),
-        optional_field: form.attributes.optionalField.trim(),
-      },
-      category: form.category,
-      variation_attribute: form.variationAttribute.trim(),
-      variations: form.variations.map((variation) => ({
-        id: variation.id,
-        value: variation.value.trim(),
-        purchase_price: nonNegative(variation.prices.purchasePrice),
-        markup_percent: nonNegative(variation.prices.markupPercent),
-        sale_price: nonNegative(variation.prices.salePrice),
-        stocks: variation.stocks,
-      })),
-      bundle_items: form.bundleItems.map((item) => ({
-        name: item.name.trim(),
-        quantity: Math.max(1, item.quantity),
-      })),
-    },
-  };
-
-  const firstImage = form.images.at(0);
-  if (firstImage) {
-    payload.photo = firstImage.name;
-  }
-
-  if (isSimpleGoods) {
-    payload.stocks = form.stocks
-      .map((stock) => ({
-        branch_code: stock.name,
-        quantity: nonNegative(stock.qty),
-        purchase_price: nonNegative(form.prices.purchasePrice),
-        sale_price: nonNegative(form.prices.salePrice),
-      }))
-      .filter((stock) => stock.quantity > 0);
-  }
-
-  if (isVariantGoods) {
-    payload.stocks = form.stocks
-      .map((stock) => {
-        const quantity = form.variations.reduce(
-          (sum, variation) => sum + nonNegative(variation.stocks[stock.name] ?? 0),
-          0,
-        );
-        return {
-          branch_code: stock.name,
-          quantity,
-          purchase_price: nonNegative(prices.purchasePrice),
-          sale_price: nonNegative(prices.salePrice),
-        };
-      })
-      .filter((stock) => stock.quantity > 0);
-  }
-
-  return payload;
-}
 
 async function submitForm(mode: "save" | "save-and-new") {
   if (submitting.value) return;
@@ -204,8 +119,8 @@ async function submitForm(mode: "save" | "save-and-new") {
 
   submitting.value = true;
   try {
-    const payload = buildPayload();
-    await createProduct(payload as any);
+    const payload = buildCreateProductPayload(store.form);
+    await createProduct(payload);
 
     if (mode === "save-and-new") {
       store.resetForm();
@@ -216,7 +131,9 @@ async function submitForm(mode: "save" | "save-and-new") {
     }
 
     await router.push("/products/catalog");
-  } catch (error) {
+  } catch (error: any) {
+    validationMessages.value = [normalizeApiError(error)];
+    window.scrollTo({ top: 0, behavior: "smooth" });
     console.error("Failed to create product", error);
   } finally {
     submitting.value = false;

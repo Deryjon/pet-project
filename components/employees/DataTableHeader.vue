@@ -4,6 +4,10 @@ import { useRouter } from "vue-router";
 import BaseDataTableHeader from "@/components/BaseDataTableHeader.vue";
 import { useEmployeesDataTableStore } from "@/store/DataTables/employeesDataTableStore";
 
+const emit = defineEmits<{
+  (e: "create"): void;
+}>();
+
 const store = useEmployeesDataTableStore();
 const globalFilterInput = ref(store.globalFilter);
 const selectedFilter = ref("all");
@@ -15,6 +19,10 @@ watch(globalFilterInput, (val) => {
 });
 
 function handleCreateOrEdit() {
+  if (!store.canManageEmployees) {
+    return;
+  }
+
   const selected = store.table?.getSelectedRowModel?.().rows ?? [];
   if (selected.length > 0) {
     const row = selected[0];
@@ -24,7 +32,8 @@ function handleCreateOrEdit() {
       return;
     }
   }
-  router.push('/management/create-employees');
+
+  emit("create");
 }
 </script>
 
@@ -35,7 +44,11 @@ function handleCreateOrEdit() {
     :showSearch="true"
     searchPlaceholder="Поиск сотрудников..."
     :showFilters="false"
-    :createButton="{ label: 'Новый сотрудник', onClick: handleCreateOrEdit }"
+    :createButton="
+      store.canManageEmployees
+        ? { label: 'Новый сотрудник', onClick: handleCreateOrEdit }
+        : undefined
+    "
     @toggleFilters="showFilters = !showFilters"
   />
 </template>

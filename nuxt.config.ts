@@ -19,11 +19,18 @@ export default defineNuxtConfig({
     serverBundle: false,
   },
   runtimeConfig: {
+    apiProxyTarget: process.env.NUXT_API_PROXY_TARGET || '',
     public: {
       // Use same-origin path for API to enable cookies/CSRF on localhost and prod.
       // Can be overridden by NUXT_PUBLIC_API_BASE
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',
-      // Example local backend: 'http://127.0.0.1:8000/api'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://api.konkurent-group.uz/api',
+      posPaymentTypeIds: {
+        cash: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CASH || '41839fa3-4121-4572-ab19-394e3a7319fe',
+        card: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CARD || '41839fa3-4121-4572-ab19-394e3a7319fe',
+        payme: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_PAYME || '41839fa3-4121-4572-ab19-394e3a7319fe',
+        click: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CLICK || '41839fa3-4121-4572-ab19-394e3a7319fe',
+        transfer: process.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_TRANSFER || '41839fa3-4121-4572-ab19-394e3a7319fe',
+      },
     },
   },
 })

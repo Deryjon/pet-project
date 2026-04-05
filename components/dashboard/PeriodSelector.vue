@@ -29,14 +29,14 @@ const selectedRangeLabel = computed(() => {
 </script>
 
 <template>
-  <div class=" flex justify-between">
-    <div class="time-sales inline-flex gap-2 rounded-[15px] bg-[#404040] p-1">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div class="time-sales inline-flex flex-wrap gap-2 rounded-[15px] bg-[#404040] p-1">
       <button
         v-for="period in store.periods"
         :key="period.value"
         @click="store.setPeriod(period.value)"
         :class="[
-          'h-[44px] w-[120px] rounded-[15px] px-[16px] text-center font-semibold transition-colors',
+          'h-[44px] flex-1 rounded-[15px] px-[16px] text-center font-semibold transition-colors sm:w-[120px] sm:flex-none',
           store.selectedPeriod === period.value
             ? 'bg-[#202020] text-white'
             : 'bg-[#404040] hover:bg-[#505050]',
@@ -56,7 +56,7 @@ const selectedRangeLabel = computed(() => {
         <UButton
           color="neutral"
           variant="ghost"
-          class=" flex w-[320px] items-center justify-between rounded-[15px] bg-[#404040] px-4 py-4 text-left text-white hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0"
+          class="flex w-full items-center justify-between rounded-[15px] bg-[#404040] px-4 py-4 text-left text-white hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0 sm:w-[320px]"
         >
           <span>{{ selectedRangeLabel }}</span>
           <Icon name="ph:calendar" class="h-4 w-4 text-[#3b82f6]" />

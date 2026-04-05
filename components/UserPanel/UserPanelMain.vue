@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { usePanelStore } from "@/store/usePanelStore";
 import { useUserStore } from "@/store/useUserStore";
@@ -7,76 +8,145 @@ import BaseButton from "../ui/BaseButton.vue";
 import ChangeShop from "../ChangeShop.vue";
 import ConfirmLogout from "./ConfirmLogout.vue";
 
+defineProps<{
+  open: boolean;
+}>();
+
 const panel = usePanelStore();
 const { user, fullName } = storeToRefs(useUserStore());
 const { selectedLocation } = storeToRefs(useLocationStore());
+
+const displayName = computed(() => {
+  return fullName.value || user.value.name || user.value.phone || "Пользователь";
+});
+
+const displayLocation = computed(() => {
+  return (
+    selectedLocation.value?.name ||
+    user.value.currentShopName ||
+    user.value.branchTitle ||
+    user.value.branchCode ||
+    "Филиал не указан"
+  );
+});
+
+const displayPhone = computed(() => {
+  return user.value.phone || "Телефон не указан";
+});
+
+const displayRole = computed(() => {
+  return user.value.role || "Роль не указана";
+});
+
+const displayCompany = computed(() => {
+  return user.value.company?.name || "Компания не указана";
+});
+
+const canChangeShop = computed(() => {
+  return Boolean(user.value.canSwitchShops && user.value.shops?.length);
+});
 </script>
 
 <template>
   <teleport to="body">
+    <transition name="fade-overlay">
+      <div
+        v-if="open"
+        class="fixed inset-0 z-[999] cursor-pointer bg-black/40 backdrop-blur-sm"
+        @click="panel.closeAll"
+      />
+    </transition>
+
     <transition name="slide-main">
       <div
-        class="fixed top-0 left-0 h-full w-full max-w-[460px] bg-[#2b2b2b] text-white shadow-lg px-8 py-14 rounded-r-[56px] z-[1000] overflow-y-auto"
+        v-if="open"
+        class="fixed top-0 left-0 z-[1000] h-full w-full max-w-[460px] overflow-y-auto rounded-r-[56px] bg-[#2b2b2b] px-8 py-14 text-white shadow-lg"
         @click.stop
       >
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-[36px] font-bold">Аккаунт</h2>
+        <div class="mb-6 flex items-center justify-between">
+          <h2 class="text-[36px] font-bold">Аккаунт</h2>
+          <button
+            class="flex h-[48px] w-[48px] cursor-pointer items-center justify-center rounded-full bg-[#404040] transition-colors duration-300 hover:bg-[#5e5e5e] focus:outline-none focus:ring-2 focus:ring-white"
+            @click="panel.toggle"
+          >
+            <Icon name="heroicons:arrow-left" class="h-4 w-4" />
+          </button>
+        </div>
+
+        <div class="mt-[20px] flex items-center gap-3 p-[5px]">
+          <img
+            :src="user.avatarUrl || '../../assets/images/placeholder_img.svg'"
+            class="h-[40px] w-[40px] rounded-full object-cover"
+          />
+          <div>
+            <p class="max-w-[300px] truncate text-white">{{ displayName }}</p>
+            <p class="max-w-[300px] truncate text-[#bdbdbd]">{{ displayLocation }}</p>
+          </div>
+        </div>
+
+        <div class="mt-4 space-y-2 rounded-[24px] bg-[#404040] p-5">
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[#bdbdbd]">Компания</span>
+            <span class="max-w-[220px] truncate text-right text-white">{{ displayCompany }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[#bdbdbd]">Телефон</span>
+            <span class="max-w-[220px] truncate text-right text-white">{{ displayPhone }}</span>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-[#bdbdbd]">Роль</span>
+            <span class="max-w-[220px] truncate text-right text-white">{{ displayRole }}</span>
+          </div>
+        </div>
+
+        <BaseButton color="red" class="mt-6" @click="panel.openQuit">
+          Выйти из аккаунта
+        </BaseButton>
+
+        <teleport to="body">
+          <transition name="slide-logout">
+            <ConfirmLogout v-if="panel.isQuitConfirm" @close="panel.closeQuit" />
+          </transition>
+        </teleport>
+
         <button
-          @click="panel.toggle"
-          class="rounded-full w-[48px] h-[48px] bg-[#404040] flex justify-center items-center hover:bg-[#5e5e5e] transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-white"
+          v-if="canChangeShop"
+          class="mt-4 flex w-full cursor-pointer items-center justify-between rounded-[20px] bg-[#404040] px-5 py-3 font-semibold transition-colors duration-300 hover:bg-[#5e5e5e]"
+          @click="panel.openChange"
         >
-          <Icon name="heroicons:arrow-left" class="w-4 h-4" />
+          <div class="flex items-center gap-2">
+            <Icon name="heroicons:shopping-bag" class="h-4 w-4" />
+            Сменить филиал
+          </div>
+          <Icon name="heroicons:arrow-right" class="h-4 w-4" />
         </button>
-      </div>
 
-      <div class="flex items-center gap-3 p-[5px] mt-[20px]">
-        <img
-          :src="user.avatarUrl || '../../assets/images/placeholder_img.svg'"
-          class="rounded-full w-[40px] h-[40px] object-cover"
-        />
-        <div>
-          <p class="text-white truncate max-w-[300px]">
-            {{ fullName || user.username || user.name || "..." }}
-          </p>
-          <p class="text-[#bdbdbd] truncate max-w-[300px]">
-            {{ selectedLocation?.name || user.branchTitle || user.branch_title || "..." }}
-          </p>
-        </div>
-      </div>
-
-      <BaseButton color="red" class="mt-6" @click="panel.openQuit">
-        Выйти из аккаунта
-      </BaseButton>
-
-      <teleport to="body">
-        <transition name="slide-logout">
-          <ConfirmLogout v-if="panel.isQuitConfirm" @close="panel.closeQuit" />
-        </transition>
-      </teleport>
-
-      <button
-        @click="panel.openChange"
-        class="mt-4 bg-[#404040] py-3 rounded-[20px] w-full font-semibold flex items-center justify-between px-5 hover:bg-[#5e5e5e] transition-colors duration-300"
-      >
-        <div class="flex items-center gap-2">
-          <Icon name="heroicons:shopping-bag" class="w-4 h-4" />
-          Сменить магазин
-        </div>
-        <Icon name="heroicons:arrow-right" class="w-4 h-4" />
-      </button>
-
-      <teleport to="body">
-        <transition name="slide-change">
-          <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
-        </transition>
-      </teleport>
+        <teleport to="body">
+          <transition name="slide-change">
+            <ChangeShop v-if="panel.isChangeShop" @close="panel.closeChange" />
+          </transition>
+        </teleport>
       </div>
     </transition>
   </teleport>
 </template>
 
 <style>
-/* ����� �������� ��� ���������� transition name */
+.fade-overlay-enter-active,
+.fade-overlay-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-overlay-enter-from,
+.fade-overlay-leave-to {
+  opacity: 0;
+}
+
+.fade-overlay-enter-to,
+.fade-overlay-leave-from {
+  opacity: 1;
+}
+
 .slide-main-enter-active,
 .slide-main-leave-active,
 .slide-change-enter-active,
@@ -102,21 +172,6 @@ const { selectedLocation } = storeToRefs(useLocationStore());
 .slide-change-leave-from,
 .slide-logout-enter-to,
 .slide-logout-leave-from {
-  transform: translateX(0%);
-  opacity: 1;
-}
-
-.slide-from-left-enter-active,
-.slide-from-left-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-.slide-from-left-enter-from,
-.slide-from-left-leave-to {
-  transform: translateX(-100%);
-  opacity: 0;
-}
-.slide-from-left-enter-to,
-.slide-from-left-leave-from {
   transform: translateX(0%);
   opacity: 1;
 }

@@ -1,30 +1,24 @@
 <script setup lang="ts">
 import { useDashboardStore } from "@/store/dashboard";
+
 const store = useDashboardStore();
-const paymentNames: Record<string, string> = {
-  cash: "Наличные",
-  payme: "PayME",
-  card: "Карта",
-  cardTransfer: "Перевод",
-  click: "Click",
-};
 </script>
 
 <template>
-  <div class="p-7 bg-[#262626] rounded-lg shadow-style">
+  <div class="rounded-lg bg-[#262626] p-7 shadow-style">
     <div class="top flex items-center justify-between">
       <div class="sales-total">
-        <h3 class="font-bold text-[24px]">Платежи</h3>
-        <p class="font-bold text-[#4993dd] mb-2 text-[36px]">
-          {{ store.filteredTotalSales.toLocaleString() }} UZS
-        </p>  
+        <h3 class="text-[24px] font-bold">Платежи</h3>
+        <p class="mb-2 text-[36px] font-bold text-[#4993dd]">
+          {{ store.filteredTotalSales.toLocaleString() }} {{ store.reportCurrency }}
+        </p>
       </div>
       <div
-        class="circle w-[60px] h-[60px] bg-[#404040] rounded-full flex items-center justify-center"
+        class="circle flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[#404040]"
       >
-        <div class="icon w-[30px] h-[30px] flex items-center justify-center">
+        <div class="icon flex h-[30px] w-[30px] items-center justify-center">
           <svg
-            class="w-full h-full text-[#4993dd]"
+            class="h-full w-full text-[#4993dd]"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 576 512"
             fill="currentColor"
@@ -36,17 +30,18 @@ const paymentNames: Record<string, string> = {
         </div>
       </div>
     </div>
-    <div class="payments-items flex flex-col gap-2 mt-[30px]">
+
+    <div class="payments-items mt-[30px] flex flex-col gap-2">
       <div
-        v-for="(value, key) in store.periodData.payments"
-        :key="key"
-        class="flex items-center bg-[#404040] px-4 py-4 rounded-[15px] w-full justify-between"
+        v-for="item in store.periodData.paymentItems"
+        :key="item.id || item.name"
+        class="flex w-full items-center justify-between rounded-[15px] bg-[#404040] px-4 py-4"
       >
         <div class="flex items-center gap-3">
-          <div class="circle w-[20px] h-[20px] rounded-full" :class="{}">
+          <div class="circle h-[20px] w-[20px] rounded-full">
             <div class="icon">
               <svg
-                class="w-full h-full text-[#4993dd]"
+                class="h-full w-full text-[#4993dd]"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 576 512"
                 fill="currentColor"
@@ -57,11 +52,20 @@ const paymentNames: Record<string, string> = {
               </svg>
             </div>
           </div>
-          <span class="text-left font-semibold text-[16px]">
-            {{ paymentNames[key] }}
+          <span class="text-left text-[16px] font-semibold">
+            {{ item.name }}
           </span>
         </div>
-        <span class="text-left"> {{ value.toLocaleString() }} UZS </span>
+        <span class="text-left">
+          {{ item.total.toLocaleString() }} {{ store.reportCurrency }}
+        </span>
+      </div>
+
+      <div
+        v-if="store.periodData.paymentItems.length === 0"
+        class="rounded-[15px] bg-[#404040] px-4 py-4 text-sm text-[#bdbdbd]"
+      >
+        Нет данных по платежам
       </div>
     </div>
   </div>

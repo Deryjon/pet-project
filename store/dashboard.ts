@@ -1,31 +1,132 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { computed, ref, watch } from "vue";
+import { useApi } from "~/composables/useApi";
+import { useUserStore } from "~/store/useUserStore";
 
 type DashboardPeriod = "yesterday" | "today" | "week" | "month" | "year";
+type DashboardGranularity = "hour" | "day";
 
-export const useDashboardStore = defineStore("dashboard", () => {
-  // магазины
-  const shops = ref([
-    { id: 1, name: "Samarqand Darvoza" },
-    { id: 2, name: "Globus Mall" },
-    { id: 3, name: "Mega Planet" },
-  ]);
-  const selectedShopIndex = ref<number | null>(null);
+type DashboardShop = {
+  id: string;
+  name: string;
+};
 
-  const selectedShopName = computed(() => {
-    if (selectedShopIndex.value === null) return "Все магазины";
-    return shops.value[selectedShopIndex.value]?.name;
-  });
+type DashboardReport = {
+  shops?: Array<{
+    shop_id?: string;
+    shop_name?: string;
+    total_price?: number;
+  }>;
+  shop_orders?: Array<Record<string, number | string>>;
+  total?: Array<{
+    start_date?: string;
+    end_date?: string;
+    total_price?: number;
+  }>;
+  total_orders_price?: number;
+  payment_type_stats?: Array<{
+    payment_type_id?: string;
+    payment_type_name?: string;
+    total_price?: number;
+    count?: number;
+  }>;
+  transactions?: {
+    total?: number;
+    products?: number;
+    services?: number;
+    sets?: number;
+    refunds?: number;
+    exchanges?: number;
+  };
+  top_sellers?: Array<{
+    seller_name?: string;
+    total_price?: number;
+    orders_count?: number;
+  }>;
+  top_products?: Array<{
+    name?: string;
+    quantity?: number;
+    total_price?: number;
+    net_sales?: number;
+  }>;
+  currency?: string;
+  seller_field?: string;
+  product_group_field?: string;
+  product_field?: string;
+};
 
-  function selectShop(id: number | null) {
-    if (id === null) {
-      selectedShopIndex.value = null;
-    } else {
-      selectedShopIndex.value = shops.value.findIndex((s) => s.id === id);
-    }
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDate(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function shiftDate(date: Date, amount: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function startDateForPeriod(period: DashboardPeriod) {
+  const now = new Date();
+
+  switch (period) {
+    case "yesterday":
+      return formatDate(shiftDate(now, -1));
+    case "week":
+      return formatDate(shiftDate(now, -6));
+    case "month":
+      return formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    case "year":
+      return formatDate(new Date(now.getFullYear(), 0, 1));
+    case "today":
+    default:
+      return formatDate(now);
+  }
+}
+
+function labelForPoint(value: string, granularity: DashboardGranularity) {
+  if (!value) return "";
+
+  const normalized = String(value).replace(" ", "T");
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value);
   }
 
-  // периоды
+  if (granularity === "hour") {
+    return parsed.toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return parsed.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function colorByIndex(index: number) {
+  const palette = [
+    "#4ade80",
+    "#60a5fa",
+    "#f59e0b",
+    "#f87171",
+    "#a78bfa",
+    "#2dd4bf",
+    "#fb7185",
+  ];
+
+  return palette[index % palette.length];
+}
+
+export const useDashboardStore = defineStore("dashboard", () => {
+  const { apiFetch } = useApi();
+  const userStore = useUserStore();
+
   const periods: Array<{ label: string; value: DashboardPeriod }> = [
     { label: "Вчера", value: "yesterday" },
     { label: "Сегодня", value: "today" },
@@ -33,325 +134,255 @@ export const useDashboardStore = defineStore("dashboard", () => {
     { label: "Месяц", value: "month" },
     { label: "Год", value: "year" },
   ];
+
   const selectedPeriod = ref<DashboardPeriod>("today");
-  function setPeriod(value: DashboardPeriod) {
-    selectedPeriod.value = value;
-  }
+  const selectedGranularity = ref<DashboardGranularity>("hour");
+  const selectedShopId = ref<string | null>(null);
+  const report = ref<DashboardReport | null>(null);
+  const loading = ref(false);
+  const settingsSaving = ref(false);
+  const error = ref("");
 
-  // данные (пока статичные, потом заменишь на API)
-  const dashboardData = ref({
-    today: {
-      hourlySales: [
-        { hour: "09:00", branch1: 120000, branch2: 100000 },
-        { hour: "10:00", branch1: 220000, branch2: 150000 },
-        { hour: "11:00", branch1: 310000, branch2: 180000 },
-        { hour: "12:00", branch1: 280000, branch2: 240000 },
-        { hour: "13:00", branch1: 350000, branch2: 300000 },
-        { hour: "14:00", branch1: 260000, branch2: 280000 },
-        { hour: "15:00", branch1: 330000, branch2: 250000 },
-      ],
-      payments: {
-        cash: 1_650_000,
-        payme: 620_000,
-        card: 510_000,
-        cardTransfer: 240_000,
-        click: 90_000,
-      },
-      transactions: {
-        total: 48,
-        products: 92,
-        services: 3,
-        returns: 1,
-        exchanges: 0,
-      },
-      topSellers: [
-        {
-          name: "Sardor Obidjanov",
-          sum: 640000,
-          avgCheck: 120000,
-          avgCount: 5,
-          color: "#ff6b6b",
-        },
-        {
-          name: "Iskandarjon Yusupov",
-          sum: 330000,
-          avgCheck: 110000,
-          avgCount: 3,
-          color: "#4dabf7",
-        },
-        {
-          name: "Dilshod Karimov",
-          sum: 210000,
-          avgCheck: 70000,
-          avgCount: 2,
-          color: "#51cf66",
-        },
-      ],
-      topProducts: [
-        { name: "Silicone iPhone Case", sum: 355000 },
-        { name: "Steklo Obychny", sum: 310000 },
-        { name: "Green Lion", sum: 280000 },
-        { name: "AirPods 3 Dubai", sum: 240000 },
-        { name: "S-Series Steklo", sum: 189000 },
-      ],
-    },
-    yesterday: {
-      hourlySales: [
-        { hour: "09:00", branch1: 90000, branch2: 70000 },
-        { hour: "10:00", branch1: 180000, branch2: 120000 },
-        { hour: "11:00", branch1: 210000, branch2: 170000 },
-        { hour: "12:00", branch1: 190000, branch2: 160000 },
-        { hour: "13:00", branch1: 240000, branch2: 220000 },
-        { hour: "14:00", branch1: 200000, branch2: 180000 },
-        { hour: "15:00", branch1: 260000, branch2: 230000 },
-      ],
-      payments: {
-        cash: 980_000,
-        payme: 420_000,
-        card: 310_000,
-        cardTransfer: 190_000,
-        click: 70_000,
-      },
-      transactions: {
-        total: 38,
-        products: 71,
-        services: 4,
-        returns: 2,
-        exchanges: 1,
-      },
-      topSellers: [
-        {
-          name: "Sardor Obidjanov",
-          sum: 640000,
-          avgCheck: 120000,
-          avgCount: 5,
-          color: "#ff6b6b",
-        },
-        {
-          name: "Iskandarjon Yusupov",
-          sum: 330000,
-          avgCheck: 110000,
-          avgCount: 3,
-          color: "#4dabf7",
-        },
-        {
-          name: "Dilshod Karimov",
-          sum: 210000,
-          avgCheck: 70000,
-          avgCount: 2,
-          color: "#51cf66",
-        },
-      ],
-      topProducts: [
-        { name: "PowerBank 20k", sum: 355000 },
-        { name: "Steklo Obychny", sum: 280000 },
-        { name: "Green Lion", sum: 240000 },
-      ],
-    },
-    week: {
-      hourlySales: [
-        { hour: "Пн", branch1: 820000, branch2: 640000 },
-        { hour: "Вт", branch1: 1120000, branch2: 980000 },
-        { hour: "Ср", branch1: 980000, branch2: 720000 },
-        { hour: "Чт", branch1: 1260000, branch2: 1010000 },
-        { hour: "Пт", branch1: 1780000, branch2: 1320000 },
-        { hour: "Сб", branch1: 2050000, branch2: 1540000 },
-        { hour: "Вс", branch1: 1340000, branch2: 1110000 },
-      ],
-      payments: {
-        cash: 8_650_000,
-        payme: 3_420_000,
-        card: 2_910_000,
-        cardTransfer: 1_540_000,
-        click: 720_000,
-      },
-      transactions: {
-        total: 348,
-        products: 690,
-        services: 34,
-        returns: 14,
-        exchanges: 5,
-      },
-      topSellers: [
-        {
-          name: "Sardor Obidjanov",
-          sum: 640000,
-          avgCheck: 120000,
-          avgCount: 5,
-          color: "#ff6b6b",
-        },
-        {
-          name: "Iskandarjon Yusupov",
-          sum: 330000,
-          avgCheck: 110000,
-          avgCount: 3,
-          color: "#4dabf7",
-        },
-        {
-          name: "Dilshod Karimov",
-          sum: 210000,
-          avgCheck: 70000,
-          avgCount: 2,
-          color: "#51cf66",
-        },
-      ],
+  const shops = computed<DashboardShop[]>(() => {
+    const fromUser = Array.isArray(userStore.user.shops)
+      ? userStore.user.shops
+          .map((shop: any) => ({
+            id: String(shop?.id ?? ""),
+            name: String(shop?.name ?? ""),
+          }))
+          .filter((shop: DashboardShop) => Boolean(shop.id && shop.name))
+      : [];
 
-      topProducts: [
-        { name: "AirPods 3 Dubai", sum: 2_400_000 },
-        { name: "Silicone iPhone Case", sum: 1_950_000 },
-        { name: "Зарядка 20W", sum: 1_890_000 },
-      ],
-    },
-    year: {
-      hourlySales: [
-        { hour: "Янв", branch1: 12_200_000, branch2: 9_200_000 },
-        { hour: "Фев", branch1: 15_100_000, branch2: 12_100_000 },
-        { hour: "Мар", branch1: 17_400_000, branch2: 14_800_000 },
-        { hour: "Апр", branch1: 14_800_000, branch2: 12_300_000 },
-        { hour: "Май", branch1: 20_200_000, branch2: 16_700_000 },
-        { hour: "Июн", branch1: 22_500_000, branch2: 18_200_000 },
-        { hour: "Июл", branch1: 25_300_000, branch2: 20_100_000 },
-        { hour: "Авг", branch1: 21_600_000, branch2: 17_900_000 },
-        { hour: "Сен", branch1: 18_900_000, branch2: 15_200_000 },
-        { hour: "Окт", branch1: 23_200_000, branch2: 19_400_000 },
-        { hour: "Ноя", branch1: 19_800_000, branch2: 16_100_000 },
-        { hour: "Дек", branch1: 27_500_000, branch2: 22_600_000 },
-      ],
-      payments: {
-        cash: 330_000_000,
-        payme: 162_000_000,
-        card: 138_000_000,
-        cardTransfer: 72_000_000,
-        click: 24_000_000,
-      },
-      transactions: {
-        total: 13_480,
-        products: 26_940,
-        services: 820,
-        returns: 260,
-        exchanges: 120,
-      },
-      topSellers: [
-        {
-          name: "Sardor Obidjanov",
-          sum: 640000,
-          avgCheck: 120000,
-          avgCount: 5,
-          color: "#ff6b6b",
-        },
-        {
-          name: "Iskandarjon Yusupov",
-          sum: 330000,
-          avgCheck: 110000,
-          avgCount: 3,
-          color: "#4dabf7",
-        },
-        {
-          name: "Dilshod Karimov",
-          sum: 210000,
-          avgCheck: 70000,
-          avgCount: 2,
-          color: "#51cf66",
-        },
-      ],
-      topProducts: [
-        { name: "Silicone iPhone Case", sum: 62_000_000 },
-        { name: "Steklo Obychny", sum: 58_000_000 },
-        { name: "PowerBank 20k", sum: 47_000_000 },
-        { name: "AirPods 3 Dubai", sum: 40_000_000 },
-        { name: "Зарядка 20W", sum: 35_000_000 },
-      ],
-    },
+    if (fromUser.length > 0) {
+      return fromUser;
+    }
+
+    return Array.isArray(report.value?.shops)
+      ? report.value!.shops!
+          .map((shop: any) => ({
+            id: String(shop?.shop_id ?? shop?.shop_name ?? ""),
+            name: String(shop?.shop_name ?? ""),
+          }))
+          .filter((shop: DashboardShop) => Boolean(shop.id && shop.name))
+      : [];
   });
 
-  const periodData = computed(() => dashboardData.value[selectedPeriod.value]);
+  const selectedShopName = computed(() => {
+    if (!selectedShopId.value) return "Все магазины";
+    return shops.value.find((shop) => shop.id === selectedShopId.value)?.name ?? "Все магазины";
+  });
 
-  const branchesSales = computed(() => {
-    return shops.value.map((shop, index) => {
-      const branchKey = index === 0 ? "branch1" : "branch2";
-      const total = periodData.value.hourlySales.reduce(
-        (sum, i) => sum + (i[branchKey] || 0),
-        0
-      );
+  const reportCurrency = computed(() => String(report.value?.currency ?? "UZS"));
+
+  const paymentItems = computed(() =>
+    Array.isArray(report.value?.payment_type_stats)
+      ? report.value!.payment_type_stats!.map((item) => ({
+          id: String(item?.payment_type_id ?? ""),
+          name: String(item?.payment_type_name ?? "Не указано"),
+          total: Number(item?.total_price ?? 0),
+          count: Number(item?.count ?? 0),
+        }))
+      : [],
+  );
+
+  const periodData = computed(() => {
+    const transactions = report.value?.transactions ?? {};
+    const topSellers = Array.isArray(report.value?.top_sellers) ? report.value!.top_sellers! : [];
+    const topProducts = Array.isArray(report.value?.top_products)
+      ? report.value!.top_products!
+      : [];
+
+    return {
+      payments: Object.fromEntries(paymentItems.value.map((item) => [item.name, item.total])),
+      paymentItems: paymentItems.value,
+      transactions: {
+        total: Number(transactions.total ?? 0),
+        products: Number(transactions.products ?? 0),
+        services: Number(transactions.services ?? 0),
+        sets: Number(transactions.sets ?? 0),
+        returns: Number(transactions.refunds ?? 0),
+        exchanges: Number(transactions.exchanges ?? 0),
+      },
+      topSellers: topSellers.map((seller, index) => {
+        const total = Number(seller?.total_price ?? 0);
+        const ordersCount = Math.max(0, Number(seller?.orders_count ?? 0));
+        return {
+          name: String(seller?.seller_name ?? "Без имени"),
+          sum: total,
+          avgCheck: ordersCount > 0 ? Math.round(total / ordersCount) : total,
+          avgCount: ordersCount,
+          color: colorByIndex(index),
+        };
+      }),
+      topProducts: topProducts.map((product) => ({
+        name: String(product?.name ?? "Без названия"),
+        sum: Number(product?.net_sales ?? product?.total_price ?? 0),
+        count: Number(product?.quantity ?? 0),
+      })),
+    };
+  });
+
+  const chartSeries = computed(() => {
+    const source = Array.isArray(report.value?.shop_orders) ? report.value!.shop_orders! : [];
+
+    return source.map((row: Record<string, any>) => {
+      const label = labelForPoint(String(row?.start_date ?? ""), selectedGranularity.value);
+      const values = Object.entries(row).filter(([key]) => key !== "start_date" && key !== "end_date");
       return {
-        name: shop.name,
-        total,
-        color: index === 0 ? "#4ade80" : "#60a5fa", // чтобы совпадало с графиком
+        label,
+        values,
       };
     });
   });
 
-  // фильтрованные данные для графика
-  const chartData = computed(() => {
-    const labels = periodData.value.hourlySales.map((i) => i.hour);
+  const branchesSales = computed(() => {
+    const responseShops = Array.isArray(report.value?.shops) ? report.value!.shops! : [];
+    const totalsByName = new Map(
+      responseShops.map((shop: any) => [
+        String(shop?.shop_name ?? ""),
+        Number(shop?.total_price ?? 0),
+      ]),
+    );
 
-    if (selectedShopIndex.value === null) {
-      return {
-        labels,
-        datasets: [
-          {
-            label: "Samarqand Darvoza",
-            data: periodData.value.hourlySales.map((i) => i.branch1),
-            borderColor: "#4ade80",
-            backgroundColor: "rgba(74,222,128,0.2)",
-            fill: true,
-          },
-          {
-            label: "Globus Mall",
-            data: periodData.value.hourlySales.map((i) => i.branch2),
-            borderColor: "#60a5fa",
-            backgroundColor: "rgba(96,165,250,0.2)",
-            fill: true,
-          },
-        ],
-      };
+    const list = responseShops.length > 0
+      ? responseShops.map((shop: any, index: number) => ({
+          id: String(shop?.shop_id ?? shop?.shop_name ?? index),
+          name: String(shop?.shop_name ?? ""),
+          total: Number(shop?.total_price ?? 0),
+          color: colorByIndex(index),
+        }))
+      : shops.value.map((shop, index) => ({
+          id: shop.id,
+          name: shop.name,
+          total: Number(totalsByName.get(shop.name) ?? 0),
+          color: colorByIndex(index),
+        }));
+
+    if (!selectedShopId.value) {
+      return list;
     }
 
-    const shop = shops.value[selectedShopIndex.value];
-    const branchKey = selectedShopIndex.value === 0 ? "branch1" : "branch2";
+    return list.filter((shop) => shop.id === selectedShopId.value);
+  });
 
-    return {
-      labels,
-      datasets: [
-        {
-          label: shop.name,
-          data: periodData.value.hourlySales.map((i) => i[branchKey]),
-          borderColor: selectedShopIndex.value === 0 ? "#4ade80" : "#60a5fa",
-          backgroundColor:
-            selectedShopIndex.value === 0
-              ? "rgba(74,222,128,0.2)"
-              : "rgba(96,165,250,0.2)",
-          fill: true,
-        },
-      ],
-    };
+  const chartData = computed(() => {
+    const labels = chartSeries.value.map((item) => item.label);
+    const responseShops = Array.isArray(report.value?.shops) ? report.value!.shops! : [];
+    const shopNameById = new Map(
+      responseShops.map((shop: any) => [String(shop?.shop_id ?? ""), String(shop?.shop_name ?? "")]),
+    );
+
+    const candidateShops = branchesSales.value.length > 0 ? branchesSales.value : shops.value;
+    const datasets = candidateShops.map((shop, index) => {
+      const seriesName = shop.name || shopNameById.get(shop.id) || "";
+      return {
+        label: seriesName,
+        data: chartSeries.value.map((item) => {
+          const match = item.values.find(([key]) => String(key) === seriesName);
+          return Number(match?.[1] ?? 0);
+        }),
+        borderColor: colorByIndex(index),
+        backgroundColor: `${colorByIndex(index)}33`,
+        fill: true,
+      };
+    });
+
+    return { labels, datasets };
   });
 
   const filteredTotalSales = computed(() => {
-    if (selectedShopIndex.value === null) {
-      return periodData.value.hourlySales.reduce(
-        (sum, i) => sum + (i.branch1 || 0) + (i.branch2 || 0),
-        0
-      );
+    if (!selectedShopId.value) {
+      return Number(report.value?.total_orders_price ?? 0);
     }
-    const branchKey = selectedShopIndex.value === 0 ? "branch1" : "branch2";
-    return periodData.value.hourlySales.reduce(
-      (sum, i) => sum + (i[branchKey] || 0),
-      0
-    );
+
+    return Number(branchesSales.value[0]?.total ?? 0);
   });
+
+  async function saveSettings() {
+    settingsSaving.value = true;
+    try {
+      await apiFetch("/v1/dashboard-setting", {
+        method: "POST",
+        body: {
+          detail_period: selectedGranularity.value,
+          report_period: selectedPeriod.value,
+        },
+      });
+    } catch {
+      // Settings are best-effort only.
+    } finally {
+      settingsSaving.value = false;
+    }
+  }
+
+  async function fetchDashboardReport() {
+    loading.value = true;
+    error.value = "";
+
+    try {
+      const data: any = await apiFetch("/v1/dashboard-report", {
+        method: "GET",
+        query: {
+          start_date: startDateForPeriod(selectedPeriod.value),
+          detalization: selectedGranularity.value,
+          seller_field: "sales_sum",
+          currency: reportCurrency.value || "UZS",
+          product_group_field: "name",
+          product_field: "net_sales",
+        },
+      });
+
+      report.value = data ?? {};
+    } catch (err: any) {
+      report.value = null;
+      error.value =
+        String(err?.data?.message ?? err?.message ?? "").trim() || "Не удалось загрузить dashboard";
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  function selectShop(id: string | number | null) {
+    selectedShopId.value = id === null ? null : String(id);
+  }
+
+  function setPeriod(value: DashboardPeriod) {
+    selectedPeriod.value = value;
+  }
+
+  function setGranularity(value: DashboardGranularity) {
+    selectedGranularity.value = value;
+  }
+
+  watch(
+    () => [selectedPeriod.value, selectedGranularity.value],
+    async () => {
+      await saveSettings();
+      await fetchDashboardReport();
+    },
+    { immediate: false },
+  );
 
   return {
     shops,
     periods,
-    selectedShopIndex,
-    selectedShopName,
     selectedPeriod,
+    selectedGranularity,
+    selectedShopId,
+    selectedShopName,
+    report,
+    reportCurrency,
     periodData,
     chartData,
+    branchesSales,
     filteredTotalSales,
+    loading,
+    settingsSaving,
+    error,
     selectShop,
     setPeriod,
-    branchesSales,
+    setGranularity,
+    saveSettings,
+    fetchDashboardReport,
   };
 });

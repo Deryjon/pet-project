@@ -1,6 +1,6 @@
 <template>
     <div class="w-full border-2 bg-[#262626] text-white rounded-[20px] p-[20px]">
-      <div class="w-full grid grid-cols-2 gap-y-[30px]">
+      <div class="grid w-full grid-cols-1 gap-y-[30px] md:grid-cols-2 md:gap-x-4">
       <!-- Дата -->
       <div class="w-full bg-[#404040] p-[15px] rounded-lg">
         e
@@ -47,7 +47,7 @@
       
     </div>
     <!-- Кнопки -->
-    <div class="w-full flex gap-4 mt-4">
+    <div class="mt-4 flex w-full flex-col gap-4 sm:flex-row">
         <button
           @click="resetFilters"
           class="bg-[#505050] hover:bg-[#606060] p-[15px] rounded-lg font-bold w-full"

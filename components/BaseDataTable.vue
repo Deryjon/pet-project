@@ -1,34 +1,28 @@
 <script setup lang="ts">
 import { FlexRender } from "@tanstack/vue-table";
-// Пропсы
+
 defineProps<{
-  table: any; // экземпляр таблицы из useVueTable
-  store: any; // стор, чтобы дергать методы (openProduct и т.п.)
+  table: any;
+  store: any;
 }>();
 </script>
 
 <template>
-  <!-- Контейнер со скроллом -->
   <div class="overflow-x-auto">
-    <!-- Лоадер -->
-    <div v-if="store.loading" class="text-center text-white py-6">
+    <div v-if="store.loading" class="py-6 text-center text-white">
       Загружаем данные...
     </div>
 
-    <!-- Таблица -->
     <table
-      v-else
-      class="min-w-full text-sm text-left text-[17px] text-[#bdbdbd]"
+      v-else-if="table.getRowModel().rows.length"
+      class="min-w-full text-left text-sm text-[17px] text-[#bdbdbd]"
     >
       <thead class="border-t border-b rounded-[0px]">
-        <tr
-          v-for="headerGroup in table.getHeaderGroups()"
-          :key="headerGroup.id"
-        >
+        <tr v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
           <th
             v-for="header in headerGroup.headers"
             :key="header.id"
-            class="cursor-pointer font-bold select-none px-[20px] py-[25px] hover:bg-[#5e5e5e] transition-colors duration-300 whitespace-nowrap"
+            class="cursor-pointer select-none whitespace-nowrap px-[20px] py-[25px] font-bold transition-colors duration-300 hover:bg-[#5e5e5e]"
             :class="{ 'w-[50px] text-center': header.column.id === 'select' }"
             @click="header.column.getToggleSortingHandler()?.($event)"
           >
@@ -49,44 +43,41 @@ defineProps<{
       </thead>
 
       <tbody>
-        <tr
-          v-for="(row, index) in table.getRowModel().rows"
-          :key="row.id"
-        >
+        <tr v-for="(row, index) in table.getRowModel().rows" :key="row.id">
           <td
             v-for="(cell, i) in row.getVisibleCells()"
             :key="cell.id"
-            class="text-left text-[17px] font-normal whitespace-nowrap"
-            :class="[ 
+            class="whitespace-nowrap text-left text-[17px] font-normal"
+            :class="[
               'px-[20px] py-[25px]',
               index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',
               row.getVisibleCells().length === 1
                 ? 'rounded-[20px]'
                 : i === 0
-                ? 'rounded-l-[20px]'
-                : i === row.getVisibleCells().length - 1
-                ? 'rounded-r-[20px]'
-                : '',
+                  ? 'rounded-l-[20px]'
+                  : i === row.getVisibleCells().length - 1
+                    ? 'rounded-r-[20px]'
+                    : '',
               cell.column.id === 'name'
-                ? 'px-[20px] py-[25px] text-left text-[15px] text-[#4993dd] cursor-pointer'
+                ? 'cursor-pointer px-[20px] py-[25px] text-left text-[15px] text-[#4993dd]'
                 : 'text-white',
-              cell.column.id === 'select'
-                ? 'w-[50px] text-center align-middle'
-                : '',
+              cell.column.id === 'select' ? 'w-[50px] text-center align-middle' : '',
               cell.column.columnDef.meta?.tdClass ?? '',
             ]"
             :style="cell.column.columnDef.meta?.tdStyle ?? null"
-            @click="
-              cell.column.id === 'name' ? store.openProduct(row.original) : null
-            "
+            @click="cell.column.id === 'name' ? store.openProduct(row.original) : null"
           >
-            <FlexRender
-              :render="cell.column.columnDef.cell"
-              :props="cell.getContext()"
-            />
+            <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
           </td>
         </tr>
       </tbody>
     </table>
+
+    <div
+      v-else
+      class="rounded-[20px] bg-[#262626] px-6 py-10 text-center text-[15px] text-[#bdbdbd]"
+    >
+      Нет данных. Таблица ожидает ответ от backend.
+    </div>
   </div>
 </template>

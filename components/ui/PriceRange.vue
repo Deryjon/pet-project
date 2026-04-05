@@ -1,22 +1,22 @@
 <template>
-    <div class="w-[370px]">
+    <div class="w-full sm:w-[370px]">
       <label class="block text-sm mb-2 text-[#bdbdbd] font-bold">
         {{ label }}
       </label>
-      <div class="flex gap-2">
+      <div class="flex flex-col gap-2 sm:flex-row">
         <input
           type="number"
           :value="min"
           @input="$emit('update:min', $event.target.value)"
           placeholder="от"
-          class="w-1/2 bg-[#404040] text-white rounded-[10px] p-[15px] outline-none focus:ring-2 focus:ring-[#4993dd]"
+          class="w-full bg-[#404040] text-white rounded-[10px] p-[15px] outline-none focus:ring-2 focus:ring-[#4993dd] sm:w-1/2"
         />
         <input
           type="number"
           :value="max"
           @input="$emit('update:max', $event.target.value)"
           placeholder="до"
-          class="w-1/2 bg-[#404040] text-white rounded-[10px] p-[15px] outline-none focus:ring-2 focus:ring-[#4993dd]"
+          class="w-full bg-[#404040] text-white rounded-[10px] p-[15px] outline-none focus:ring-2 focus:ring-[#4993dd] sm:w-1/2"
         />
       </div>
     </div>
