@@ -8,7 +8,7 @@ import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 definePageMeta({ layout: "platform" });
 useHead({ title: "Дашборд платформы | Konkurent Platform" });
 
-const { getCompanies, getUsers, getDashboardStats } = usePlatformAdminApi();
+const { getCompanies, getPlatformUsers, getDashboardStats } = usePlatformAdminApi();
 
 const loading = ref(true);
 const errorMessage = ref("");
@@ -30,7 +30,7 @@ async function loadData() {
     const [statsResponse, companiesResponse, usersResponse] = await Promise.all([
       getDashboardStats(),
       getCompanies(),
-      getUsers(),
+      getPlatformUsers(),
     ]);
 
     stats.value = statsResponse;
@@ -51,7 +51,7 @@ onMounted(loadData);
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Обзор" title="Дашборд платформы" description="Сводные показатели по компаниям, филиалам, пользователям и продажам.">
+    <PageHeader eyebrow="Обзор" title="Дашборд платформы" description="Сводные показатели по компаниям, филиалам и администраторам платформы.">
       <template #actions>
         <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadData">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
@@ -63,9 +63,9 @@ onMounted(loadData);
     <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
       <StatsCard label="Компании" :value="stats.totalCompanies" helper="Всего в системе" icon="heroicons:building-office-2" />
       <StatsCard label="Филиалы" :value="stats.totalShops" helper="Во всех компаниях" icon="heroicons:map-pin" />
-      <StatsCard label="Пользователи" :value="stats.totalUsers" helper="Platform admin и support" icon="heroicons:users" />
+      <StatsCard label="Админы платформы" :value="stats.totalUsers" helper="platform_admin и support" icon="heroicons:users" />
       <StatsCard label="Активные компании" :value="stats.activeCompanies" helper="С активным статусом" icon="heroicons:bolt" />
-      <StatsCard label="Продажи" :value="stats.totalSales" helper="Если бэк отдает sales_count" icon="heroicons:banknotes" />
+      <StatsCard label="Продажи" :value="stats.totalSales" helper="Если backend отдает sales_count" icon="heroicons:banknotes" />
     </div>
 
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">
@@ -73,7 +73,7 @@ onMounted(loadData);
     </div>
 
     <div class="grid gap-6 xl:grid-cols-2">
-      <DataPanel title="Последние компании" description="Быстрый доступ к карточкам компаний.">
+      <DataPanel title="Последние компании" description="Быстрый доступ к карточкам компаний, филиалам и CRM-пользователям внутри компании.">
         <div v-if="loading" class="space-y-3">
           <div v-for="item in 4" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100" />
         </div>
@@ -98,7 +98,7 @@ onMounted(loadData);
         </div>
       </DataPanel>
 
-      <DataPanel title="Пользователи платформы" description="Текущие platform admin и support.">
+      <DataPanel title="Админы платформы" description="Текущие platform admin и support. CRM-пользователи не показываются на общей странице /platform/users.">
         <div v-if="loading" class="space-y-3">
           <div v-for="item in 4" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100" />
         </div>

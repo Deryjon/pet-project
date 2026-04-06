@@ -10,6 +10,7 @@ const userStore = useUserStore();
 const pageTitle = computed(() => {
   if (route.path === "/platform") return "Дашборд";
   if (route.path === "/platform/companies") return "Компании";
+  if (route.path.startsWith("/platform/companies/") && route.path.endsWith("/users")) return "Пользователи компании";
   if (route.path.startsWith("/platform/companies/") && route.path.endsWith("/shops")) return "Филиалы компании";
   if (route.path.startsWith("/platform/companies/")) return "Карточка компании";
   if (route.path === "/platform/users") return "Пользователи платформы";
