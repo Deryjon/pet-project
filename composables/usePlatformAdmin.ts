@@ -6,36 +6,49 @@ export type PlatformStatus = "active" | "inactive";
 
 export interface PlatformCompany {
   id: string;
+  companyId: string;
   name: string;
   login: string;
   subdomain: string;
   status: PlatformStatus;
   createdAt: string;
+  updatedAt: string;
   shopsCount: number;
   usersCount: number;
-  salesCount: number;
+  shops: PlatformShop[];
 }
 
 export interface PlatformShop {
   id: string;
+  shopId: string;
   name: string;
   companyId: string;
   companyName: string;
   branchCode: string;
   status: PlatformStatus;
   createdAt: string;
-  city: string;
-  address: string;
+  updatedAt: string;
 }
 
 export interface PlatformUser {
   id: string;
+  userType: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   phone: string;
   email: string;
   role: string;
   status: PlatformStatus;
   createdAt: string;
+  updatedAt: string;
+  birthDate: string;
+  companyId: string;
+  companyName: string;
+  currentShopId: string;
+  currentShopName: string;
+  allowedShopIds: string[];
+  canSwitchShops: boolean;
 }
 
 export interface PlatformDashboardStats {
@@ -44,6 +57,19 @@ export interface PlatformDashboardStats {
   totalUsers: number;
   totalSales: number;
   activeCompanies: number;
+}
+
+export interface PlatformUserPayload {
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  password?: string;
+  role: string;
+  birth_date?: string;
+  company_id?: string;
+  current_shop_id?: string;
+  allowed_shop_ids?: string[];
+  can_switch_shops?: boolean;
 }
 
 function pickArray<T = any>(input: any, keys: string[]): T[] {
@@ -65,10 +91,21 @@ function pickObject<T = any>(input: any, keys: string[]): T | null {
         return input[key];
       }
     }
+
     return input as T;
   }
 
   return null;
+}
+
+function pickValue<T = any>(input: any, keys: string[], fallback?: T): T | undefined {
+  for (const key of keys) {
+    if (input?.[key] !== undefined && input[key] !== null) {
+      return input[key] as T;
+    }
+  }
+
+  return fallback;
 }
 
 function toStatus(value: any): PlatformStatus {
@@ -96,52 +133,141 @@ function toNumber(value: any): number {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function normalizeCompany(raw: any): PlatformCompany {
-  const shops = Array.isArray(raw?.shops) ? raw.shops.length : 0;
-
-  return {
-    id: String(raw?.id ?? raw?.company_id ?? ""),
-    name: String(raw?.name ?? raw?.company_name ?? "Без названия"),
-    login: String(raw?.login ?? raw?.company_login ?? ""),
-    subdomain: String(raw?.subdomain ?? ""),
-    status: toStatus(raw?.status ?? raw?.is_active),
-    createdAt: toDate(raw?.created_at ?? raw?.createdAt),
-    shopsCount: toNumber(raw?.shops_count ?? raw?.shopsCount ?? shops),
-    usersCount: toNumber(raw?.users_count ?? raw?.usersCount),
-    salesCount: toNumber(raw?.sales_count ?? raw?.salesCount ?? raw?.total_sales),
-  };
+function normalizeSlug(value: any): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function normalizeShop(raw: any, company?: Partial<PlatformCompany>): PlatformShop {
+  const nestedShop = pickObject(raw?.shop, ["shop", "data"]) ?? raw?.shop ?? null;
+  const companyInfo = pickObject(raw?.company, ["company", "data"]) ?? company ?? null;
+
   return {
-    id: String(raw?.id ?? raw?.shop_id ?? ""),
-    name: String(raw?.name ?? raw?.shop_name ?? "Без названия"),
-    companyId: String(raw?.company_id ?? company?.id ?? ""),
-    companyName: String(raw?.company?.name ?? raw?.company_name ?? company?.name ?? ""),
-    branchCode: String(raw?.branch_code ?? raw?.branchCode ?? raw?.code ?? ""),
-    status: toStatus(raw?.status ?? raw?.is_active),
-    createdAt: toDate(raw?.created_at ?? raw?.createdAt),
-    city: String(raw?.city ?? ""),
-    address: String(raw?.address ?? raw?.location ?? ""),
+    id: String(
+      pickValue(raw, ["id", "shop_id"]) ??
+        pickValue(nestedShop, ["id", "shop_id"]) ??
+        "",
+    ),
+    shopId: String(
+      pickValue(raw, ["shop_id", "id"]) ??
+        pickValue(nestedShop, ["shop_id", "id"]) ??
+        "",
+    ),
+    name: String(
+      pickValue(raw, ["name", "shop_name"]) ??
+        pickValue(nestedShop, ["name", "shop_name"]) ??
+        "",
+    ),
+    companyId: String(
+      pickValue(raw, ["company_id", "companyId"]) ??
+        pickValue(companyInfo, ["company_id", "companyId", "id"]) ??
+        "",
+    ),
+    companyName: String(
+      pickValue(raw, ["company_name"]) ??
+        pickValue(companyInfo, ["name", "company_name"]) ??
+        "",
+    ),
+    branchCode: String(
+      pickValue(raw, ["branch_code", "branchCode", "code"]) ??
+        pickValue(nestedShop, ["branch_code", "branchCode", "code"]) ??
+        "",
+    ),
+    status: toStatus(
+      pickValue(raw, ["is_active", "isActive", "status"]) ??
+        pickValue(nestedShop, ["is_active", "isActive", "status"]),
+    ),
+    createdAt: toDate(
+      pickValue(raw, ["created_at", "createdAt"]) ??
+        pickValue(nestedShop, ["created_at", "createdAt"]),
+    ),
+    updatedAt: toDate(
+      pickValue(raw, ["updated_at", "updatedAt"]) ??
+        pickValue(nestedShop, ["updated_at", "updatedAt"]),
+    ),
+  };
+}
+
+function normalizeCompany(raw: any): PlatformCompany {
+  const shops = pickArray(raw, ["shops", "data", "items"]).map((shop) =>
+    normalizeShop(shop, raw),
+  );
+
+  return {
+    id: String(pickValue(raw, ["id", "company_id"]) ?? ""),
+    companyId: String(pickValue(raw, ["company_id", "id"]) ?? ""),
+    name: String(pickValue(raw, ["name", "company_name"]) ?? ""),
+    login: String(pickValue(raw, ["login", "company_login"]) ?? ""),
+    subdomain: String(pickValue(raw, ["subdomain"]) ?? ""),
+    status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
+    createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
+    updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
+    shopsCount: toNumber(pickValue(raw, ["shops_count", "shopsCount"], shops.length)),
+    usersCount: toNumber(pickValue(raw, ["users_count", "usersCount"])),
+    shops,
   };
 }
 
 function normalizeUser(raw: any): PlatformUser {
+  const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
+  const currentShop = pickObject(raw?.current_shop, ["current_shop", "data"]) ?? raw?.current_shop ?? null;
+  const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
+  const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
   const fullName =
-    String(raw?.full_name ?? "").trim() ||
-    String(raw?.name ?? "").trim() ||
-    `${String(raw?.first_name ?? "").trim()} ${String(raw?.last_name ?? "").trim()}`.trim() ||
-    String(raw?.phone_number ?? raw?.phone ?? "").trim() ||
-    "Пользователь";
+    String(pickValue(raw, ["full_name", "fullName"]) ?? "").trim() ||
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
+    String(pickValue(raw, ["name"]) ?? "").trim() ||
+    String(pickValue(raw, ["phone_number", "phone"]) ?? "").trim();
+
+  const allowedShopIds = pickArray(raw, ["allowed_shop_ids", "allowedShopIds"]).map((item) =>
+    String(item),
+  );
 
   return {
-    id: String(raw?.id ?? raw?.user_id ?? ""),
+    id: String(pickValue(raw, ["id", "user_id"]) ?? ""),
+    userType: String(pickValue(raw, ["user_type", "userType"]) ?? ""),
+    firstName,
+    lastName,
     fullName,
-    phone: String(raw?.phone_number ?? raw?.phone ?? ""),
+    phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
     email: String(raw?.email ?? ""),
-    role: String(raw?.role?.name ?? raw?.role ?? raw?.roles?.[0]?.role?.name ?? raw?.roles?.[0]?.name ?? ""),
-    status: toStatus(raw?.status ?? raw?.is_active),
-    createdAt: toDate(raw?.created_at ?? raw?.createdAt),
+    role: String(
+      raw?.role?.name ??
+        raw?.role ??
+        raw?.roles?.[0]?.role?.name ??
+        raw?.roles?.[0]?.name ??
+        "",
+    ),
+    status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
+    createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
+    updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
+    birthDate: String(pickValue(raw, ["birth_date", "birthDate"]) ?? ""),
+    companyId: String(
+      pickValue(raw, ["company_id", "companyId"]) ??
+        pickValue(company, ["id", "company_id", "companyId"]) ??
+        "",
+    ),
+    companyName: String(
+      pickValue(raw, ["company_name"]) ??
+        pickValue(company, ["name", "company_name"]) ??
+        "",
+    ),
+    currentShopId: String(
+      pickValue(raw, ["current_shop_id", "currentShopId"]) ??
+        pickValue(currentShop, ["id", "shop_id", "shopId"]) ??
+        "",
+    ),
+    currentShopName: String(
+      pickValue(currentShop, ["name"]) ??
+        pickValue(currentShop?.shop, ["name"]) ??
+        "",
+    ),
+    allowedShopIds,
+    canSwitchShops: Boolean(pickValue(raw, ["can_switch_shops", "canSwitchShops"])),
   };
 }
 
@@ -197,32 +323,45 @@ export function usePlatformAdminApi() {
     return pickArray(response, ["companies", "items", "data"]).map(normalizeCompany);
   }
 
-  async function getCompany(id: string) {
-    const response = await apiFetch<any>(`/platform/companies/${id}`, { method: "GET" });
-    const company = pickObject(response, ["company", "data"]);
-    return normalizeCompany(company);
+  async function getCompany(companyId: string) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}`, { method: "GET" });
+    return normalizeCompany(pickObject(response, ["company", "data"]));
   }
 
-async function createCompany(payload: Record<string, any>) {
+  async function createCompany(payload: { login: string; name: string; subdomain: string }) {
     const response = await apiFetch<any>("/platform/companies", {
       method: "POST",
       body: {
-        login: payload.login,
-        name: payload.name,
-        subdomain: payload.subdomain,
+        login: normalizeSlug(payload.login),
+        name: String(payload.name ?? "").trim(),
+        subdomain: normalizeSlug(payload.subdomain),
       },
     });
-    const company = pickObject(response, ["company", "data"]);
-    return normalizeCompany(company);
+
+    return normalizeCompany(pickObject(response, ["company", "data"]));
   }
 
-  async function updateCompany(id: string, payload: Record<string, any>) {
-    const response = await apiFetch<any>(`/platform/companies/${id}`, {
-      method: "PATCH",
-      body: payload,
+  async function updateCompany(
+    companyId: string,
+    payload: Partial<{ login: string; name: string; subdomain: string; is_active: boolean }>,
+  ) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}`, {
+      method: "PUT",
+      body: {
+        ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
+        ...(payload.login !== undefined ? { login: normalizeSlug(payload.login) } : {}),
+        ...(payload.subdomain !== undefined ? { subdomain: normalizeSlug(payload.subdomain) } : {}),
+        ...(payload.is_active !== undefined ? { is_active: Boolean(payload.is_active) } : {}),
+      },
     });
-    const company = pickObject(response, ["company", "data"]);
-    return normalizeCompany(company);
+
+    return normalizeCompany(pickObject(response, ["company", "data"]));
+  }
+
+  async function deleteCompany(companyId: string) {
+    return apiFetch<{ message: string; company_id: string }>(`/platform/companies/${companyId}`, {
+      method: "DELETE",
+    });
   }
 
   async function getCompanyShops(companyId: string, company?: Partial<PlatformCompany>) {
@@ -230,57 +369,102 @@ async function createCompany(payload: Record<string, any>) {
     return pickArray(response, ["shops", "items", "data"]).map((item) => normalizeShop(item, company));
   }
 
-  async function createShop(companyId: string, payload: Record<string, any>) {
+  async function createShop(companyId: string, payload: { name: string; branch_code: string }) {
     const response = await apiFetch<any>(`/platform/companies/${companyId}/shops`, {
       method: "POST",
       body: {
-        name: payload.name,
-        branch_code: payload.branch_code,
+        name: String(payload.name ?? "").trim(),
+        branch_code: normalizeSlug(payload.branch_code),
       },
     });
-    const shop = pickObject(response, ["shop", "data"]);
-    return normalizeShop(shop, { id: companyId });
+
+    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
   }
 
-  async function updateShop(id: string, payload: Record<string, any>) {
-    const response = await apiFetch<any>(`/platform/shops/${id}`, {
-      method: "PATCH",
-      body: payload,
+  async function updateShop(
+    companyId: string,
+    shopId: string,
+    payload: Partial<{ name: string; branch_code: string; is_active: boolean }>,
+  ) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops/${shopId}`, {
+      method: "PUT",
+      body: {
+        ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
+        ...(payload.branch_code !== undefined ? { branch_code: normalizeSlug(payload.branch_code) } : {}),
+        ...(payload.is_active !== undefined ? { is_active: Boolean(payload.is_active) } : {}),
+      },
     });
-    const shop = pickObject(response, ["shop", "data"]);
-    return normalizeShop(shop);
+
+    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
   }
 
-  async function getUsers() {
+  async function deleteShop(companyId: string, shopId: string) {
+    return apiFetch<{ message: string; shop_id: string; company_id: string }>(
+      `/platform/companies/${companyId}/shops/${shopId}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async function getPlatformUsers() {
     const response = await apiFetch<any>("/platform/users", { method: "GET" });
     return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
   }
 
-  async function createUser(payload: Record<string, any>) {
+  async function getPlatformUser(id: string) {
+    const response = await apiFetch<any>(`/platform/users/${id}`, { method: "GET" });
+    return normalizeUser(pickObject(response, ["user", "data"]));
+  }
+
+  async function createPlatformUser(payload: PlatformUserPayload) {
     const response = await apiFetch<any>("/platform/users", {
       method: "POST",
+      body: payload,
+    });
+
+    return normalizeUser(pickObject(response, ["user", "data"]));
+  }
+
+  async function getCompanyUsers(companyId: string) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/users`, { method: "GET" });
+    return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
+  }
+
+  async function createCompanyUser(companyId: string, payload: PlatformUserPayload) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/users`, {
+      method: "POST",
       body: {
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        phone_number: payload.phone_number,
-        password: payload.password,
-        role: payload.role,
+        ...payload,
+        company_id: companyId,
       },
     });
-    const user = pickObject(response, ["user", "data"]);
-    return normalizeUser(user);
+
+    return normalizeUser(pickObject(response, ["user", "data"]));
+  }
+
+  async function updateUser(id: string, payload: PlatformUserPayload) {
+    const response = await apiFetch<any>(`/platform/users/${id}`, {
+      method: "PUT",
+      body: payload,
+    });
+
+    return normalizeUser(pickObject(response, ["user", "data"]));
+  }
+
+  async function deleteUser(id: string) {
+    return apiFetch<{ message: string; id?: string; user_id?: string }>(`/platform/users/${id}`, {
+      method: "DELETE",
+    });
   }
 
   async function getDashboardStats(): Promise<PlatformDashboardStats> {
-    const [companies, users] = await Promise.all([getCompanies(), getUsers()]);
-    const shopsGroups = await Promise.all(companies.map((company) => getCompanyShops(company.id, company)));
-    const shops = shopsGroups.flat();
+    const [companies, users] = await Promise.all([getCompanies(), getPlatformUsers()]);
+    const totalShops = companies.reduce((sum, company) => sum + company.shopsCount, 0);
 
     return {
       totalCompanies: companies.length,
-      totalShops: shops.length,
+      totalShops,
       totalUsers: users.length,
-      totalSales: companies.reduce((sum, company) => sum + company.salesCount, 0),
+      totalSales: 0,
       activeCompanies: companies.filter((company) => company.status === "active").length,
     };
   }
@@ -290,11 +474,20 @@ async function createCompany(payload: Record<string, any>) {
     getCompany,
     createCompany,
     updateCompany,
+    deleteCompany,
     getCompanyShops,
     createShop,
     updateShop,
-    getUsers,
-    createUser,
+    deleteShop,
+    getPlatformUsers,
+    getPlatformUser,
+    createPlatformUser,
+    getCompanyUsers,
+    createCompanyUser,
+    updateUser,
+    deleteUser,
     getDashboardStats,
+    getUsers: getPlatformUsers,
+    createUser: createPlatformUser,
   };
 }

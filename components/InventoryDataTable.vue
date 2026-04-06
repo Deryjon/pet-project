@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DataTableHeader from "@/components/inventory/DataTableHeader.vue";
+import DataTableHeader from "@/components/inventory/DatatableHeader.vue";
 import DataTableBody from "@/components/inventory/DataTableBody.vue";
 import DataTablePagination from "@/components/products/DataTablePagination.vue";
 import DataTableProductInfo from "@/components/products/DataTableProductInfo.vue";

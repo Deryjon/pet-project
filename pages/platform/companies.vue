@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
@@ -11,10 +11,11 @@ import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 definePageMeta({ layout: "platform" });
 useHead({ title: "Компании | Konkurent Platform" });
 
-const { getCompanies, createCompany, updateCompany } = usePlatformAdminApi();
+const { getCompanies, createCompany, updateCompany, deleteCompany } = usePlatformAdminApi();
 
 const loading = ref(true);
 const saving = ref(false);
+const deletingId = ref("");
 const errorMessage = ref("");
 const successMessage = ref("");
 const companies = ref<PlatformCompany[]>([]);
@@ -29,6 +30,10 @@ const form = reactive({
   subdomain: "",
   status: "active" as "active" | "inactive",
 });
+
+function getCompanyRouteId(company: PlatformCompany) {
+  return company.companyId || company.id;
+}
 
 const filteredCompanies = computed(() =>
   companies.value.filter((company) => {
@@ -56,12 +61,16 @@ async function loadCompanies() {
   }
 }
 
-function openCreate() {
-  editing.value = null;
+function resetForm() {
   form.name = "";
   form.login = "";
   form.subdomain = "";
   form.status = "active";
+}
+
+function openCreate() {
+  editing.value = null;
+  resetForm();
   successMessage.value = "";
   modalOpen.value = true;
 }
@@ -81,20 +90,21 @@ async function submit() {
   errorMessage.value = "";
   successMessage.value = "";
 
-  const payload = {
-    name: form.name.trim(),
-    login: form.login.trim(),
-    subdomain: form.subdomain.trim(),
-    status: form.status,
-    is_active: form.status === "active",
-  };
-
   try {
     if (editing.value?.id) {
-      await updateCompany(editing.value.id, payload);
+      await updateCompany(editing.value.id, {
+        name: form.name.trim(),
+        login: form.login.trim(),
+        subdomain: form.subdomain.trim(),
+        is_active: form.status === "active",
+      });
       successMessage.value = "Компания обновлена";
     } else {
-      await createCompany(payload);
+      await createCompany({
+        name: form.name.trim(),
+        login: form.login.trim(),
+        subdomain: form.subdomain.trim(),
+      });
       successMessage.value = "Компания создана";
     }
 
@@ -110,12 +120,41 @@ async function submit() {
   }
 }
 
-onMounted(loadCompanies);
+async function removeCompany(company: PlatformCompany) {
+  if (typeof window !== "undefined" && !window.confirm(`Удалить компанию "${company.name}"?`)) {
+    return;
+  }
+
+  deletingId.value = company.id;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    await deleteCompany(company.id);
+    successMessage.value = "Компания удалена";
+    await loadCompanies();
+  } catch (error: any) {
+    const message = error?.data?.message;
+    errorMessage.value = Array.isArray(message)
+      ? message.join(", ")
+      : message || error?.message || "Не удалось удалить компанию";
+  } finally {
+    deletingId.value = "";
+  }
+}
+
+watch(
+  () => true,
+  () => {
+    loadCompanies();
+  },
+  { immediate: true, once: true },
+);
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Компании" title="Список компаний" description="Чтение, создание и редактирование компаний платформы.">
+    <PageHeader eyebrow="Компании" title="Список компаний" description="Создание, редактирование и удаление компаний платформы.">
       <template #actions>
         <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
@@ -136,11 +175,11 @@ onMounted(loadCompanies);
       {{ successMessage }}
     </div>
 
-    <DataPanel title="Компании" description="Работа с `GET /platform/companies`, `POST /platform/companies`, `PATCH /platform/companies/:id`.">
+    <DataPanel title="Компании" description="GET /api/platform/companies, POST /api/platform/companies, PUT /api/platform/companies/:companyId, DELETE /api/platform/companies/:companyId.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
           <div class="min-w-[240px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <input v-model="search" type="text" placeholder="Поиск по названию, login или subdomain" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
+            <input v-model="search" type="text" placeholder="Поиск по имени, login или subdomain" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
           </div>
           <select v-model="status" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
             <option value="all">Все статусы</option>
@@ -182,14 +221,20 @@ onMounted(loadCompanies);
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ company.createdAt || "—" }}</td>
               <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
                 <div class="flex flex-wrap items-center gap-2">
-                  <NuxtLink :to="`/platform/companies/${company.id}`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
+                  <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
                     Карточка
                   </NuxtLink>
-                  <NuxtLink :to="`/platform/companies/${company.id}/shops`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
+                  <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
                     Филиалы
+                  </NuxtLink>
+                  <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
+                    Пользователи
                   </NuxtLink>
                   <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(company)">
                     Редактировать
+                  </UButton>
+                  <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === company.id" @click="removeCompany(company)">
+                    Удалить
                   </UButton>
                 </div>
               </td>
@@ -199,7 +244,7 @@ onMounted(loadCompanies);
       </div>
     </DataPanel>
 
-    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать компанию' : 'Создать компанию'" description="Форма для platform admin. Поля отправляются в API компании." @close="modalOpen = false">
+    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать компанию' : 'Создать компанию'" description="Все slug-поля отправляются в lowercase latin." @close="modalOpen = false">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Название компании</span>
@@ -207,13 +252,13 @@ onMounted(loadCompanies);
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Login</span>
-          <input v-model="form.login" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <input v-model="form.login" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Subdomain</span>
-          <input v-model="form.subdomain" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <input v-model="form.subdomain" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
         </label>
-        <label class="space-y-2 md:col-span-2">
+        <label v-if="editing" class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Статус</span>
           <select v-model="form.status" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
             <option value="active">Активна</option>

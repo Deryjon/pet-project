@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
-import { useRoute } from "vue-router";
+import { computed, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
@@ -10,11 +10,13 @@ definePageMeta({ layout: "platform" });
 useHead({ title: "Карточка компании | Konkurent Platform" });
 
 const route = useRoute();
-const companyId = computed(() => String(route.params.id || ""));
-const { getCompany, updateCompany } = usePlatformAdminApi();
+const router = useRouter();
+const companyId = computed(() => String(route.params.id || "").trim());
+const { getCompany, updateCompany, deleteCompany } = usePlatformAdminApi();
 
 const loading = ref(true);
 const saving = ref(false);
+const deleting = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 const company = ref<any | null>(null);
@@ -55,7 +57,6 @@ async function saveCompany() {
       name: form.name.trim(),
       login: form.login.trim(),
       subdomain: form.subdomain.trim(),
-      status: form.status,
       is_active: form.status === "active",
     });
     successMessage.value = "Изменения сохранены";
@@ -69,15 +70,49 @@ async function saveCompany() {
   }
 }
 
-onMounted(loadCompany);
+async function removeCompany() {
+  if (typeof window !== "undefined" && !window.confirm(`Удалить компанию "${company.value?.name || ""}"?`)) {
+    return;
+  }
+
+  deleting.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    await deleteCompany(companyId.value);
+    await router.push("/platform/companies");
+  } catch (error: any) {
+    const message = error?.data?.message;
+    errorMessage.value = Array.isArray(message)
+      ? message.join(", ")
+      : message || error?.message || "Не удалось удалить компанию";
+  } finally {
+    deleting.value = false;
+  }
+}
+
+watch(companyId, () => {
+  if (!companyId.value) {
+    company.value = null;
+    errorMessage.value = "Company ID not found in route";
+    loading.value = false;
+    return;
+  }
+
+  loadCompany();
+}, { immediate: true });
 </script>
 
 <template>
   <div class="space-y-8">
     <PageHeader eyebrow="Компании" :title="company?.name || 'Карточка компании'" description="Просмотр и редактирование одной компании.">
       <template #actions>
-        <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="inline-flex h-10 items-center justify-center rounded-2xl bg-slate-950 px-4 text-[14px] font-medium text-white transition hover:bg-slate-800">
-          Филиалы компании
+        <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
+          Филиалы
+        </NuxtLink>
+        <NuxtLink :to="`/platform/companies/${companyId}/users`" class="inline-flex h-10 items-center justify-center rounded-2xl bg-slate-950 px-4 text-[14px] font-medium text-white transition hover:bg-slate-800">
+          Пользователи компании
         </NuxtLink>
       </template>
     </PageHeader>
@@ -90,7 +125,7 @@ onMounted(loadCompany);
       {{ successMessage }}
     </div>
 
-    <DataPanel title="Основная информация" description="Данные из `GET /platform/companies/:id` и обновление через `PATCH /platform/companies/:id`.">
+    <DataPanel title="Основная информация" description="GET /api/platform/companies/:companyId и PUT /api/platform/companies/:companyId.">
       <div v-if="loading" class="space-y-3">
         <div v-for="item in 4" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" />
       </div>
@@ -102,14 +137,14 @@ onMounted(loadCompany);
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Login</span>
-          <input v-model="form.login" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <input v-model="form.login" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Subdomain</span>
-          <input v-model="form.subdomain" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <input v-model="form.subdomain" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
         </label>
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Статус</span>
+          <span class="text-[13px] font-semibold text-slate-700">Текущий статус</span>
           <div class="flex h-[50px] items-center rounded-2xl border border-slate-200 bg-slate-50 px-4">
             <StatusBadge :status="form.status" />
           </div>
@@ -122,10 +157,10 @@ onMounted(loadCompany);
           </select>
         </label>
         <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:col-span-2">
-          <div class="grid gap-4 sm:grid-cols-3">
+          <div class="grid gap-4 sm:grid-cols-4">
             <div>
               <p class="text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">ID</p>
-              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ company?.id || "—" }}</p>
+              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ company?.companyId || "—" }}</p>
             </div>
             <div>
               <p class="text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">Филиалы</p>
@@ -135,9 +170,16 @@ onMounted(loadCompany);
               <p class="text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">Пользователи</p>
               <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ company?.usersCount ?? 0 }}</p>
             </div>
+            <div>
+              <p class="text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">Обновлена</p>
+              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ company?.updatedAt || "—" }}</p>
+            </div>
           </div>
         </div>
-        <div class="flex justify-end md:col-span-2">
+        <div class="flex justify-between gap-3 md:col-span-2">
+          <UButton color="error" variant="soft" class="rounded-2xl" :loading="deleting" @click="removeCompany">
+            Удалить компанию
+          </UButton>
           <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
             {{ saving ? "Сохраняем..." : "Сохранить изменения" }}
           </UButton>
