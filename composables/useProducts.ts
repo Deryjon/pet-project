@@ -90,45 +90,9 @@ export interface ProductListResult {
   statisticsByStatus: Record<string, unknown> | null;
 }
 
-function seedProducts(): ProductDTO[] {
-  return [
-    {
-      id: 1,
-      name: "Case for iPhone 15 Pro",
-      sku: "CASE-IP15PRO",
-      barcode: "1234567890123",
-      product_type: "goods",
-      variant_type: "simple",
-      unit: "piece",
-      markup_percent: 35,
-      quantity: 34,
-      purchase_price: 45000,
-      sale_price: 65000,
-      category: { id: 1, name: "Accessories" },
-      brand: { id: 1, name: "No Brand" },
-      suppliers: [{ id: 1, name: "Mobile Trade" }],
-    },
-    {
-      id: 2,
-      name: "Glass Samsung S24",
-      sku: "GLASS-S24",
-      barcode: "2234567890123",
-      product_type: "goods",
-      variant_type: "simple",
-      unit: "piece",
-      markup_percent: 40,
-      quantity: 51,
-      purchase_price: 30000,
-      sale_price: 50000,
-      category: { id: 1, name: "Accessories" },
-      brand: { id: 2, name: "GlassPro" },
-      suppliers: [{ id: 2, name: "Tech Import" }],
-    },
-  ];
-}
-
 export function useProducts() {
-  const products = useState<ProductDTO[]>("mock-products", seedProducts);
+  const products = useState<ProductDTO[]>("products-cache", () => []);
+  const lastListParams = useState<Record<string, any> | null>("products-last-list-params", () => null);
   const { apiFetch } = useApi();
 
   async function createProduct(payload: CreateProductApiPayload) {
@@ -146,7 +110,13 @@ export function useProducts() {
         res?.data ??
         res;
       const created = normalizeCatalogProduct(createdRaw);
-      products.value = [created, ...products.value.filter((item) => item.id !== created.id)];
+
+      try {
+        await listProducts(lastListParams.value ?? { page: 1, pageSize: 10, statistics: true });
+      } catch {
+        products.value = [];
+      }
+
       return { success: true, item: created };
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
@@ -175,6 +145,7 @@ export function useProducts() {
       order?: string[];
     },
   ): Promise<ProductListResult> {
+    lastListParams.value = params ? { ...params } : {};
     const search = (params?.search || "").trim();
     const page = Math.max(1, Number(params?.page || 1));
     const pageSize = Math.max(1, Number(params?.pageSize || 10));
@@ -236,50 +207,29 @@ export function useProducts() {
           ?? null,
       };
     } catch {
-      try {
-        const res = await apiFetch<any>("/v2/product-search-with-filters", {
-          method: "POST",
-          body: payload,
-        });
+      const res = await apiFetch<any>("/v2/product-search-with-filters", {
+        method: "POST",
+        body: payload,
+      });
 
-        const statsRes = statistics
-          ? await apiFetch<any>("/v2/product-search-stats-with-filters", {
-              method: "POST",
-              body: payload,
-            })
-          : null;
+      const statsRes = statistics
+        ? await apiFetch<any>("/v2/product-search-stats-with-filters", {
+            method: "POST",
+            body: payload,
+          })
+        : null;
 
-        const items = Array.isArray(res?.products) ? res.products : [];
-        const normalized = items.map(normalizeCatalogProduct);
-        products.value = normalized;
-        return {
-          products: normalized,
-          count: Number(res?.count ?? normalized.length ?? 0),
-          total: Number(res?.total ?? normalized.length ?? 0),
-          fields: Array.isArray(res?.fields) ? res.fields : [],
-          statistics: extractStatistics(statsRes, res),
-          statisticsByStatus: extractStatisticsByStatus(statsRes, res) ?? null,
-        };
-      } catch {
-        const loweredSearch = search.toLowerCase();
-        const filtered = loweredSearch
-          ? products.value.filter((p) => {
-              const text = `${p.name} ${p.sku} ${p.barcode}`.toLowerCase();
-              return text.includes(loweredSearch);
-            })
-          : products.value;
-
-        const start = (page - 1) * pageSize;
-        const paginated = filtered.slice(start, start + pageSize);
-        return {
-          products: paginated,
-          count: paginated.length,
-          total: filtered.length,
-          fields: [],
-          statistics: null,
-          statisticsByStatus: null,
-        };
-      }
+      const items = Array.isArray(res?.products) ? res.products : [];
+      const normalized = items.map(normalizeCatalogProduct);
+      products.value = normalized;
+      return {
+        products: normalized,
+        count: Number(res?.count ?? normalized.length ?? 0),
+        total: Number(res?.total ?? normalized.length ?? 0),
+        fields: Array.isArray(res?.fields) ? res.fields : [],
+        statistics: extractStatistics(statsRes, res),
+        statisticsByStatus: extractStatisticsByStatus(statsRes, res) ?? null,
+      };
     }
   }
 

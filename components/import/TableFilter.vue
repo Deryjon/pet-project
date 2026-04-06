@@ -12,9 +12,7 @@
       </div>
 
       <div class="rounded-[18px] border border-dashed border-white/10 bg-white/5 px-4 py-3">
-        <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8f9aaa]">
-          Дата
-        </p>
+        <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8f9aaa]">Дата</p>
         <p class="mt-1 text-[14px] font-semibold text-[#d7d7d7]">Скоро добавим выбор периода</p>
       </div>
     </div>
@@ -24,7 +22,7 @@
         <CustomSelect
           v-model="store"
           label="Магазин"
-          :options="['Globus Mall', 'Samarqand Darvoza']"
+          :options="storeOptions"
           placeholder="Выберите магазин"
         />
       </div>
@@ -77,15 +75,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
+import { storeToRefs } from "pinia";
+import { useLocationStore } from "@/store/useLocationStore";
 import CustomSelect from "../ui/CustomSelect.vue";
 import PriceRange from "../ui/PriceRange.vue";
+
+const locationStore = useLocationStore();
+const { locations } = storeToRefs(locationStore);
 
 const store = ref("");
 const supplyPriceMin = ref("");
 const supplyPriceMax = ref("");
 const status = ref("");
 const importType = ref("");
+
+const storeOptions = computed(() =>
+  locations.value.map((location) => location.name).filter(Boolean),
+);
 
 const resetFilters = () => {
   store.value = "";

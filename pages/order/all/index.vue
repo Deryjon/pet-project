@@ -525,92 +525,6 @@ function selectSale(sale: SaleView) {
   selectedSaleId.value = sale.id;
 }
 
-function createMockSales(): SaleView[] {
-  const mockSales = [
-    {
-      id: "mock-101",
-      number: "101",
-      created_at: "2026-03-16T10:15:00",
-      seller_name: "Iskandarjon Yusupov",
-      branch_title: "Samarqand Darvoza",
-      total: 350000,
-      discount_amount: 50000,
-      payment_method: "cash",
-      client_name: "Azizбек",
-      status: "paid",
-      items: [
-        { id: "i-1", name: "AirPods Case", sku: "APC-001", quantity: 2, price: 100000, discount_amount: 20000 },
-        { id: "i-2", name: "Fast Charger", sku: "FCH-020", quantity: 1, price: 170000, discount_amount: 30000 },
-      ],
-    },
-    {
-      id: "mock-102",
-      number: "102",
-      created_at: "2026-03-16T11:40:00",
-      seller_name: "Sarvar Tursunov",
-      branch_title: "Globus Mall",
-      total: 620000,
-      discount_amount: 0,
-      payment_method: "card",
-      client_name: "Без клиента",
-      status: "paid",
-      items: [
-        { id: "i-3", name: "Power Bank 20000", sku: "PB-20000", quantity: 2, price: 210000, discount_amount: 0 },
-        { id: "i-4", name: "Type-C Cable", sku: "TC-011", quantity: 2, price: 100000, discount_amount: 0 },
-      ],
-    },
-    {
-      id: "mock-103",
-      number: "103",
-      created_at: "2026-03-16T13:05:00",
-      seller_name: "Madina Karimova",
-      branch_title: "Next Mall",
-      total: 480000,
-      discount_amount: 20000,
-      payment_method: { cash: 180000, card: 300000 },
-      client_name: "Dilshod",
-      status: "pending",
-      items: [
-        { id: "i-5", name: "Bluetooth Speaker", sku: "BS-777", quantity: 1, price: 320000, discount_amount: 20000 },
-        { id: "i-6", name: "USB Adapter", sku: "USA-02", quantity: 2, price: 90000, discount_amount: 0 },
-      ],
-    },
-    {
-      id: "mock-104",
-      number: "104",
-      created_at: "2026-03-15T18:22:00",
-      seller_name: "Jasur Nematov",
-      branch_title: "Compass",
-      total: 910000,
-      discount_amount: 110000,
-      payment_method: "payme",
-      client_name: "Malika",
-      status: "paid",
-      items: [
-        { id: "i-7", name: "Smart Watch", sku: "SW-099", quantity: 1, price: 650000, discount_amount: 50000 },
-        { id: "i-8", name: "Screen Protector", sku: "SP-015", quantity: 2, price: 185000, discount_amount: 60000 },
-      ],
-    },
-    {
-      id: "mock-105",
-      number: "105",
-      created_at: "2026-03-15T20:10:00",
-      seller_name: "Shahnoza Alimuhamedova",
-      branch_title: "Chilonzor",
-      total: 270000,
-      discount_amount: 0,
-      payment_method: "click",
-      client_name: "Sardor",
-      status: "cancelled",
-      items: [
-        { id: "i-9", name: "Wireless Mouse", sku: "WM-301", quantity: 1, price: 270000, discount_amount: 0 },
-      ],
-    },
-  ];
-
-  return mockSales.map(normalizeSale);
-}
-
 async function fetchSales() {
   loading.value = true;
   try {
@@ -623,13 +537,13 @@ async function fetchSales() {
     });
 
     const items = Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : [];
-    sales.value = items.length ? items.map(normalizeSale) : createMockSales();
+    sales.value = items.map(normalizeSale);
     total.value = Number(response?.total ?? sales.value.length ?? 0) || 0;
     page.value = Number(response?.page ?? page.value) || 1;
     limit.value = Number(response?.limit ?? limit.value) || 10;
   } catch {
-    sales.value = createMockSales();
-    total.value = sales.value.length;
+    sales.value = [];
+    total.value = 0;
   } finally {
     loading.value = false;
   }
@@ -722,3 +636,5 @@ watch([page, limit], () => {
   }
 }
 </style>
+
+

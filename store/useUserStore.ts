@@ -93,29 +93,42 @@ export const useUserStore = defineStore("user", {
     isLoggedIn: (state) => !!state.token,
     isCompanyUser: (state) => state.user.userType === "company",
     isPlatformUser: (state) => state.user.userType === "platform",
+    normalizedRoles: (state) =>
+      [state.user.role, ...(state.user.roles || [])]
+        .map((role) => String(role || "").trim().toLowerCase())
+        .filter(Boolean),
+    hasPlatformAccess(): boolean {
+      return ["platform_admin", "support"].some((role) => this.normalizedRoles.includes(role));
+    },
     fullName: (state) =>
       state.user.firstName || state.user.lastName
         ? `${state.user.firstName} ${state.user.lastName}`.trim()
         : state.user.name,
-    isAdmin: (state) => {
-      const directRoles = [state.user.role, ...(state.user.roles || [])]
-        .map((role) => String(role || "").trim().toLowerCase())
-        .filter(Boolean);
-
-      return directRoles.includes("admin") || directRoles.includes("админ");
+    isAdmin(): boolean {
+      return this.normalizedRoles.includes("admin") || this.normalizedRoles.includes("админ");
     },
   },
 
   actions: {
     setUser(user: any) {
       const normalizedRole =
+        user?.role?.id ??
+        user?.role?.role_id ??
         user?.role?.name ??
+        user?.roles?.[0]?.role_id ??
+        user?.roles?.[0]?.role?.id ??
         user?.roles?.[0]?.role?.name ??
         user?.role ??
         "";
       const normalizedRoles = Array.isArray(user?.roles)
         ? user.roles
-            .map((item: any) => item?.role?.name ?? item?.name ?? item?.role)
+            .flatMap((item: any) => [
+              item?.role_id,
+              item?.role?.id,
+              item?.role?.name,
+              item?.name,
+              item?.role,
+            ])
             .filter(Boolean)
             .map((role: any) => String(role))
         : normalizedRole

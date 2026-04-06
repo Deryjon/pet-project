@@ -52,7 +52,9 @@ watch([isMobileViewport, mobileSidebarOpen], ([mobile, open]) => {
 });
 
 onMounted(() => {
-  userStore.init();
+  if (!userStore.user.id && !userStore.initializing) {
+    userStore.init();
+  }
   syncViewport();
   window.addEventListener("resize", syncViewport);
 });
