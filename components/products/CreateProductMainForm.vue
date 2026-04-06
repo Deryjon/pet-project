@@ -116,7 +116,7 @@ function selectVariationType(type: VariationTypeLabel) {
     <div class="mt-4 flex gap-4">
       <div class="w-full">
         <label class="font-medium">Артикул</label>
-        <div class="mt-4 flex gap-2 rounded-[15px] bg-[#404040] pr-[15px]">
+        <div class="mt-4 flex items-center gap-2 rounded-[15px] bg-[#404040] p-2 pl-0">
           <UInput
             v-model="store.form.sku"
             type="text"
@@ -127,9 +127,10 @@ function selectVariationType(type: VariationTypeLabel) {
             }"
           />
           <UButton
-            color="neutral"
-            variant="ghost"
+            color="primary"
+            variant="solid"
             type="button"
+            class="shrink-0 rounded-[12px] bg-[#1f78ff] px-4 py-3 text-white hover:bg-[#1667dd] active:bg-[#1667dd]"
             @click="store.generateCode('article')"
           >
             Сгенерировать
@@ -139,7 +140,7 @@ function selectVariationType(type: VariationTypeLabel) {
 
       <div v-if="!isVariantGoods" class="w-full">
         <label class="font-medium">Баркод</label>
-        <div class="mt-4 flex gap-2 rounded-[15px] bg-[#404040] pr-[15px]">
+        <div class="mt-4 flex items-center gap-2 rounded-[15px] bg-[#404040] p-2 pl-0">
           <UInput
             v-model="store.form.barcode"
             type="text"
@@ -150,9 +151,10 @@ function selectVariationType(type: VariationTypeLabel) {
             }"
           />
           <UButton
-            color="neutral"
-            variant="ghost"
+            color="primary"
+            variant="solid"
             type="button"
+            class="shrink-0 rounded-[12px] bg-[#1f78ff] px-4 py-3 text-white hover:bg-[#1667dd] active:bg-[#1667dd]"
             @click="store.generateCode('barcode')"
           >
             Сгенерировать

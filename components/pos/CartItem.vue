@@ -8,10 +8,11 @@
           class="flex items-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5"
         >
           <input
-            v-model.number="item.quantity"
+            :value="item.quantity"
             type="number"
             min="1"
             class="w-5 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none"
+            @input="onQuantityInput"
           />
           <span class="text-sm font-semibold text-[#9f9f9f]">ШТ</span>
 
@@ -19,7 +20,7 @@
             <button
               type="button"
               class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
-              @click="item.quantity++"
+              @click="increaseQuantity"
             >
               <Icon name="heroicons:chevron-up-20-solid" class="h-4 w-4" />
             </button>
@@ -119,6 +120,15 @@ const { formatPrice } = useFormatPrice();
 const finalPrice = computed(() => store.itemFinalPriceWithGlobal(props.item));
 
 function decreaseQuantity() {
-  props.item.quantity = Math.max(1, Number(props.item.quantity || 1) - 1);
+  store.setCartItemQuantity(props.item.id, Math.max(1, Number(props.item.quantity || 1) - 1));
+}
+
+function increaseQuantity() {
+  store.setCartItemQuantity(props.item.id, Number(props.item.quantity || 1) + 1);
+}
+
+function onQuantityInput(event: Event) {
+  const target = event.target as HTMLInputElement | null;
+  store.setCartItemQuantity(props.item.id, Number(target?.value || 1));
 }
 </script>

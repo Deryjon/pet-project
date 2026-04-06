@@ -2,33 +2,31 @@
 import { useDashboardStore } from "@/store/dashboard";
 
 const store = useDashboardStore();
-const transactions = store.periodData.transactions;
-
 const transactionNames: Record<string, string> = {
   total: "Всего",
   products: "Товары",
   services: "Услуги",
+  sets: "Наборы",
   returns: "Возвраты",
   exchanges: "Обмены",
 };
 </script>
 
 <template>
-  <div class="p-7 bg-[#262626] rounded-lg shadow-style">
+  <div class="rounded-lg bg-[#262626] p-7 shadow-style">
     <div class="top flex items-center justify-between">
       <div class="sales-total">
-        <h3 class="font-bold text-[24px]">Транзакции</h3>
-        <p class="font-bold text-[#4993dd] mb-2 text-[36px]">
-          {{ transactions.total.toLocaleString() }} ШТ
+        <h3 class="text-[24px] font-bold">Транзакции</h3>
+        <p class="mb-2 text-[36px] font-bold text-[#4993dd]">
+          {{ store.periodData.transactions.total.toLocaleString() }} ШТ
         </p>
       </div>
       <div
-        class="circle w-[60px] h-[60px] bg-[#404040] rounded-full flex items-center justify-center"
+        class="circle flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[#404040]"
       >
-        <div class="icon w-[30px] h-[30px] flex items-center justify-center">
-          <!-- любой другой иконочный svg -->
+        <div class="icon flex h-[30px] w-[30px] items-center justify-center">
           <svg
-            class="w-full h-full text-[#4993dd]"
+            class="h-full w-full text-[#4993dd]"
             xmlns="http://www.w3.org/2000/svg"
             fill="currentColor"
             viewBox="0 0 24 24"
@@ -44,15 +42,14 @@ const transactionNames: Record<string, string> = {
       </div>
     </div>
 
-    <!-- список -->
-    <div class="transactions-items flex flex-col gap-2 mt-[30px]">
+    <div class="transactions-items mt-[30px] flex flex-col gap-2">
       <div
-        v-for="(value, key) in transactions"
+        v-for="(value, key) in store.periodData.transactions"
         :key="key"
-        class="flex items-center bg-[#404040] px-4 py-4 rounded-[15px] w-full justify-between"
+        class="flex w-full items-center justify-between rounded-[15px] bg-[#404040] px-4 py-4"
       >
-        <span class="text-left font-semibold text-[16px]">
-          {{ transactionNames[key] }}
+        <span class="text-left text-[16px] font-semibold">
+          {{ transactionNames[key] ?? key }}
         </span>
         <span
           :class="[
@@ -60,7 +57,7 @@ const transactionNames: Record<string, string> = {
             key === 'returns' ? 'text-red-500' : 'text-[#4993dd]',
           ]"
         >
-          {{ value.toLocaleString() }} шт
+          {{ Number(value ?? 0).toLocaleString() }} шт
         </span>
       </div>
     </div>

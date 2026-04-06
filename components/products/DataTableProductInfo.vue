@@ -51,7 +51,7 @@ const actionOptions = [
   "Заказ",
   "Продажа",
 ];
-const shopOptions = ["Все магазины", "Склад 1", "Склад 2", "Магазин 1"];
+const shopOptions = computed(() => ["Все магазины", ...store.filterOptions.store]);
 
 const formatUZS = (value: unknown) => {
   const num = Number(value);
@@ -59,12 +59,128 @@ const formatUZS = (value: unknown) => {
   return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
 };
 
+const productHistoryRows = computed<string[][]>(() => {
+  const p = selectedProduct.value;
+  if (!p) return [];
+
+  const original = p._original ?? {};
+  const historySource = pickFirstArray(
+    original?.history,
+    original?.histories,
+    original?.product_history,
+    original?.product_histories,
+    original?.movements,
+    original?.movement_history,
+    original?.transactions,
+    original?.events,
+    original?.logs,
+  );
+
+  if (historySource.length) {
+    return historySource.map((item: any) => {
+      const dateCell = formatDateTimeCell(
+        item?.created_at ??
+          item?.createdAt ??
+          item?.date_time ??
+          item?.dateTime ??
+          item?.date ??
+          item?.time,
+      );
+      const actionCell = formatHistoryAction(item);
+      const quantityCell = String(
+        Number(
+          item?.quantity ??
+            item?.measurement_value ??
+            item?.active_measurement_value ??
+            item?.count ??
+            0,
+        ),
+      );
+      const shopCell =
+        String(
+          item?.shop?.name ??
+            item?.shop_name ??
+            item?.branch?.name ??
+            item?.branch_name ??
+            item?.store?.name ??
+            item?.store_name ??
+            p.shop_name ??
+            "-",
+        ).trim() || "-";
+
+      return [dateCell, actionCell, quantityCell, shopCell];
+    });
+  }
+
+  const fallbackDate = formatDateTimeCell(
+    original?.created_at ?? original?.createdAt ?? original?.date ?? null,
+  );
+  const fallbackAction = formatHistoryAction(original);
+  const fallbackQuantity = String(Number(p.quantity ?? 0));
+  const fallbackShop =
+    String(
+      original?.current_shop?.shop?.name ??
+        original?.current_shop?.name ??
+        original?.shop_name ??
+        p.shop_name ??
+        "-",
+    ).trim() || "-";
+
+  return [[fallbackDate, fallbackAction, fallbackQuantity, fallbackShop]];
+});
+
+const stockRows = computed<string[][]>(() => {
+  const p = selectedProduct.value;
+  if (!p) return [];
+
+  const original = p._original ?? {};
+  const productSupplyStock = Array.isArray(original.product_supply_stock)
+    ? original.product_supply_stock
+    : [];
+  const shopMeasurementValues = Array.isArray(original.shop_measurement_values)
+    ? original.shop_measurement_values
+    : [];
+
+  const source = productSupplyStock.length ? productSupplyStock : shopMeasurementValues;
+
+  if (source.length) {
+    return source.map((item: any) => {
+      const shopName =
+        String(
+          item?.shop?.name ??
+          item?.shop_name ??
+          item?.branch?.name ??
+          item?.branch_name ??
+          p.shop_name ??
+          "-",
+        ).trim() || "-";
+      const active = Number(
+        item?.active_measurement_value ??
+        item?.measurement_value ??
+        item?.total_measurement_value ??
+        item?.quantity ??
+        0,
+      );
+      const inactive = Number(item?.inactive_measurement_value ?? item?.inactive_quantity ?? 0);
+      const low = Number(item?.small_left_measurement_value ?? item?.low_quantity ?? 0);
+
+      return [shopName, String(active), String(inactive), String(low)];
+    });
+  }
+
+  return [[
+    String(p.shop_name || "-"),
+    String(Number(p.quantity ?? 0)),
+    "0",
+    "0",
+  ]];
+});
+
 const tableSections = computed<TableSection[]>(() => {
   const p = selectedProduct.value;
   if (!p) return [];
 
   const supplierOrStore = p.suppliers || "-";
-  const quantity = Number(p.quantity ?? 0);
   const purchasePrice = Number(p.purchase_price ?? 0);
   const salePrice = Number(p.sale_price ?? 0);
   const markup =
@@ -75,15 +191,8 @@ const tableSections = computed<TableSection[]>(() => {
   return [
     {
       title: "История продукта",
-      columns: ["Дата", "Действие", "Кол-во", "Источник"],
-      rows: [
-        [
-          new Date().toLocaleString("ru-RU"),
-          "Выбран из каталога",
-          String(quantity),
-          supplierOrStore,
-        ],
-      ],
+      columns: ["Дата", "Действие", "Кол-во", "Магазин"],
+      rows: productHistoryRows.value,
     },
     {
       title: "Цены",
@@ -108,10 +217,8 @@ const tableSections = computed<TableSection[]>(() => {
     },
     {
       title: "Остатки",
-      columns: ["Источник", "Активные", "Неактивные", "Малый остаток"],
-      rows: [
-        [supplierOrStore, String(quantity), "0", quantity > 0 ? "0" : "1"],
-      ],
+      columns: ["Магазин", "Активные", "Неактивные", "Малый остаток"],
+      rows: stockRows.value,
     },
   ];
 });
@@ -153,6 +260,94 @@ function onProductImageError(event: Event) {
 function formatSingleDate(value: any) {
   if (!value || typeof value.toDate !== "function") return "Выберите дату";
   return value.toDate(tz).toLocaleDateString("ru-RU");
+}
+
+function pickFirstArray(...values: unknown[]) {
+  for (const value of values) {
+    if (Array.isArray(value) && value.length) {
+      return value;
+    }
+  }
+
+  return [];
+}
+
+function formatDateTimeCell(value: unknown) {
+  const date = value ? new Date(String(value)) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return `${date.toLocaleDateString("ru-RU")}\n\n${date.toLocaleTimeString("ru-RU")}`;
+}
+
+function formatHistoryAction(item: any) {
+  const type = String(
+    item?.action_name ??
+      item?.action ??
+      item?.event_name ??
+      item?.event_type ??
+      item?.type ??
+      item?.operation_type ??
+      item?.document_type ??
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const documentNumber = String(
+    item?.document_number ??
+      item?.number ??
+      item?.import_number ??
+      item?.transaction_number ??
+      item?.id ??
+      "",
+  ).trim();
+
+  if (type.includes("import")) {
+    return documentNumber ? `Импорт #${documentNumber}` : "Импорт";
+  }
+
+  if (type.includes("sale") || type.includes("sell") || type.includes("прод")) {
+    return documentNumber ? `Продажа #${documentNumber}` : "Продажа";
+  }
+
+  if (type.includes("transfer") || type.includes("транс")) {
+    return documentNumber ? `Трансфер #${documentNumber}` : "Трансфер";
+  }
+
+  if (type.includes("writeoff") || type.includes("write_off") || type.includes("спис")) {
+    return documentNumber ? `Списание #${documentNumber}` : "Списание";
+  }
+
+  if (type.includes("inventory") || type.includes("инвент")) {
+    return documentNumber ? `Инвентаризация #${documentNumber}` : "Инвентаризация";
+  }
+
+  if (type.includes("return") || type.includes("возв")) {
+    return documentNumber ? `Возврат #${documentNumber}` : "Возврат";
+  }
+
+  if (type.includes("order") || type.includes("заказ")) {
+    return documentNumber ? `Заказ #${documentNumber}` : "Заказ";
+  }
+
+  if (type.includes("receive") || type.includes("приход")) {
+    return documentNumber ? `Приход #${documentNumber}` : "Приход";
+  }
+
+  const explicitLabel = String(
+    item?.title ?? item?.name ?? item?.label ?? item?.description ?? "",
+  ).trim();
+  if (explicitLabel) {
+    return explicitLabel;
+  }
+
+  if (documentNumber) {
+    return `Документ #${documentNumber}`;
+  }
+
+  return "Операция";
 }
 </script>
 

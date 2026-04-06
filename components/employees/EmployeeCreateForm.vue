@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
+import { useUserStore } from "@/store/useUserStore";
+
+const COMPANY_ROLE_OPTIONS = [
+  { label: "Владелец", value: "owner" },
+  { label: "Админ", value: "admin" },
+  { label: "Управляющий магазином", value: "store_manager" },
+  { label: "Кассир", value: "cashier" },
+  { label: "Сотрудник", value: "employee" },
+];
 
 const emit = defineEmits<{
   (e: "created", value: any): void;
@@ -15,10 +24,11 @@ const props = withDefaults(
   {
     submitLabel: "Создать сотрудника",
     showCancel: false,
-  }
+  },
 );
 
 const { apiFetch } = useApi();
+const userStore = useUserStore();
 
 const first_name = ref("");
 const last_name = ref("");
@@ -27,11 +37,94 @@ const countryCode = ref("+998");
 const phone = ref("");
 const password = ref("");
 const role = ref("employee");
-const branch_location = ref("main");
+const current_shop_id = ref("");
+const allowed_shop_ids = ref<string[]>([]);
+const can_switch_shops = ref(false);
 
 const loading = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
+
+const shopOptions = computed(() =>
+  (userStore.user.shops || []).map((shop) => ({
+    label: shop.name,
+    value: shop.id,
+    branchCode: shop.branchCode || "",
+  })),
+);
+
+const selectedShopCount = computed(() => allowed_shop_ids.value.length);
+const currentShopLabel = computed(
+  () => shopOptions.value.find((shop) => shop.value === current_shop_id.value)?.label || "Не выбран",
+);
+
+watch(
+  shopOptions,
+  (options) => {
+    const availableIds = new Set(options.map((option) => option.value));
+    allowed_shop_ids.value = allowed_shop_ids.value.filter((id) => availableIds.has(id));
+
+    if (!allowed_shop_ids.value.length && options.length) {
+      const fallbackId = userStore.user.currentShopId || options[0]?.value || "";
+      allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
+    }
+
+    if (!allowed_shop_ids.value.includes(current_shop_id.value)) {
+      current_shop_id.value = allowed_shop_ids.value[0] || "";
+    }
+  },
+  { immediate: true },
+);
+
+watch(can_switch_shops, (value) => {
+  if (value) {
+    return;
+  }
+
+  const fallbackId = current_shop_id.value || allowed_shop_ids.value[0] || "";
+  allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
+});
+
+watch(current_shop_id, (shopId) => {
+  if (!shopId) {
+    return;
+  }
+
+  if (!allowed_shop_ids.value.includes(shopId)) {
+    allowed_shop_ids.value = can_switch_shops.value
+      ? [...allowed_shop_ids.value, shopId]
+      : [shopId];
+  }
+});
+
+function toggleAllowedShop(shopId: string) {
+  if (!shopId) {
+    return;
+  }
+
+  const exists = allowed_shop_ids.value.includes(shopId);
+
+  if (exists) {
+    if (!can_switch_shops.value || allowed_shop_ids.value.length === 1) {
+      allowed_shop_ids.value = [shopId];
+      current_shop_id.value = shopId;
+      return;
+    }
+
+    allowed_shop_ids.value = allowed_shop_ids.value.filter((id) => id !== shopId);
+    if (current_shop_id.value === shopId) {
+      current_shop_id.value = allowed_shop_ids.value[0] || "";
+    }
+    return;
+  }
+
+  allowed_shop_ids.value = can_switch_shops.value
+    ? [...allowed_shop_ids.value, shopId]
+    : [shopId];
+  if (!current_shop_id.value) {
+    current_shop_id.value = shopId;
+  }
+}
 
 function formatPhone(input: string | undefined | null) {
   const digits = String(input || "").replace(/\D/g, "").slice(0, 9);
@@ -53,13 +146,17 @@ const preparedData = computed(() => {
   const digits = phone.value.replace(/\D/g, "");
 
   return {
+    user_type: "company",
+    company_id: userStore.user.companyId || undefined,
     first_name: first_name.value.trim(),
     last_name: last_name.value.trim(),
-    birth_date: birth_date.value.trim() || null,
+    birth_date: birth_date.value.trim() || undefined,
     phone_number: `${code}${digits}`,
     password: password.value,
     role: role.value.trim(),
-    branch_location: branch_location.value.trim(),
+    current_shop_id: current_shop_id.value,
+    allowed_shop_ids: [...allowed_shop_ids.value],
+    can_switch_shops: can_switch_shops.value,
   };
 });
 
@@ -70,7 +167,10 @@ function resetForm() {
   phone.value = "";
   password.value = "";
   role.value = "employee";
-  branch_location.value = "main";
+  can_switch_shops.value = false;
+  const fallbackId = userStore.user.currentShopId || shopOptions.value[0]?.value || "";
+  current_shop_id.value = fallbackId;
+  allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
 }
 
 async function submit() {
@@ -97,8 +197,12 @@ async function submit() {
     errorMessage.value = "Укажите роль.";
     return;
   }
-  if (!preparedData.value.branch_location) {
-    errorMessage.value = "Укажите филиал.";
+  if (!preparedData.value.current_shop_id) {
+    errorMessage.value = "Укажите текущий филиал.";
+    return;
+  }
+  if (!preparedData.value.allowed_shop_ids.length) {
+    errorMessage.value = "Выберите хотя бы один доступный филиал.";
     return;
   }
 
@@ -121,128 +225,157 @@ async function submit() {
 </script>
 
 <template>
-  <div class="rounded-2xl bg-[#262626] p-6 shadow-xl">
-    <div class="mb-5 flex items-start justify-between gap-4">
-      <div>
-        <h3 class="text-xl font-bold text-white">Новый сотрудник</h3>
-        <p class="mt-1 text-sm text-[#bdbdbd]">
-          Создание пользователя через `POST /users/add`
-        </p>
-      </div>
+  <div class="overflow-hidden rounded-[30px] border border-white/8 bg-[#262626] shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+    <div class="border-b border-white/8 bg-[linear-gradient(135deg,rgba(31,120,255,0.18),rgba(38,38,38,0.96)_45%,rgba(38,38,38,1))] px-6 py-6">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="mb-2 text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
+            Company User
+          </p>
+          <h3 class="text-[28px] font-semibold text-white">Новый сотрудник</h3>
+          <p class="mt-2 max-w-[620px] text-sm leading-6 text-[#bdbdbd]">
+            Создание пользователя через `POST /users/add` с актуальными правами по филиалам.
+          </p>
+        </div>
 
-      <button
-        v-if="props.showCancel"
-        type="button"
-        class="rounded-xl bg-[#404040] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5e5e5e]"
-        @click="$emit('cancel')"
-      >
-        Закрыть
-      </button>
+        <div class="flex flex-wrap gap-2">
+          <span class="rounded-full border border-[#2f6ed6] bg-[#10294f] px-3 py-1 text-xs font-medium text-[#9fc0ff]">
+            {{ selectedShopCount }} филиал(ов)
+          </span>
+          <span class="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-xs font-medium text-white">
+            Текущий: {{ currentShopLabel }}
+          </span>
+        </div>
+      </div>
     </div>
 
-    <form class="space-y-5" @submit.prevent="submit">
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="flex flex-col gap-2">
-          <label class="font-medium text-white">Имя</label>
-          <input
-            v-model="first_name"
-            type="text"
-            placeholder="Test"
-            class="rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <label class="font-medium text-white">Фамилия</label>
-          <input
-            v-model="last_name"
-            type="text"
-            placeholder="User"
-            class="rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <label class="font-medium text-white">Дата рождения</label>
-          <input
-            v-model="birth_date"
-            type="text"
-            placeholder="12.06.2004"
-            class="rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <label class="font-medium text-white">Филиал</label>
-          <input
-            v-model="branch_location"
-            type="text"
-            placeholder="main"
-            class="rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+    <div class="p-6">
+      <div v-if="errorMessage" class="mb-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        {{ errorMessage }}
       </div>
 
-      <div class="flex flex-col gap-2">
-        <label class="font-medium text-white">Телефон</label>
-        <div class="flex gap-2">
-          <input
-            v-model="countryCode"
-            type="text"
-            class="w-24 rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            v-model="phone"
-            type="tel"
-            placeholder="94 612 08 44"
-            class="flex-1 rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      <div v-if="successMessage" class="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+        {{ successMessage }}
       </div>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="flex flex-col gap-2">
-          <label class="font-medium text-white">Пароль</label>
-          <input
-            v-model="password"
-            type="password"
-            placeholder="Минимум 6 символов"
-            class="rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
+      <form class="space-y-6" @submit.prevent="submit">
+        <section class="rounded-[24px] border border-white/8 bg-[#2d2d2d] p-5">
+          <div class="mb-5">
+            <h4 class="text-lg font-semibold text-white">Основные данные</h4>
+            <p class="mt-1 text-sm text-[#9b9b9b]">Имя, дата рождения, роль и телефон сотрудника.</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium text-[#d6d6d6]">Имя</label>
+              <input v-model="first_name" type="text" placeholder="Sardor" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium text-[#d6d6d6]">Фамилия</label>
+              <input v-model="last_name" type="text" placeholder="Obidjanov" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium text-[#d6d6d6]">Дата рождения</label>
+              <input v-model="birth_date" type="text" placeholder="10.10.2002" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium text-[#d6d6d6]">Роль</label>
+              <select v-model="role" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]">
+                <option v-for="option in COMPANY_ROLE_OPTIONS" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[120px_minmax(0,1fr)]">
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium text-[#d6d6d6]">Код</label>
+              <input v-model="countryCode" type="text" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium text-[#d6d6d6]">Телефон</label>
+              <input v-model="phone" type="tel" placeholder="99 825 32 22" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#d6d6d6]">Пароль</label>
+            <input v-model="password" type="password" placeholder="Минимум 6 символов" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+          </div>
+        </section>
+
+        <section class="rounded-[24px] border border-white/8 bg-[#2d2d2d] p-5">
+          <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h4 class="text-lg font-semibold text-white">Филиалы и права доступа</h4>
+              <p class="mt-1 text-sm text-[#9b9b9b]">
+                Настрой текущий филиал, список доступных филиалов и право на переключение.
+              </p>
+            </div>
+
+            <label class="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm text-white">
+              <input v-model="can_switch_shops" type="checkbox" class="h-4 w-4 accent-[#1f78ff]" />
+              Может переключать филиалы
+            </label>
+          </div>
+
+          <div class="mb-5 flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#d6d6d6]">Текущий филиал</label>
+            <select v-model="current_shop_id" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]">
+              <option value="" disabled>Выберите филиал</option>
+              <option v-for="shop in shopOptions" :key="shop.value" :value="shop.value">
+                {{ shop.label }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="shopOptions.length" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <button
+              v-for="shop in shopOptions"
+              :key="shop.value"
+              type="button"
+              class="rounded-[22px] border px-4 py-4 text-left transition"
+              :class="allowed_shop_ids.includes(shop.value)
+                ? 'border-[#2f6ed6] bg-[#16355f] shadow-[inset_0_0_0_1px_rgba(127,176,255,0.18)]'
+                : 'border-white/8 bg-[#383838] hover:border-white/15 hover:bg-[#404040]'"
+              @click="toggleAllowedShop(shop.value)"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="font-medium text-white">{{ shop.label }}</p>
+                  <p class="mt-1 text-xs text-[#a6a6a6]">
+                    {{ shop.branchCode || 'Доступный филиал компании' }}
+                  </p>
+                </div>
+
+                <div class="mt-0.5 flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold"
+                  :class="allowed_shop_ids.includes(shop.value) ? 'bg-[#1f78ff] text-white' : 'bg-white/8 text-[#bdbdbd]'">
+                  {{ allowed_shop_ids.includes(shop.value) ? 'Да' : 'Нет' }}
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <p v-else class="rounded-2xl border border-white/8 bg-[#353535] px-4 py-3 text-sm text-[#bdbdbd]">
+            Доступные филиалы не найдены в `/auth/me`.
+          </p>
+        </section>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit" :disabled="loading" class="rounded-2xl bg-[#1f78ff] px-6 py-3.5 font-semibold text-white transition hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:opacity-60">
+            {{ loading ? "Сохранение..." : props.submitLabel || "Создать сотрудника" }}
+          </button>
+
+          <button v-if="props.showCancel" type="button" class="rounded-2xl border border-white/10 bg-white/5 px-6 py-3.5 font-semibold text-white transition hover:bg-white/10" @click="$emit('cancel')">
+            Отмена
+          </button>
         </div>
-
-        <div class="flex flex-col gap-2">
-          <label class="font-medium text-white">Роль</label>
-          <input
-            v-model="role"
-            type="text"
-            placeholder="admin"
-            class="rounded-xl bg-[#404040] px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div class="flex flex-wrap gap-3">
-        <button
-          type="submit"
-          :disabled="loading"
-          class="rounded-xl bg-[#1f78ff] px-5 py-3 font-semibold text-white transition hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {{ loading ? "Сохранение..." : props.submitLabel || "Создать сотрудника" }}
-        </button>
-
-        <button
-          v-if="props.showCancel"
-          type="button"
-          class="rounded-xl bg-[#404040] px-5 py-3 font-semibold text-white transition hover:bg-[#5e5e5e]"
-          @click="$emit('cancel')"
-        >
-          Отмена
-        </button>
-      </div>
-
-      <p v-if="errorMessage" class="text-sm text-red-400">{{ errorMessage }}</p>
-      <p v-if="successMessage" class="text-sm text-green-400">{{ successMessage }}</p>
-    </form>
+      </form>
+    </div>
   </div>
 </template>

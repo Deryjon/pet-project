@@ -563,7 +563,7 @@ const continueToFieldMapping = () => {
       generateBarcodes: form.value.generateBarcodes,
       generateArticles: form.value.generateArticles,
     },
-    createdBy: userStore.fullName || userStore.user.name || "Current User",
+    createdBy: userStore.fullName || userStore.user.name || "?? ??????",
   });
 
   closeImportModal();
@@ -601,3 +601,4 @@ useHead({
   opacity: 0;
 }
 </style>
+

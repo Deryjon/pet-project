@@ -65,7 +65,7 @@
         </div>
         <div class="flex flex-col text-right">
           <span>{{ formatPrice(product.price) }} UZS</span>
-          <span class="text-[#999]">Кол-во: 1 шт</span>
+          <span class="text-[#999]">Кол-во: {{ Number(product.availableQuantity ?? 0) }} шт</span>
         </div>
       </button>
     </div>
