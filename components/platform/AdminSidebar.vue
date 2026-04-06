@@ -27,7 +27,7 @@ function isActive(path: string) {
           <h2 class="text-[17px] font-semibold text-slate-950">Панель управления</h2>
         </div>
       </div>
-      <UButton v-if="props.mobile" color="neutral" variant="ghost" class="rounded-xl text-slate-500 hover:bg-slate-100" @click="emit('close')">
+      <UButton v-if="props.mobile" color="neutral" variant="ghost" class="cursor-pointer rounded-xl text-slate-500 hover:bg-slate-100" @click="emit('close')">
         <Icon name="heroicons:x-mark" class="h-5 w-5" />
       </UButton>
     </div>
@@ -37,7 +37,7 @@ function isActive(path: string) {
         v-for="item in items"
         :key="item.to"
         :to="item.to"
-        class="group flex items-center gap-3 rounded-2xl px-3 py-3 text-[14px] font-medium transition-all duration-200"
+        class="group flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 text-[14px] font-medium transition-all duration-200"
         :class="isActive(item.to) ? 'bg-slate-950 text-white shadow-[0_12px_30px_rgba(15,23,42,0.18)]' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'"
         @click="emit('close')"
       >
@@ -50,7 +50,7 @@ function isActive(path: string) {
       <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Доступ</p>
       <p class="mt-2 text-[15px] font-semibold">Отдельная админ-панель для платформы.</p>
       <p class="mt-2 text-[13px] leading-6 text-slate-300">Здесь собраны компании, филиалы и сотрудники без лишних технических подсказок.</p>
-      <UButton color="neutral" variant="soft" class="mt-4 w-full justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">
+      <UButton color="neutral" variant="soft" class="mt-4 w-full cursor-pointer justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">
         Выйти
       </UButton>
     </div>

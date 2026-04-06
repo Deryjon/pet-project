@@ -168,11 +168,11 @@ watch(
       description="Создавайте компании, следите за их статусом и быстро переходите к филиалам и сотрудникам."
     >
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadCompanies">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadCompanies">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
-        <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
+        <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
           Новая компания
         </UButton>
@@ -236,22 +236,22 @@ watch(
           </div>
 
           <div class="mt-5 flex flex-wrap gap-2">
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800">
               Карточка
             </NuxtLink>
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
               Филиалы
             </NuxtLink>
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
               Сотрудники
             </NuxtLink>
           </div>
 
           <div class="mt-5 flex items-center justify-between gap-2 border-t border-slate-200/80 pt-4">
-            <button class="rounded-2xl px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" @click="openEdit(company)">
+            <button class="cursor-pointer rounded-2xl px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" @click="openEdit(company)">
               Редактировать
             </button>
-            <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === company.id" @click="removeCompany(company)">
+            <UButton color="error" variant="soft" class="cursor-pointer rounded-2xl" :loading="deletingId === company.id" @click="removeCompany(company)">
               Удалить
             </UButton>
           </div>

@@ -61,7 +61,7 @@ onMounted(loadData);
       description="Следите за компаниями, филиалами и администраторами из единого центра управления."
     >
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadData">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadData">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
@@ -91,7 +91,7 @@ onMounted(loadData);
             v-for="company in lastCompanies"
             :key="company.id"
             :to="`/platform/companies/${company.id}`"
-            class="group rounded-[28px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.95))] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
+            class="group cursor-pointer rounded-[28px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.95))] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
           >
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0">
@@ -153,10 +153,10 @@ onMounted(loadData);
             Основной поток внутри платформы теперь строится вокруг выбранной компании: из карточки можно сразу перейти к филиалам и сотрудникам.
           </p>
           <div class="mt-6 flex flex-wrap gap-3">
-            <NuxtLink to="/platform/companies" class="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-[14px] font-semibold text-slate-900 transition hover:bg-slate-100">
+            <NuxtLink to="/platform/companies" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-white px-4 py-3 text-[14px] font-semibold text-slate-900 transition hover:bg-slate-100">
               Открыть компании
             </NuxtLink>
-            <NuxtLink to="/platform/users" class="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-white/15">
+            <NuxtLink to="/platform/users" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-white/15">
               Открыть сотрудников
             </NuxtLink>
           </div>

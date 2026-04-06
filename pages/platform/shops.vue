@@ -93,7 +93,7 @@ watch(
   <div class="space-y-8">
     <PageHeader eyebrow="Филиалы компаний" title="Филиалы" description="Выберите компанию и просмотрите ее филиалы.">
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>

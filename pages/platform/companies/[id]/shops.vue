@@ -151,13 +151,13 @@ watch(
   <div class="space-y-8">
     <PageHeader eyebrow="Филиалы" :title="company?.name ? `Филиалы: ${company.name}` : 'Филиалы компании'" description="Список филиалов компании и управление ими.">
       <template #actions>
-        <NuxtLink :to="`/platform/companies/${companyId}`" class="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
+        <NuxtLink :to="`/platform/companies/${companyId}`" class="inline-flex h-10 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
           Карточка компании
         </NuxtLink>
-        <NuxtLink :to="`/platform/companies/${companyId}/users`" class="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
+        <NuxtLink :to="`/platform/companies/${companyId}/users`" class="inline-flex h-10 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
           Сотрудники
         </NuxtLink>
-        <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
+        <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
           Создать филиал
         </UButton>

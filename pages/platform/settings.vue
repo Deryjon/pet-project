@@ -36,7 +36,7 @@ const settingCards = [
           </div>
           <h3 class="mt-5 text-[18px] font-semibold text-slate-950">{{ card.title }}</h3>
           <p class="mt-3 text-[14px] leading-7 text-slate-500">{{ card.description }}</p>
-          <UButton color="neutral" variant="soft" class="mt-6 rounded-2xl bg-white text-slate-700 hover:bg-slate-100">Открыть</UButton>
+          <UButton color="neutral" variant="soft" class="mt-6 cursor-pointer rounded-2xl bg-white text-slate-700 hover:bg-slate-100">Открыть</UButton>
         </article>
       </div>
     </DataPanel>

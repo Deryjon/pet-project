@@ -324,13 +324,13 @@ watch(
   <div class="space-y-8">
     <PageHeader eyebrow="Сотрудники компании" :title="company?.name ? `Сотрудники: ${company.name}` : 'Сотрудники компании'" description="Управление сотрудниками выбранной компании.">
       <template #actions>
-        <NuxtLink :to="`/platform/companies/${companyId}`" class="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
+        <NuxtLink :to="`/platform/companies/${companyId}`" class="inline-flex h-10 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
           Карточка компании
         </NuxtLink>
-        <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
+        <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="inline-flex h-10 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
           Филиалы
         </NuxtLink>
-        <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
+        <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
           Создать сотрудника
         </UButton>
@@ -455,7 +455,7 @@ watch(
               v-for="shop in shops"
               :key="shop.id"
               type="button"
-              class="rounded-2xl border px-4 py-3 text-left transition"
+              class="cursor-pointer rounded-2xl border px-4 py-3 text-left transition"
               :class="form.allowedShopIds.includes(shop.id) ? 'border-teal-300 bg-teal-50' : 'border-slate-200 bg-slate-50 hover:bg-white'"
               @click="toggleAllowedShop(shop.id)"
             >

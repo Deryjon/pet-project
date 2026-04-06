@@ -142,7 +142,7 @@ watch(
   <div class="space-y-8">
     <PageHeader eyebrow="Сотрудники компаний" title="Сотрудники" description="Выберите компанию и просмотрите ее сотрудников.">
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
@@ -196,7 +196,7 @@ watch(
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.currentShopName || user.currentShopId || "—" }}</td>
               <td class="bg-slate-50 px-4 py-4"><StatusBadge :status="user.status" /></td>
               <td class="rounded-r-[22px] bg-slate-50 px-4 py-4 text-[14px] text-slate-600">
-                <NuxtLink v-if="selectedCompany" :to="`/platform/companies/${getCompanyRouteId(selectedCompany)}`" class="font-medium text-slate-700 underline-offset-2 hover:underline">
+                <NuxtLink v-if="selectedCompany" :to="`/platform/companies/${getCompanyRouteId(selectedCompany)}`" class="cursor-pointer font-medium text-slate-700 underline-offset-2 hover:underline">
                   {{ selectedCompany.name }}
                 </NuxtLink>
                 <span v-else>—</span>

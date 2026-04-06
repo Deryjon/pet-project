@@ -14,7 +14,7 @@ const emit = defineEmits<{
   <Teleport to="body">
     <transition name="fade-modal">
       <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
-        <div class="absolute inset-0 bg-[#06111f]/45 backdrop-blur-md" @click="emit('close')" />
+        <div class="absolute inset-0 cursor-pointer bg-[#06111f]/45 backdrop-blur-md" @click="emit('close')" />
 
         <div class="relative z-10 w-full max-w-2xl overflow-hidden rounded-[34px] border border-white/70 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.9))] p-6 shadow-[0_40px_120px_rgba(15,23,42,0.2)] sm:p-8">
           <div class="flex items-start justify-between gap-4 border-b border-slate-200/70 pb-5">
@@ -26,7 +26,7 @@ const emit = defineEmits<{
               <p v-if="description" class="mt-2 text-[14px] leading-6 text-slate-500">{{ description }}</p>
             </div>
 
-            <UButton color="neutral" variant="ghost" class="rounded-2xl text-slate-500 hover:bg-slate-100" @click="emit('close')">
+            <UButton color="neutral" variant="ghost" class="cursor-pointer rounded-2xl text-slate-500 hover:bg-slate-100" @click="emit('close')">
               <Icon name="heroicons:x-mark" class="h-5 w-5" />
             </UButton>
           </div>
