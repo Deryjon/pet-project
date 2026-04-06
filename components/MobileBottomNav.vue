@@ -24,14 +24,14 @@ const items = [
   {
     label: "Продажа",
     icon: "heroicons:shopping-bag-solid",
-    to: "/pos/new-pos",
-    match: ["/pos/new-pos"],
+    to: "/order/new-order",
+    match: ["/order/new-order"],
   },
   {
     label: "Транзакции",
     icon: "heroicons:receipt-percent-solid",
-    to: "/pos/all",
-    match: ["/pos/all"],
+    to: "/order/all",
+    match: ["/order/all"],
   },
 ];
 
