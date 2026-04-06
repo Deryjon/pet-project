@@ -236,7 +236,8 @@ function normalizeUser(raw: any): PlatformUser {
     phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
     email: String(raw?.email ?? ""),
     role: String(
-      raw?.role?.name ??
+      raw?.role?.role?.name ??
+        raw?.role?.name ??
         raw?.role ??
         raw?.roles?.[0]?.role?.name ??
         raw?.roles?.[0]?.name ??

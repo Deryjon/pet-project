@@ -8,9 +8,10 @@ import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
 import type { PlatformShop, PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Пользователи компании | Konkurent Platform" });
+useHead({ title: "Сотрудники компании | Konkurent Platform" });
 
 const COMPANY_ROLE_OPTIONS = [
   { label: "owner", value: "owner" },
@@ -23,6 +24,7 @@ const COMPANY_ROLE_OPTIONS = [
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
 const { getCompany, getCompanyShops, getCompanyUsers, createCompanyUser, updateUser, deleteUser } = usePlatformAdminApi();
+const { softInputUi, softSelectUi } = usePlatformFormUi();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -50,16 +52,25 @@ const form = reactive({
   canSwitchShops: false,
 });
 
+const tableRoleOptions = computed(() => [{ label: "Все роли", value: "all" }, ...COMPANY_ROLE_OPTIONS]);
+const statusOptions = [
+  { label: "Все статусы", value: "all" },
+  { label: "Активные", value: "active" },
+  { label: "Отключенные", value: "inactive" },
+];
+
+const shopOptions = computed(() =>
+  shops.value.map((shop) => ({
+    label: shop.name,
+    value: shop.id,
+  })),
+);
+
 watch(
   () => form.phone,
   (value) => {
     const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
-    const parts = [
-      digits.slice(0, 2),
-      digits.slice(2, 5),
-      digits.slice(5, 7),
-      digits.slice(7, 9),
-    ].filter(Boolean);
+    const parts = [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)].filter(Boolean);
     const formatted = parts.join(" ");
 
     if (formatted !== value) {
@@ -89,13 +100,17 @@ watch(
 const filteredUsers = computed(() =>
   users.value.filter((user) => {
     const q = search.value.trim().toLowerCase();
-    const matchesSearch =
-      !q || `${user.fullName} ${user.phone} ${user.role} ${user.currentShopName}`.toLowerCase().includes(q);
+    const matchesSearch = !q || `${user.fullName} ${user.phone} ${user.role} ${user.currentShopName}`.toLowerCase().includes(q);
     const matchesRole = role.value === "all" || user.role === role.value;
     const matchesStatus = status.value === "all" || user.status === status.value;
     return matchesSearch && matchesRole && matchesStatus;
   }),
 );
+
+function resolveError(error: any, fallback: string) {
+  const message = error?.data?.message ?? error?.response?._data?.message;
+  return Array.isArray(message) ? message.join(", ") : message || error?.message || fallback;
+}
 
 function enrichUsersWithShopNames(items: PlatformUser[]) {
   return items.map((user) => {
@@ -111,11 +126,7 @@ function enrichUsersWithShopNames(items: PlatformUser[]) {
       ...user,
       currentShopId: user.currentShopId || matchedShop?.id || matchedShop?.shopId || "",
       currentShopName: user.currentShopName || matchedShop?.name || "",
-      allowedShopIds: user.allowedShopIds.length
-        ? user.allowedShopIds
-        : matchedShop
-          ? [matchedShop.id]
-          : [],
+      allowedShopIds: user.allowedShopIds.length ? user.allowedShopIds : matchedShop ? [matchedShop.id] : [],
     };
   });
 }
@@ -127,30 +138,21 @@ async function loadData() {
   try {
     company.value = await getCompany(companyId.value);
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить компанию";
+    errorMessage.value = resolveError(error, "Не удалось загрузить компанию");
   }
 
   try {
     shops.value = await getCompanyShops(companyId.value);
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить филиалы компании";
     shops.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить филиалы компании");
   }
 
   try {
     users.value = enrichUsersWithShopNames(await getCompanyUsers(companyId.value));
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить пользователей компании";
     users.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить сотрудников компании");
   } finally {
     loading.value = false;
   }
@@ -168,23 +170,17 @@ function resetForm() {
   form.canSwitchShops = false;
 }
 
+function normalizePhoneForInput(phone: string) {
+  const digits = phone.replace(/^\+998/, "").replace(/\D/g, "").slice(0, 9);
+  const parts = [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)].filter(Boolean);
+  return parts.join(" ");
+}
+
 function openCreate() {
   editing.value = null;
   resetForm();
   successMessage.value = "";
   modalOpen.value = true;
-}
-
-function normalizePhoneForInput(phone: string) {
-  const digits = phone.replace(/^\+998/, "").replace(/\D/g, "").slice(0, 9);
-  const parts = [
-    digits.slice(0, 2),
-    digits.slice(2, 5),
-    digits.slice(5, 7),
-    digits.slice(7, 9),
-  ].filter(Boolean);
-
-  return parts.join(" ");
 }
 
 function openEdit(user: PlatformUser) {
@@ -271,19 +267,16 @@ async function submit() {
   try {
     if (editing.value?.id) {
       await updateUser(editing.value.id, payload);
-      successMessage.value = "Пользователь компании обновлен";
+      successMessage.value = "Сотрудник обновлен";
     } else {
       await createCompanyUser(companyId.value, payload);
-      successMessage.value = "Пользователь компании создан";
+      successMessage.value = "Сотрудник создан";
     }
 
     modalOpen.value = false;
     await loadData();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось сохранить пользователя компании";
+    errorMessage.value = resolveError(error, "Не удалось сохранить сотрудника");
   } finally {
     saving.value = false;
   }
@@ -303,32 +296,33 @@ async function removeUser(user: PlatformUser) {
     successMessage.value = "Пользователь удален";
     await loadData();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось удалить пользователя";
+    errorMessage.value = resolveError(error, "Не удалось удалить пользователя");
   } finally {
     deletingId.value = "";
   }
 }
 
-watch(companyId, () => {
-  if (!companyId.value) {
-    company.value = null;
-    shops.value = [];
-    users.value = [];
-    errorMessage.value = "Company ID not found in route";
-    loading.value = false;
-    return;
-  }
+watch(
+  companyId,
+  () => {
+    if (!companyId.value) {
+      company.value = null;
+      shops.value = [];
+      users.value = [];
+      errorMessage.value = "Не найден идентификатор компании";
+      loading.value = false;
+      return;
+    }
 
-  loadData();
-}, { immediate: true });
+    loadData();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Пользователи компании" :title="company?.name ? `Пользователи: ${company.name}` : 'Пользователи компании'" description="Управление пользователями выбранной компании.">
+    <PageHeader eyebrow="Сотрудники компании" :title="company?.name ? `Сотрудники: ${company.name}` : 'Сотрудники компании'" description="Управление сотрудниками выбранной компании.">
       <template #actions>
         <NuxtLink :to="`/platform/companies/${companyId}`" class="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
           Карточка компании
@@ -338,7 +332,7 @@ watch(companyId, () => {
         </NuxtLink>
         <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
-          Создать пользователя
+          Создать сотрудника
         </UButton>
       </template>
     </PageHeader>
@@ -351,21 +345,14 @@ watch(companyId, () => {
       {{ successMessage }}
     </div>
 
-    <DataPanel title="Пользователи" description="GET /api/platform/companies/:companyId/users, POST /api/platform/companies/:companyId/users, PUT /api/platform/users/:id, DELETE /api/platform/users/:id.">
+    <DataPanel title="Сотрудники" description="Фильтруйте список и управляйте доступом по филиалам.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
-          <div class="min-w-[240px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <input v-model="search" type="text" placeholder="Поиск по имени, телефону, роли или филиалу" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
+          <div class="min-w-[240px] flex-1">
+            <UInput v-model="search" type="text" placeholder="Поиск по имени, телефону, роли или филиалу" :ui="softInputUi" />
           </div>
-          <select v-model="role" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">Все роли</option>
-            <option v-for="option in COMPANY_ROLE_OPTIONS" :key="option.value" :value="option.value">{{ option.value }}</option>
-          </select>
-          <select v-model="status" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">Все статусы</option>
-            <option value="active">Активные</option>
-            <option value="inactive">Отключенные</option>
-          </select>
+          <USelect v-model="role" :items="tableRoleOptions" value-key="value" :ui="softSelectUi" class="min-w-[220px]" />
+          <USelect v-model="status" :items="statusOptions" value-key="value" :ui="softSelectUi" class="min-w-[220px]" />
         </div>
       </template>
 
@@ -373,7 +360,7 @@ watch(companyId, () => {
         <div v-for="item in 6" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" />
       </div>
 
-      <EmptyState v-else-if="!filteredUsers.length" title="Пользователи не найдены" description="Создайте первого пользователя компании." icon="heroicons:user-plus" />
+      <EmptyState v-else-if="!filteredUsers.length" title="Сотрудники не найдены" description="Создайте первого сотрудника компании." icon="heroicons:user-plus" />
 
       <div v-else class="overflow-x-auto">
         <table class="min-w-full border-separate border-spacing-y-3">
@@ -415,48 +402,52 @@ watch(companyId, () => {
       </div>
     </DataPanel>
 
-    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать пользователя компании' : 'Создать пользователя компании'" description="birth_date отправляется только в формате DD.MM.YYYY.">
+    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать сотрудника' : 'Создать сотрудника'" description="Заполните профиль сотрудника и настройте доступные филиалы." @close="modalOpen = false">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Имя</span>
-          <input v-model="form.firstName" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.firstName" type="text" required placeholder="Введите имя" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Фамилия</span>
-          <input v-model="form.lastName" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.lastName" type="text" required placeholder="Введите фамилию" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Телефон</span>
-          <div class="flex items-center rounded-2xl border border-slate-200 bg-slate-50">
-            <span class="pl-4 text-[14px] font-medium text-slate-500">+998</span>
-            <input v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" class="w-full bg-transparent px-3 py-3 text-[14px] outline-none" />
+          <div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60">
+            <span class="pr-3 text-[14px] font-medium text-slate-500">+998</span>
+            <UInput
+              v-model="form.phone"
+              type="tel"
+              inputmode="numeric"
+              required
+              placeholder="90 123 45 67"
+              :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:ring-0' }"
+            />
           </div>
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Пароль</span>
-          <input v-model="form.password" type="password" :required="!editing" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.password" type="password" :required="!editing" placeholder="Введите пароль" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Роль</span>
-          <select v-model="form.role" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option v-for="option in COMPANY_ROLE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
+          <USelect v-model="form.role" :items="COMPANY_ROLE_OPTIONS" value-key="value" :ui="softSelectUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата рождения</span>
-          <input v-model="form.birthDate" type="text" placeholder="15.10.1998" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" />
         </label>
         <label class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Текущий филиал</span>
-          <select v-model="form.currentShopId" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option value="" disabled>Выберите филиал</option>
-            <option v-for="shop in shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
-          </select>
+          <USelect v-model="form.currentShopId" :items="shopOptions" value-key="value" :ui="softSelectUi" />
         </label>
-        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700">
-          <input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-sky-500" />
+
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
+          <input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />
           Может переключать филиалы
         </label>
+
         <div class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Доступные филиалы</span>
           <div class="grid gap-3 md:grid-cols-2">
@@ -465,7 +456,7 @@ watch(companyId, () => {
               :key="shop.id"
               type="button"
               class="rounded-2xl border px-4 py-3 text-left transition"
-              :class="form.allowedShopIds.includes(shop.id) ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50 hover:bg-white'"
+              :class="form.allowedShopIds.includes(shop.id) ? 'border-teal-300 bg-teal-50' : 'border-slate-200 bg-slate-50 hover:bg-white'"
               @click="toggleAllowedShop(shop.id)"
             >
               <p class="font-medium text-slate-900">{{ shop.name }}</p>
@@ -473,8 +464,9 @@ watch(companyId, () => {
             </button>
           </div>
         </div>
+
         <div class="mt-2 flex justify-end gap-3 md:col-span-2">
-          <UButton color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
+          <UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
           <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
             {{ saving ? "Сохраняем..." : editing ? "Сохранить" : "Создать" }}
           </UButton>

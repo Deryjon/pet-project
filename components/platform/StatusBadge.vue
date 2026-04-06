@@ -14,6 +14,6 @@ defineProps<{
     "
   >
     <span class="h-2 w-2 rounded-full" :class="status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'" />
-    {{ status === "active" ? "Active" : "Inactive" }}
+    {{ status === "active" ? "Активен" : "Отключен" }}
   </span>
 </template>

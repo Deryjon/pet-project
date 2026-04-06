@@ -9,7 +9,7 @@ const route = useRoute();
 const items = computed(() => [
   { label: "Дашборд", to: "/platform", icon: "heroicons:squares-2x2" },
   { label: "Компании", to: "/platform/companies", icon: "heroicons:building-office-2" },
-  { label: "Пользователи", to: "/platform/users", icon: "heroicons:users" },
+  { label: "Сотрудники", to: "/platform/users", icon: "heroicons:users" },
 ]);
 
 function isActive(path: string) {
@@ -23,8 +23,8 @@ function isActive(path: string) {
       <div class="flex items-center gap-3">
         <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,#0f172a,#334155)] text-sm font-semibold text-white shadow-lg">KP</div>
         <div>
-          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Platform</p>
-          <h2 class="text-[17px] font-semibold text-slate-950">Konkurent Admin</h2>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Платформа</p>
+          <h2 class="text-[17px] font-semibold text-slate-950">Панель управления</h2>
         </div>
       </div>
       <UButton v-if="props.mobile" color="neutral" variant="ghost" class="rounded-xl text-slate-500 hover:bg-slate-100" @click="emit('close')">
@@ -47,9 +47,9 @@ function isActive(path: string) {
     </nav>
 
     <div class="mt-6 rounded-[24px] bg-slate-950 p-4 text-white shadow-[0_20px_45px_rgba(15,23,42,0.2)]">
-      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Platform Access</p>
-      <p class="mt-2 text-[15px] font-semibold">Отдельная админка для platform admin и support.</p>
-      <p class="mt-2 text-[13px] leading-6 text-slate-300">Управление компаниями, филиалами и пользователями платформы без смешивания с company admin.</p>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Доступ</p>
+      <p class="mt-2 text-[15px] font-semibold">Отдельная админ-панель для платформы.</p>
+      <p class="mt-2 text-[13px] leading-6 text-slate-300">Здесь собраны компании, филиалы и сотрудники без лишних технических подсказок.</p>
       <UButton color="neutral" variant="soft" class="mt-4 w-full justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">
         Выйти
       </UButton>

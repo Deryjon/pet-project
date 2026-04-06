@@ -7,11 +7,13 @@ import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
 import type { PlatformCompany } from "@/composables/usePlatformAdmin";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Компании | Konkurent Platform" });
 
 const { getCompanies, createCompany, updateCompany, deleteCompany } = usePlatformAdminApi();
+const { inputUi, selectUi } = usePlatformFormUi();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -23,6 +25,17 @@ const search = ref("");
 const status = ref("all");
 const modalOpen = ref(false);
 const editing = ref<PlatformCompany | null>(null);
+
+const statusOptions = [
+  { label: "Все статусы", value: "all" },
+  { label: "Активные", value: "active" },
+  { label: "Отключенные", value: "inactive" },
+];
+
+const companyStatusOptions = [
+  { label: "Активна", value: "active" },
+  { label: "Отключена", value: "inactive" },
+];
 
 const form = reactive({
   name: "",
@@ -38,12 +51,16 @@ function getCompanyRouteId(company: PlatformCompany) {
 const filteredCompanies = computed(() =>
   companies.value.filter((company) => {
     const q = search.value.trim().toLowerCase();
-    const matchesSearch =
-      !q || `${company.name} ${company.login} ${company.subdomain}`.toLowerCase().includes(q);
+    const matchesSearch = !q || `${company.name} ${company.login} ${company.subdomain}`.toLowerCase().includes(q);
     const matchesStatus = status.value === "all" || company.status === status.value;
     return matchesSearch && matchesStatus;
   }),
 );
+
+function resolveError(error: any, fallback: string) {
+  const message = error?.data?.message ?? error?.response?._data?.message;
+  return Array.isArray(message) ? message.join(", ") : message || error?.message || fallback;
+}
 
 async function loadCompanies() {
   loading.value = true;
@@ -52,10 +69,7 @@ async function loadCompanies() {
   try {
     companies.value = await getCompanies();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить компании";
+    errorMessage.value = resolveError(error, "Не удалось загрузить компании");
   } finally {
     loading.value = false;
   }
@@ -111,10 +125,7 @@ async function submit() {
     modalOpen.value = false;
     await loadCompanies();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось сохранить компанию";
+    errorMessage.value = resolveError(error, "Не удалось сохранить компанию");
   } finally {
     saving.value = false;
   }
@@ -134,10 +145,7 @@ async function removeCompany(company: PlatformCompany) {
     successMessage.value = "Компания удалена";
     await loadCompanies();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось удалить компанию";
+    errorMessage.value = resolveError(error, "Не удалось удалить компанию");
   } finally {
     deletingId.value = "";
   }
@@ -154,119 +162,123 @@ watch(
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Компании" title="Список компаний" description="Создание, редактирование и удаление компаний платформы.">
+    <PageHeader
+      eyebrow="Компании"
+      title="Компании платформы"
+      description="Создавайте компании, следите за их статусом и быстро переходите к филиалам и сотрудникам."
+    >
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
+        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadCompanies">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
         <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
-          Создать компанию
+          Новая компания
         </UButton>
       </template>
     </PageHeader>
 
-    <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">
+    <div v-if="errorMessage" class="rounded-[28px] border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-[14px] text-rose-700 shadow-[0_18px_40px_rgba(190,24,93,0.08)]">
       {{ errorMessage }}
     </div>
 
-    <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">
+    <div v-if="successMessage" class="rounded-[28px] border border-emerald-200/80 bg-emerald-50/90 px-5 py-4 text-[14px] text-emerald-700 shadow-[0_18px_40px_rgba(5,150,105,0.08)]">
       {{ successMessage }}
     </div>
 
-    <DataPanel title="Компании" description="GET /api/platform/companies, POST /api/platform/companies, PUT /api/platform/companies/:companyId, DELETE /api/platform/companies/:companyId.">
+    <DataPanel title="Каталог компаний" description="Фильтруйте список и открывайте нужную компанию в один клик.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
-          <div class="min-w-[240px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <input v-model="search" type="text" placeholder="Поиск по имени, login или subdomain" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
+          <div class="min-w-[240px] flex-1">
+            <UInput v-model="search" type="text" placeholder="Поиск по названию, логину или поддомену" :ui="inputUi" />
           </div>
-          <select v-model="status" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">Все статусы</option>
-            <option value="active">Активные</option>
-            <option value="inactive">Отключенные</option>
-          </select>
+          <USelect v-model="status" :items="statusOptions" value-key="value" :ui="selectUi" class="min-w-[220px]" />
         </div>
       </template>
 
-      <div v-if="loading" class="space-y-3">
-        <div v-for="item in 6" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" />
+      <div v-if="loading" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <div v-for="item in 6" :key="item" class="h-64 animate-pulse rounded-[30px] bg-slate-100/80" />
       </div>
 
       <EmptyState v-else-if="!filteredCompanies.length" title="Компании не найдены" description="Измените фильтры или создайте первую компанию." icon="heroicons:building-office-2" />
 
-      <div v-else class="overflow-x-auto">
-        <table class="min-w-full border-separate border-spacing-y-3">
-          <thead>
-            <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              <th class="px-4 py-2">Компания</th>
-              <th class="px-4 py-2">Login</th>
-              <th class="px-4 py-2">Subdomain</th>
-              <th class="px-4 py-2">Статус</th>
-              <th class="px-4 py-2">Создана</th>
-              <th class="px-4 py-2">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="company in filteredCompanies" :key="company.id">
-              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
-                <p class="font-semibold text-slate-950">{{ company.name }}</p>
-                <p class="mt-1 text-[13px] text-slate-500">
-                  {{ company.shopsCount }} филиалов · {{ company.usersCount }} пользователей
-                </p>
-              </td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ company.login || "—" }}</td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ company.subdomain || "—" }}</td>
-              <td class="bg-slate-50 px-4 py-4"><StatusBadge :status="company.status" /></td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ company.createdAt || "—" }}</td>
-              <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
-                <div class="flex flex-wrap items-center gap-2">
-                  <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
-                    Карточка
-                  </NuxtLink>
-                  <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
-                    Филиалы
-                  </NuxtLink>
-                  <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100">
-                    Пользователи
-                  </NuxtLink>
-                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(company)">
-                    Редактировать
-                  </UButton>
-                  <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === company.id" @click="removeCompany(company)">
-                    Удалить
-                  </UButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <article
+          v-for="company in filteredCompanies"
+          :key="company.id"
+          class="rounded-[30px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.92))] p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <p class="truncate text-[20px] font-semibold tracking-[-0.03em] text-slate-950">{{ company.name }}</p>
+              <p class="mt-2 truncate text-[14px] text-slate-500">
+                {{ company.login || "Логин не указан" }}
+              </p>
+            </div>
+            <StatusBadge :status="company.status" />
+          </div>
+
+          <div class="mt-5 grid grid-cols-2 gap-3">
+            <div class="rounded-[22px] bg-slate-950 px-4 py-3 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
+              <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Филиалы</p>
+              <p class="mt-2 text-[22px] font-semibold">{{ company.shopsCount }}</p>
+            </div>
+            <div class="rounded-[22px] bg-white px-4 py-3 text-slate-900 ring-1 ring-slate-200">
+              <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Сотрудники</p>
+              <p class="mt-2 text-[22px] font-semibold">{{ company.usersCount }}</p>
+            </div>
+          </div>
+
+          <div class="mt-4 rounded-[22px] bg-[#f4f8fb] px-4 py-3 ring-1 ring-slate-200/70">
+            <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Поддомен</p>
+            <p class="mt-1 truncate text-[14px] font-medium text-slate-700">{{ company.subdomain || "Не указан" }}</p>
+          </div>
+
+          <div class="mt-5 flex flex-wrap gap-2">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800">
+              Карточка
+            </NuxtLink>
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
+              Филиалы
+            </NuxtLink>
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
+              Сотрудники
+            </NuxtLink>
+          </div>
+
+          <div class="mt-5 flex items-center justify-between gap-2 border-t border-slate-200/80 pt-4">
+            <button class="rounded-2xl px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" @click="openEdit(company)">
+              Редактировать
+            </button>
+            <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === company.id" @click="removeCompany(company)">
+              Удалить
+            </UButton>
+          </div>
+        </article>
       </div>
     </DataPanel>
 
-    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать компанию' : 'Создать компанию'" description="Все slug-поля отправляются в lowercase latin." @close="modalOpen = false">
+    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать компанию' : 'Создать компанию'" description="Заполните ключевые данные компании." @close="modalOpen = false">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Название компании</span>
-          <input v-model="form.name" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.name" type="text" required placeholder="Введите название компании" :ui="inputUi" />
         </label>
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Login</span>
-          <input v-model="form.login" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <span class="text-[13px] font-semibold text-slate-700">Логин</span>
+          <UInput v-model="form.login" type="text" required placeholder="Введите логин" :ui="inputUi" />
         </label>
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Subdomain</span>
-          <input v-model="form.subdomain" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <span class="text-[13px] font-semibold text-slate-700">Поддомен</span>
+          <UInput v-model="form.subdomain" type="text" required placeholder="Введите поддомен" :ui="inputUi" />
         </label>
         <label v-if="editing" class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Статус</span>
-          <select v-model="form.status" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option value="active">Активна</option>
-            <option value="inactive">Отключена</option>
-          </select>
+          <USelect v-model="form.status" :items="companyStatusOptions" value-key="value" :ui="selectUi" />
         </label>
         <div class="mt-2 flex justify-end gap-3 md:col-span-2">
-          <UButton color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
+          <UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
           <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
             {{ saving ? "Сохраняем..." : editing ? "Сохранить" : "Создать" }}
           </UButton>

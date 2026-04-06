@@ -13,14 +13,16 @@ const emit = defineEmits<{
 <template>
   <Teleport to="body">
     <transition name="fade-modal">
-      <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center px-4">
-        <div class="absolute inset-0 bg-slate-950/30 backdrop-blur-sm" @click="emit('close')" />
+      <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+        <div class="absolute inset-0 bg-[#06111f]/45 backdrop-blur-md" @click="emit('close')" />
 
-        <div class="relative z-10 w-full max-w-2xl rounded-[32px] border border-white/70 bg-white p-6 shadow-[0_40px_120px_rgba(15,23,42,0.18)] sm:p-8">
-          <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
-            <div>
-              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Workspace Form</p>
-              <h3 class="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-slate-950">{{ title }}</h3>
+        <div class="relative z-10 w-full max-w-2xl overflow-hidden rounded-[34px] border border-white/70 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.9))] p-6 shadow-[0_40px_120px_rgba(15,23,42,0.2)] sm:p-8">
+          <div class="flex items-start justify-between gap-4 border-b border-slate-200/70 pb-5">
+            <div class="max-w-xl">
+              <p class="inline-flex rounded-full border border-teal-200/70 bg-teal-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-700">
+                Форма
+              </p>
+              <h3 class="mt-3 text-[28px] font-semibold tracking-[-0.05em] text-slate-950">{{ title }}</h3>
               <p v-if="description" class="mt-2 text-[14px] leading-6 text-slate-500">{{ description }}</p>
             </div>
 
@@ -41,12 +43,12 @@ const emit = defineEmits<{
 <style scoped>
 .fade-modal-enter-active,
 .fade-modal-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 .fade-modal-enter-from,
 .fade-modal-leave-to {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(10px);
 }
 </style>
