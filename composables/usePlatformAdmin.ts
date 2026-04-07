@@ -359,6 +359,17 @@ export function usePlatformAdminApi() {
     return normalizeCompany(pickObject(response, ["company", "data"]));
   }
 
+  async function updateCompanyStatus(companyId: string, isActive: boolean) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/status`, {
+      method: "PATCH",
+      body: {
+        is_active: Boolean(isActive),
+      },
+    });
+
+    return normalizeCompany(pickObject(response, ["company", "data"]));
+  }
+
   async function deleteCompany(companyId: string) {
     return apiFetch<{ message: string; company_id: string }>(`/platform/companies/${companyId}`, {
       method: "DELETE",
@@ -393,6 +404,17 @@ export function usePlatformAdminApi() {
         ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
         ...(payload.branch_code !== undefined ? { branch_code: normalizeSlug(payload.branch_code) } : {}),
         ...(payload.is_active !== undefined ? { is_active: Boolean(payload.is_active) } : {}),
+      },
+    });
+
+    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
+  }
+
+  async function updateShopStatus(companyId: string, shopId: string, isActive: boolean) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops/${shopId}/status`, {
+      method: "PATCH",
+      body: {
+        is_active: Boolean(isActive),
       },
     });
 
@@ -475,10 +497,12 @@ export function usePlatformAdminApi() {
     getCompany,
     createCompany,
     updateCompany,
+    updateCompanyStatus,
     deleteCompany,
     getCompanyShops,
     createShop,
     updateShop,
+    updateShopStatus,
     deleteShop,
     getPlatformUsers,
     getPlatformUser,

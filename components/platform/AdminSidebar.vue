@@ -9,7 +9,7 @@ const route = useRoute();
 const items = computed(() => [
   { label: "Дашборд", to: "/platform", icon: "heroicons:squares-2x2" },
   { label: "Компании", to: "/platform/companies", icon: "heroicons:building-office-2" },
-  { label: "Сотрудники", to: "/platform/users", icon: "heroicons:users" },
+  { label: "Суппорты и админы", to: "/platform/users", icon: "heroicons:users" },
 ]);
 
 function isActive(path: string) {
@@ -21,13 +21,21 @@ function isActive(path: string) {
   <aside class="flex h-full flex-col rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
     <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-2 pb-5">
       <div class="flex items-center gap-3">
-        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,#0f172a,#334155)] text-sm font-semibold text-white shadow-lg">KP</div>
+        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,#0f172a,#334155)] text-sm font-semibold text-white shadow-lg">
+          KP
+        </div>
         <div>
           <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Платформа</p>
           <h2 class="text-[17px] font-semibold text-slate-950">Панель управления</h2>
         </div>
       </div>
-      <UButton v-if="props.mobile" color="neutral" variant="ghost" class="cursor-pointer rounded-xl text-slate-500 hover:bg-slate-100" @click="emit('close')">
+      <UButton
+        v-if="props.mobile"
+        color="neutral"
+        variant="ghost"
+        class="cursor-pointer rounded-xl text-slate-500 hover:bg-slate-100"
+        @click="emit('close')"
+      >
         <Icon name="heroicons:x-mark" class="h-5 w-5" />
       </UButton>
     </div>
@@ -49,8 +57,15 @@ function isActive(path: string) {
     <div class="mt-6 rounded-[24px] bg-slate-950 p-4 text-white shadow-[0_20px_45px_rgba(15,23,42,0.2)]">
       <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Доступ</p>
       <p class="mt-2 text-[15px] font-semibold">Отдельная админ-панель для платформы.</p>
-      <p class="mt-2 text-[13px] leading-6 text-slate-300">Здесь собраны компании, филиалы и сотрудники без лишних технических подсказок.</p>
-      <UButton color="neutral" variant="soft" class="mt-4 w-full cursor-pointer justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">
+      <p class="mt-2 text-[13px] leading-6 text-slate-300">
+        Здесь собраны компании, филиалы, сотрудники, суппорты и админы платформы.
+      </p>
+      <UButton
+        color="neutral"
+        variant="soft"
+        class="mt-4 w-full cursor-pointer justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15"
+        @click="emit('logout')"
+      >
         Выйти
       </UButton>
     </div>

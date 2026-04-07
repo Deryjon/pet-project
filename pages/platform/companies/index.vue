@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
@@ -12,6 +13,7 @@ import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 definePageMeta({ layout: "platform" });
 useHead({ title: "Компании | Konkurent Platform" });
 
+const router = useRouter();
 const { getCompanies, createCompany, updateCompany, deleteCompany } = usePlatformAdminApi();
 const { inputUi, selectUi } = usePlatformFormUi();
 
@@ -45,7 +47,11 @@ const form = reactive({
 });
 
 function getCompanyRouteId(company: PlatformCompany) {
-  return company.companyId || company.id;
+  return company.id;
+}
+
+function openCompanyCard(company: PlatformCompany) {
+  return router.push(`/platform/companies/${getCompanyRouteId(company)}`);
 }
 
 const filteredCompanies = computed(() =>
@@ -207,7 +213,12 @@ watch(
         <article
           v-for="company in filteredCompanies"
           :key="company.id"
-          class="rounded-[30px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.92))] p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
+          class="cursor-pointer rounded-[30px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.92))] p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
+          role="link"
+          tabindex="0"
+          @click="openCompanyCard(company)"
+          @keydown.enter.prevent="openCompanyCard(company)"
+          @keydown.space.prevent="openCompanyCard(company)"
         >
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
@@ -236,22 +247,22 @@ watch(
           </div>
 
           <div class="mt-5 flex flex-wrap gap-2">
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800" @click.stop>
               Карточка
             </NuxtLink>
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50" @click.stop>
               Филиалы
             </NuxtLink>
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50">
+            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50" @click.stop>
               Сотрудники
             </NuxtLink>
           </div>
 
           <div class="mt-5 flex items-center justify-between gap-2 border-t border-slate-200/80 pt-4">
-            <button class="cursor-pointer rounded-2xl px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" @click="openEdit(company)">
+            <button class="cursor-pointer rounded-2xl px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" @click.stop="openEdit(company)">
               Редактировать
             </button>
-            <UButton color="error" variant="soft" class="cursor-pointer rounded-2xl" :loading="deletingId === company.id" @click="removeCompany(company)">
+            <UButton color="error" variant="soft" class="cursor-pointer rounded-2xl" :loading="deletingId === company.id" @click.stop="removeCompany(company)">
               Удалить
             </UButton>
           </div>
