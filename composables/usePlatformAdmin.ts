@@ -238,6 +238,18 @@ function normalizeUser(raw: any): PlatformUser {
   const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
   const currentShop = pickObject(raw?.current_shop, ["current_shop", "data"]) ?? raw?.current_shop ?? null;
   const primaryRole = raw?.role?.role ?? raw?.role ?? raw?.roles?.[0]?.role ?? raw?.roles?.[0] ?? null;
+  const resolvedRoleName = String(
+    pickValue(raw, ["role_name", "roleName"]) ??
+      pickValue(primaryRole, ["name", "role_name", "roleName"]) ??
+      (typeof primaryRole === "string" ? primaryRole : "") ??
+      "",
+  ).trim();
+  const resolvedRoleId = String(
+    pickValue(raw, ["role_id", "roleId"]) ??
+      pickValue(primaryRole, ["id", "role_id", "roleId"]) ??
+      (typeof primaryRole === "string" ? primaryRole : "") ??
+      "",
+  ).trim();
   const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
   const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
   const fullName =
@@ -258,21 +270,9 @@ function normalizeUser(raw: any): PlatformUser {
     fullName,
     phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
     email: String(raw?.email ?? ""),
-    roleId: String(
-      pickValue(primaryRole, ["id", "role_id", "roleId"]) ??
-        (typeof primaryRole === "string" ? primaryRole : "") ??
-        "",
-    ).trim(),
-    roleName: String(
-      pickValue(primaryRole, ["name"]) ??
-        (typeof primaryRole === "string" ? primaryRole : "") ??
-        "",
-    ).trim(),
-    role: String(
-      pickValue(primaryRole, ["name"]) ??
-        (typeof primaryRole === "string" ? primaryRole : "") ??
-        "",
-    ).trim(),
+    roleId: resolvedRoleId,
+    roleName: resolvedRoleName,
+    role: resolvedRoleName,
     status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
     createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
     updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
