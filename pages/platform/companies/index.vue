@@ -16,6 +16,7 @@ useHead({ title: "Компании | Konkurent Platform" });
 const router = useRouter();
 const { getCompanies, createCompany, updateCompany, deleteCompany } = usePlatformAdminApi();
 const { inputUi, selectUi } = usePlatformFormUi();
+const toast = useToast();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -119,6 +120,7 @@ async function submit() {
         is_active: form.status === "active",
       });
       successMessage.value = "Компания обновлена";
+      toast.add({ title: "Компания обновлена", color: "success" });
     } else {
       await createCompany({
         name: form.name.trim(),
@@ -126,12 +128,14 @@ async function submit() {
         subdomain: form.subdomain.trim(),
       });
       successMessage.value = "Компания создана";
+      toast.add({ title: "Компания создана", color: "success" });
     }
 
     modalOpen.value = false;
     await loadCompanies();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось сохранить компанию");
+    toast.add({ title: "Не удалось сохранить компанию", description: errorMessage.value, color: "error" });
   } finally {
     saving.value = false;
   }
@@ -152,6 +156,7 @@ async function removeCompany(company: PlatformCompany) {
     await loadCompanies();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось удалить компанию");
+    toast.add({ title: "Не удалось удалить компанию", description: errorMessage.value, color: "error" });
   } finally {
     deletingId.value = "";
   }

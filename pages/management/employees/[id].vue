@@ -7,13 +7,6 @@ import { useUserStore } from "@/store/useUserStore";
 
 useHead({ title: "Редактирование сотрудника | Konkurent.cases" });
 
-const COMPANY_ROLE_OPTIONS = [
-  { label: "Владелец", value: "owner" },
-  { label: "Админ", value: "admin" },
-  { label: "Управляющий магазином", value: "store_manager" },
-  { label: "Кассир", value: "cashier" },
-  { label: "Сотрудник", value: "employee" },
-];
 
 type User = {
   id?: number | string;
@@ -61,6 +54,24 @@ const shopOptions = computed(() =>
 );
 
 const selectedShopCount = computed(() => allowed_shop_ids.value.length);
+function formatRoleLabel(roleValue: string) {
+  const normalized = String(roleValue || "").trim();
+  if (!normalized) return "";
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+const roleOptions = computed(() => {
+  const values = new Set<string>([...userStore.normalizedRoles, role.value].filter(Boolean));
+  return [...values].map((value) => ({
+    label: formatRoleLabel(value),
+    value,
+  }));
+});
+
 const currentShopLabel = computed(
   () => shopOptions.value.find((shop) => shop.value === current_shop_id.value)?.label || "Не выбран",
 );
@@ -339,7 +350,7 @@ function goBack() {
               <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium text-[#d6d6d6]">Роль</label>
                 <select v-model="role" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]">
-                  <option v-for="option in COMPANY_ROLE_OPTIONS" :key="option.value" :value="option.value">
+                  <option v-for="option in roleOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
                 </select>

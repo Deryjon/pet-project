@@ -6,29 +6,23 @@ import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
-import type { PlatformShop, PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
+import type { PlatformRole, PlatformShop, PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Карточка компании | Konkurent Platform" });
 
-const COMPANY_ROLE_OPTIONS = [
-  { label: "owner", value: "owner" },
-  { label: "admin", value: "admin" },
-  { label: "store_manager", value: "store_manager" },
-  { label: "cashier", value: "cashier" },
-  { label: "employee", value: "employee" },
-];
-
 const route = useRoute();
 const router = useRouter();
 const companyId = computed(() => String(route.params.id || "").trim());
-const { getCompany, getCompanyUsers, createCompanyUser, updateCompany, updateCompanyStatus, deleteCompany } =
+const { getCompany, getCompanyUsers, getCompanyRoles, createCompanyUser, updateCompany, updateCompanyStatus, deleteCompany } =
   usePlatformAdminApi();
 const { softInputUi, softSelectUi } = usePlatformFormUi();
+const toast = useToast();
 
 const loading = ref(true);
+const rolesLoading = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
 const userSaving = ref(false);
@@ -37,6 +31,7 @@ const successMessage = ref("");
 const company = ref<any | null>(null);
 const shops = ref<PlatformShop[]>([]);
 const users = ref<PlatformUser[]>([]);
+const companyRoles = ref<PlatformRole[]>([]);
 const userModalOpen = ref(false);
 
 const form = reactive({
@@ -58,10 +53,6 @@ const userForm = reactive({
   canSwitchShops: false,
 });
 
-const companyStatusOptions = [
-  { label: "Активна", value: "active" },
-  { label: "Отключена", value: "inactive" },
-];
 
 const shopOptions = computed(() =>
   shops.value.map((shop) => ({
@@ -73,6 +64,31 @@ const shopOptions = computed(() =>
 const activeShopsCount = computed(() => shops.value.filter((shop) => shop.status === "active").length);
 const activeUsersCount = computed(() => users.value.filter((user) => user.status === "active").length);
 const userPreview = computed(() => users.value.slice(0, 5));
+
+function formatRoleLabel(roleValue: string) {
+  const normalized = String(roleValue || "").trim();
+  if (!normalized) return "";
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+const companyRoleOptions = computed(() => {
+  const options = companyRoles.value
+    .filter((role) => role.id)
+    .map((role) => ({
+      label: role.name || formatRoleLabel(role.id),
+      value: role.id,
+    }));
+
+  if (userForm.role && !options.some((option) => option.value === userForm.role)) {
+    options.push({ label: formatRoleLabel(userForm.role), value: userForm.role });
+  }
+
+  return options;
+});
 
 function resolveError(error: any, fallback: string) {
   const message = error?.data?.message ?? error?.response?._data?.message;
@@ -91,7 +107,7 @@ function resetUserForm() {
   userForm.lastName = "";
   userForm.phone = "";
   userForm.password = "";
-  userForm.role = "employee";
+  userForm.role = companyRoleOptions.value[0]?.value || "employee";
   userForm.birthDate = "";
   userForm.currentShopId = shops.value[0]?.id || "";
   userForm.allowedShopIds = userForm.currentShopId ? [userForm.currentShopId] : [];
@@ -168,7 +184,19 @@ async function loadCompanyPage() {
   } catch (error: any) {
     users.value = [];
     errorMessage.value = resolveError(error, "Не удалось загрузить сотрудников компании");
+  }
+
+  rolesLoading.value = true;
+  try {
+    companyRoles.value = await getCompanyRoles();
+    if (!companyRoleOptions.value.some((option) => option.value === userForm.role)) {
+      userForm.role = companyRoleOptions.value[0]?.value || userForm.role;
+    }
+  } catch (error: any) {
+    companyRoles.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить роли компании");
   } finally {
+    rolesLoading.value = false;
     loading.value = false;
   }
 }
@@ -192,8 +220,10 @@ async function saveCompany() {
 
     applyCompanyToForm();
     successMessage.value = "Данные компании обновлены";
+    toast.add({ title: "Компания обновлена", color: "success" });
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось обновить компанию");
+    toast.add({ title: "Не удалось обновить компанию", description: errorMessage.value, color: "error" });
   } finally {
     saving.value = false;
   }
@@ -206,6 +236,7 @@ async function submitUser() {
 
   const payload = buildUserPayload();
   if (payload.current_shop_id && !payload.allowed_shop_ids?.includes(payload.current_shop_id)) {
+    toast.add({ title: "Проверьте филиалы сотрудника", color: "warning" });
     errorMessage.value = "Текущий филиал должен входить в список доступных филиалов.";
     userSaving.value = false;
     return;
@@ -214,10 +245,12 @@ async function submitUser() {
   try {
     await createCompanyUser(companyId.value, payload);
     successMessage.value = "Сотрудник создан";
+    toast.add({ title: "Сотрудник создан", color: "success" });
     userModalOpen.value = false;
     await loadCompanyPage();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось создать сотрудника");
+    toast.add({ title: "Не удалось создать сотрудника", description: errorMessage.value, color: "error" });
   } finally {
     userSaving.value = false;
   }
@@ -234,9 +267,11 @@ async function removeCompany() {
 
   try {
     await deleteCompany(companyId.value);
+    toast.add({ title: "Компания удалена", color: "success" });
     await router.push("/platform/companies");
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось удалить компанию");
+    toast.add({ title: "Не удалось удалить компанию", description: errorMessage.value, color: "error" });
   } finally {
     deleting.value = false;
   }
@@ -335,20 +370,29 @@ watch(
           <span class="text-[13px] font-semibold text-slate-700">Поддомен</span>
           <UInput v-model="form.subdomain" type="text" required placeholder="Введите поддомен" :ui="softInputUi" />
         </label>
-        <label class="space-y-2">
+        <div class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Текущий статус</span>
-          <div class="flex min-h-[48px] items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200">
-            <StatusBadge :status="form.status" />
+          <div class="flex min-h-[48px] items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+            <div class="flex items-center gap-3">
+              <StatusBadge :status="form.status" />
+              <span class="text-[14px] font-medium text-slate-600">
+                {{ form.status === "active" ? "Активна" : "Отключена" }}
+              </span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-[13px] font-medium text-slate-500">
+                {{ form.status === "active" ? "Включена" : "Выключена" }}
+              </span>
+              <USwitch
+                :model-value="form.status === 'active'"
+                @update:model-value="form.status = $event ? 'active' : 'inactive'"
+              />
+            </div>
           </div>
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Изменить статус</span>
-          <USelect v-model="form.status" :items="companyStatusOptions" value-key="value" :ui="softSelectUi" />
-        </label>
-
-        <div class="grid gap-4 md:col-span-2 lg:grid-cols-4">
+        </div>
+        <div class="grid gap-4 md:col-span-2 md:grid-cols-4">
           <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-            <p class="text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">ID</p>
+            <p class="text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">ID компании</p>
             <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ company.id || "—" }}</p>
           </div>
           <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
@@ -466,7 +510,7 @@ watch(
                 <p class="mt-1 text-[13px] text-slate-500">{{ user.birthDate || "Дата рождения не указана" }}</p>
               </td>
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.phone || "—" }}</td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.role || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.roleName || user.roleId || "—" }}</td>
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.currentShopName || user.currentShopId || "—" }}</td>
               <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
                 <StatusBadge :status="user.status" />
@@ -512,7 +556,7 @@ watch(
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Роль</span>
-          <USelect v-model="userForm.role" :items="COMPANY_ROLE_OPTIONS" value-key="value" :ui="softSelectUi" />
+          <USelect v-model="userForm.role" :items="companyRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата рождения</span>

@@ -44,7 +44,7 @@ export const useLocationStore = defineStore("location", {
       this.selectedLocation = location;
       const panel = usePanelStore();
 
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.setItem("selectedLocation", JSON.stringify(location));
       }
 
@@ -59,7 +59,7 @@ export const useLocationStore = defineStore("location", {
       } catch (error: any) {
         this.selectedLocation = previousLocation;
 
-        if (process.client) {
+        if (import.meta.client) {
           if (previousLocation) {
             localStorage.setItem("selectedLocation", JSON.stringify(previousLocation));
           } else {
@@ -101,7 +101,7 @@ export const useLocationStore = defineStore("location", {
 
       if (!mappedLocations.length) {
         this.selectedLocation = null;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.removeItem("selectedLocation");
         }
         return;
@@ -119,12 +119,12 @@ export const useLocationStore = defineStore("location", {
 
       this.selectedLocation = nextSelectedLocation || null;
 
-      if (process.client && nextSelectedLocation) {
+      if (import.meta.client && nextSelectedLocation) {
         localStorage.setItem("selectedLocation", JSON.stringify(nextSelectedLocation));
       }
     },
     init() {
-      if (!process.client) {
+      if (!import.meta.client) {
         return;
       }
 
@@ -143,9 +143,10 @@ export const useLocationStore = defineStore("location", {
       this.selectedLocation = null;
       this.isSwitching = false;
       this.switchError = "";
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.removeItem("selectedLocation");
       }
     },
   },
 });
+

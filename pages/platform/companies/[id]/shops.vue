@@ -17,6 +17,7 @@ const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
 const { getCompany, getCompanyShops, createShop, updateShop, deleteShop } = usePlatformAdminApi();
 const { softInputUi, softSelectUi } = usePlatformFormUi();
+const toast = useToast();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -93,18 +94,21 @@ async function submit() {
         is_active: form.status === "active",
       });
       successMessage.value = "Филиал обновлен";
+      toast.add({ title: "Филиал обновлен", color: "success" });
     } else {
       await createShop(companyId.value, {
         name: form.name.trim(),
         branch_code: form.branchCode.trim(),
       });
       successMessage.value = "Филиал создан";
+      toast.add({ title: "Филиал создан", color: "success" });
     }
 
     modalOpen.value = false;
     await loadData();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось сохранить филиал");
+    toast.add({ title: "Не удалось сохранить филиал", description: errorMessage.value, color: "error" });
   } finally {
     saving.value = false;
   }
@@ -125,6 +129,7 @@ async function removeShop(shop: PlatformShop) {
     await loadData();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось удалить филиал");
+    toast.add({ title: "Не удалось удалить филиал", description: errorMessage.value, color: "error" });
   } finally {
     deletingId.value = "";
   }

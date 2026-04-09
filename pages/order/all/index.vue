@@ -7,13 +7,13 @@
             <p class="text-[12px] uppercase tracking-[0.18em] text-[#4993dd]">POS</p>
             <h1 class="mt-2 text-[30px] font-semibold leading-none">All Orders</h1>
             <p class="mt-2 max-w-[620px] text-[14px] text-[#bdbdbd]">
-              Все продажи по номеру, продавцу, точке, статусу и способу оплаты.
+              Р’СЃРµ РїСЂРѕРґР°Р¶Рё РїРѕ РЅРѕРјРµСЂСѓ, РїСЂРѕРґР°РІС†Сѓ, С‚РѕС‡РєРµ, СЃС‚Р°С‚СѓСЃСѓ Рё СЃРїРѕСЃРѕР±Сѓ РѕРїР»Р°С‚С‹.
             </p>
           </div>
 
           <div class="grid gap-2 md:grid-cols-4 xl:min-w-[720px]">
             <div class="filter-field">
-              <span class="filter-label">Дата</span>
+              <span class="filter-label">Р”Р°С‚Р°</span>
               <UInput
                 v-model="filters.date"
                 type="date"
@@ -24,10 +24,10 @@
             </div>
 
             <div class="filter-field">
-              <span class="filter-label">Продавец</span>
+              <span class="filter-label">РџСЂРѕРґР°РІРµС†</span>
               <UInput
                 v-model="filters.seller"
-                placeholder="Имя продавца"
+                placeholder="РРјСЏ РїСЂРѕРґР°РІС†Р°"
                 color="neutral"
                 variant="none"
                 :ui="inputUi"
@@ -39,10 +39,10 @@
             </div>
 
             <div class="filter-field">
-              <span class="filter-label">Точка</span>
+              <span class="filter-label">РўРѕС‡РєР°</span>
               <UInput
                 v-model="filters.point"
-                placeholder="Название точки"
+                placeholder="РќР°Р·РІР°РЅРёРµ С‚РѕС‡РєРё"
                 color="neutral"
                 variant="none"
                 :ui="inputUi"
@@ -54,7 +54,7 @@
             </div>
 
             <div class="filter-field">
-              <span class="filter-label">Действия</span>
+              <span class="filter-label">Р”РµР№СЃС‚РІРёСЏ</span>
               <UButton
                 color="neutral"
                 variant="soft"
@@ -62,7 +62,7 @@
                 @click="resetFilters"
               >
                 <Icon name="heroicons:x-mark" class="mr-2 h-4 w-4" />
-                Сбросить
+                РЎР±СЂРѕСЃРёС‚СЊ
               </UButton>
             </div>
           </div>
@@ -70,13 +70,13 @@
       </div>
 
       <div class="orders-grid bg-[#303030] px-6 py-4 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#bdbdbd]">
-        <span>Номер</span>
-        <span>Дата</span>
-        <span>Продавец</span>
-        <span>Точка</span>
-        <span>Сумма</span>
-        <span>Статус</span>
-        <span>Оплата</span>
+        <span>РќРѕРјРµСЂ</span>
+        <span>Р”Р°С‚Р°</span>
+        <span>РџСЂРѕРґР°РІРµС†</span>
+        <span>РўРѕС‡РєР°</span>
+        <span>РЎСѓРјРјР°</span>
+        <span>РЎС‚Р°С‚СѓСЃ</span>
+        <span>РћРїР»Р°С‚Р°</span>
       </div>
 
       <div class="relative min-h-[520px] overflow-auto">
@@ -85,7 +85,7 @@
           class="absolute inset-x-0 top-0 z-10 flex items-center gap-2 bg-[#262626]/95 px-6 py-3 text-[#4993dd] backdrop-blur-sm"
         >
           <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-          Загружаем продажи...
+          Р—Р°РіСЂСѓР¶Р°РµРј РїСЂРѕРґР°Р¶Рё...
         </div>
 
         <div
@@ -95,9 +95,9 @@
           <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#404040] text-[#4993dd]">
             <Icon name="heroicons:receipt-percent" class="h-6 w-6" />
           </div>
-          <p class="text-[18px] font-semibold text-white">Продажи не найдены</p>
+          <p class="text-[18px] font-semibold text-white">РџСЂРѕРґР°Р¶Рё РЅРµ РЅР°Р№РґРµРЅС‹</p>
           <p class="mt-2 max-w-[320px] text-[14px] text-[#bdbdbd]">
-            Измени фильтры или дождись появления новых продаж в системе.
+            РР·РјРµРЅРё С„РёР»СЊС‚СЂС‹ РёР»Рё РґРѕР¶РґРёСЃСЊ РїРѕСЏРІР»РµРЅРёСЏ РЅРѕРІС‹С… РїСЂРѕРґР°Р¶ РІ СЃРёСЃС‚РµРјРµ.
           </p>
         </div>
 
@@ -127,7 +127,7 @@
 
       <div class="flex flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
         <p class="text-[14px] text-[#bdbdbd]">
-          Показано <span class="text-white">{{ filteredSales.length }}</span> из
+          РџРѕРєР°Р·Р°РЅРѕ <span class="text-white">{{ filteredSales.length }}</span> РёР·
           <span class="text-white">{{ total }}</span>
         </p>
 
@@ -139,7 +139,7 @@
             :disabled="page <= 1 || loading"
             @click="page--"
           >
-            Назад
+            РќР°Р·Р°Рґ
           </UButton>
           <span class="min-w-[44px] text-center text-[14px] font-semibold text-white">{{ page }}</span>
           <UButton
@@ -149,7 +149,7 @@
             :disabled="page * limit >= total || loading"
             @click="page++"
           >
-            Вперёд
+            Р’РїРµСЂС‘Рґ
           </UButton>
           <UInput
             v-model.number="limit"
@@ -182,52 +182,52 @@
           </div>
         </template>
         <template v-else>
-          <p class="mt-3 text-[14px] text-[#bdbdbd]">Выберите продажу слева, чтобы посмотреть детали.</p>
+          <p class="mt-3 text-[14px] text-[#bdbdbd]">Р’С‹Р±РµСЂРёС‚Рµ РїСЂРѕРґР°Р¶Сѓ СЃР»РµРІР°, С‡С‚РѕР±С‹ РїРѕСЃРјРѕС‚СЂРµС‚СЊ РґРµС‚Р°Р»Рё.</p>
         </template>
       </div>
 
       <div v-if="selectedSale" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div class="grid grid-cols-2 gap-3 px-5 py-4">
           <div class="detail-card">
-            <span class="detail-label">Продавец</span>
+            <span class="detail-label">РџСЂРѕРґР°РІРµС†</span>
             <span class="detail-value">{{ selectedSale.sellerLabel }}</span>
           </div>
           <div class="detail-card">
-            <span class="detail-label">Клиент</span>
+            <span class="detail-label">РљР»РёРµРЅС‚</span>
             <span class="detail-value">{{ selectedSale.clientLabel }}</span>
           </div>
           <div class="detail-card">
-            <span class="detail-label">Точка</span>
+            <span class="detail-label">РўРѕС‡РєР°</span>
             <span class="detail-value">{{ selectedSale.pointLabel }}</span>
           </div>
           <div class="detail-card">
-            <span class="detail-label">Оплата</span>
+            <span class="detail-label">РћРїР»Р°С‚Р°</span>
             <span class="detail-value">{{ selectedSale.paymentLabel }}</span>
           </div>
         </div>
 
         <div class="px-5 py-4">
           <div class="flex items-center justify-between text-[14px]">
-            <span class="text-[#bdbdbd]">Итог продажи</span>
+            <span class="text-[#bdbdbd]">РС‚РѕРі РїСЂРѕРґР°Р¶Рё</span>
             <span class="text-[20px] font-semibold text-white">{{ selectedSale.amountLabel }}</span>
           </div>
           <div class="mt-2 flex items-center justify-between text-[14px]">
-            <span class="text-[#bdbdbd]">Скидка</span>
+            <span class="text-[#bdbdbd]">РЎРєРёРґРєР°</span>
             <span class="text-white">{{ selectedSale.discountLabel }}</span>
           </div>
         </div>
 
         <div class="min-h-0 flex-1 overflow-auto px-5 py-4">
           <div class="mb-3 flex items-center justify-between">
-            <h3 class="text-[16px] font-semibold">Товары</h3>
-            <span class="text-[13px] text-[#bdbdbd]">{{ selectedSale.items.length }} поз.</span>
+            <h3 class="text-[16px] font-semibold">РўРѕРІР°СЂС‹</h3>
+            <span class="text-[13px] text-[#bdbdbd]">{{ selectedSale.items.length }} РїРѕР·.</span>
           </div>
 
           <div
             v-if="!selectedSale.items.length"
             class="rounded-[18px] bg-[#303030] px-4 py-5 text-[14px] text-[#bdbdbd]"
           >
-            Для этой продажи товары не пришли в ответе API.
+            Р”Р»СЏ СЌС‚РѕР№ РїСЂРѕРґР°Р¶Рё С‚РѕРІР°СЂС‹ РЅРµ РїСЂРёС€Р»Рё РІ РѕС‚РІРµС‚Рµ API.
           </div>
 
           <div v-else class="flex flex-col gap-3">
@@ -243,19 +243,19 @@
               </div>
               <div class="mt-3 grid grid-cols-4 gap-2 text-[13px] text-[#bdbdbd]">
                 <div>
-                  <p class="item-meta-label">Количество</p>
+                  <p class="item-meta-label">РљРѕР»РёС‡РµСЃС‚РІРѕ</p>
                   <p class="item-meta-value">{{ item.quantityLabel }}</p>
                 </div>
                 <div>
-                  <p class="item-meta-label">Цена</p>
+                  <p class="item-meta-label">Р¦РµРЅР°</p>
                   <p class="item-meta-value">{{ item.priceLabel }}</p>
                 </div>
                 <div>
-                  <p class="item-meta-label">Скидка</p>
+                  <p class="item-meta-label">РЎРєРёРґРєР°</p>
                   <p class="item-meta-value">{{ item.discountLabel }}</p>
                 </div>
                 <div>
-                  <p class="item-meta-label">Итог</p>
+                  <p class="item-meta-label">РС‚РѕРі</p>
                   <p class="item-meta-value">{{ item.totalLabel }}</p>
                 </div>
               </div>
@@ -269,9 +269,9 @@
           <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#404040] text-[#4993dd]">
             <Icon name="heroicons:document-text" class="h-6 w-6" />
           </div>
-          <p class="text-[18px] font-semibold text-white">Детали продажи</p>
+          <p class="text-[18px] font-semibold text-white">Р”РµС‚Р°Р»Рё РїСЂРѕРґР°Р¶Рё</p>
           <p class="mt-2 max-w-[260px] text-[14px]">
-            Здесь появятся товары, сумма, скидка, продавец и клиент выбранной продажи.
+            Р—РґРµСЃСЊ РїРѕСЏРІСЏС‚СЃСЏ С‚РѕРІР°СЂС‹, СЃСѓРјРјР°, СЃРєРёРґРєР°, РїСЂРѕРґР°РІРµС† Рё РєР»РёРµРЅС‚ РІС‹Р±СЂР°РЅРЅРѕР№ РїСЂРѕРґР°Р¶Рё.
           </p>
         </div>
       </div>
@@ -368,7 +368,7 @@ watch(filteredSales, (value) => {
   }
 
   if (!value.some((sale) => sale.id === selectedSaleId.value)) {
-    selectedSaleId.value = value[0].id;
+    selectedSaleId.value = value[0]?.id ?? null;
   }
 });
 
@@ -405,7 +405,7 @@ function normalizeSale(raw: any): SaleView {
     ?? raw?.employee?.name
     ?? raw?.user?.name
     ?? raw?.operator?.name
-    ?? "Не указан";
+    ?? "РќРµ СѓРєР°Р·Р°РЅ";
 
   const pointLabel =
     raw?.shop?.name
@@ -414,13 +414,13 @@ function normalizeSale(raw: any): SaleView {
     ?? raw?.location?.name
     ?? raw?.point?.name
     ?? raw?.branch_code
-    ?? "Не указана";
+    ?? "РќРµ СѓРєР°Р·Р°РЅР°";
 
   const statusKey = String(raw?.status ?? "unknown").toLowerCase();
 
   return {
     id,
-    numberLabel: `№ ${raw?.number ?? raw?.sale_number ?? raw?.id ?? "—"}`,
+    numberLabel: `в„– ${raw?.number ?? raw?.sale_number ?? raw?.id ?? "вЂ”"}`,
     dateLabel: formatDate(createdAt, { dateStyle: "short" }),
     dateTimeLabel: formatDate(createdAt, { dateStyle: "medium", timeStyle: "short" }),
     sellerLabel,
@@ -441,10 +441,10 @@ function normalizeSale(raw: any): SaleView {
       ?? raw?.buyer?.name
       ?? raw?.client_name
       ?? raw?.customer_name
-      ?? "Без клиента",
+      ?? "Р‘РµР· РєР»РёРµРЅС‚Р°",
     statusLabel: formatStatus(statusKey),
     statusKey,
-    discountLabel: discountAmount > 0 ? `${formatPrice(discountAmount)} UZS` : "Нет",
+    discountLabel: discountAmount > 0 ? `${formatPrice(discountAmount)} UZS` : "РќРµС‚",
     dateValue: date ? date.toISOString().slice(0, 10) : "",
     sellerValue: sellerLabel,
     pointValue: pointLabel,
@@ -464,11 +464,11 @@ function normalizeItems(items: any): SaleItemView[] {
 
     return {
       key: String(item?.id ?? item?.sku ?? `${index}-${item?.name ?? "item"}`),
-      name: item?.name ?? item?.product?.name ?? "Товар без названия",
-      skuLabel: item?.sku ?? item?.article ?? item?.barcode ?? "—",
-      quantityLabel: `${quantity || 0} шт`,
+      name: item?.name ?? item?.product?.name ?? "РўРѕРІР°СЂ Р±РµР· РЅР°Р·РІР°РЅРёСЏ",
+      skuLabel: item?.sku ?? item?.article ?? item?.barcode ?? "вЂ”",
+      quantityLabel: `${quantity || 0} С€С‚`,
       priceLabel: `${formatPrice(price)} UZS`,
-      discountLabel: discount > 0 ? `${formatPrice(discount)} UZS` : "—",
+      discountLabel: discount > 0 ? `${formatPrice(discount)} UZS` : "вЂ”",
       totalLabel: `${formatPrice(total)} UZS`,
     };
   });
@@ -483,7 +483,7 @@ function formatDate(
   value: string | number | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions
 ) {
-  if (!value) return "—";
+  if (!value) return "вЂ”";
   try {
     return new Date(value).toLocaleString("ru-RU", options);
   } catch {
@@ -492,10 +492,10 @@ function formatDate(
 }
 
 function formatStatus(status: string) {
-  if (status === "paid") return "Оплачен";
-  if (status === "pending") return "Ожидает";
-  if (status === "cancelled") return "Отменён";
-  return status ? status[0].toUpperCase() + status.slice(1) : "Неизвестно";
+  if (status === "paid") return "РћРїР»Р°С‡РµРЅ";
+  if (status === "pending") return "РћР¶РёРґР°РµС‚";
+  if (status === "cancelled") return "РћС‚РјРµРЅС‘РЅ";
+  return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Неизвестно";
 }
 
 function statusClass(status: string) {
@@ -505,20 +505,20 @@ function statusClass(status: string) {
   return "bg-[#404040] text-[#d6d6d6]";
 }
 
-function formatPaymentMethod(value: any) {
+function formatPaymentMethod(value: unknown): string {
   if (value && typeof value === "object") {
-    const keys = Object.entries(value)
+    const keys: string[] = Object.entries(value as Record<string, unknown>)
       .filter(([, amount]) => toNumber(amount) > 0)
       .map(([key]) => formatPaymentMethod(key));
-    return keys.length ? keys.join(", ") : "Не указан";
+    return keys.length ? keys.join(", ") : "РќРµ СѓРєР°Р·Р°РЅ";
   }
 
   const normalized = String(value ?? "").toLowerCase();
-  if (!normalized) return "Не указан";
-  if (normalized === "cash") return "Наличные";
-  if (normalized === "card") return "Карта";
-  if (normalized === "cardtransfer" || normalized === "card_transfer" || normalized === "transfer") return "Перевод";
-  return normalized[0].toUpperCase() + normalized.slice(1);
+  if (!normalized) return "РќРµ СѓРєР°Р·Р°РЅ";
+  if (normalized === "cash") return "РќР°Р»РёС‡РЅС‹Рµ";
+  if (normalized === "card") return "РљР°СЂС‚Р°";
+  if (normalized === "cardtransfer" || normalized === "card_transfer" || normalized === "transfer") return "РџРµСЂРµРІРѕРґ";
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function selectSale(sale: SaleView) {
@@ -636,5 +636,6 @@ watch([page, limit], () => {
   }
 }
 </style>
+
 
 

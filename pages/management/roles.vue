@@ -83,7 +83,7 @@ const roles = ref<RoleCard[]>([
 
 const selectedRoleId = ref("owner");
 
-const selectedRole = computed(() => roles.value.find((role) => role.id === selectedRoleId.value) || roles.value[0]);
+const selectedRole = computed<RoleCard>(() => roles.value.find((role) => role.id === selectedRoleId.value) ?? roles.value[0]!);
 
 const stats = computed(() => [
   { label: "Всего ролей", value: roles.value.length, helper: "Базовые роли компании" },

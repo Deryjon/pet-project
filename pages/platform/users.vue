@@ -5,17 +5,12 @@ import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
-import type { PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
+import type { PlatformRole, PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Суппорты и админы | Konkurent Platform" });
-
-const PLATFORM_ROLE_OPTIONS = [
-  { label: "Support", value: "support" },
-  { label: "Platform Admin", value: "platform_admin" },
-];
 
 const statusOptions = [
   { label: "Все статусы", value: "all" },
@@ -23,10 +18,12 @@ const statusOptions = [
   { label: "Отключенные", value: "inactive" },
 ];
 
-const { getPlatformUsers, createPlatformUser, updateUser, deleteUser } = usePlatformAdminApi();
+const { getPlatformUsers, getPlatformRoles, createPlatformUser, updateUser, deleteUser } = usePlatformAdminApi();
 const { softInputUi, softSelectUi } = usePlatformFormUi();
+const toast = useToast();
 
 const loading = ref(true);
+const rolesLoading = ref(false);
 const saving = ref(false);
 const deletingId = ref("");
 const modalOpen = ref(false);
@@ -34,6 +31,7 @@ const editing = ref<PlatformUser | null>(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 const users = ref<PlatformUser[]>([]);
+const platformRoles = ref<PlatformRole[]>([]);
 const search = ref("");
 const roleFilter = ref("all");
 const statusFilter = ref("all");
@@ -47,14 +45,39 @@ const form = reactive({
   birthDate: "",
 });
 
-const roleFilterOptions = computed(() => [{ label: "Все роли", value: "all" }, ...PLATFORM_ROLE_OPTIONS]);
+function formatRoleLabel(roleValue: string) {
+  const normalized = String(roleValue || "").trim();
+  if (!normalized) return "";
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+const platformRoleOptions = computed(() => {
+  const options = platformRoles.value
+    .filter((role) => role.id)
+    .map((role) => ({
+      label: role.name || formatRoleLabel(role.id),
+      value: role.id,
+    }));
+
+  if (form.role && !options.some((option) => option.value === form.role)) {
+    options.push({ label: formatRoleLabel(form.role), value: form.role });
+  }
+
+  return options;
+});
+
+const roleFilterOptions = computed(() => [{ label: "Все роли", value: "all" }, ...platformRoleOptions.value]);
 
 const filteredUsers = computed(() =>
   users.value.filter((user) => {
     const q = search.value.trim().toLowerCase();
-    const haystack = `${user.fullName} ${user.phone} ${user.role}`.toLowerCase();
+    const haystack = `${user.fullName} ${user.phone} ${user.roleName} ${user.roleId}`.toLowerCase();
     const matchesSearch = !q || haystack.includes(q);
-    const matchesRole = roleFilter.value === "all" || user.role === roleFilter.value;
+    const matchesRole = roleFilter.value === "all" || user.roleId === roleFilter.value;
     const matchesStatus = statusFilter.value === "all" || user.status === statusFilter.value;
     return matchesSearch && matchesRole && matchesStatus;
   }),
@@ -70,7 +93,7 @@ function resetForm() {
   form.lastName = "";
   form.phone = "";
   form.password = "";
-  form.role = "support";
+  form.role = platformRoleOptions.value[0]?.value || "support";
   form.birthDate = "";
 }
 
@@ -107,6 +130,22 @@ async function loadUsers() {
   }
 }
 
+async function loadRoles() {
+  rolesLoading.value = true;
+
+  try {
+    platformRoles.value = await getPlatformRoles();
+    if (!editing.value && !platformRoleOptions.value.some((option) => option.value === form.role)) {
+      form.role = platformRoleOptions.value[0]?.value || form.role;
+    }
+  } catch (error: any) {
+    platformRoles.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить роли платформы");
+  } finally {
+    rolesLoading.value = false;
+  }
+}
+
 function openCreate() {
   editing.value = null;
   resetForm();
@@ -120,7 +159,7 @@ function openEdit(user: PlatformUser) {
   form.lastName = user.lastName;
   form.phone = normalizePhoneForInput(user.phone);
   form.password = "";
-  form.role = user.role || "support";
+  form.role = user.roleId || "support";
   form.birthDate = user.birthDate || "";
   successMessage.value = "";
   modalOpen.value = true;
@@ -135,15 +174,18 @@ async function submit() {
     if (editing.value?.id) {
       await updateUser(editing.value.id, buildPayload());
       successMessage.value = "Пользователь платформы обновлен";
+      toast.add({ title: "Пользователь обновлен", color: "success" });
     } else {
       await createPlatformUser(buildPayload());
       successMessage.value = "Пользователь платформы создан";
+      toast.add({ title: "Пользователь создан", color: "success" });
     }
 
     modalOpen.value = false;
     await loadUsers();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось сохранить пользователя платформы");
+    toast.add({ title: "Не удалось сохранить пользователя", description: errorMessage.value, color: "error" });
   } finally {
     saving.value = false;
   }
@@ -164,6 +206,7 @@ async function removeUser(user: PlatformUser) {
     await loadUsers();
   } catch (error: any) {
     errorMessage.value = resolveError(error, "Не удалось удалить пользователя платформы");
+    toast.add({ title: "Не удалось удалить пользователя", description: errorMessage.value, color: "error" });
   } finally {
     deletingId.value = "";
   }
@@ -182,6 +225,7 @@ watch(
 watch(
   () => true,
   () => {
+    loadRoles();
     loadUsers();
   },
   { immediate: true, once: true },
@@ -257,7 +301,7 @@ watch(
           <div class="mt-5 grid gap-3 sm:grid-cols-2">
             <div class="rounded-[22px] bg-slate-950 px-4 py-3 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
               <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Роль</p>
-              <p class="mt-2 text-[16px] font-semibold">{{ user.role || "—" }}</p>
+              <p class="mt-2 text-[16px] font-semibold">{{ user.roleName || user.roleId || "—" }}</p>
             </div>
             <div class="rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200">
               <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Дата рождения</p>
@@ -321,7 +365,7 @@ watch(
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Роль</span>
-          <USelect v-model="form.role" :items="PLATFORM_ROLE_OPTIONS" value-key="value" :ui="softSelectUi" />
+          <USelect v-model="form.role" :items="platformRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата рождения</span>

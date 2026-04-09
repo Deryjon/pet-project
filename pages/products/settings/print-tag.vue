@@ -207,9 +207,9 @@ function toggleDropdown(name: keyof typeof dropdownOpen.value) {
   dropdownOpen.value[name] = !dropdownOpen.value[name];
 }
 
-function selectOption(name: keyof typeof form.value, value: string) {
+function selectOption(name: keyof typeof dropdownOpen.value, value: string) {
   form.value[name] = value;
-  dropdownOpen.value[name as keyof typeof dropdownOpen.value] = false;
+  dropdownOpen.value[name] = false;
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -283,3 +283,4 @@ onBeforeUnmount(() => {
   transform: translateY(-10px);
 }
 </style>
+

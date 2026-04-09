@@ -85,7 +85,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
               .map((shop: any) =>
                 normalizeOption(shop?.shop?.name ?? shop?.shop_name, shop?.shop_id),
               )
-              .filter((option): option is CatalogFilterOption => Boolean(option))
+              .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option))
           : [];
 
         const direct = normalizeOption(
@@ -106,7 +106,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         .map((item) =>
           normalizeOption(item?.category, item?._original?.category?.id ?? item?.category),
         )
-        .filter((option): option is CatalogFilterOption => Boolean(option)),
+        .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option)),
     ),
   );
 
@@ -114,7 +114,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     getUniqueOptions(
       rawData.value
         .map((item) => normalizeOption(item?.sku, item?.sku))
-        .filter((option): option is CatalogFilterOption => Boolean(option)),
+        .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option)),
     ),
   );
 
@@ -127,7 +127,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
             item?._original?.brand?.id ?? item?._original?.brand_name ?? item?.brand,
           ),
         )
-        .filter((option): option is CatalogFilterOption => Boolean(option)),
+        .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option)),
     ),
   );
 
@@ -146,7 +146,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
                 supplier?.id ?? supplier?.supplier_id ?? supplier?.name,
               ),
             )
-            .filter((option): option is CatalogFilterOption => Boolean(option));
+            .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option));
         }
 
         if (!item?.suppliers) {
@@ -156,7 +156,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         return item.suppliers
           .split(",")
           .map((name: string) => normalizeOption(name.trim(), name.trim()))
-          .filter((option): option is CatalogFilterOption => Boolean(option));
+          .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option));
       }),
     ),
   );
@@ -170,17 +170,17 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
             item?._original?.measurement_type ?? item?._original?.unit ?? item?.unit,
           ),
         )
-        .filter((option): option is CatalogFilterOption => Boolean(option)),
+        .filter((option: CatalogFilterOption | null): option is CatalogFilterOption => Boolean(option)),
     ),
   );
 
   const filterOptions = computed(() => ({
-    store: shopOptions.value.map((option) => option.label),
-    category: categoryOptions.value.map((option) => option.label),
-    article: articleOptions.value.map((option) => option.label),
-    brand: brandOptions.value.map((option) => option.label),
-    supplier: supplierOptions.value.map((option) => option.label),
-    unit: unitOptions.value.map((option) => option.label),
+    store: shopOptions.value.map((option: CatalogFilterOption) => option.label),
+    category: categoryOptions.value.map((option: CatalogFilterOption) => option.label),
+    article: articleOptions.value.map((option: CatalogFilterOption) => option.label),
+    brand: brandOptions.value.map((option: CatalogFilterOption) => option.label),
+    supplier: supplierOptions.value.map((option: CatalogFilterOption) => option.label),
+    unit: unitOptions.value.map((option: CatalogFilterOption) => option.label),
   }));
 
   async function fetchData(params?: {
@@ -218,7 +218,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       };
       totalItems.value = result.total;
       count.value = result.count;
-      fields.value = result.fields;
+      fields.value = Array.isArray(result.fields) ? (result.fields as CatalogField[]) : [];
       statistics.value = result.statistics;
       statisticsByStatus.value = result.statisticsByStatus;
 
@@ -777,3 +777,5 @@ function formatMoneyStat(value: unknown) {
   if (!Number.isFinite(num)) return "-";
   return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
 }
+
+

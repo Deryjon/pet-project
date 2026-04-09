@@ -228,7 +228,7 @@ export const useUserStore = defineStore("user", {
       try {
         const tokenCookie = useCookie<string | null>("auth_token", { sameSite: "lax" });
         tokenCookie.value = token;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.setItem("auth_token", token);
         }
       } catch (_) {}
@@ -238,7 +238,7 @@ export const useUserStore = defineStore("user", {
       try {
         const tokenCookie = useCookie<string | null>("auth_token", { sameSite: "lax" });
         tokenCookie.value = token;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.setItem("auth_token", token);
         }
       } catch (_) {}
@@ -250,7 +250,7 @@ export const useUserStore = defineStore("user", {
           this.token = tokenCookie.value;
           return;
         }
-        if (process.client) {
+        if (import.meta.client) {
           const token = localStorage.getItem("auth_token");
           if (token) this.token = token;
         }
@@ -258,12 +258,12 @@ export const useUserStore = defineStore("user", {
     },
     setLocation(location: { id: string; name: string }) {
       this.location = location;
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.setItem("selectedLocation", JSON.stringify(location));
       }
     },
     loadLocation() {
-      if (!process.client) {
+      if (!import.meta.client) {
         return;
       }
 
@@ -292,7 +292,7 @@ export const useUserStore = defineStore("user", {
       try {
         const tokenCookie = useCookie<string | null>("auth_token");
         tokenCookie.value = null;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.removeItem("auth_token");
           localStorage.removeItem("selectedLocation");
         }
@@ -300,3 +300,4 @@ export const useUserStore = defineStore("user", {
     },
   },
 });
+

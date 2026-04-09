@@ -90,7 +90,7 @@ async function save() {
 }
 
 onMounted(() => {
-  const preferred = user.user?.branchCode || user.user?.branch_id || user.user?.branchId
+  const preferred = user.user?.branchCode || user.user?.currentShopId
   if (preferred) {
     key.value = String(preferred)
     fetchBranch()

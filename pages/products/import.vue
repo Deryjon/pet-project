@@ -316,7 +316,7 @@ const errors = ref<string[]>([]);
 const form = ref<ImportFormState>({
   name: "",
   store: "",
-  importType: importTypeOptions[0],
+  importType: importTypeOptions[0] ?? "",
   generateBarcodes: false,
   generateArticles: false,
 });
@@ -364,7 +364,7 @@ const resetForm = () => {
   form.value = {
     name: createDefaultImportName(),
     store: locationStore.selectedLocation?.name ?? "",
-    importType: importTypeOptions[0],
+    importType: importTypeOptions[0] ?? "",
     generateBarcodes: false,
     generateArticles: false,
   };
@@ -398,7 +398,16 @@ const parseExcelFile = async (file: File) => {
     throw new Error("Файл не содержит листов.");
   }
 
-  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    throw new Error("Р¤Р°Р№Р» РЅРµ СЃРѕРґРµСЂР¶РёС‚ Р»РёСЃС‚РѕРІ.");
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName];
+  if (!worksheet) {
+    throw new Error("Р¤Р°Р№Р» РЅРµ СЃРѕРґРµСЂР¶РёС‚ РєРѕСЂСЂРµРєС‚РЅС‹Р№ Р»РёСЃС‚.");
+  }
+
   const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(worksheet, {
     header: 1,
     defval: "",
@@ -409,7 +418,12 @@ const parseExcelFile = async (file: File) => {
     throw new Error("Файл пустой.");
   }
 
-  const headers = rows[0].map((cell) => normalizeText(cell).toUpperCase());
+  const headerRow = rows[0];
+  if (!headerRow) {
+    throw new Error("Р¤Р°Р№Р» РїСѓСЃС‚РѕР№.");
+  }
+
+  const headers = headerRow.map((cell) => normalizeText(cell).toUpperCase());
   const missingHeaders = EXPECTED_HEADERS.filter((header) => !headers.includes(header));
 
   if (missingHeaders.length) {

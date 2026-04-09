@@ -38,6 +38,8 @@ export interface PlatformUser {
   fullName: string;
   phone: string;
   email: string;
+  roleId: string;
+  roleName: string;
   role: string;
   status: PlatformStatus;
   createdAt: string;
@@ -49,6 +51,15 @@ export interface PlatformUser {
   currentShopName: string;
   allowedShopIds: string[];
   canSwitchShops: boolean;
+}
+
+export interface PlatformRole {
+  id: string;
+  name: string;
+  description: string;
+  isAdmin: boolean;
+  type: number;
+  companyId: string;
 }
 
 export interface PlatformDashboardStats {
@@ -192,6 +203,17 @@ function normalizeShop(raw: any, company?: Partial<PlatformCompany>): PlatformSh
   };
 }
 
+function normalizeRole(raw: any): PlatformRole {
+  return {
+    id: String(pickValue(raw, ["id"]) ?? "").trim(),
+    name: String(pickValue(raw, ["name"]) ?? "").trim(),
+    description: String(pickValue(raw, ["description"]) ?? "").trim(),
+    isAdmin: Boolean(pickValue(raw, ["is_admin", "isAdmin"])),
+    type: toNumber(pickValue(raw, ["type"])),
+    companyId: String(pickValue(raw, ["company_id", "companyId"]) ?? "").trim(),
+  };
+}
+
 function normalizeCompany(raw: any): PlatformCompany {
   const shops = pickArray(raw, ["shops", "data", "items"]).map((shop) =>
     normalizeShop(shop, raw),
@@ -215,6 +237,7 @@ function normalizeCompany(raw: any): PlatformCompany {
 function normalizeUser(raw: any): PlatformUser {
   const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
   const currentShop = pickObject(raw?.current_shop, ["current_shop", "data"]) ?? raw?.current_shop ?? null;
+  const primaryRole = raw?.role?.role ?? raw?.role ?? raw?.roles?.[0]?.role ?? raw?.roles?.[0] ?? null;
   const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
   const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
   const fullName =
@@ -235,14 +258,21 @@ function normalizeUser(raw: any): PlatformUser {
     fullName,
     phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
     email: String(raw?.email ?? ""),
-    role: String(
-      raw?.role?.role?.name ??
-        raw?.role?.name ??
-        raw?.role ??
-        raw?.roles?.[0]?.role?.name ??
-        raw?.roles?.[0]?.name ??
+    roleId: String(
+      pickValue(primaryRole, ["id", "role_id", "roleId"]) ??
+        (typeof primaryRole === "string" ? primaryRole : "") ??
         "",
-    ),
+    ).trim(),
+    roleName: String(
+      pickValue(primaryRole, ["name"]) ??
+        (typeof primaryRole === "string" ? primaryRole : "") ??
+        "",
+    ).trim(),
+    role: String(
+      pickValue(primaryRole, ["name"]) ??
+        (typeof primaryRole === "string" ? primaryRole : "") ??
+        "",
+    ).trim(),
     status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
     createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
     updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
@@ -433,6 +463,11 @@ export function usePlatformAdminApi() {
     return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
   }
 
+  async function getPlatformRoles() {
+    const response = await apiFetch<any>("/platform/roles", { method: "GET" });
+    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
+  }
+
   async function getPlatformUser(id: string) {
     const response = await apiFetch<any>(`/platform/users/${id}`, { method: "GET" });
     return normalizeUser(pickObject(response, ["user", "data"]));
@@ -450,6 +485,11 @@ export function usePlatformAdminApi() {
   async function getCompanyUsers(companyId: string) {
     const response = await apiFetch<any>(`/platform/companies/${companyId}/users`, { method: "GET" });
     return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
+  }
+
+  async function getCompanyRoles() {
+    const response = await apiFetch<any>("/company/roles", { method: "GET" });
+    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
   }
 
   async function createCompanyUser(companyId: string, payload: PlatformUserPayload) {
@@ -505,9 +545,11 @@ export function usePlatformAdminApi() {
     updateShopStatus,
     deleteShop,
     getPlatformUsers,
+    getPlatformRoles,
     getPlatformUser,
     createPlatformUser,
     getCompanyUsers,
+    getCompanyRoles,
     createCompanyUser,
     updateUser,
     deleteUser,
