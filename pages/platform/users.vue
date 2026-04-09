@@ -273,8 +273,10 @@ watch(
         </div>
       </template>
 
-      <div v-if="loading" class="grid gap-4 lg:grid-cols-2">
-        <div v-for="item in 6" :key="item" class="h-40 animate-pulse rounded-[28px] bg-slate-100" />
+      <div v-if="loading" class="overflow-x-auto">
+        <div class="min-w-full">
+          <div v-for="item in 6" :key="item" class="mb-3 h-16 animate-pulse rounded-[22px] bg-slate-100" />
+        </div>
       </div>
 
       <EmptyState
@@ -284,43 +286,44 @@ watch(
         icon="heroicons:users"
       />
 
-      <div v-else class="grid gap-4 lg:grid-cols-2">
-        <article
-          v-for="user in filteredUsers"
-          :key="user.id"
-          class="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,250,252,0.92))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
-        >
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0">
-              <p class="truncate text-[20px] font-semibold tracking-[-0.03em] text-slate-950">{{ user.fullName }}</p>
-              <p class="mt-2 text-[14px] text-slate-500">{{ user.phone || "—" }}</p>
-            </div>
-            <StatusBadge :status="user.status" />
-          </div>
-
-          <div class="mt-5 grid gap-3 sm:grid-cols-2">
-            <div class="rounded-[22px] bg-slate-950 px-4 py-3 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
-              <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Роль</p>
-              <p class="mt-2 text-[16px] font-semibold">{{ user.roleName || user.roleId || "—" }}</p>
-            </div>
-            <div class="rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200">
-              <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Дата рождения</p>
-              <p class="mt-2 text-[16px] font-semibold text-slate-900">{{ user.birthDate || "Не указана" }}</p>
-            </div>
-          </div>
-
-          <div class="mt-4 rounded-[22px] bg-slate-50 px-4 py-3 ring-1 ring-slate-200/80">
-            <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">ID</p>
-            <p class="mt-1 truncate text-[14px] font-medium text-slate-700">{{ user.id }}</p>
-          </div>
-
-          <div class="mt-5 flex items-center justify-between gap-3 border-t border-slate-200/80 pt-4">
-            <UButton color="neutral" variant="soft" class="rounded-2xl" @click="openEdit(user)">Редактировать</UButton>
-            <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === user.id" @click="removeUser(user)">
-              Удалить
-            </UButton>
-          </div>
-        </article>
+      <div v-else class="overflow-x-auto">
+        <table class="min-w-full border-separate border-spacing-y-3">
+          <thead>
+            <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              <th class="px-4 py-2">Пользователь</th>
+              <th class="px-4 py-2">Телефон</th>
+              <th class="px-4 py-2">Роль</th>
+              <th class="px-4 py-2">Роль??</th>
+              <th class="px-4 py-2">Роль Телефон?</th>
+              <th class="px-4 py-2">ID</th>
+              <th class="px-4 py-2">Телефон?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in filteredUsers" :key="user.id">
+              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
+                <p class="font-semibold text-slate-950">{{ user.fullName }}</p>
+              </td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.phone || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.roleName || user.roleId || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4">
+                <StatusBadge :status="user.status" />
+              </td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.birthDate || "?? Телефон" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.id }}</td>
+              <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
+                <div class="flex flex-wrap gap-2">
+                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">
+                    Пользователь?
+                  </UButton>
+                  <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === user.id" @click="removeUser(user)">
+                    Телефон
+                  </UButton>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </DataPanel>
 
@@ -349,7 +352,7 @@ watch(
               inputmode="numeric"
               required
               placeholder="90 123 45 67"
-              :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:ring-0' }"
+              :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }"
             />
           </div>
         </label>
@@ -365,7 +368,15 @@ watch(
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Роль</span>
-          <USelect v-model="form.role" :items="platformRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading" />
+          <USelect
+            v-model="form.role"
+            :items="platformRoleOptions"
+            value-key="value"
+            placeholder="Р’С‹Р±РµСЂРёС‚Рµ СЂРѕР»СЊ"
+            :ui="softSelectUi"
+            :loading="rolesLoading"
+            class="w-full"
+          />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата рождения</span>
