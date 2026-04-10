@@ -132,7 +132,7 @@
                     class="flex items-center justify-between text-[14px]"
                   >
                     <span class="text-[#bdbdbd]">{{ entry.label }}</span>
-                    <span>{{ formatPrice(mixedPayments[entry.value]) }} UZS</span>
+                    <span>{{ formatPrice(mixedPayments[entry.value] || 0) }} UZS</span>
                   </div>
                 </div>
               </div>
@@ -481,7 +481,12 @@ function buildSinglePayment() {
   ];
 }
 
-function buildMixedPayments() {
+function buildMixedPayments(): Array<{
+  company_payment_type_id: string;
+  paid_amount: number;
+  returned_amount: number;
+  skip_ofd: boolean;
+}> {
   return selectedMixedPayments.value
     .map((entry) => {
       const companyPaymentTypeId = cartStore.paymentTypeIdByMethod(
@@ -498,6 +503,11 @@ function buildMixedPayments() {
         skip_ofd: false,
       };
     })
-    .filter(Boolean);
+    .filter((payment): payment is {
+      company_payment_type_id: string;
+      paid_amount: number;
+      returned_amount: number;
+      skip_ofd: boolean;
+    } => payment !== null);
 }
 </script>

@@ -26,6 +26,7 @@ type EditablePaymentType = PaymentTypeItem & {
 
 const { apiFetch } = useApi();
 const userStore = useUserStore();
+const toast = useToast();
 
 const items = ref<EditablePaymentType[]>([]);
 const loading = ref(false);
@@ -113,11 +114,13 @@ async function createPaymentType() {
   clearMessages();
 
   if (!companyId.value) {
+    toast.add({ title: "Не найден company_id", color: "error" });
     errorMessage.value = "Не найден company_id";
     return;
   }
 
   if (!form.value.name.trim()) {
+    toast.add({ title: "Введите название способа оплаты", color: "warning" });
     errorMessage.value = "Введите название способа оплаты";
     return;
   }
@@ -152,7 +155,9 @@ async function createPaymentType() {
 
     await loadPaymentTypes();
     successMessage.value = "Способ оплаты добавлен";
+    toast.add({ title: "Способ оплаты добавлен", color: "success" });
   } catch (error: any) {
+    toast.add({ title: "Не удалось добавить способ оплаты", color: "error" });
     errorMessage.value =
       error?.data?.message || error?.message || "Не удалось добавить способ оплаты";
   } finally {
@@ -180,6 +185,7 @@ async function updatePaymentType(item: EditablePaymentType) {
     });
 
     successMessage.value = `Способ оплаты "${item.name}" обновлен`;
+    toast.add({ title: "Способ оплаты обновлен", color: "success" });
     await loadPaymentTypes();
   } catch (error: any) {
     errorMessage.value =
@@ -201,6 +207,7 @@ async function deletePaymentType(item: EditablePaymentType) {
     items.value = items.value.filter((entry) => entry.id !== item.id);
     successMessage.value = `Способ оплаты "${item.name}" удален`;
   } catch (error: any) {
+    toast.add({ title: "Не удалось удалить способ оплаты", color: "error" });
     errorMessage.value =
       error?.data?.message || error?.message || "Не удалось удалить способ оплаты";
   } finally {

@@ -1,71 +1,122 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
-import type { PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
+import type { PlatformRole, PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Пользователи платформы | Konkurent Platform" });
+useHead({ title: "Суппорты и админы | Konkurent Platform" });
 
-const { getPlatformUsers, createPlatformUser, updateUser, deleteUser } = usePlatformAdminApi();
+const statusOptions = [
+  { label: "Все статусы", value: "all" },
+  { label: "Активные", value: "active" },
+  { label: "Отключенные", value: "inactive" },
+];
+
+const { getPlatformUsers, getPlatformRoles, createPlatformUser, updateUser, deleteUser } = usePlatformAdminApi();
+const { softInputUi, softSelectUi } = usePlatformFormUi();
+const toast = useToast();
 
 const loading = ref(true);
+const rolesLoading = ref(false);
 const saving = ref(false);
 const deletingId = ref("");
+const modalOpen = ref(false);
+const editing = ref<PlatformUser | null>(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 const users = ref<PlatformUser[]>([]);
+const platformRoles = ref<PlatformRole[]>([]);
 const search = ref("");
-const role = ref("all");
-const status = ref("all");
-const modalOpen = ref(false);
-const editing = ref<PlatformUser | null>(null);
+const roleFilter = ref("all");
+const statusFilter = ref("all");
 
 const form = reactive({
   firstName: "",
   lastName: "",
   phone: "",
   password: "",
-  role: "platform_admin",
+  role: "support",
+  birthDate: "",
 });
 
-const roleOptions = [
-  { label: "platform_admin", value: "platform_admin" },
-  { label: "support", value: "support" },
-];
+function formatRoleLabel(roleValue: string) {
+  const normalized = String(roleValue || "").trim();
+  if (!normalized) return "";
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
-watch(
-  () => form.phone,
-  (value) => {
-    const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
-    const parts = [
-      digits.slice(0, 2),
-      digits.slice(2, 5),
-      digits.slice(5, 7),
-      digits.slice(7, 9),
-    ].filter(Boolean);
+const platformRoleOptions = computed(() => {
+  const options = platformRoles.value
+    .filter((role) => role.id)
+    .map((role) => ({
+      label: role.name || formatRoleLabel(role.id),
+      value: role.id,
+    }));
 
-    const formatted = parts.join(" ");
-    if (formatted !== value) {
-      form.phone = formatted;
-    }
-  },
-);
+  if (form.role && !options.some((option) => option.value === form.role)) {
+    options.push({ label: formatRoleLabel(form.role), value: form.role });
+  }
+
+  return options;
+});
+
+const roleFilterOptions = computed(() => [{ label: "Все роли", value: "all" }, ...platformRoleOptions.value]);
 
 const filteredUsers = computed(() =>
   users.value.filter((user) => {
     const q = search.value.trim().toLowerCase();
-    const matchesSearch =
-      !q || `${user.fullName} ${user.phone} ${user.email} ${user.role}`.toLowerCase().includes(q);
-    const matchesRole = role.value === "all" || user.role === role.value;
-    const matchesStatus = status.value === "all" || user.status === status.value;
+    const haystack = `${user.fullName} ${user.phone} ${user.roleName} ${user.roleId}`.toLowerCase();
+    const matchesSearch = !q || haystack.includes(q);
+    const matchesRole = roleFilter.value === "all" || user.roleId === roleFilter.value;
+    const matchesStatus = statusFilter.value === "all" || user.status === statusFilter.value;
     return matchesSearch && matchesRole && matchesStatus;
   }),
 );
+
+function resolveError(error: any, fallback: string) {
+  const message = error?.data?.message ?? error?.response?._data?.message;
+  return Array.isArray(message) ? message.join(", ") : message || error?.message || fallback;
+}
+
+function resetForm() {
+  form.firstName = "";
+  form.lastName = "";
+  form.phone = "";
+  form.password = "";
+  form.role = platformRoleOptions.value[0]?.value || "support";
+  form.birthDate = "";
+}
+
+function normalizePhoneForInput(phone: string) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  const localDigits = digits.startsWith("998") ? digits.slice(3) : digits;
+  const normalized = localDigits.slice(0, 9);
+  const parts = [normalized.slice(0, 2), normalized.slice(2, 5), normalized.slice(5, 7), normalized.slice(7, 9)].filter(Boolean);
+  return parts.join(" ");
+}
+
+function buildPayload(): PlatformUserPayload {
+  const payload: PlatformUserPayload = {
+    first_name: form.firstName.trim(),
+    last_name: form.lastName.trim(),
+    phone_number: `+998${form.phone.replace(/\D/g, "")}`,
+    role: form.role,
+  };
+
+  if (form.password.trim()) payload.password = form.password.trim();
+  if (form.birthDate.trim()) payload.birth_date = form.birthDate.trim();
+  return payload;
+}
 
 async function loadUsers() {
   loading.value = true;
@@ -74,21 +125,27 @@ async function loadUsers() {
   try {
     users.value = await getPlatformUsers();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить администраторов платформы";
+    users.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить суппортов и админов");
   } finally {
     loading.value = false;
   }
 }
 
-function resetForm() {
-  form.firstName = "";
-  form.lastName = "";
-  form.phone = "";
-  form.password = "";
-  form.role = "platform_admin";
+async function loadRoles() {
+  rolesLoading.value = true;
+
+  try {
+    platformRoles.value = await getPlatformRoles();
+    if (!editing.value && !platformRoleOptions.value.some((option) => option.value === form.role)) {
+      form.role = platformRoleOptions.value[0]?.value || form.role;
+    }
+  } catch (error: any) {
+    platformRoles.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить роли платформы");
+  } finally {
+    rolesLoading.value = false;
+  }
 }
 
 function openCreate() {
@@ -102,21 +159,12 @@ function openEdit(user: PlatformUser) {
   editing.value = user;
   form.firstName = user.firstName;
   form.lastName = user.lastName;
-  form.phone = user.phone.replace(/^\+998/, "").replace(/\D/g, "").replace(/(\d{2})(\d{3})(\d{2})(\d{2}).*/, "$1 $2 $3 $4").trim();
+  form.phone = normalizePhoneForInput(user.phone);
   form.password = "";
-  form.role = user.role || "platform_admin";
+  form.role = user.roleId || "support";
+  form.birthDate = user.birthDate || "";
   successMessage.value = "";
   modalOpen.value = true;
-}
-
-function buildPayload(): PlatformUserPayload {
-  return {
-    first_name: form.firstName.trim(),
-    last_name: form.lastName.trim(),
-    phone_number: `+998${form.phone.replace(/\D/g, "")}`,
-    ...(form.password.trim() ? { password: form.password.trim() } : {}),
-    role: form.role,
-  };
 }
 
 async function submit() {
@@ -125,30 +173,28 @@ async function submit() {
   successMessage.value = "";
 
   try {
-    const payload = buildPayload();
-
     if (editing.value?.id) {
-      await updateUser(editing.value.id, payload);
-      successMessage.value = "Администратор платформы обновлен";
+      await updateUser(editing.value.id, buildPayload());
+      successMessage.value = "Пользователь платформы обновлен";
+      toast.add({ title: "Пользователь обновлен", color: "success" });
     } else {
-      await createPlatformUser(payload);
-      successMessage.value = "Администратор платформы создан";
+      await createPlatformUser(buildPayload());
+      successMessage.value = "Пользователь платформы создан";
+      toast.add({ title: "Пользователь создан", color: "success" });
     }
 
     modalOpen.value = false;
     await loadUsers();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось сохранить администратора платформы";
+    errorMessage.value = resolveError(error, "Не удалось сохранить пользователя платформы");
+    toast.add({ title: "Не удалось сохранить пользователя", description: errorMessage.value, color: "error" });
   } finally {
     saving.value = false;
   }
 }
 
 async function removeUser(user: PlatformUser) {
-  if (typeof window !== "undefined" && !window.confirm(`Удалить администратора "${user.fullName}"?`)) {
+  if (typeof window !== "undefined" && !window.confirm(`Удалить "${user.fullName}"?`)) {
     return;
   }
 
@@ -158,32 +204,51 @@ async function removeUser(user: PlatformUser) {
 
   try {
     await deleteUser(user.id);
-    successMessage.value = "Администратор удален";
+    successMessage.value = "Пользователь платформы удален";
     await loadUsers();
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось удалить администратора";
+    errorMessage.value = resolveError(error, "Не удалось удалить пользователя платформы");
+    toast.add({ title: "Не удалось удалить пользователя", description: errorMessage.value, color: "error" });
   } finally {
     deletingId.value = "";
   }
 }
 
-onMounted(loadUsers);
+watch(
+  () => form.phone,
+  (value) => {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
+    const parts = [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)].filter(Boolean);
+    const formatted = parts.join(" ");
+    if (formatted !== value) form.phone = formatted;
+  },
+);
+
+watch(
+  () => true,
+  () => {
+    loadRoles();
+    loadUsers();
+  },
+  { immediate: true, once: true },
+);
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Админы платформы" title="Пользователи платформы" description="Только platform admin и support. CRM-пользователи открываются внутри страницы конкретной компании.">
+    <PageHeader
+      eyebrow="Платформа"
+      title="Суппорты и админы"
+      description="Управление platform users с ролями support и platform_admin."
+    >
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadUsers">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadUsers">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
-        <UButton color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
+        <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
-          Создать администратора
+          Новый пользователь
         </UButton>
       </template>
     </PageHeader>
@@ -192,33 +257,36 @@ onMounted(loadUsers);
       {{ errorMessage }}
     </div>
 
-    <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">
+    <div
+      v-if="successMessage"
+      class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700"
+    >
       {{ successMessage }}
     </div>
 
-    <DataPanel title="Список администраторов платформы" description="GET /api/platform/users, POST /api/platform/users, PUT /api/platform/users/:id, DELETE /api/platform/users/:id.">
+    <DataPanel title="Список platform users" description="Только суппорты и админы платформы, без сотрудников компаний.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
-          <div class="min-w-[240px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <input v-model="search" type="text" placeholder="Поиск по имени, телефону, email или роли" class="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400" />
+          <div class="min-w-[260px] flex-1">
+            <UInput v-model="search" type="text" placeholder="Поиск по имени, телефону или роли" :ui="softInputUi" />
           </div>
-          <select v-model="role" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">Все роли</option>
-            <option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
-          <select v-model="status" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-            <option value="all">Все статусы</option>
-            <option value="active">Активные</option>
-            <option value="inactive">Отключенные</option>
-          </select>
+          <USelect v-model="roleFilter" :items="roleFilterOptions" value-key="value" :ui="softSelectUi" class="min-w-[220px]" />
+          <USelect v-model="statusFilter" :items="statusOptions" value-key="value" :ui="softSelectUi" class="min-w-[220px]" />
         </div>
       </template>
 
-      <div v-if="loading" class="space-y-3">
-        <div v-for="item in 6" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" />
+      <div v-if="loading" class="overflow-x-auto">
+        <div class="min-w-full">
+          <div v-for="item in 6" :key="item" class="mb-3 h-16 animate-pulse rounded-[22px] bg-slate-100" />
+        </div>
       </div>
 
-      <EmptyState v-else-if="!filteredUsers.length" title="Админы платформы не найдены" description="Создайте первого platform admin/support или измените фильтры." icon="heroicons:users" />
+      <EmptyState
+        v-else-if="!filteredUsers.length"
+        title="Пользователи не найдены"
+        description="Измените фильтры или создайте первого суппорта либо админа платформы."
+        icon="heroicons:users"
+      />
 
       <div v-else class="overflow-x-auto">
         <table class="min-w-full border-separate border-spacing-y-3">
@@ -226,30 +294,32 @@ onMounted(loadUsers);
             <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               <th class="px-4 py-2">Пользователь</th>
               <th class="px-4 py-2">Телефон</th>
-              <th class="px-4 py-2">Email</th>
               <th class="px-4 py-2">Роль</th>
-              <th class="px-4 py-2">Статус</th>
-              <th class="px-4 py-2">Создан</th>
-              <th class="px-4 py-2">Действия</th>
+              <th class="px-4 py-2">Роль??</th>
+              <th class="px-4 py-2">Роль Телефон?</th>
+              <th class="px-4 py-2">ID</th>
+              <th class="px-4 py-2">Телефон?</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="user in filteredUsers" :key="user.id">
-              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4 font-semibold text-slate-950">{{ user.fullName }}</td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.phone || "—" }}</td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.email || "—" }}</td>
-              <td class="bg-slate-50 px-4 py-4">
-                <span class="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">{{ user.role || "—" }}</span>
+              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
+                <p class="font-semibold text-slate-950">{{ user.fullName }}</p>
               </td>
-              <td class="bg-slate-50 px-4 py-4"><StatusBadge :status="user.status" /></td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.createdAt || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.phone || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.roleName || user.roleId || "—" }}</td>
+              <td class="bg-slate-50 px-4 py-4">
+                <StatusBadge :status="user.status" />
+              </td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.birthDate || "?? Телефон" }}</td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.id }}</td>
               <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
                 <div class="flex flex-wrap gap-2">
                   <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">
-                    Редактировать
+                    Пользователь?
                   </UButton>
                   <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === user.id" @click="removeUser(user)">
-                    Удалить
+                    Телефон
                   </UButton>
                 </div>
               </td>
@@ -259,35 +329,66 @@ onMounted(loadUsers);
       </div>
     </DataPanel>
 
-    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать администратора платформы' : 'Создать администратора платформы'" description="Все поля отправляются в snake_case.">
+    <ModalForm
+      :open="modalOpen"
+      :title="editing ? 'Редактировать пользователя платформы' : 'Создать пользователя платформы'"
+      description="Заполните данные support или platform_admin."
+      @close="modalOpen = false"
+    >
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Имя</span>
-          <input v-model="form.firstName" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.firstName" type="text" required placeholder="Введите имя" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Фамилия</span>
-          <input v-model="form.lastName" type="text" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput v-model="form.lastName" type="text" required placeholder="Введите фамилию" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Телефон</span>
-          <div class="flex items-center rounded-2xl border border-slate-200 bg-slate-50">
-            <span class="pl-4 text-[14px] font-medium text-slate-500">+998</span>
-            <input v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" class="w-full bg-transparent px-3 py-3 text-[14px] outline-none" />
+          <div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60">
+            <span class="pr-3 text-[14px] font-medium text-slate-500">+998</span>
+            <UInput
+              v-model="form.phone"
+              type="tel"
+              inputmode="numeric"
+              required
+              placeholder="90 123 45 67"
+              :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }"
+            />
           </div>
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Пароль</span>
-          <input v-model="form.password" type="password" :required="!editing" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white" />
+          <UInput
+            v-model="form.password"
+            type="password"
+            :required="!editing"
+            placeholder="Введите пароль"
+            :ui="softInputUi"
+          />
         </label>
-        <label class="space-y-2 md:col-span-2">
+        <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Роль</span>
-          <select v-model="form.role" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] outline-none focus:border-sky-300 focus:bg-white">
-            <option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
+          <USelect
+            v-model="form.role"
+            :items="platformRoleOptions"
+            value-key="value"
+            placeholder="Р’С‹Р±РµСЂРёС‚Рµ СЂРѕР»СЊ"
+            :ui="softSelectUi"
+            :loading="rolesLoading"
+            class="w-full"
+          />
         </label>
+        <label class="space-y-2">
+          <span class="text-[13px] font-semibold text-slate-700">Дата рождения</span>
+          <UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" />
+        </label>
+
         <div class="mt-2 flex justify-end gap-3 md:col-span-2">
-          <UButton color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
+          <UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">
+            Отмена
+          </UButton>
           <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
             {{ saving ? "Сохраняем..." : editing ? "Сохранить" : "Создать" }}
           </UButton>

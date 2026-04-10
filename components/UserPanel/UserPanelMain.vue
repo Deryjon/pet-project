@@ -14,7 +14,7 @@ defineProps<{
 
 const panel = usePanelStore();
 const { user, fullName } = storeToRefs(useUserStore());
-const { selectedLocation } = storeToRefs(useLocationStore());
+const { selectedLocation, locations } = storeToRefs(useLocationStore());
 
 const displayName = computed(() => {
   return fullName.value || user.value.name || user.value.phone || "Пользователь";
@@ -43,7 +43,7 @@ const displayCompany = computed(() => {
 });
 
 const canChangeShop = computed(() => {
-  return Boolean(user.value.canSwitchShops && user.value.shops?.length);
+  return Boolean((user.value.canSwitchShops || locations.value.length > 1) && locations.value.length);
 });
 </script>
 

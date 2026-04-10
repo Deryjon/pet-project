@@ -152,7 +152,7 @@ async function submit() {
                 autocomplete="current-password"
                 class="w-full bg-transparent px-4 py-3.5 text-[15px] text-slate-900 outline-none"
               />
-              <button type="button" class="px-4 text-[13px] font-semibold text-slate-500 transition hover:text-slate-800" @click="showPassword = !showPassword">
+              <button type="button" class="cursor-pointer px-4 text-[13px] font-semibold text-slate-500 transition hover:text-slate-800" @click="showPassword = !showPassword">
                 {{ showPassword ? "Скрыть" : "Показать" }}
               </button>
             </div>
@@ -163,7 +163,7 @@ async function submit() {
             {{ serverError }}
           </p>
 
-          <UButton type="submit" color="neutral" class="h-14 w-full justify-center rounded-2xl bg-slate-950 text-[15px] font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] hover:bg-slate-800" :disabled="loading">
+          <UButton type="submit" color="neutral" class="h-14 w-full cursor-pointer justify-center rounded-2xl bg-slate-950 text-[15px] font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] hover:bg-slate-800" :disabled="loading">
             <Icon v-if="loading" name="heroicons:arrow-path" class="mr-2 h-4 w-4 animate-spin" />
             {{ loading ? "Входим..." : "Войти" }}
           </UButton>

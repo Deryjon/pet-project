@@ -8,17 +8,17 @@ defineProps<{
 </script>
 
 <template>
-  <div class="rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_20px_50px_rgba(15,23,42,0.05)] transition-transform duration-200 hover:-translate-y-0.5">
+  <article class="group rounded-[30px] border border-white/70 bg-white/80 p-5 shadow-[0_22px_56px_rgba(15,23,42,0.07)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_rgba(15,23,42,0.11)]">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <p class="text-[13px] font-medium text-slate-500">{{ label }}</p>
-        <p class="mt-4 text-[30px] font-semibold tracking-[-0.03em] text-slate-950">{{ value }}</p>
-        <p v-if="helper" class="mt-2 text-[13px] text-slate-400">{{ helper }}</p>
+        <p class="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ label }}</p>
+        <p class="mt-4 text-[34px] font-semibold tracking-[-0.05em] text-slate-950">{{ value }}</p>
+        <p v-if="helper" class="mt-2 text-[13px] leading-6 text-slate-500">{{ helper }}</p>
       </div>
 
-      <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-sky-300 shadow-lg">
+      <div class="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[linear-gradient(180deg,#0f172a_0%,#134e4a_100%)] text-[#d5fff8] shadow-[0_16px_34px_rgba(15,23,42,0.22)] transition duration-300 group-hover:scale-105">
         <Icon :name="icon" class="h-5 w-5" />
       </div>
     </div>
-  </div>
+  </article>
 </template>

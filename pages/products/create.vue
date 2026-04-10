@@ -23,6 +23,7 @@ const router = useRouter();
 const store = useProductStore();
 const locationStore = useLocationStore();
 const { createProduct } = useProducts();
+const toast = useToast();
 
 const submitting = ref(false);
 const validationMessages = ref<string[]>([]);
@@ -113,6 +114,7 @@ async function submitForm(mode: "save" | "save-and-new") {
   validationMessages.value = issues.map((issue) => issue.message);
 
   if (issues.length > 0) {
+    toast.add({ title: "��������� �����", description: issues[0]?.message || "���� ������ ���������", color: "warning" });
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
@@ -121,6 +123,7 @@ async function submitForm(mode: "save" | "save-and-new") {
   try {
     const payload = buildCreateProductPayload(store.form);
     await createProduct(payload);
+    toast.add({ title: "������� ������", color: "success" });
 
     if (mode === "save-and-new") {
       store.resetForm();
@@ -133,6 +136,7 @@ async function submitForm(mode: "save" | "save-and-new") {
     await router.push("/products/catalog");
   } catch (error: any) {
     validationMessages.value = [normalizeApiError(error)];
+    toast.add({ title: "�� ������� ������� �������", description: validationMessages.value[0], color: "error" });
     window.scrollTo({ top: 0, behavior: "smooth" });
     console.error("Failed to create product", error);
   } finally {
@@ -192,3 +196,7 @@ async function submitForm(mode: "save" | "save-and-new") {
 <style>
 @reference "tailwindcss";
 </style>
+
+
+
+

@@ -6,6 +6,19 @@ import { useUserStore } from "./useUserStore";
 
 type PaymentMethodCode = "cash" | "card" | "payme" | "click" | "transfer";
 
+type CartProduct = {
+  id: number | string;
+  name: string;
+  price: number;
+  barcode: string;
+  article: string;
+  availableQuantity?: number;
+  shopId?: string;
+  quantity?: number;
+  discountValue?: number;
+  discountType?: "%" | "uzs";
+};
+
 type CompanyPaymentMethod = {
   id: string;
   name: string;
@@ -51,13 +64,14 @@ export const useCartStore = defineStore("cart", () => {
   const lastCartError = ref<string>("");
   const paymentMethods = ref<CompanyPaymentMethod[]>([]);
 
-  const products = ref([
+  const products = ref<CartProduct[]>([
     {
       id: 1,
       name: "Чехол для iPhone 12",
       price: 50000,
       barcode: "123456789",
       article: "123456789",
+      availableQuantity: 10,
     },
     {
       id: 2,
@@ -65,6 +79,7 @@ export const useCartStore = defineStore("cart", () => {
       price: 80000,
       barcode: "987654321",
       article: "S22-GLASS",
+      availableQuantity: 7,
     },
     {
       id: 3,
@@ -72,6 +87,7 @@ export const useCartStore = defineStore("cart", () => {
       price: 120000,
       barcode: "456123789",
       article: "TYPEC-CHARGER",
+      availableQuantity: 15,
     },
     {
       id: 4,
@@ -79,6 +95,7 @@ export const useCartStore = defineStore("cart", () => {
       price: 1500000,
       barcode: "741852963",
       article: "AIRPODS",
+      availableQuantity: 3,
     },
   ]);
 
@@ -233,7 +250,7 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   function saveLocalState() {
-    if (!process.client) return;
+    if (!import.meta.client) return;
 
     localStorage.setItem(
       STORAGE_KEY,
@@ -253,7 +270,7 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   function loadLocalState() {
-    if (!process.client) return;
+    if (!import.meta.client) return;
 
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
