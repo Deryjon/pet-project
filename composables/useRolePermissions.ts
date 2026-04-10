@@ -168,6 +168,18 @@ export function useRolePermissionsApi() {
     return id;
   }
 
+  async function updateRole(payload: { id: string; name: string; description?: string }) {
+    const safeId = encodeURIComponent(asString(payload.id));
+    return requestWithCandidates<any>(
+      "PUT",
+      roleBaseCandidates.map((base) => `${base}/${safeId}`),
+      {
+        name: asString(payload.name),
+        description: asString(payload.description),
+      },
+    );
+  }
+
   async function getRolePermissions(roleId: string): Promise<RolePermissionsResponse> {
     const safeId = encodeURIComponent(asString(roleId));
     const response = await requestWithCandidates<any>(
@@ -221,6 +233,7 @@ export function useRolePermissionsApi() {
 
   return {
     createRole,
+    updateRole,
     getRolePermissions,
     updateRolePermissions,
     getRolesForSelect,
