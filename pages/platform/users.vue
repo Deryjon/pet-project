@@ -98,8 +98,10 @@ function resetForm() {
 }
 
 function normalizePhoneForInput(phone: string) {
-  const digits = phone.replace(/^\+998/, "").replace(/\D/g, "").slice(0, 9);
-  const parts = [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)].filter(Boolean);
+  const digits = String(phone || "").replace(/\D/g, "");
+  const localDigits = digits.startsWith("998") ? digits.slice(3) : digits;
+  const normalized = localDigits.slice(0, 9);
+  const parts = [normalized.slice(0, 2), normalized.slice(2, 5), normalized.slice(5, 7), normalized.slice(7, 9)].filter(Boolean);
   return parts.join(" ");
 }
 

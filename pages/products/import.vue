@@ -123,6 +123,28 @@
                 </div>
               </div>
 
+              <div class="rounded-[24px] border border-[#4d4d4d] bg-[#343434] p-5">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-[16px] font-bold text-white">Скачать шаблон</p>
+                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
+                      Скачайте Excel-шаблон, заполните его и загрузите обратно в это окно.
+                    </p>
+                  </div>
+
+                  <a
+                    :href="templateDownloadUrl"
+                    download
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex items-center justify-center rounded-[16px] bg-[#1f78ff] px-5 py-3 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9]"
+                  >
+                    <Icon name="heroicons:arrow-down-tray-20-solid" class="mr-2 h-5 w-5" />
+                    Скачать шаблон
+                  </a>
+                </div>
+              </div>
+
               <div
                 v-if="selectedFile && !errors.length && parsedRows.length"
                 class="rounded-[24px] border border-[#2f5f3d] bg-[#23362a] p-5"
@@ -297,6 +319,7 @@ const locationStore = useLocationStore();
 const userStore = useUserStore();
 const route = useRoute();
 const { locations } = storeToRefs(locationStore);
+const templateDownloadUrl = "/templates/product-import-template.xlsx";
 
 const importTypeOptions = ["Поступление", "Приход остатков", "Корректировка"];
 const isChildRoute = computed(

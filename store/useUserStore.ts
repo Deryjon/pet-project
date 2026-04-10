@@ -67,7 +67,7 @@ function normalizeCompany(company: any) {
 
 function normalizeShop(shop: any): NormalizedShop | null {
   const id = String(shop?.id ?? shop?.shop_id ?? shop?.shop?.id ?? "");
-  const name = String(shop?.shop?.name ?? shop?.name ?? "");
+  const name = String(shop?.shop?.name ?? shop?.name ?? shop?.shop_name ?? "");
 
   if (!id || !name) {
     return null;
@@ -139,6 +139,10 @@ export const useUserStore = defineStore("user", {
       const normalizedShops = Array.isArray(user?.shops)
         ? user.shops.map((shop: any) => normalizeShop(shop)).filter(Boolean)
         : [];
+      const canSwitchShops =
+        typeof user?.can_switch_shops === "boolean"
+          ? user.can_switch_shops
+          : normalizedShops.length > 1;
 
       const currentShopId = String(
         user?.current_shop_id ?? user?.current_shop?.id ?? user?.current_shop?.shop_id ?? "",
@@ -174,7 +178,7 @@ export const useUserStore = defineStore("user", {
         companyId:
           String(user?.company_id ?? normalizedCompany?.companyId ?? normalizedCompany?.id ?? ""),
         company: normalizedCompany,
-        canSwitchShops: Boolean(user?.can_switch_shops),
+        canSwitchShops: canSwitchShops,
         branchCode:
           user?.current_shop?.branch_code ??
           user?.branch_code ??

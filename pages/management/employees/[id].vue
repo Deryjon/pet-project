@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { navigateTo, useHead } from "#imports";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
+import { type RoleSelectItem, useRolePermissionsApi } from "@/composables/useRolePermissions";
 
 useHead({ title: "Редактирование сотрудника | Konkurent.cases" });
 
@@ -13,8 +14,9 @@ type User = {
   first_name?: string;
   last_name?: string;
   phone_number?: string;
-  role?: string | { name?: string };
+  role?: string | { id?: string; name?: string };
   roles?: Array<any>;
+  crm_role_id?: string;
   current_shop_id?: string;
   current_shop?: {
     id?: string;
@@ -28,6 +30,7 @@ type User = {
 const route = useRoute();
 const router = useRouter();
 const { apiFetch } = useApi();
+const { getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
 
 const id = computed(() => route.params.id as string);
@@ -41,10 +44,12 @@ const firstName = ref("");
 const lastName = ref("");
 const phone = ref("");
 const password = ref("");
-const role = ref("employee");
+const crm_role_id = ref("");
 const current_shop_id = ref("");
 const allowed_shop_ids = ref<string[]>([]);
 const can_switch_shops = ref(false);
+const roleOptions = ref<RoleSelectItem[]>([]);
+const rolesLoading = ref(false);
 
 const shopOptions = computed(() =>
   (userStore.user.shops || []).map((shop) => ({
@@ -54,23 +59,6 @@ const shopOptions = computed(() =>
 );
 
 const selectedShopCount = computed(() => allowed_shop_ids.value.length);
-function formatRoleLabel(roleValue: string) {
-  const normalized = String(roleValue || "").trim();
-  if (!normalized) return "";
-  return normalized
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-const roleOptions = computed(() => {
-  const values = new Set<string>([...userStore.normalizedRoles, role.value].filter(Boolean));
-  return [...values].map((value) => ({
-    label: formatRoleLabel(value),
-    value,
-  }));
-});
 
 const currentShopLabel = computed(
   () => shopOptions.value.find((shop) => shop.value === current_shop_id.value)?.label || "Не выбран",
@@ -141,13 +129,29 @@ function toggleAllowedShop(shopId: string) {
     : [shopId];
 }
 
-function normalizeRole(user: User) {
+function normalizeRoleId(user: User) {
   return String(
-    (typeof user.role === "object" ? user.role?.name : user.role) ??
-      user.roles?.[0]?.role?.name ??
-      user.roles?.[0]?.name ??
-      "employee",
-  ).trim() || "employee";
+    user?.crm_role_id ??
+      (typeof user.role === "object" ? user.role?.id : "") ??
+      user.roles?.[0]?.crm_role_id ??
+      user.roles?.[0]?.role?.id ??
+      user.roles?.[0]?.id ??
+      "",
+  ).trim();
+}
+
+async function loadRoles() {
+  rolesLoading.value = true;
+  try {
+    roleOptions.value = await getRolesForSelect();
+    if (!crm_role_id.value) {
+      crm_role_id.value = roleOptions.value[0]?.id || "";
+    }
+  } catch {
+    roleOptions.value = [];
+  } finally {
+    rolesLoading.value = false;
+  }
 }
 
 function normalizeAllowedShops(user: User) {
@@ -197,7 +201,7 @@ async function fetchUser() {
     firstName.value = user?.first_name || "";
     lastName.value = user?.last_name || "";
     phone.value = String(user?.phone_number || "");
-    role.value = normalizeRole(user);
+    crm_role_id.value = normalizeRoleId(user) || roleOptions.value[0]?.id || "";
     current_shop_id.value = String(
       user?.current_shop_id ?? user?.current_shop?.id ?? user?.current_shop?.shop_id ?? "",
     );
@@ -214,11 +218,18 @@ async function fetchUser() {
   }
 }
 
-onMounted(fetchUser);
+onMounted(async () => {
+  await loadRoles();
+  await fetchUser();
+});
 watch(id, fetchUser);
 
 async function saveMainData() {
   if (!id.value || !userStore.isAdmin) return;
+  if (!crm_role_id.value) {
+    serverError.value = "Выберите роль сотрудника.";
+    return;
+  }
 
   saving.value = true;
   serverError.value = null;
@@ -230,7 +241,7 @@ async function saveMainData() {
       body: {
         first_name: String(firstName.value || "").trim(),
         last_name: String(lastName.value || "").trim(),
-        role: String(role.value || "").trim(),
+        crm_role_id: String(crm_role_id.value || "").trim(),
         current_shop_id: String(current_shop_id.value || ""),
         allowed_shop_ids: [...allowed_shop_ids.value],
         can_switch_shops: can_switch_shops.value,
@@ -349,9 +360,10 @@ function goBack() {
 
               <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium text-[#d6d6d6]">Роль</label>
-                <select v-model="role" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]">
-                  <option v-for="option in roleOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
+                <select v-model="crm_role_id" :disabled="rolesLoading" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343] disabled:opacity-70">
+                  <option value="" disabled>Выберите роль</option>
+                  <option v-for="option in roleOptions" :key="option.id" :value="option.id">
+                    {{ option.name || option.id }}
                   </option>
                 </select>
               </div>

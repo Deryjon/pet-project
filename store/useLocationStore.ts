@@ -22,7 +22,8 @@ export const useLocationStore = defineStore("location", {
       const { useUserStore } = await import("./useUserStore");
       const userStore = useUserStore();
 
-      if (!userStore.user.canSwitchShops) {
+      const canSwitchShops = userStore.user.canSwitchShops || this.locations.length > 1;
+      if (!canSwitchShops) {
         return;
       }
 
@@ -80,7 +81,7 @@ export const useLocationStore = defineStore("location", {
         ? user.shops
             .map((item: any) => {
               const id = String(item?.id ?? item?.shop_id ?? item?.shop?.id ?? "");
-              const name = String(item?.shop?.name ?? item?.name ?? "");
+              const name = String(item?.shop?.name ?? item?.name ?? item?.shop_name ?? "");
 
               if (!id || !name) {
                 return null;
