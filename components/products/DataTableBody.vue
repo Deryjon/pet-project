@@ -7,7 +7,12 @@ const table = store.table;
 </script>
 
 <template>
-    <BaseDataTable :table="table" :store="store" />
+    <BaseDataTable
+      :table="table"
+      :store="store"
+      interactiveColumnId="name"
+      :onRowClick="store.openProduct"
+    />
 </template>
 <style>
 table {

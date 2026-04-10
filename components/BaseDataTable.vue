@@ -1,10 +1,25 @@
 <script setup lang="ts">
 import { FlexRender } from "@tanstack/vue-table";
 
-defineProps<{
+const props = defineProps<{
   table: any;
   store: any;
+  interactiveColumnId?: string;
+  onRowClick?: (row: any) => void;
 }>();
+
+function handleCellClick(cell: any, row: any) {
+  if (cell.column.id !== props.interactiveColumnId) {
+    return;
+  }
+
+  if (props.onRowClick) {
+    props.onRowClick(row.original);
+    return;
+  }
+
+  props.store?.openProduct?.(row.original);
+}
 </script>
 
 <template>
@@ -65,7 +80,7 @@ defineProps<{
               cell.column.columnDef.meta?.tdClass ?? '',
             ]"
             :style="cell.column.columnDef.meta?.tdStyle ?? null"
-            @click="cell.column.id === 'name' ? store.openProduct(row.original) : null"
+            @click="handleCellClick(cell, row)"
           >
             <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
           </td>
