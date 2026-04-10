@@ -67,7 +67,7 @@ function normalizeCompany(company: any) {
 
 function normalizeShop(shop: any): NormalizedShop | null {
   const id = String(shop?.id ?? shop?.shop_id ?? shop?.shop?.id ?? "");
-  const name = String(shop?.shop?.name ?? shop?.name ?? "");
+  const name = String(shop?.shop?.name ?? shop?.name ?? shop?.shop_name ?? "");
 
   if (!id || !name) {
     return null;
@@ -139,6 +139,10 @@ export const useUserStore = defineStore("user", {
       const normalizedShops = Array.isArray(user?.shops)
         ? user.shops.map((shop: any) => normalizeShop(shop)).filter(Boolean)
         : [];
+      const canSwitchShops =
+        typeof user?.can_switch_shops === "boolean"
+          ? user.can_switch_shops
+          : normalizedShops.length > 1;
 
       const currentShopId = String(
         user?.current_shop_id ?? user?.current_shop?.id ?? user?.current_shop?.shop_id ?? "",
@@ -174,7 +178,7 @@ export const useUserStore = defineStore("user", {
         companyId:
           String(user?.company_id ?? normalizedCompany?.companyId ?? normalizedCompany?.id ?? ""),
         company: normalizedCompany,
-        canSwitchShops: Boolean(user?.can_switch_shops),
+        canSwitchShops: canSwitchShops,
         branchCode:
           user?.current_shop?.branch_code ??
           user?.branch_code ??
@@ -228,7 +232,7 @@ export const useUserStore = defineStore("user", {
       try {
         const tokenCookie = useCookie<string | null>("auth_token", { sameSite: "lax" });
         tokenCookie.value = token;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.setItem("auth_token", token);
         }
       } catch (_) {}
@@ -238,7 +242,7 @@ export const useUserStore = defineStore("user", {
       try {
         const tokenCookie = useCookie<string | null>("auth_token", { sameSite: "lax" });
         tokenCookie.value = token;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.setItem("auth_token", token);
         }
       } catch (_) {}
@@ -250,7 +254,7 @@ export const useUserStore = defineStore("user", {
           this.token = tokenCookie.value;
           return;
         }
-        if (process.client) {
+        if (import.meta.client) {
           const token = localStorage.getItem("auth_token");
           if (token) this.token = token;
         }
@@ -258,12 +262,12 @@ export const useUserStore = defineStore("user", {
     },
     setLocation(location: { id: string; name: string }) {
       this.location = location;
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.setItem("selectedLocation", JSON.stringify(location));
       }
     },
     loadLocation() {
-      if (!process.client) {
+      if (!import.meta.client) {
         return;
       }
 
@@ -292,7 +296,7 @@ export const useUserStore = defineStore("user", {
       try {
         const tokenCookie = useCookie<string | null>("auth_token");
         tokenCookie.value = null;
-        if (process.client) {
+        if (import.meta.client) {
           localStorage.removeItem("auth_token");
           localStorage.removeItem("selectedLocation");
         }
@@ -300,3 +304,4 @@ export const useUserStore = defineStore("user", {
     },
   },
 });
+

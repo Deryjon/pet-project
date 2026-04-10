@@ -15,10 +15,13 @@ export default defineEventHandler(async (event) => {
   const targetUrl = `${proxyTarget}/${path}`;
   const method = event.node.req.method || "GET";
   const query = getQuery(event);
-  const headers = getRequestHeaders(event);
-  delete headers.host;
-  delete headers.connection;
-  delete headers["content-length"];
+  const requestHeaders = getRequestHeaders(event);
+  delete requestHeaders.host;
+  delete requestHeaders.connection;
+  delete requestHeaders["content-length"];
+  const headers = Object.entries(requestHeaders).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
 
   const body = ["GET", "HEAD"].includes(method) ? undefined : await readBody(event);
 

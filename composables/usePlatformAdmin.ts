@@ -38,6 +38,8 @@ export interface PlatformUser {
   fullName: string;
   phone: string;
   email: string;
+  roleId: string;
+  roleName: string;
   role: string;
   status: PlatformStatus;
   createdAt: string;
@@ -49,6 +51,15 @@ export interface PlatformUser {
   currentShopName: string;
   allowedShopIds: string[];
   canSwitchShops: boolean;
+}
+
+export interface PlatformRole {
+  id: string;
+  name: string;
+  description: string;
+  isAdmin: boolean;
+  type: number;
+  companyId: string;
 }
 
 export interface PlatformDashboardStats {
@@ -192,6 +203,17 @@ function normalizeShop(raw: any, company?: Partial<PlatformCompany>): PlatformSh
   };
 }
 
+function normalizeRole(raw: any): PlatformRole {
+  return {
+    id: String(pickValue(raw, ["id"]) ?? "").trim(),
+    name: String(pickValue(raw, ["name"]) ?? "").trim(),
+    description: String(pickValue(raw, ["description"]) ?? "").trim(),
+    isAdmin: Boolean(pickValue(raw, ["is_admin", "isAdmin"])),
+    type: toNumber(pickValue(raw, ["type"])),
+    companyId: String(pickValue(raw, ["company_id", "companyId"]) ?? "").trim(),
+  };
+}
+
 function normalizeCompany(raw: any): PlatformCompany {
   const shops = pickArray(raw, ["shops", "data", "items"]).map((shop) =>
     normalizeShop(shop, raw),
@@ -215,6 +237,19 @@ function normalizeCompany(raw: any): PlatformCompany {
 function normalizeUser(raw: any): PlatformUser {
   const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
   const currentShop = pickObject(raw?.current_shop, ["current_shop", "data"]) ?? raw?.current_shop ?? null;
+  const primaryRole = raw?.role?.role ?? raw?.role ?? raw?.roles?.[0]?.role ?? raw?.roles?.[0] ?? null;
+  const resolvedRoleName = String(
+    pickValue(raw, ["role_name", "roleName"]) ??
+      pickValue(primaryRole, ["name", "role_name", "roleName"]) ??
+      (typeof primaryRole === "string" ? primaryRole : "") ??
+      "",
+  ).trim();
+  const resolvedRoleId = String(
+    pickValue(raw, ["role_id", "roleId"]) ??
+      pickValue(primaryRole, ["id", "role_id", "roleId"]) ??
+      (typeof primaryRole === "string" ? primaryRole : "") ??
+      "",
+  ).trim();
   const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
   const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
   const fullName =
@@ -235,13 +270,9 @@ function normalizeUser(raw: any): PlatformUser {
     fullName,
     phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
     email: String(raw?.email ?? ""),
-    role: String(
-      raw?.role?.name ??
-        raw?.role ??
-        raw?.roles?.[0]?.role?.name ??
-        raw?.roles?.[0]?.name ??
-        "",
-    ),
+    roleId: resolvedRoleId,
+    roleName: resolvedRoleName,
+    role: resolvedRoleName,
     status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
     createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
     updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
@@ -358,6 +389,17 @@ export function usePlatformAdminApi() {
     return normalizeCompany(pickObject(response, ["company", "data"]));
   }
 
+  async function updateCompanyStatus(companyId: string, isActive: boolean) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/status`, {
+      method: "PATCH",
+      body: {
+        is_active: Boolean(isActive),
+      },
+    });
+
+    return normalizeCompany(pickObject(response, ["company", "data"]));
+  }
+
   async function deleteCompany(companyId: string) {
     return apiFetch<{ message: string; company_id: string }>(`/platform/companies/${companyId}`, {
       method: "DELETE",
@@ -398,6 +440,17 @@ export function usePlatformAdminApi() {
     return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
   }
 
+  async function updateShopStatus(companyId: string, shopId: string, isActive: boolean) {
+    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops/${shopId}/status`, {
+      method: "PATCH",
+      body: {
+        is_active: Boolean(isActive),
+      },
+    });
+
+    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
+  }
+
   async function deleteShop(companyId: string, shopId: string) {
     return apiFetch<{ message: string; shop_id: string; company_id: string }>(
       `/platform/companies/${companyId}/shops/${shopId}`,
@@ -408,6 +461,11 @@ export function usePlatformAdminApi() {
   async function getPlatformUsers() {
     const response = await apiFetch<any>("/platform/users", { method: "GET" });
     return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
+  }
+
+  async function getPlatformRoles() {
+    const response = await apiFetch<any>("/platform/roles", { method: "GET" });
+    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
   }
 
   async function getPlatformUser(id: string) {
@@ -427,6 +485,11 @@ export function usePlatformAdminApi() {
   async function getCompanyUsers(companyId: string) {
     const response = await apiFetch<any>(`/platform/companies/${companyId}/users`, { method: "GET" });
     return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
+  }
+
+  async function getCompanyRoles() {
+    const response = await apiFetch<any>("/company/roles", { method: "GET" });
+    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
   }
 
   async function createCompanyUser(companyId: string, payload: PlatformUserPayload) {
@@ -474,15 +537,19 @@ export function usePlatformAdminApi() {
     getCompany,
     createCompany,
     updateCompany,
+    updateCompanyStatus,
     deleteCompany,
     getCompanyShops,
     createShop,
     updateShop,
+    updateShopStatus,
     deleteShop,
     getPlatformUsers,
+    getPlatformRoles,
     getPlatformUser,
     createPlatformUser,
     getCompanyUsers,
+    getCompanyRoles,
     createCompanyUser,
     updateUser,
     deleteUser,

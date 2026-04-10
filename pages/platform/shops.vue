@@ -1,56 +1,99 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
+import type { PlatformCompany, PlatformShop } from "@/composables/usePlatformAdmin";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Филиалы | Konkurent Platform" });
+useHead({ title: "Филиалы компаний | Konkurent Platform" });
 
 const { getCompanies, getCompanyShops } = usePlatformAdminApi();
+const { softSelectUi } = usePlatformFormUi();
 
-const loading = ref(true);
+const companiesLoading = ref(true);
+const shopsLoading = ref(false);
 const errorMessage = ref("");
-const companies = ref<any[]>([]);
-const selectedCompanyId = ref("all");
-const shops = ref<any[]>([]);
+const companies = ref<PlatformCompany[]>([]);
+const shops = ref<PlatformShop[]>([]);
+const selectedCompanyId = ref("");
 
-const filteredShops = computed(() =>
-  selectedCompanyId.value === "all"
-    ? shops.value
-    : shops.value.filter((shop) => shop.companyId === selectedCompanyId.value),
+const selectedCompany = computed(() =>
+  companies.value.find((company) => company.companyId === selectedCompanyId.value || company.id === selectedCompanyId.value) || null,
 );
 
-async function loadData() {
-  loading.value = true;
+const companyOptions = computed(() =>
+  companies.value.map((company) => ({
+    label: company.name,
+    value: getCompanyRouteId(company),
+  })),
+);
+
+function resolveError(error: any, fallback: string) {
+  const message = error?.data?.message ?? error?.response?._data?.message;
+  return Array.isArray(message) ? message.join(", ") : message || error?.message || fallback;
+}
+
+function getCompanyRouteId(company: PlatformCompany) {
+  return company.companyId || company.id;
+}
+
+async function loadCompanies() {
+  companiesLoading.value = true;
   errorMessage.value = "";
 
   try {
     companies.value = await getCompanies();
-    const grouped = await Promise.all(
-      companies.value.map((company) => getCompanyShops(company.id, company)),
-    );
-    shops.value = grouped.flat();
+    const firstCompany = companies.value[0];
+    selectedCompanyId.value = firstCompany ? getCompanyRouteId(firstCompany) : "";
   } catch (error: any) {
-    const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить филиалы";
+    errorMessage.value = resolveError(error, "Не удалось загрузить компании");
   } finally {
-    loading.value = false;
+    companiesLoading.value = false;
   }
 }
 
-onMounted(loadData);
+async function loadCompanyShops(companyId: string) {
+  if (!companyId) {
+    shops.value = [];
+    return;
+  }
+
+  shopsLoading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const company = companies.value.find((item) => item.companyId === companyId || item.id === companyId);
+    shops.value = await getCompanyShops(companyId, company || undefined);
+  } catch (error: any) {
+    shops.value = [];
+    errorMessage.value = resolveError(error, "Не удалось загрузить филиалы компании");
+  } finally {
+    shopsLoading.value = false;
+  }
+}
+
+watch(selectedCompanyId, (companyId) => {
+  loadCompanyShops(companyId);
+});
+
+watch(
+  () => true,
+  () => {
+    loadCompanies();
+  },
+  { immediate: true, once: true },
+);
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Филиалы" title="Все филиалы" description="Сводный список филиалов по всем компаниям платформы.">
+    <PageHeader eyebrow="Филиалы компаний" title="Филиалы" description="Выберите компанию и просмотрите ее филиалы.">
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadData">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadCompanies">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
@@ -61,38 +104,37 @@ onMounted(loadData);
       {{ errorMessage }}
     </div>
 
-    <DataPanel title="Филиалы" description="Для создания и редактирования используйте карточку конкретной компании.">
+    <DataPanel title="Список филиалов" description="Филиалы выбранной компании.">
       <template #toolbar>
-        <select v-model="selectedCompanyId" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-700 outline-none">
-          <option value="all">Все компании</option>
-          <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
-        </select>
+        <USelect v-model="selectedCompanyId" :items="companyOptions" value-key="value" :disabled="companiesLoading || !companies.length" :ui="softSelectUi" class="min-w-[260px]" />
       </template>
 
-      <div v-if="loading" class="space-y-3">
+      <div v-if="companiesLoading || shopsLoading" class="space-y-3">
         <div v-for="item in 5" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100" />
       </div>
 
-      <EmptyState v-else-if="!filteredShops.length" title="Филиалы не найдены" description="Выберите другую компанию или проверьте данные API." icon="heroicons:map-pin" />
+      <EmptyState v-else-if="!companies.length" title="Компании не найдены" description="Список компаний пока пуст." icon="heroicons:building-office-2" />
+      <EmptyState v-else-if="!selectedCompanyId" title="Компания не выбрана" description="Выберите компанию из списка выше." icon="heroicons:map-pin" />
+      <EmptyState v-else-if="!shops.length" :title="selectedCompany ? `У компании ${selectedCompany.name} нет филиалов` : 'Филиалы не найдены'" description="Для выбранной компании филиалы пока не найдены." icon="heroicons:map-pin" />
 
       <div v-else class="grid gap-4 lg:grid-cols-2">
-        <article v-for="shop in filteredShops" :key="shop.id" class="rounded-[28px] border border-slate-100 bg-slate-50/70 p-5">
+        <article v-for="shop in shops" :key="shop.id" class="rounded-[28px] border border-slate-100 bg-slate-50/70 p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="text-[18px] font-semibold text-slate-950">{{ shop.name }}</p>
-              <p class="mt-2 text-[14px] text-slate-500">{{ shop.companyName || "Компания не указана" }}</p>
+              <p class="mt-2 text-[14px] text-slate-500">{{ shop.branchCode || "Код не указан" }}</p>
             </div>
             <StatusBadge :status="shop.status" />
           </div>
 
           <div class="mt-5 grid gap-3 sm:grid-cols-2">
             <div class="rounded-2xl bg-white px-4 py-3">
-              <p class="text-[12px] font-medium text-slate-400">Код филиала</p>
-              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ shop.branchCode || "—" }}</p>
+              <p class="text-[12px] font-medium text-slate-400">Идентификатор филиала</p>
+              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ shop.shopId || shop.id || "—" }}</p>
             </div>
             <div class="rounded-2xl bg-white px-4 py-3">
-              <p class="text-[12px] font-medium text-slate-400">Город</p>
-              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ shop.city || "—" }}</p>
+              <p class="text-[12px] font-medium text-slate-400">Обновлен</p>
+              <p class="mt-2 text-[14px] font-semibold text-slate-900">{{ shop.updatedAt || shop.createdAt || "—" }}</p>
             </div>
           </div>
         </article>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatsCard from "@/components/platform/StatsCard.vue";
+import StatusBadge from "@/components/platform/StatusBadge.vue";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
@@ -22,6 +23,9 @@ const stats = ref({
 const companies = ref<any[]>([]);
 const users = ref<any[]>([]);
 
+const lastCompanies = computed(() => companies.value.slice(0, 4));
+const lastUsers = computed(() => users.value.slice(0, 4));
+
 async function loadData() {
   loading.value = true;
   errorMessage.value = "";
@@ -34,13 +38,13 @@ async function loadData() {
     ]);
 
     stats.value = statsResponse;
-    companies.value = companiesResponse.slice(0, 5);
-    users.value = usersResponse.slice(0, 5);
+    companies.value = companiesResponse;
+    users.value = usersResponse;
   } catch (error: any) {
     const message = error?.data?.message;
     errorMessage.value = Array.isArray(message)
       ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить дашборд";
+      : message || error?.message || "Не удалось загрузить данные дашборда";
   } finally {
     loading.value = false;
   }
@@ -51,9 +55,13 @@ onMounted(loadData);
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Обзор" title="Дашборд платформы" description="Сводные показатели по компаниям, филиалам и администраторам платформы.">
+    <PageHeader
+      eyebrow="Обзор платформы"
+      title="Управление платформой"
+      description="Следите за компаниями, филиалами и администраторами из единого центра управления."
+    >
       <template #actions>
-        <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="loadData">
+        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadData">
           <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
           Обновить
         </UButton>
@@ -63,57 +71,97 @@ onMounted(loadData);
     <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
       <StatsCard label="Компании" :value="stats.totalCompanies" helper="Всего в системе" icon="heroicons:building-office-2" />
       <StatsCard label="Филиалы" :value="stats.totalShops" helper="Во всех компаниях" icon="heroicons:map-pin" />
-      <StatsCard label="Админы платформы" :value="stats.totalUsers" helper="platform_admin и support" icon="heroicons:users" />
-      <StatsCard label="Активные компании" :value="stats.activeCompanies" helper="С активным статусом" icon="heroicons:bolt" />
-      <StatsCard label="Продажи" :value="stats.totalSales" helper="Если backend отдает sales_count" icon="heroicons:banknotes" />
+      <StatsCard label="Администраторы" :value="stats.totalUsers" helper="Пользователи платформы" icon="heroicons:users" />
+      <StatsCard label="Активные компании" :value="stats.activeCompanies" helper="Со включенным статусом" icon="heroicons:bolt" />
+      <StatsCard label="Продажи" :value="stats.totalSales" helper="Сводный показатель" icon="heroicons:banknotes" />
     </div>
 
-    <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">
+    <div v-if="errorMessage" class="rounded-[28px] border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-[14px] text-rose-700 shadow-[0_18px_40px_rgba(190,24,93,0.08)]">
       {{ errorMessage }}
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-2">
-      <DataPanel title="Последние компании" description="Быстрый доступ к карточкам компаний, филиалам и CRM-пользователям внутри компании.">
-        <div v-if="loading" class="space-y-3">
-          <div v-for="item in 4" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100" />
+    <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <DataPanel title="Компании под рукой" description="Быстрый переход к карточкам, филиалам и сотрудникам.">
+        <div v-if="loading" class="grid gap-4 lg:grid-cols-2">
+          <div v-for="item in 4" :key="item" class="h-44 animate-pulse rounded-[28px] bg-slate-100/80" />
         </div>
 
-        <div v-else class="space-y-4">
+        <div v-else class="grid gap-4 lg:grid-cols-2">
           <NuxtLink
-            v-for="company in companies"
+            v-for="company in lastCompanies"
             :key="company.id"
             :to="`/platform/companies/${company.id}`"
-            class="block rounded-[24px] border border-slate-100 bg-slate-50/80 p-5 transition hover:bg-white hover:shadow-sm"
+            class="group cursor-pointer rounded-[28px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.95))] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
           >
             <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="text-[16px] font-semibold text-slate-950">{{ company.name }}</p>
-                <p class="mt-2 text-[14px] leading-6 text-slate-500">{{ company.subdomain || company.login || "Без login/subdomain" }}</p>
+              <div class="min-w-0">
+                <p class="truncate text-[19px] font-semibold tracking-[-0.03em] text-slate-950">{{ company.name }}</p>
+                <p class="mt-2 truncate text-[14px] text-slate-500">{{ company.subdomain || company.login || "Данные не указаны" }}</p>
               </div>
-              <span class="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" :class="company.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'">
-                {{ company.status === "active" ? "Активна" : "Отключена" }}
-              </span>
+              <StatusBadge :status="company.status" />
+            </div>
+
+            <div class="mt-5 grid grid-cols-2 gap-3">
+              <div class="rounded-[20px] bg-slate-950 px-4 py-3 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
+                <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Филиалы</p>
+                <p class="mt-2 text-[20px] font-semibold">{{ company.shopsCount ?? 0 }}</p>
+              </div>
+              <div class="rounded-[20px] bg-white px-4 py-3 text-slate-900 ring-1 ring-slate-200">
+                <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Сотрудники</p>
+                <p class="mt-2 text-[20px] font-semibold">{{ company.usersCount ?? 0 }}</p>
+              </div>
+            </div>
+
+            <div class="mt-5 flex items-center gap-2 text-[13px] font-semibold text-teal-700">
+              Открыть компанию
+              <Icon name="heroicons:arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </div>
           </NuxtLink>
         </div>
       </DataPanel>
 
-      <DataPanel title="Админы платформы" description="Текущие platform admin и support. CRM-пользователи не показываются на общей странице /platform/users.">
-        <div v-if="loading" class="space-y-3">
-          <div v-for="item in 4" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100" />
-        </div>
+      <div class="space-y-6">
+        <DataPanel title="Администраторы платформы" description="Текущие пользователи с доступом к платформе.">
+          <div v-if="loading" class="space-y-3">
+            <div v-for="item in 4" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100/80" />
+          </div>
 
-        <div v-else class="space-y-4">
-          <article v-for="user in users" :key="user.id" class="rounded-[24px] border border-slate-100 bg-slate-50/80 p-5">
-            <p class="text-[16px] font-semibold text-slate-950">{{ user.fullName }}</p>
-            <p class="mt-2 text-[14px] text-slate-500">{{ user.phone || "Телефон не указан" }}</p>
-            <div class="mt-3 flex items-center justify-between gap-3 text-[13px] text-slate-500">
-              <span>{{ user.email || "Email не указан" }}</span>
-              <span class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700">{{ user.role || "role" }}</span>
-            </div>
-          </article>
+          <div v-else class="space-y-3">
+            <article
+              v-for="user in lastUsers"
+              :key="user.id"
+              class="rounded-[24px] border border-slate-200/70 bg-white/88 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.05)]"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate text-[16px] font-semibold text-slate-950">{{ user.fullName }}</p>
+                  <p class="mt-1 truncate text-[13px] text-slate-500">{{ user.phone || "Телефон не указан" }}</p>
+                </div>
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  {{ user.role || "Роль не указана" }}
+                </span>
+              </div>
+              <p class="mt-3 text-[13px] text-slate-500">{{ user.email || "Почта не указана" }}</p>
+            </article>
+          </div>
+        </DataPanel>
+
+        <div class="rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,#0f172a_0%,#134e4a_100%)] p-6 text-white shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal-200">Рабочий фокус</p>
+          <h3 class="mt-3 text-[26px] font-semibold tracking-[-0.04em]">Сначала компании, потом детали</h3>
+          <p class="mt-3 text-[14px] leading-7 text-slate-200">
+            Основной поток внутри платформы теперь строится вокруг выбранной компании: из карточки можно сразу перейти к филиалам и сотрудникам.
+          </p>
+          <div class="mt-6 flex flex-wrap gap-3">
+            <NuxtLink to="/platform/companies" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-white px-4 py-3 text-[14px] font-semibold text-slate-900 transition hover:bg-slate-100">
+              Открыть компании
+            </NuxtLink>
+            <NuxtLink to="/platform/users" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-white/15">
+              Открыть сотрудников
+            </NuxtLink>
+          </div>
         </div>
-      </DataPanel>
+      </div>
     </div>
   </div>
 </template>

@@ -8,7 +8,7 @@ const store = useDashboardStore();
 const tz = getLocalTimeZone();
 const currentDay = today(tz);
 
-const selectedRange = ref({
+const selectedRange = ref<any>({
   start: currentDay,
   end: currentDay,
 });

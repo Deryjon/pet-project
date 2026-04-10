@@ -24,7 +24,7 @@ defineProps<{
             :key="header.id"
             class="cursor-pointer select-none whitespace-nowrap px-[20px] py-[25px] font-bold transition-colors duration-300 hover:bg-[#5e5e5e]"
             :class="{ 'w-[50px] text-center': header.column.id === 'select' }"
-            @click="header.column.getToggleSortingHandler()?.($event)"
+            @click="header.column.getToggleSortingHandler()?.()"
           >
             <div
               class="flex justify-between"
@@ -50,7 +50,7 @@ defineProps<{
             class="whitespace-nowrap text-left text-[17px] font-normal"
             :class="[
               'px-[20px] py-[25px]',
-              index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',
+              Number(index) % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]',
               row.getVisibleCells().length === 1
                 ? 'rounded-[20px]'
                 : i === 0

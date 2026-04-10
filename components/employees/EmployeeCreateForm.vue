@@ -1,15 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
+import { useRolePermissionsApi, type RoleSelectItem } from "@/composables/useRolePermissions";
 
-const COMPANY_ROLE_OPTIONS = [
-  { label: "Владелец", value: "owner" },
-  { label: "Админ", value: "admin" },
-  { label: "Управляющий магазином", value: "store_manager" },
-  { label: "Кассир", value: "cashier" },
-  { label: "Сотрудник", value: "employee" },
-];
 
 const emit = defineEmits<{
   (e: "created", value: any): void;
@@ -28,6 +22,7 @@ const props = withDefaults(
 );
 
 const { apiFetch } = useApi();
+const { getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
 
 const first_name = ref("");
@@ -36,10 +31,12 @@ const birth_date = ref("");
 const countryCode = ref("+998");
 const phone = ref("");
 const password = ref("");
-const role = ref("employee");
+const crm_role_id = ref("");
 const current_shop_id = ref("");
 const allowed_shop_ids = ref<string[]>([]);
 const can_switch_shops = ref(false);
+const roleOptions = ref<RoleSelectItem[]>([]);
+const rolesLoading = ref(false);
 
 const loading = ref(false);
 const errorMessage = ref("");
@@ -54,6 +51,7 @@ const shopOptions = computed(() =>
 );
 
 const selectedShopCount = computed(() => allowed_shop_ids.value.length);
+
 const currentShopLabel = computed(
   () => shopOptions.value.find((shop) => shop.value === current_shop_id.value)?.label || "Не выбран",
 );
@@ -141,6 +139,20 @@ watch(phone, (value) => {
   if (formatted !== value) phone.value = formatted;
 });
 
+async function loadRoles() {
+  rolesLoading.value = true;
+  try {
+    roleOptions.value = await getRolesForSelect();
+    if (!crm_role_id.value) {
+      crm_role_id.value = roleOptions.value[0]?.id || "";
+    }
+  } catch {
+    roleOptions.value = [];
+  } finally {
+    rolesLoading.value = false;
+  }
+}
+
 const preparedData = computed(() => {
   const code = countryCode.value.replace(/^\+/, "").replace(/\D/g, "");
   const digits = phone.value.replace(/\D/g, "");
@@ -153,7 +165,7 @@ const preparedData = computed(() => {
     birth_date: birth_date.value.trim() || undefined,
     phone_number: `${code}${digits}`,
     password: password.value,
-    role: role.value.trim(),
+    crm_role_id: crm_role_id.value.trim(),
     current_shop_id: current_shop_id.value,
     allowed_shop_ids: [...allowed_shop_ids.value],
     can_switch_shops: can_switch_shops.value,
@@ -166,7 +178,7 @@ function resetForm() {
   birth_date.value = "";
   phone.value = "";
   password.value = "";
-  role.value = "employee";
+  crm_role_id.value = roleOptions.value[0]?.id || "";
   can_switch_shops.value = false;
   const fallbackId = userStore.user.currentShopId || shopOptions.value[0]?.value || "";
   current_shop_id.value = fallbackId;
@@ -193,7 +205,7 @@ async function submit() {
     errorMessage.value = "Пароль должен содержать минимум 6 символов.";
     return;
   }
-  if (!preparedData.value.role) {
+  if (!preparedData.value.crm_role_id) {
     errorMessage.value = "Укажите роль.";
     return;
   }
@@ -222,6 +234,8 @@ async function submit() {
     loading.value = false;
   }
 }
+
+onMounted(loadRoles);
 </script>
 
 <template>
@@ -283,9 +297,10 @@ async function submit() {
 
             <div class="flex flex-col gap-2">
               <label class="text-sm font-medium text-[#d6d6d6]">Роль</label>
-              <select v-model="role" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]">
-                <option v-for="option in COMPANY_ROLE_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
+              <select v-model="crm_role_id" :disabled="rolesLoading" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343] disabled:opacity-70">
+                <option value="" disabled>Выберите роль</option>
+                <option v-for="option in roleOptions" :key="option.id" :value="option.id">
+                  {{ option.name || option.id }}
                 </option>
               </select>
             </div>

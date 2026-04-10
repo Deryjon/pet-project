@@ -15,7 +15,7 @@ const showFilters = ref(false);
 // синхронизация с стором
 watch(globalFilterInput, (val) => {
   store.globalFilter = val;
-  store.fetchData({ search: val });
+  store.fetchData();
 });
 </script>
 
