@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useHead } from "#imports";
-import DataTable from "@/components/DataTable.vue";
+import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 

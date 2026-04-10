@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, h, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useHead } from "#imports";
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useVueTable,
+} from "@tanstack/vue-table";
+import DataTable from "@/components/DataTable.vue";
+import BaseDataTable from "@/components/BaseDataTable.vue";
 import BaseDataTableHeader from "@/components/BaseDataTableHeader.vue";
+import BaseDataTablePagination from "@/components/BaseDataTablePagination.vue";
 import {
   collectActivePermissionIds,
   type PermissionSection,
@@ -39,6 +48,8 @@ const roleName = ref("");
 const roleDescription = ref("");
 const roles = ref<RoleSelectItem[]>([]);
 const sections = ref<PermissionSection[]>([]);
+const tableSorting = ref<any[]>([]);
+const tablePagination = ref({ pageIndex: 0, pageSize: 10 });
 
 const filteredRoles = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
@@ -54,6 +65,109 @@ const filteredRoles = computed(() => {
     ),
   );
 });
+
+watch(searchQuery, () => {
+  tablePagination.value.pageIndex = 0;
+});
+
+const tableColumns = computed<any[]>(() => [
+  {
+    accessorKey: "name",
+    header: "Название",
+    cell: ({ row }: any) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class:
+            "text-left text-[16px] font-semibold text-white transition hover:text-[#8fc1ff]",
+          onClick: () => openEditPanel(row.original),
+        },
+        row.original.name || "Без названия",
+      ),
+  },
+  {
+    accessorKey: "description",
+    header: "Описание",
+    cell: ({ row }: any) =>
+      h(
+        "span",
+        { class: "text-sm text-[#b8b8b8]" },
+        row.original.description || "Описание не указано",
+      ),
+  },
+  {
+    accessorKey: "id",
+    header: "ID",
+    cell: ({ row }: any) =>
+      h(
+        "span",
+        {
+          class:
+            "rounded-full border border-white/8 bg-white/5 px-3 py-1 text-xs text-[#d6d6d6]",
+        },
+        row.original.id,
+      ),
+  },
+  {
+    id: "actions",
+    header: () => h("div", { class: "text-right" }, "Действие"),
+    enableSorting: false,
+    meta: {
+      tdClass: "text-right",
+    },
+    cell: ({ row }: any) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class:
+            "rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10",
+          onClick: () => openEditPanel(row.original),
+        },
+        "Открыть",
+      ),
+  },
+]);
+
+const rolesTable = useVueTable({
+  get data() {
+    return filteredRoles.value;
+  },
+  get columns() {
+    return tableColumns.value;
+  },
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
+  state: {
+    get sorting() {
+      return tableSorting.value;
+    },
+    get pagination() {
+      return tablePagination.value;
+    },
+  },
+  onSortingChange: (updater: any) => {
+    tableSorting.value =
+      typeof updater === "function" ? updater(tableSorting.value) : updater;
+  },
+  onPaginationChange: (updater: any) => {
+    tablePagination.value =
+      typeof updater === "function" ? updater(tablePagination.value) : updater;
+  },
+});
+
+const currentPage = computed(() => tablePagination.value.pageIndex + 1);
+const totalPages = computed(() => Math.max(1, rolesTable.getPageCount()));
+
+function previousRolesPage() {
+  rolesTable.previousPage();
+}
+
+function nextRolesPage() {
+  rolesTable.nextPage();
+}
 
 const activePermissionCount = computed(() => collectActivePermissionIds(sections.value).length);
 const hasPermissions = computed(() => sections.value.length > 0);
@@ -264,105 +378,66 @@ onMounted(loadRoles);
     </div>
 
     <div class="mt-[40px] space-y-5">
-      <BaseDataTableHeader
-        v-model="searchQuery"
-        :showSearch="true"
-        searchPlaceholder="Поиск по названию, описанию или ID"
-        :createButton="{ label: 'Создать роль', onClick: openCreatePanel }"
-      />
+      <DataTable>
+        <template #header>
+          <BaseDataTableHeader
+            v-model="searchQuery"
+            :showSearch="true"
+            searchPlaceholder="Поиск по названию, описанию или ID"
+            :createButton="{ label: 'Создать роль', onClick: openCreatePanel }"
+          />
+        </template>
 
-      <section class="overflow-hidden rounded-[30px] border border-white/8 bg-[#262626] shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-        <div class="border-b border-white/8 bg-[linear-gradient(135deg,rgba(31,120,255,0.18),rgba(38,38,38,0.96)_45%,rgba(38,38,38,1))] px-6 py-6">
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p class="text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
-                Role Registry
-              </p>
-              <h3 class="mt-2 text-[28px] font-semibold text-white">Все роли</h3>
-            </div>
+        <section class="overflow-hidden rounded-[30px] border border-white/8 bg-[#262626] shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+          <div class="border-b border-white/8 bg-[linear-gradient(135deg,rgba(31,120,255,0.18),rgba(38,38,38,0.96)_45%,rgba(38,38,38,1))] px-6 py-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p class="text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
+                  Role Registry
+                </p>
+                <h3 class="mt-2 text-[28px] font-semibold text-white">Все роли</h3>
+              </div>
 
-            <div class="flex flex-wrap gap-2">
-              <span class="rounded-full border border-[#2f6ed6] bg-[#10294f] px-3 py-1 text-xs font-medium text-[#9fc0ff]">
-                {{ filteredRoles.length }} ролей
-              </span>
-              <button
-                type="button"
-                class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/10"
-                @click="loadRoles"
-              >
-                {{ loadingRoles ? "Обновление..." : "Обновить" }}
-              </button>
+              <div class="flex flex-wrap gap-2">
+                <span class="rounded-full border border-[#2f6ed6] bg-[#10294f] px-3 py-1 text-xs font-medium text-[#9fc0ff]">
+                  {{ filteredRoles.length }} ролей
+                </span>
+                <button
+                  type="button"
+                  class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/10"
+                  @click="loadRoles"
+                >
+                  {{ loadingRoles ? "Обновление..." : "Обновить" }}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="serverError" class="border-b border-red-500/20 bg-red-500/10 px-6 py-3 text-sm text-red-200">
-          {{ serverError }}
-        </div>
-        <div v-if="serverOk" class="border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-3 text-sm text-emerald-200">
-          {{ serverOk }}
-        </div>
+          <div v-if="serverError" class="border-b border-red-500/20 bg-red-500/10 px-6 py-3 text-sm text-red-200">
+            {{ serverError }}
+          </div>
+          <div v-if="serverOk" class="border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-3 text-sm text-emerald-200">
+            {{ serverOk }}
+          </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full border-collapse">
-            <thead>
-              <tr class="border-b border-white/8 bg-white/[0.02] text-left text-xs uppercase tracking-[0.18em] text-[#8f8f8f]">
-                <th class="px-6 py-4 font-medium">Название</th>
-                <th class="px-6 py-4 font-medium">Описание</th>
-                <th class="px-6 py-4 font-medium">ID</th>
-                <th class="px-6 py-4 font-medium text-right">Действие</th>
-              </tr>
-            </thead>
+          <BaseDataTable
+            :table="rolesTable"
+            :store="{ loading: loadingRoles }"
+            interactiveColumnId="name"
+            :onRowClick="openEditPanel"
+          />
+        </section>
 
-            <tbody>
-              <tr v-if="loadingRoles">
-                <td colspan="4" class="px-6 py-10 text-center text-sm text-[#9b9b9b]">
-                  Загрузка ролей...
-                </td>
-              </tr>
-
-              <tr v-else-if="!filteredRoles.length">
-                <td colspan="4" class="px-6 py-10 text-center text-sm text-[#9b9b9b]">
-                  Роли не найдены.
-                </td>
-              </tr>
-
-              <tr
-                v-for="role in filteredRoles"
-                :key="role.id"
-                class="border-b border-white/6 transition hover:bg-white/[0.03]"
-              >
-                <td class="px-6 py-5">
-                  <button
-                    type="button"
-                    class="text-left text-[16px] font-semibold text-white transition hover:text-[#8fc1ff]"
-                    @click="openEditPanel(role)"
-                  >
-                    {{ role.name || "Без названия" }}
-                  </button>
-                </td>
-                <td class="px-6 py-5 text-sm text-[#b8b8b8]">
-                  {{ role.description || "Описание не указано" }}
-                </td>
-                <td class="px-6 py-5">
-                  <span class="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-xs text-[#d6d6d6]">
-                    {{ role.id }}
-                  </span>
-                </td>
-                <td class="px-6 py-5 text-right">
-                  <button
-                    type="button"
-                    class="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                    @click="openEditPanel(role)"
-                  >
-                    Открыть
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <template #pagination>
+          <BaseDataTablePagination
+            :currentPage="currentPage"
+            :totalPages="totalPages"
+            :loading="loadingRoles"
+            @previous="previousRolesPage"
+            @next="nextRolesPage"
+          />
+        </template>
+      </DataTable>
     </div>
 
     <Teleport to="body">
