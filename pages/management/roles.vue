@@ -368,12 +368,22 @@ onMounted(loadRoles);
 
 <template>
   <section class="catalog text-white">
-    <div class="top flex items-start justify-between gap-4">
+    <div class="top flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
       <div>
-        <h2 class="text-[36px] font-bold text-white">Роли</h2>
+        <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Роли</h2>
         <p class="mt-2 max-w-[760px] text-[15px] text-[#bdbdbd]">
           Список ролей компании, создание новых ролей и редактирование permissions в одном экране.
         </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="rounded-[15px] bg-[#404040] px-4 py-3 text-[15px] font-semibold text-white transition-colors duration-300 hover:bg-[#505050]"
+          @click="loadRoles"
+        >
+          {{ loadingRoles ? "Обновление..." : "Обновить" }}
+        </button>
       </div>
     </div>
 
@@ -388,45 +398,19 @@ onMounted(loadRoles);
           />
         </template>
 
-        <section class="overflow-hidden rounded-[30px] border border-white/8 bg-[#262626] shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-          <div class="border-b border-white/8 bg-[linear-gradient(135deg,rgba(31,120,255,0.18),rgba(38,38,38,0.96)_45%,rgba(38,38,38,1))] px-6 py-6">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p class="text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
-                  Role Registry
-                </p>
-                <h3 class="mt-2 text-[28px] font-semibold text-white">Все роли</h3>
-              </div>
+        <div v-if="serverError" class="rounded-[20px] border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm text-red-200">
+          {{ serverError }}
+        </div>
+        <div v-if="serverOk" class="rounded-[20px] border border-emerald-500/20 bg-emerald-500/10 px-6 py-4 text-sm text-emerald-200">
+          {{ serverOk }}
+        </div>
 
-              <div class="flex flex-wrap gap-2">
-                <span class="rounded-full border border-[#2f6ed6] bg-[#10294f] px-3 py-1 text-xs font-medium text-[#9fc0ff]">
-                  {{ filteredRoles.length }} ролей
-                </span>
-                <button
-                  type="button"
-                  class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/10"
-                  @click="loadRoles"
-                >
-                  {{ loadingRoles ? "Обновление..." : "Обновить" }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="serverError" class="border-b border-red-500/20 bg-red-500/10 px-6 py-3 text-sm text-red-200">
-            {{ serverError }}
-          </div>
-          <div v-if="serverOk" class="border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-3 text-sm text-emerald-200">
-            {{ serverOk }}
-          </div>
-
-          <BaseDataTable
-            :table="rolesTable"
-            :store="{ loading: loadingRoles }"
-            interactiveColumnId="name"
-            :onRowClick="openEditPanel"
-          />
-        </section>
+        <BaseDataTable
+          :table="rolesTable"
+          :store="{ loading: loadingRoles }"
+          interactiveColumnId="name"
+          :onRowClick="openEditPanel"
+        />
 
         <template #pagination>
           <BaseDataTablePagination

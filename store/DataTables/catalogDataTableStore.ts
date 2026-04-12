@@ -298,6 +298,16 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     await fetchData({ status, page: 1 });
   });
 
+  watch(
+    () => locationStore.selectedLocation?.id,
+    async (next, prev) => {
+      if (next && next !== prev) {
+        pagination.value.pageIndex = 0;
+        await fetchData({ page: 1 });
+      }
+    },
+  );
+
   const filteredData = computed(() => rawData.value);
   const paginatedProducts = computed(() => rawData.value);
 

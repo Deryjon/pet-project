@@ -12,7 +12,7 @@
 
     <button
       class="flex w-full items-center justify-between rounded-[15px] px-5 py-6"
-      :class="canPay ? 'cursor-pointer bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
+      :class="canPay ? 'bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
       :disabled="!canPay"
       @click="openPaymentPanel"
     >
@@ -25,7 +25,7 @@
 
     <button
       class="flex w-full items-center justify-center p-5 text-gray-300"
-      :class="cartStore.cancelLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'"
+      :class="cartStore.cancelLoading ? 'cursor-not-allowed opacity-60' : ''"
       :disabled="cartStore.cancelLoading"
       @click="onCancel"
     >
@@ -59,7 +59,7 @@
             <UButton
               color="neutral"
               variant="ghost"
-              class="cursor-pointer rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
+              class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
               @click="closePaymentPanel"
             >
               <Icon name="mingcute:close-fill" class="h-5 w-5" />
@@ -144,7 +144,7 @@
                   v-for="mode in paymentModes"
                   :key="mode.value"
                   type="button"
-                  class="cursor-pointer rounded-[18px] px-4 py-3 text-[15px] font-semibold transition"
+                  class="rounded-[18px] px-4 py-3 text-[15px] font-semibold transition"
                   :class="
                     paymentMode === mode.value
                       ? 'bg-[#1f78ff] text-white'
@@ -164,12 +164,26 @@
                   </p>
                 </div>
 
+                <div
+                  v-if="paymentMethodsLoading"
+                  class="mb-4 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-3 text-sm text-[#bdbdbd]"
+                >
+                  Загружаем способы оплаты...
+                </div>
+
+                <div
+                  v-else-if="singlePaymentMethods.length === 0"
+                  class="mb-4 rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                >
+                  Для компании не настроены способы оплаты.
+                </div>
+
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <button
                     v-for="method in singlePaymentMethods"
                     :key="method.value"
                     type="button"
-                    class="flex cursor-pointer items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
+                    class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
                     :class="
                       selectedPaymentMethod === method.value
                         ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
@@ -214,12 +228,26 @@
                   </p>
                 </div>
 
+                <div
+                  v-if="paymentMethodsLoading"
+                  class="mb-4 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-3 text-sm text-[#bdbdbd]"
+                >
+                  Загружаем способы оплаты...
+                </div>
+
+                <div
+                  v-else-if="mixedAvailableMethods.length === 0"
+                  class="mb-4 rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                >
+                  Для компании не настроены способы оплаты.
+                </div>
+
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <button
                     v-for="method in mixedAvailableMethods"
                     :key="method.value"
                     type="button"
-                    class="flex cursor-pointer items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
+                    class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
                     :class="
                       activeMixedMethod === method.value
                         ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
@@ -261,9 +289,7 @@
                   <div class="mb-3 flex items-center justify-between">
                     <div>
                       <div class="text-[15px] font-semibold">
-                        {{
-                          singlePaymentMethods.find((item) => item.value === activeMixedMethod)?.label
-                        }}
+                        {{ activeMethodLabel }}
                       </div>
                       <div class="mt-1 text-[12px] uppercase tracking-[0.08em] text-[#8f8f8f]">
                         Введите сумму для выбранного способа
@@ -273,7 +299,7 @@
                     <UButton
                       color="neutral"
                       variant="soft"
-                      class="cursor-pointer rounded-[14px] bg-[#404040] px-3 py-2 text-white hover:bg-[#505050]"
+                      class="rounded-[14px] bg-[#404040] px-3 py-2 text-white hover:bg-[#505050]"
                       @click="fillRemainingForActiveMethod"
                     >
                       Остаток
@@ -303,7 +329,7 @@
               block
               color="neutral"
               variant="soft"
-              class="cursor-pointer justify-center rounded-[18px] bg-[#404040] py-4 font-semibold text-white hover:bg-[#525252]"
+              class="justify-center rounded-[18px] bg-[#404040] py-4 font-semibold text-white hover:bg-[#525252]"
               @click="closePaymentPanel"
             >
               Назад
@@ -312,7 +338,7 @@
             <UButton
               block
               color="primary"
-              class="cursor-pointer justify-center rounded-[18px] py-4 font-semibold disabled:cursor-not-allowed"
+              class="justify-center rounded-[18px] py-4 font-semibold disabled:cursor-not-allowed"
               :disabled="!canConfirmPayment || cartStore.payLoading"
               @click="confirmPay"
             >
@@ -332,6 +358,8 @@ import { storeToRefs } from "pinia";
 import { useCartStore } from "@/store/cart";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
+type PaymentMethodValue = "cash" | "card" | "payme" | "click" | "transfer";
+
 const cartStore = useCartStore();
 const { subtotal, totalDiscount, total, cart, paymentMethods, paymentMethodsLoading } = storeToRefs(cartStore);
 const { formatPrice } = useFormatPrice();
@@ -347,35 +375,69 @@ const paymentModes = [
   { value: "single", label: "Один способ" },
 ] as const;
 
-const singlePaymentMethods = [
+const paymentMethodCatalog = [
   { value: "cash", label: "Наличные", hint: "Cash", icon: "heroicons:banknotes" },
   { value: "card", label: "Карта", hint: "Card", icon: "heroicons:credit-card" },
   { value: "payme", label: "Payme", hint: "QR / App", icon: "heroicons:device-phone-mobile" },
   { value: "click", label: "Click", hint: "Online", icon: "heroicons:bolt" },
   { value: "transfer", label: "Перевод", hint: "Bank", icon: "heroicons:building-library" },
-];
+] as const;
+
+const availablePaymentMethodValues = computed(() => {
+  const available = new Set<PaymentMethodValue>();
+
+  for (const item of paymentMethods.value) {
+    const id = String(item.id || "").trim().toLowerCase();
+    const name = String(item.name || "").trim().toLowerCase();
+    const paymentTypeName = String(item.paymentTypeName || "").trim().toLowerCase();
+
+    for (const method of paymentMethodCatalog) {
+      if (
+        id === method.value ||
+        name === method.value ||
+        paymentTypeName === method.value
+      ) {
+        available.add(method.value as PaymentMethodValue);
+      }
+    }
+
+    if (item.isCash) {
+      available.add("cash");
+    }
+  }
+
+  return Array.from(available);
+});
+
+const singlePaymentMethods = computed(() =>
+  paymentMethodCatalog.filter((method) => availablePaymentMethodValues.value.includes(method.value)),
+);
 
 const payableAmount = computed(() => Number(cartStore.payableTotal || total.value || 0));
 const canPay = computed(() => payableAmount.value > 0 && !cartStore.payLoading);
 const totalQuantity = computed(() =>
-  cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0)
+  cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0),
 );
-
 const mixedTotal = computed(() =>
-  Object.values(mixedPayments.value).reduce((sum, value) => sum + Number(value || 0), 0)
+  Object.values(mixedPayments.value).reduce((sum, value) => sum + Number(value || 0), 0),
 );
 const remainingAmount = computed(() => Math.max(0, payableAmount.value - mixedTotal.value));
 const selectedMixedPayments = computed(() =>
-  singlePaymentMethods.filter((item) => Number(mixedPayments.value[item.value] || 0) > 0)
+  singlePaymentMethods.value.filter((item) => Number(mixedPayments.value[item.value] || 0) > 0),
 );
-const mixedAvailableMethods = computed(() => singlePaymentMethods);
+const mixedAvailableMethods = computed(() => singlePaymentMethods.value);
+const activeMethodLabel = computed(
+  () => singlePaymentMethods.value.find((item) => item.value === activeMixedMethod.value)?.label || "",
+);
 const paymentModeLabel = computed(() =>
   paymentMode.value === "mixed"
     ? "Смешанная оплата"
-    : singlePaymentMethods.find((item) => item.value === selectedPaymentMethod.value)?.label || "Не выбрано"
+    : singlePaymentMethods.value.find((item) => item.value === selectedPaymentMethod.value)?.label || "Не выбрано",
 );
 const canConfirmPayment = computed(() => {
-  if (!canPay.value) return false;
+  if (!canPay.value || paymentMethodsLoading.value || singlePaymentMethods.value.length === 0) {
+    return false;
+  }
 
   if (paymentMode.value === "single") {
     return Boolean(selectedPaymentMethod.value);
@@ -395,30 +457,34 @@ function closePaymentPanel() {
 
 function setPaymentMode(mode: "mixed" | "single") {
   paymentMode.value = mode;
+
   if (mode === "single") {
     resetMixedPayments();
-  } else {
-    selectedPaymentMethod.value = "";
-    if (!activeMixedMethod.value) activeMixedMethod.value = "cash";
+    activeMixedMethod.value = "";
+    return;
+  }
+
+  selectedPaymentMethod.value = "";
+  if (!activeMixedMethod.value && mixedAvailableMethods.value.length > 0) {
+    activeMixedMethod.value = mixedAvailableMethods.value[0].value;
   }
 }
 
 async function confirmPay() {
   if (!canConfirmPayment.value) return;
 
-  const payments =
-    paymentMode.value === "single"
-      ? buildSinglePayment()
-      : buildMixedPayments();
-
+  const payments = paymentMode.value === "single" ? buildSinglePayment() : buildMixedPayments();
   if (!payments.length) return;
 
-  await cartStore.paySale({
+  const result = await cartStore.paySale({
     comment: "",
     payments,
     with_cashback: 0,
     without_cashback: false,
   });
+
+  if (!result) return;
+
   closePaymentPanel();
   selectedPaymentMethod.value = "";
   resetMixedPayments();
@@ -450,22 +516,13 @@ function formatMoneyForInput(value: number) {
 }
 
 function resetMixedPayments() {
-  mixedPayments.value = {
-    cash: 0,
-    card: 0,
-    payme: 0,
-    click: 0,
-    transfer: 0,
-  };
+  mixedPayments.value = Object.fromEntries(
+    paymentMethodCatalog.map((method) => [method.value, 0]),
+  );
 }
 
 function buildSinglePayment() {
-  const method = selectedPaymentMethod.value as
-    | "cash"
-    | "card"
-    | "payme"
-    | "click"
-    | "transfer";
+  const method = selectedPaymentMethod.value as PaymentMethodValue;
   if (!method) return [];
 
   const companyPaymentTypeId = cartStore.paymentTypeIdByMethod(method);
@@ -489,9 +546,7 @@ function buildMixedPayments(): Array<{
 }> {
   return selectedMixedPayments.value
     .map((entry) => {
-      const companyPaymentTypeId = cartStore.paymentTypeIdByMethod(
-        entry.value as "cash" | "card" | "payme" | "click" | "transfer",
-      );
+      const companyPaymentTypeId = cartStore.paymentTypeIdByMethod(entry.value as PaymentMethodValue);
       const paidAmount = Number(mixedPayments.value[entry.value] || 0);
 
       if (!companyPaymentTypeId || paidAmount <= 0) return null;
@@ -510,4 +565,25 @@ function buildMixedPayments(): Array<{
       skip_ofd: boolean;
     } => payment !== null);
 }
+
+watch(singlePaymentMethods, (methods) => {
+  const first = methods[0]?.value || "";
+  const available = new Set(methods.map((method) => method.value));
+
+  if (!available.has(selectedPaymentMethod.value)) {
+    selectedPaymentMethod.value = first;
+  }
+
+  if (!available.has(activeMixedMethod.value)) {
+    activeMixedMethod.value = first;
+  }
+
+  mixedPayments.value = Object.fromEntries(
+    methods.map((method) => [method.value, Number(mixedPayments.value[method.value] || 0)]),
+  );
+}, { immediate: true });
+
+onMounted(() => {
+  resetMixedPayments();
+});
 </script>
