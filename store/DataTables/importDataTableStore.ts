@@ -183,8 +183,8 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
 
   function openDraft(id: string) {
     return router.push({
-      path: `/products/import/edit/${id}`,
-      query: { page: "1" },
+      path: `/products/import/list/${id}`,
+      query: { limit: "20", page: "1" },
     });
   }
 
