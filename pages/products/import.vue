@@ -32,8 +32,8 @@
               <p class="mt-1 text-[15px] text-[#bdbdbd]">
                 {{
                   modalStep === 1
-                    ? "Загрузите Excel-файл и заполните основные данные импорта."
-                    : "Выберите параметры генерации и тип импорта перед проверкой полей."
+                    ? "Загрузите файл и проверьте базовые ошибки перед созданием серверного импорта."
+                    : "Выберите режим и создайте import session на сервере."
                 }}
               </p>
             </div>
@@ -55,19 +55,27 @@
                   v-model="form.name"
                   type="text"
                   class="w-full rounded-[18px] border border-transparent bg-[#404040] px-5 py-4 text-[16px] text-white outline-none transition-colors duration-200 placeholder:text-[#9f9f9f] focus:border-[#4993dd]"
-                  placeholder="Импорт 17.03.2026 15:29"
+                  placeholder="Импорт 13.04.2026 01:37"
                 />
               </div>
 
               <CustomSelect
-                v-model="form.store"
+                v-model="form.shopId"
                 label="Магазин"
-                :options="locationOptions"
+                :options="shopOptions"
                 placeholder="Выберите магазин"
               />
 
+              <div v-if="bootstrapLoading" class="rounded-[20px] bg-[#363636] px-5 py-4 text-[14px] text-[#bdbdbd]">
+                Загружаем магазины и свойства импорта...
+              </div>
+
+              <div v-else-if="bootstrapError" class="rounded-[20px] border border-[#7f3d3d] bg-[#442f2f] px-5 py-4 text-[14px] text-[#ffd7d7]">
+                {{ bootstrapError }}
+              </div>
+
               <div class="space-y-2">
-                <span class="block text-[16px] font-bold text-white">Файл Excel</span>
+                <span class="block text-[16px] font-bold text-white">Файл</span>
                 <label
                   class="block cursor-pointer rounded-[24px] border border-dashed p-6 transition-colors duration-200"
                   :class="isDragging ? 'border-[#4993dd] bg-[#24384f]' : 'border-[#5e5e5e] bg-[#363636]'"
@@ -80,7 +88,7 @@
                     ref="fileInputRef"
                     type="file"
                     class="hidden"
-                    accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    accept=".xls,.xlsx,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     @change="onFileChange"
                   />
 
@@ -93,10 +101,10 @@
                     </div>
                     <div class="space-y-1">
                       <p class="text-[17px] font-bold text-white">
-                        Перетащите файл в эту область или нажмите для выбора
+                        Перетащите файл сюда или нажмите для выбора
                       </p>
                       <p class="text-[14px] text-[#bdbdbd]">
-                        После загрузки откроется следующий шаг с настройками и сопоставлением полей.
+                        Поддерживаются `.xlsx`, `.xls` и `.csv`.
                       </p>
                     </div>
                   </div>
@@ -126,9 +134,9 @@
               <div class="rounded-[24px] border border-[#4d4d4d] bg-[#343434] p-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p class="text-[16px] font-bold text-white">Скачать шаблон</p>
+                    <p class="text-[16px] font-bold text-white">Шаблон</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Скачайте Excel-шаблон, заполните его и загрузите обратно в это окно.
+                      Используйте готовый шаблон, если файл еще не подготовлен.
                     </p>
                   </div>
 
@@ -155,11 +163,11 @@
                 </div>
                 <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <div class="rounded-[16px] bg-black/10 px-4 py-3">
-                    <p class="text-[#bdbdbd]">Наименований</p>
+                    <p class="text-[#bdbdbd]">Строк</p>
                     <p class="mt-1 text-[18px] font-bold text-white">{{ parsedRows.length }}</p>
                   </div>
                   <div class="rounded-[16px] bg-black/10 px-4 py-3">
-                    <p class="text-[#bdbdbd]">Товарных единиц</p>
+                    <p class="text-[#bdbdbd]">Количество</p>
                     <p class="mt-1 text-[18px] font-bold text-white">{{ totalQuantity }}</p>
                   </div>
                   <div class="rounded-[16px] bg-black/10 px-4 py-3">
@@ -189,18 +197,41 @@
 
             <div v-else class="space-y-6">
               <div class="rounded-[24px] bg-[#363636] p-5">
-                <p class="text-[16px] font-bold text-white">Загруженный файл</p>
+                <p class="text-[16px] font-bold text-white">Подготовленный файл</p>
                 <p class="mt-2 text-[14px] text-[#bdbdbd]">
-                  {{ selectedFile?.name }} • {{ parsedRows.length }} строк для импорта
+                  {{ selectedFile?.name }} • {{ parsedRows.length }} строк
                 </p>
               </div>
 
               <div class="rounded-[24px] bg-[#363636] p-5">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="text-[16px] font-bold text-white">Генерировать баркоды</p>
+                    <p class="text-[16px] font-bold text-white">Режим импорта</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Если в файле нет штрихкода, система подставит новый.
+                      С проверкой создается preview, без проверки серверный импорт сразу остается в статусе draft.
+                    </p>
+                  </div>
+                  <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
+                    <button
+                      v-for="option in modeOptions"
+                      :key="option.value"
+                      type="button"
+                      class="rounded-[10px] px-4 py-2 text-[14px] font-bold transition-colors duration-200"
+                      :class="form.mode === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
+                      @click="form.mode = option.value"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-[24px] bg-[#363636] p-5">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-[16px] font-bold text-white">Генерировать штрихкоды</p>
+                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
+                      Если barcode пустой, backend сможет подставить новый.
                     </p>
                   </div>
                   <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
@@ -221,15 +252,15 @@
               <div class="rounded-[24px] bg-[#363636] p-5">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="text-[16px] font-bold text-white">Генерировать артикулы</p>
+                    <p class="text-[16px] font-bold text-white">Генерировать SKU</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Если артикул пустой, можно автоматически создать новый.
+                      Если SKU пустой, backend сможет сгенерировать значение.
                     </p>
                   </div>
                   <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
                     <button
                       v-for="option in booleanOptions"
-                      :key="`article-${option.value}`"
+                      :key="`sku-${option.value}`"
                       type="button"
                       class="rounded-[10px] px-4 py-2 text-[14px] font-bold transition-colors duration-200"
                       :class="form.generateArticles === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
@@ -241,12 +272,13 @@
                 </div>
               </div>
 
-              <CustomSelect
-                v-model="form.importType"
-                label="Тип импорта"
-                :options="importTypeOptions"
-                placeholder="Выберите тип импорта"
-              />
+              <div class="rounded-[24px] border border-[#3c4f69] bg-[#24384f] p-5">
+                <p class="text-[16px] font-bold text-white">Что создадим на сервере</p>
+                <p class="mt-2 text-[14px] text-[#c9d9ee]">
+                  Магазин: {{ selectedShopName || "не выбран" }} • режим:
+                  {{ form.mode === "with_check" ? "с проверкой" : "без проверки" }}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -262,10 +294,10 @@
               <button
                 type="button"
                 class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
-                :disabled="isParsing"
-                @click="modalStep === 1 ? continueToSettings() : continueToFieldMapping()"
+                :disabled="isParsing || bootstrapLoading || creatingImport || Boolean(bootstrapError)"
+                @click="modalStep === 1 ? continueToSettings() : submitImport()"
               >
-                Продолжить
+                {{ modalStep === 1 ? "Дальше" : creatingImport ? "Создаем..." : "Создать импорт" }}
               </button>
             </div>
           </div>
@@ -278,56 +310,107 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { useHead, useRoute } from "#imports";
-import { storeToRefs } from "pinia";
+import { computed, onMounted, ref, watch } from "vue";
+import { useHead, useRoute, useRouter } from "#imports";
 import DataTable from "@/components/ImportDataTable.vue";
 import CustomSelect from "@/components/ui/CustomSelect.vue";
-import { useImportDataTableStore, type ParsedImportRow } from "@/store/DataTables/importDataTableStore";
-import { useLocationStore } from "@/store/useLocationStore";
-import { useUserStore } from "@/store/useUserStore";
+import { useImportDataTableStore } from "@/store/DataTables/importDataTableStore";
+import {
+  useProductImport,
+  type ImportDraftMappingPayload,
+  type ImportMode,
+  type ImportProperty,
+  type ImportShopOption,
+  type ParsedImportRow,
+} from "~/composables/useProductImport";
 
 interface ImportFormState {
   name: string;
-  store: string;
-  importType: string;
+  shopId: string;
+  mode: ImportMode;
   generateBarcodes: boolean;
   generateArticles: boolean;
 }
 
-const EXPECTED_HEADERS = [
-  "НАИМЕНОВАНИЕ",
-  "АРТИКУЛ",
-  "БАРКОД",
-  "КОЛ-ВО",
-  "ЦЕНА ПОСТАВКИ (UZS)",
-  "РОЗНИЧНАЯ ЦЕНА (UZS)",
-  "КАТЕГОРИЯ",
-  "БРЕНД",
-  "ЕДИНИЦА ИЗМЕРЕНИЯ",
-  "ПОСТАВЩИК",
-  "ОПИСАНИЕ",
-] as const;
+const HEADER_ALIASES: Record<string, keyof ParsedImportRow> = {
+  NAME: "name",
+  "НАИМЕНОВАНИЕ": "name",
+  SKU: "article",
+  "АРТИКУЛ": "article",
+  BARCODE: "barcode",
+  "БАРКОД": "barcode",
+  "ШТРИХКОД": "barcode",
+  QUANTITY: "quantity",
+  "КОЛ-ВО": "quantity",
+  "КОЛИЧЕСТВО": "quantity",
+  SUPPLY_PRICE: "supplyPrice",
+  "ЦЕНА ПОСТАВКИ": "supplyPrice",
+  "ЦЕНА ПОСТАВКИ (UZS)": "supplyPrice",
+  RETAIL_PRICE: "retailPrice",
+  "РОЗНИЧНАЯ ЦЕНА": "retailPrice",
+  "РОЗНИЧНАЯ ЦЕНА (UZS)": "retailPrice",
+  CATEGORY_NAME: "category",
+  "КАТЕГОРИЯ": "category",
+  BRAND_NAME: "brand",
+  "БРЕНД": "brand",
+  MEASUREMENT_UNIT: "unit",
+  "ЕДИНИЦА ИЗМЕРЕНИЯ": "unit",
+  SUPPLIER: "supplier",
+  "ПОСТАВЩИК": "supplier",
+  DESCRIPTION: "description",
+  "ОПИСАНИЕ": "description",
+};
+
+const REQUIRED_FIELDS: Array<keyof ParsedImportRow> = [
+  "name",
+  "quantity",
+  "supplyPrice",
+  "retailPrice",
+];
+
+const FIELD_TO_SYSTEM_NAME: Record<keyof ParsedImportRow, string> = {
+  name: "NAME",
+  article: "SKU",
+  barcode: "BARCODE",
+  quantity: "QUANTITY",
+  supplyPrice: "SUPPLY_PRICE",
+  retailPrice: "RETAIL_PRICE",
+  category: "CATEGORY_NAME",
+  brand: "BRAND_NAME",
+  unit: "MEASUREMENT_UNIT",
+  supplier: "SUPPLIER",
+  description: "DESCRIPTION",
+};
 
 const booleanOptions = [
   { label: "Да", value: true },
   { label: "Нет", value: false },
 ];
 
-const importStore = useImportDataTableStore();
-const locationStore = useLocationStore();
-const userStore = useUserStore();
-const route = useRoute();
-const { locations } = storeToRefs(locationStore);
-const templateDownloadUrl = "/templates/product-import-template.xlsx";
+const modeOptions: Array<{ label: string; value: ImportMode }> = [
+  { label: "С проверкой", value: "with_check" },
+  { label: "Без проверки", value: "without_check" },
+];
 
-const importTypeOptions = ["Поступление", "Приход остатков", "Корректировка"];
+const importStore = useImportDataTableStore();
+const router = useRouter();
+const route = useRoute();
+const {
+  getAllowedShops,
+  getImportProperties,
+  createImportSession,
+} = useProductImport();
+
+const templateDownloadUrl = "/templates/product-import-template.xlsx";
 const isChildRoute = computed(
   () =>
     route.path.startsWith("/products/import/list/") ||
     route.path.startsWith("/products/import/edit/"),
 );
 
+const bootstrapLoading = ref(false);
+const bootstrapError = ref("");
+const creatingImport = ref(false);
 const isImportModalOpen = ref(false);
 const modalStep = ref<1 | 2>(1);
 const isDragging = ref(false);
@@ -335,20 +418,27 @@ const isParsing = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const parsedRows = ref<ParsedImportRow[]>([]);
+const mappings = ref<ImportDraftMappingPayload[]>([]);
 const errors = ref<string[]>([]);
+const availableProperties = ref<ImportProperty[]>([]);
+const shops = ref<ImportShopOption[]>([]);
+
 const form = ref<ImportFormState>({
   name: "",
-  store: "",
-  importType: importTypeOptions[0] ?? "",
-  generateBarcodes: false,
-  generateArticles: false,
+  shopId: "",
+  mode: "with_check",
+  generateBarcodes: true,
+  generateArticles: true,
 });
 
-const locationOptions = computed(() => locations.value.map((location) => location.name));
+const shopOptions = computed(() => shops.value.map((shop) => shop.name));
+const selectedShopName = computed(
+  () => shops.value.find((shop) => shop.name === form.value.shopId)?.name || form.value.shopId,
+);
 const totalQuantity = computed(() => parsedRows.value.reduce((sum, row) => sum + row.quantity, 0));
 const totalAmount = computed(() => parsedRows.value.reduce((sum, row) => sum + row.quantity * row.retailPrice, 0));
 
-const createDefaultImportName = () => {
+function createDefaultImportName() {
   const now = new Date();
   const datePart = new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
@@ -361,59 +451,109 @@ const createDefaultImportName = () => {
   }).format(now);
 
   return `Импорт ${datePart} ${timePart}`;
-};
+}
 
-const formatFileSize = (size: number) => {
+function formatFileSize(size: number) {
   if (size < 1024 * 1024) {
     return `${(size / 1024).toFixed(1)} KB`;
   }
 
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
-};
+}
 
-const formatCurrency = (value: number) =>
-  `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value)} UZS`;
+function formatCurrency(value: number) {
+  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value)} UZS`;
+}
 
-const normalizeText = (value: unknown) => String(value ?? "").trim();
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim();
+}
 
-const parseNumber = (value: unknown) => {
+function parseNumber(value: unknown) {
   const normalized = normalizeText(value).replace(/\s/g, "").replace(",", ".");
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
-};
+}
 
-const resetForm = () => {
+function normalizeHeader(value: unknown) {
+  return normalizeText(value).toUpperCase().replace(/\s+/g, " ");
+}
+
+function createEmptyRow(): ParsedImportRow {
+  return {
+    name: "",
+    article: "",
+    barcode: "",
+    quantity: 0,
+    supplyPrice: 0,
+    retailPrice: 0,
+    category: "",
+    brand: "",
+    unit: "",
+    supplier: "",
+    description: "",
+  };
+}
+
+function resetForm() {
   form.value = {
     name: createDefaultImportName(),
-    store: locationStore.selectedLocation?.name ?? "",
-    importType: importTypeOptions[0] ?? "",
-    generateBarcodes: false,
-    generateArticles: false,
+    shopId: shops.value[0]?.name || "",
+    mode: "with_check",
+    generateBarcodes: true,
+    generateArticles: true,
   };
   modalStep.value = 1;
   selectedFile.value = null;
   parsedRows.value = [];
+  mappings.value = [];
   errors.value = [];
   isParsing.value = false;
 
   if (fileInputRef.value) {
     fileInputRef.value.value = "";
   }
-};
+}
 
-const openImportModal = () => {
+async function loadBootstrapData() {
+  bootstrapLoading.value = true;
+  bootstrapError.value = "";
+
+  try {
+    const [shopResponse, propertyResponse] = await Promise.all([
+      getAllowedShops(),
+      getImportProperties(),
+    ]);
+
+    shops.value = shopResponse;
+    availableProperties.value = propertyResponse;
+
+    if (!shops.value.length) {
+      bootstrapError.value = "Сервер не вернул доступные магазины.";
+    }
+  } catch (error: any) {
+    shops.value = [];
+    availableProperties.value = [];
+    bootstrapError.value = error?.message || "Не удалось загрузить данные импорта.";
+  } finally {
+    bootstrapLoading.value = false;
+  }
+}
+
+async function openImportModal() {
+  await loadBootstrapData();
   resetForm();
   isImportModalOpen.value = true;
-};
+}
 
-const closeImportModal = () => {
+function closeImportModal() {
   isImportModalOpen.value = false;
   isDragging.value = false;
   modalStep.value = 1;
-};
+}
 
-const parseExcelFile = async (file: File) => {
+async function parseFile(file: File) {
   const XLSX = await import("xlsx");
   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", raw: true });
 
@@ -423,12 +563,12 @@ const parseExcelFile = async (file: File) => {
 
   const firstSheetName = workbook.SheetNames[0];
   if (!firstSheetName) {
-    throw new Error("Р¤Р°Р№Р» РЅРµ СЃРѕРґРµСЂР¶РёС‚ Р»РёСЃС‚РѕРІ.");
+    throw new Error("Не удалось определить первый лист.");
   }
 
   const worksheet = workbook.Sheets[firstSheetName];
   if (!worksheet) {
-    throw new Error("Р¤Р°Р№Р» РЅРµ СЃРѕРґРµСЂР¶РёС‚ РєРѕСЂСЂРµРєС‚РЅС‹Р№ Р»РёСЃС‚.");
+    throw new Error("Первый лист не найден.");
   }
 
   const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(worksheet, {
@@ -442,80 +582,80 @@ const parseExcelFile = async (file: File) => {
   }
 
   const headerRow = rows[0];
-  if (!headerRow) {
-    throw new Error("Р¤Р°Р№Р» РїСѓСЃС‚РѕР№.");
+  if (!headerRow?.length) {
+    throw new Error("Не найдена строка заголовков.");
   }
 
-  const headers = headerRow.map((cell) => normalizeText(cell).toUpperCase());
-  const missingHeaders = EXPECTED_HEADERS.filter((header) => !headers.includes(header));
+  const headerMap = new Map<number, keyof ParsedImportRow>();
+  const nextMappings: ImportDraftMappingPayload[] = [];
 
-  if (missingHeaders.length) {
-    throw new Error(`Не найдены колонки: ${missingHeaders.join(", ")}.`);
+  headerRow.forEach((cell, index) => {
+    const normalizedHeader = normalizeHeader(cell);
+    const field = HEADER_ALIASES[normalizedHeader];
+    if (!field) return;
+
+    headerMap.set(index, field);
+    nextMappings.push({
+      key: field,
+      targetField: FIELD_TO_SYSTEM_NAME[field],
+      action: "map",
+    });
+  });
+
+  const missing = REQUIRED_FIELDS.filter((field) => !Array.from(headerMap.values()).includes(field));
+  if (missing.length) {
+    throw new Error(`Не хватает обязательных колонок: ${missing.join(", ")}.`);
   }
 
-  const headerIndexMap = Object.fromEntries(
-    EXPECTED_HEADERS.map((header) => [header, headers.indexOf(header)]),
-  ) as Record<(typeof EXPECTED_HEADERS)[number], number>;
+  const dataRows = rows.slice(1).filter((row) => row.some((cell) => normalizeText(cell) !== ""));
+  if (!dataRows.length) {
+    throw new Error("После заголовков нет данных для импорта.");
+  }
 
   const nextErrors: string[] = [];
   const nextRows: ParsedImportRow[] = [];
-  const dataRows = rows.slice(1).filter((row) => row.some((cell) => normalizeText(cell) !== ""));
-
-  if (!dataRows.length) {
-    throw new Error("После строки заголовков нет данных для импорта.");
-  }
 
   dataRows.forEach((row, index) => {
     const excelRow = index + 2;
-    const name = normalizeText(row[headerIndexMap["НАИМЕНОВАНИЕ"]]);
-    const article = normalizeText(row[headerIndexMap["АРТИКУЛ"]]);
-    const barcode = normalizeText(row[headerIndexMap["БАРКОД"]]);
-    const quantity = parseNumber(row[headerIndexMap["КОЛ-ВО"]]);
-    const supplyPrice = parseNumber(row[headerIndexMap["ЦЕНА ПОСТАВКИ (UZS)"]]);
-    const retailPrice = parseNumber(row[headerIndexMap["РОЗНИЧНАЯ ЦЕНА (UZS)"]]);
-    const category = normalizeText(row[headerIndexMap["КАТЕГОРИЯ"]]);
-    const brand = normalizeText(row[headerIndexMap["БРЕНД"]]);
-    const unit = normalizeText(row[headerIndexMap["ЕДИНИЦА ИЗМЕРЕНИЯ"]]);
-    const supplier = normalizeText(row[headerIndexMap["ПОСТАВЩИК"]]);
-    const description = normalizeText(row[headerIndexMap["ОПИСАНИЕ"]]);
+    const normalized = createEmptyRow();
 
-    if (!name) nextErrors.push(`Строка ${excelRow}: заполните "Наименование".`);
-    if (quantity === null || quantity < 0) nextErrors.push(`Строка ${excelRow}: "Кол-во" должно быть числом 0 или больше.`);
-    if (supplyPrice === null || supplyPrice < 0) nextErrors.push(`Строка ${excelRow}: "Цена поставки" должна быть числом 0 или больше.`);
-    if (retailPrice === null || retailPrice < 0) nextErrors.push(`Строка ${excelRow}: "Цена продажи" должна быть числом 0 или больше.`);
+    headerMap.forEach((field, columnIndex) => {
+      const cell = row[columnIndex];
+      if (field === "quantity" || field === "supplyPrice" || field === "retailPrice") {
+        const parsed = parseNumber(cell);
+        (normalized[field] as number) = parsed ?? 0;
+        return;
+      }
 
-    if (
-      name &&
-      quantity !== null &&
-      quantity >= 0 &&
-      supplyPrice !== null &&
-      supplyPrice >= 0 &&
-      retailPrice !== null &&
-      retailPrice >= 0
-    ) {
-      nextRows.push({
-        name,
-        article,
-        barcode,
-        quantity,
-        supplyPrice,
-        retailPrice,
-        category,
-        brand,
-        unit,
-        supplier,
-        description,
-      });
+      (normalized[field] as string) = normalizeText(cell);
+    });
+
+    if (!normalized.name) nextErrors.push(`Строка ${excelRow}: заполните name.`);
+    if (!Number.isFinite(normalized.quantity) || normalized.quantity <= 0) {
+      nextErrors.push(`Строка ${excelRow}: quantity должен быть числом больше 0.`);
     }
+    if (!Number.isFinite(normalized.supplyPrice)) {
+      nextErrors.push(`Строка ${excelRow}: supply_price должен быть числом.`);
+    }
+    if (!Number.isFinite(normalized.retailPrice)) {
+      nextErrors.push(`Строка ${excelRow}: retail_price должен быть числом.`);
+    }
+    if (normalized.retailPrice < normalized.supplyPrice) {
+      nextErrors.push(`Строка ${excelRow}: retail_price не может быть меньше supply_price.`);
+    }
+
+    nextRows.push(normalized);
   });
 
   parsedRows.value = nextRows;
-  errors.value = nextErrors;
-};
+  mappings.value = nextMappings;
+  errors.value = [...new Set(nextErrors)];
+}
 
-const setFile = async (file: File | null) => {
+async function setFile(file: File | null) {
   errors.value = [];
   parsedRows.value = [];
+  mappings.value = [];
 
   if (!file) {
     selectedFile.value = null;
@@ -523,11 +663,10 @@ const setFile = async (file: File | null) => {
   }
 
   const fileName = file.name.toLowerCase();
-  const isExcelFile = fileName.endsWith(".xls") || fileName.endsWith(".xlsx");
-
-  if (!isExcelFile) {
+  const isAllowed = fileName.endsWith(".xls") || fileName.endsWith(".xlsx") || fileName.endsWith(".csv");
+  if (!isAllowed) {
     selectedFile.value = null;
-    errors.value = ["Загрузите файл в формате XLS или XLSX."];
+    errors.value = ["Загрузите файл в формате XLS, XLSX или CSV."];
     return;
   }
 
@@ -535,80 +674,102 @@ const setFile = async (file: File | null) => {
   isParsing.value = true;
 
   try {
-    await parseExcelFile(file);
+    await parseFile(file);
   } catch (error) {
     parsedRows.value = [];
-    errors.value = [error instanceof Error ? error.message : "Не удалось прочитать Excel-файл."];
+    mappings.value = [];
+    errors.value = [error instanceof Error ? error.message : "Не удалось прочитать файл."];
   } finally {
     isParsing.value = false;
   }
-};
+}
 
-const onFileChange = async (event: Event) => {
+async function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement;
   await setFile(target.files?.[0] ?? null);
-};
+}
 
-const onFileDrop = async (event: DragEvent) => {
+async function onFileDrop(event: DragEvent) {
   isDragging.value = false;
   await setFile(event.dataTransfer?.files?.[0] ?? null);
-};
+}
 
-const removeFile = () => {
+function removeFile() {
   selectedFile.value = null;
   parsedRows.value = [];
+  mappings.value = [];
   errors.value = [];
 
   if (fileInputRef.value) {
     fileInputRef.value.value = "";
   }
-};
+}
 
-const validateStepOne = () => {
+function validateStepOne() {
   const nextErrors = [...errors.value];
 
   if (!form.value.name.trim()) nextErrors.push("Укажите наименование импорта.");
-  if (!form.value.store) nextErrors.push("Выберите магазин.");
-  if (!selectedFile.value) nextErrors.push("Загрузите Excel-файл для импорта.");
+  if (!form.value.shopId) nextErrors.push("Выберите магазин.");
+  if (!selectedFile.value) nextErrors.push("Загрузите файл для импорта.");
   if (selectedFile.value && !parsedRows.value.length && !isParsing.value) {
     nextErrors.push("В файле нет корректных строк для импорта.");
   }
 
   errors.value = [...new Set(nextErrors)];
   return errors.value.length === 0;
-};
+}
 
-const continueToSettings = () => {
+function continueToSettings() {
   if (!validateStepOne()) return;
   modalStep.value = 2;
-};
+}
 
-const goToPreviousStep = () => {
+function goToPreviousStep() {
   modalStep.value = 1;
-};
+}
 
-const continueToFieldMapping = () => {
+async function submitImport() {
   if (!selectedFile.value || !parsedRows.value.length) return;
 
-  const detailId = importStore.createDraft({
-    fileName: selectedFile.value.name,
-    rows: parsedRows.value,
-    settings: {
+  const selectedShop = shops.value.find((shop) => shop.name === form.value.shopId);
+  if (!selectedShop) {
+    errors.value = ["Не удалось определить выбранный магазин."];
+    modalStep.value = 1;
+    return;
+  }
+
+  creatingImport.value = true;
+
+  try {
+    const created = await createImportSession({
       name: form.value.name.trim(),
-      store: form.value.store,
-      importType: form.value.importType,
+      shopId: selectedShop.id,
+      mode: form.value.mode,
       generateBarcodes: form.value.generateBarcodes,
       generateArticles: form.value.generateArticles,
-    },
-    createdBy: userStore.fullName || userStore.user.name || "?? ??????",
-  });
+      rows: parsedRows.value,
+      mappings: mappings.value,
+      availableProperties: availableProperties.value,
+    });
 
-  closeImportModal();
-  importStore.openDraft(detailId);
-};
+    closeImportModal();
+    await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
+    await router.push(`/products/import/edit/${created.id}`);
+  } catch (error: any) {
+    errors.value = [error?.message || "Не удалось создать импорт."];
+    modalStep.value = 2;
+  } finally {
+    creatingImport.value = false;
+  }
+}
 
 watch(isImportModalOpen, (isOpen) => {
   document.body.classList.toggle("overflow-hidden", isOpen);
+});
+
+onMounted(async () => {
+  await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
+  resetForm();
 });
 
 useHead({
@@ -638,4 +799,3 @@ useHead({
   opacity: 0;
 }
 </style>
-
