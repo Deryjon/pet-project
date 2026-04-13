@@ -208,7 +208,7 @@
                   <div>
                     <p class="text-[16px] font-bold text-white">Режим импорта</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      С проверкой создается preview, без проверки серверный импорт сразу остается в статусе draft.
+                      Оба режима создают import session, после чего можно открыть общую таблицу товаров перед загрузкой.
                     </p>
                   </div>
                   <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
@@ -399,6 +399,7 @@ const {
   getAllowedShops,
   getImportProperties,
   createImportSession,
+  validateImportSession,
 } = useProductImport();
 
 const templateDownloadUrl = "/templates/product-import-template.xlsx";
@@ -741,7 +742,7 @@ async function submitImport() {
   creatingImport.value = true;
 
   try {
-    const created = await createImportSession({
+    const payload = {
       name: form.value.name.trim(),
       shopId: selectedShop.id,
       mode: form.value.mode,
@@ -750,11 +751,16 @@ async function submitImport() {
       rows: parsedRows.value,
       mappings: mappings.value,
       availableProperties: availableProperties.value,
-    });
+    };
+    const created = await createImportSession(payload);
+
+    if (payload.mode === "with_check") {
+      await validateImportSession(created.id, payload);
+    }
 
     closeImportModal();
     await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
-    await router.push(`/products/import/edit/${created.id}`);
+    await router.push(`/products/import/list/${created.id}?limit=20&page=1`);
   } catch (error: any) {
     errors.value = [error?.message || "Не удалось создать импорт."];
     modalStep.value = 2;

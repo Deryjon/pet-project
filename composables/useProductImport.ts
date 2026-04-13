@@ -60,16 +60,39 @@ export interface ImportProgressResponse {
 export interface ImportPreviewItem {
   id: string;
   import_id: string;
+  row_number: number;
   product_id: string | null;
   product_name: string;
+  product_base_name: string;
   product_sku: string;
   product_barcode: string;
+  description: string;
   measurement_value: number;
   supply_price: number;
   retail_price: number;
+  supply_currency: string;
+  retail_currency: string;
+  measurement_type: string;
+  product_info: Record<string, unknown> | null;
+  free_price: boolean;
+  action: "create" | "update" | "error";
   difference: boolean;
   different_fields: string[];
   old_product: Record<string, unknown> | null;
+  error?: string;
+  raw: {
+    name: string;
+    sku?: string;
+    barcode?: string;
+    quantity: number;
+    supplyPrice: number;
+    retailPrice: number;
+    categoryName?: string;
+    brandName?: string;
+    measurementUnit?: string;
+    supplier?: string;
+    description?: string;
+  };
 }
 
 export interface ImportPreviewResult {
@@ -188,6 +211,15 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function ensureImportId(value: unknown) {
+  const id = String(value ?? "").trim();
+  if (!id) {
+    throw new Error("Import ID is required");
+  }
+
+  return id;
+}
+
 function normalizeProperty(raw: any, index: number): ImportProperty | null {
   const systemName = String(raw?.system_name ?? raw?.systemName ?? raw?.name ?? "").trim();
   const name = String(raw?.name ?? raw?.title ?? systemName).trim();
@@ -289,22 +321,103 @@ function buildPropertiesPayload(
 }
 
 function normalizePreviewItem(raw: any, importId: string): ImportPreviewItem {
+  const rawPayload =
+    raw?.raw && typeof raw.raw === "object"
+      ? raw.raw
+      : raw?.product_info && typeof raw.product_info === "object"
+        ? raw.product_info
+        : {};
+  const action =
+    raw?.action === "error" || raw?.action === "update" || raw?.action === "create"
+      ? raw.action
+      : raw?.error
+        ? "error"
+        : raw?.product_id
+          ? "update"
+          : "create";
+
   return {
     id: String(raw?.id ?? crypto.randomUUID()),
     import_id: String(raw?.import_id ?? importId),
+    row_number: toNumber(raw?.row_number ?? raw?.rowNumber),
     product_id: raw?.product_id ? String(raw.product_id) : null,
-    product_name: String(raw?.product_name ?? raw?.name ?? ""),
+    product_name: String(raw?.product_name ?? raw?.name ?? rawPayload?.name ?? ""),
+    product_base_name: String(raw?.product_base_name ?? rawPayload?.name ?? ""),
     product_sku: String(raw?.product_sku ?? raw?.sku ?? ""),
     product_barcode: String(raw?.product_barcode ?? raw?.barcode ?? ""),
+    description: String(raw?.description ?? rawPayload?.description ?? ""),
     measurement_value: toNumber(raw?.measurement_value ?? raw?.quantity),
     supply_price: toNumber(raw?.supply_price),
     retail_price: toNumber(raw?.retail_price),
+    supply_currency: String(raw?.supply_currency ?? ""),
+    retail_currency: String(raw?.retail_currency ?? ""),
+    measurement_type: String(raw?.measurement_type ?? ""),
+    product_info:
+      raw?.product_info && typeof raw.product_info === "object" ? raw.product_info : null,
+    free_price: Boolean(raw?.free_price),
+    action,
     difference: Boolean(raw?.difference),
     different_fields: Array.isArray(raw?.different_fields)
       ? raw.different_fields.map((field: unknown) => String(field))
       : [],
     old_product:
       raw?.old_product && typeof raw.old_product === "object" ? raw.old_product : null,
+    error: raw?.error ? String(raw.error) : undefined,
+    raw: {
+      name: String(rawPayload?.name ?? raw?.product_name ?? ""),
+      sku: rawPayload?.sku ? String(rawPayload.sku) : undefined,
+      barcode: rawPayload?.barcode ? String(rawPayload.barcode) : undefined,
+      quantity: toNumber(rawPayload?.quantity ?? raw?.measurement_value ?? raw?.quantity),
+      supplyPrice: toNumber(rawPayload?.supplyPrice ?? rawPayload?.supply_price ?? raw?.supply_price),
+      retailPrice: toNumber(rawPayload?.retailPrice ?? rawPayload?.retail_price ?? raw?.retail_price),
+      categoryName: rawPayload?.categoryName
+        ? String(rawPayload.categoryName)
+        : rawPayload?.category_name
+          ? String(rawPayload.category_name)
+          : undefined,
+      brandName: rawPayload?.brandName
+        ? String(rawPayload.brandName)
+        : rawPayload?.brand_name
+          ? String(rawPayload.brand_name)
+          : undefined,
+      measurementUnit: rawPayload?.measurementUnit
+        ? String(rawPayload.measurementUnit)
+        : rawPayload?.measurement_unit
+          ? String(rawPayload.measurement_unit)
+          : undefined,
+      supplier: rawPayload?.supplier ? String(rawPayload.supplier) : undefined,
+      description: rawPayload?.description ? String(rawPayload.description) : undefined,
+    },
+  };
+}
+
+function normalizePreviewResult(raw: any, importId: string): ImportPreviewResult {
+  const payload = unwrapPayload(raw);
+  const items = toArray<any>(
+    payload?.items ?? payload?.import_items ?? payload?.preview_items ?? payload?.rows,
+    ["items", "import_items", "preview_items", "rows", "data"],
+  ).map((item) => normalizePreviewItem(item, importId));
+
+  const totalMeasurementValue =
+    payload?.total_measurement_value != null
+      ? toNumber(payload.total_measurement_value)
+      : items.reduce((sum, item) => sum + item.measurement_value, 0);
+  const totalSupplyPrice =
+    payload?.total_supply_price != null
+      ? toNumber(payload.total_supply_price)
+      : items.reduce((sum, item) => sum + item.supply_price * item.measurement_value, 0);
+  const totalRetailPrice =
+    payload?.total_retail_price != null
+      ? toNumber(payload.total_retail_price)
+      : items.reduce((sum, item) => sum + item.retail_price * item.measurement_value, 0);
+
+  return {
+    items,
+    count: toNumber(payload?.count, items.length),
+    total_measurement_value: totalMeasurementValue,
+    total_supply_price: totalSupplyPrice,
+    total_retail_price: totalRetailPrice,
+    fields: toArray(payload?.fields),
   };
 }
 
@@ -470,27 +583,44 @@ export function useProductImport() {
 
   async function getImportSession(id: string) {
     try {
-      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(id)}`, {
+      const importId = ensureImportId(id);
+      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}`, {
         method: "GET",
       });
 
-      return normalizeImportSession(response);
+      const session = normalizeImportSession(response);
+      return {
+        ...session,
+        id: session.id || importId,
+      };
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
     }
   }
 
-  async function validateImportSession(id: string) {
+  async function validateImportSession(id: string, payload?: CreateImportPayload) {
     try {
-      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(id)}/validate`, {
+      const importId = ensureImportId(id);
+      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}/validate`, {
         method: "POST",
+        body: payload
+          ? {
+              name: payload.name,
+              shop_id: payload.shopId,
+              mode: payload.mode,
+              generate_barcode: payload.generateBarcodes,
+              generate_sku: payload.generateArticles,
+              properties: buildPropertiesPayload(payload.mappings, payload.availableProperties),
+              rows: payload.rows.map(buildImportRow),
+            }
+          : undefined,
       });
 
       const payload = unwrapPayload(response);
       return {
         jobId: String(payload?.message ?? payload?.job_id ?? "").trim(),
-        importId: String(payload?.import_id ?? payload?.correlation_id ?? id).trim(),
-        correlationId: String(payload?.correlation_id ?? payload?.import_id ?? id).trim(),
+        importId: String(payload?.import_id ?? payload?.correlation_id ?? importId).trim(),
+        correlationId: String(payload?.correlation_id ?? payload?.import_id ?? importId).trim(),
       };
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
@@ -533,7 +663,8 @@ export function useProductImport() {
 
   async function getImportPreview(importId: string, options?: { difference?: boolean; page?: number; limit?: number }) {
     try {
-      const response = await apiFetch<any>(`/v2/import-search/${encodeURIComponent(importId)}`, {
+      const resolvedImportId = ensureImportId(importId);
+      const response = await apiFetch<any>(`/v2/import-search/${encodeURIComponent(resolvedImportId)}`, {
         method: "GET",
         query: {
           page: options?.page ?? 1,
@@ -542,15 +673,24 @@ export function useProductImport() {
         },
       });
 
-      const payload = unwrapPayload(response);
-      return {
-        items: toArray<any>(payload, ["items"]).map((item) => normalizePreviewItem(item, importId)),
-        count: toNumber(payload?.count),
-        total_measurement_value: toNumber(payload?.total_measurement_value),
-        total_supply_price: toNumber(payload?.total_supply_price),
-        total_retail_price: toNumber(payload?.total_retail_price),
-        fields: toArray(payload?.fields),
-      } satisfies ImportPreviewResult;
+      return normalizePreviewResult(response, resolvedImportId);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function getImportItems(importId: string, options?: { page?: number; limit?: number }) {
+    try {
+      const resolvedImportId = ensureImportId(importId);
+      const response = await apiFetch<any>(`/v2/import-items-dp/${encodeURIComponent(resolvedImportId)}`, {
+        method: "GET",
+        query: {
+          page: options?.page ?? 1,
+          limit: options?.limit ?? 10000,
+        },
+      });
+
+      return normalizePreviewResult(response, resolvedImportId);
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
     }
@@ -558,7 +698,8 @@ export function useProductImport() {
 
   async function commitImportSession(id: string) {
     try {
-      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(id)}/commit`, {
+      const importId = ensureImportId(id);
+      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}/commit`, {
         method: "POST",
       });
 
@@ -570,7 +711,8 @@ export function useProductImport() {
 
   async function cancelImportSession(id: string) {
     try {
-      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(id)}/cancel`, {
+      const importId = ensureImportId(id);
+      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}/cancel`, {
         method: "POST",
       });
 
@@ -609,6 +751,7 @@ export function useProductImport() {
     getImportProgress,
     waitForImport,
     getImportPreview,
+    getImportItems,
     commitImportSession,
     cancelImportSession,
     importWithoutCheck,
