@@ -42,8 +42,12 @@ const sidebarPositionClass = computed(() => {
 
 watch(
   () => route.path,
-  () => {
+  async () => {
     mobileSidebarOpen.value = false;
+
+    if (userStore.token && !userStore.initializing) {
+      await userStore.fetchMe({ force: true });
+    }
   }
 );
 
@@ -54,6 +58,8 @@ watch([isMobileViewport, mobileSidebarOpen], ([mobile, open]) => {
 onMounted(() => {
   if (!userStore.user.id && !userStore.initializing) {
     userStore.init();
+  } else if (userStore.token && !userStore.initializing) {
+    userStore.fetchMe({ force: true });
   }
   syncViewport();
   window.addEventListener("resize", syncViewport);

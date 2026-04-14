@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DataTable from "@/components/DataTable.vue";
 import DataTableHeader from "@/components/employees/DataTableHeader.vue";
 import DataTableBody from "@/components/employees/DataTableBody.vue";
 import DataTablePagination from "@/components/employees/DataTablePagination.vue";
@@ -9,9 +10,15 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="space-y-4">
-    <DataTableHeader @create="emit('create')" />
+  <DataTable>
+    <template #header>
+      <DataTableHeader @create="emit('create')" />
+    </template>
+
     <DataTableBody />
-    <DataTablePagination />
-  </div>
+
+    <template #pagination>
+      <DataTablePagination />
+    </template>
+  </DataTable>
 </template>

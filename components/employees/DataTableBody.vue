@@ -6,7 +6,12 @@ const store = useEmployeesDataTableStore();
 </script>
 
 <template>
-  <BaseDataTable :table="store.table" :store="store" />
+  <BaseDataTable
+    :table="store.table"
+    :store="store"
+    interactiveColumnId="name"
+    :onRowClick="store.openProduct"
+  />
   
 </template>
 
@@ -33,4 +38,3 @@ input::placeholder {
   color: #bdbdbd;
 }
 </style>
-
