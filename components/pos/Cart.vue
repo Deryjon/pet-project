@@ -16,10 +16,10 @@
             color="error"
             variant="ghost"
             :loading="store.cancelLoading"
-            class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[15px] p-0 text-red-400 hover:bg-transparent hover:text-red-500 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-8 w-8 items-center justify-center rounded-[15px] p-0 text-red-400 hover:bg-transparent hover:text-red-500 disabled:pointer-events-none disabled:opacity-50"
             @click="store.cancelSale"
           >
-            <Icon name="ic:baseline-delete" class="h-6 w-6 " />
+            <Icon name="ic:baseline-delete" class="h-6 w-6" />
           </UButton>
         </UBadge>
       </div>
@@ -33,7 +33,7 @@
       <UButton
         color="primary"
         variant="solid"
-        class="cursor-pointer rounded-[20px] bg-[#1f78ff] px-4 py-2 hover:bg-[#4993dd]"
+        class="rounded-[20px] bg-[#1f78ff] px-4 py-2 hover:bg-[#4993dd]"
       >
         <span class="text-[16px] font-semibold">
           {{ selectedSeller ? selectedSeller.name : "Все продавцы" }}
@@ -43,7 +43,7 @@
       <UButton
         color="neutral"
         variant="soft"
-        class="flex cursor-pointer items-center justify-center rounded-[20px] bg-[#404040] px-4 py-1 hover:bg-[#5e5e5e]"
+        class="flex items-center justify-center rounded-[20px] bg-[#404040] px-4 py-1 hover:bg-[#5e5e5e]"
         @click="openSellerModal"
       >
         <svg
@@ -68,9 +68,9 @@
         body: 'flex h-full flex-col items-center justify-center p-[20px]',
       }"
     >
-      <span class="text-center text-[20px] font-bold sm:text-[24px]">Корзинка пока что пуста</span>
+      <span class="text-center text-[20px] font-bold sm:text-[24px]">Корзина пока что пуста</span>
       <span class="w-full max-w-[340px] text-center text-[16px] font-bold text-[#5e5e5e] sm:text-[18px]">
-        Нажмите “/” для поиска товаров или отсканируйте товары
+        Нажмите "/" для поиска товаров или отсканируйте товары
       </span>
     </UCard>
 
@@ -83,86 +83,8 @@
         :key="item.id"
         :item="item"
         @remove="removeFromCart(item.id)"
-        @edit-discount="openDiscountPanel"
       />
     </div>
-
-    <USlideover
-      v-model:open="slideoverOpen"
-      side="right"
-      :close="false"
-      :ui="{
-        overlay: 'bg-black/40',
-        content: 'w-full max-w-[300px] border-0 bg-[#1e1e1e] p-6 text-white shadow-lg ring-0',
-      }"
-    >
-      <template #content>
-        <div class="flex h-full flex-col">
-          <div class="mb-6 flex items-center justify-between">
-            <h3 class="text-xl font-bold">Скидка</h3>
-
-            <UButton
-              color="neutral"
-              variant="ghost"
-              class="cursor-pointer rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
-              @click="closeDiscountPanel"
-            >
-              <Icon name="mingcute:close-fill" class="h-5 w-5" />
-            </UButton>
-          </div>
-
-          <div class="flex flex-1 flex-col gap-4">
-            <div>
-              <label class="mb-1 block text-sm text-[#bdbdbd]">Введите скидку</label>
-              <UInput
-                v-model.number="discountValue"
-                type="number"
-                color="neutral"
-                variant="none"
-                :ui="{
-                  root: 'w-full',
-                  base: 'h-11 rounded-xl border border-[#404040] bg-[#2a2a2a] px-3 text-white placeholder:text-[#8f8f8f] focus:outline-none focus:ring-0',
-                }"
-              />
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm text-[#bdbdbd]">Тип скидки</label>
-              <USelect
-                v-model="discountType"
-                :items="discountTypeOptions"
-                color="neutral"
-                variant="none"
-                :ui="{
-                  base: 'h-11 rounded-xl border border-[#404040] bg-[#2a2a2a] px-3 text-white focus:outline-none focus:ring-0',
-                  content: 'border border-[#404040] bg-[#2a2a2a] text-white',
-                  item: 'text-white data-[highlighted]:bg-[#404040]',
-                }"
-              />
-            </div>
-          </div>
-
-          <div class="mt-auto flex gap-2">
-            <UButton
-              block
-              color="success"
-              class="cursor-pointer justify-center rounded-xl py-3 font-bold"
-              @click="applyDiscount"
-            >
-              Применить
-            </UButton>
-            <UButton
-              block
-              color="error"
-              class="cursor-pointer justify-center rounded-xl py-3 font-bold"
-              @click="closeDiscountPanel"
-            >
-              Отмена
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </USlideover>
 
     <UModal
       v-model:open="sellerModalOpen"
@@ -187,7 +109,7 @@
             <UButton
               color="neutral"
               variant="ghost"
-              class="cursor-pointer rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
+              class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
               @click="sellerModalOpen = false"
             >
               <Icon name="mingcute:close-fill" class="h-5 w-5" />
@@ -212,9 +134,7 @@
             </UInput>
           </div>
 
-          <div
-            class="max-h-[320px] space-y-2 overflow-y-auto rounded-[20px] bg-[#1f1f1f] p-2"
-          >
+          <div class="max-h-[320px] space-y-2 overflow-y-auto rounded-[20px] bg-[#1f1f1f] p-2">
             <div
               v-if="sellerLoading"
               class="flex items-center justify-center py-10 text-sm text-[#bdbdbd]"
@@ -236,8 +156,8 @@
               class="flex w-full items-center justify-between rounded-[16px] px-4 py-3 text-left transition"
               :class="
                 selectedSeller?.id === seller.id
-                  ? 'cursor-pointer bg-[#1f78ff] text-white'
-                  : 'cursor-pointer bg-[#2a2a2a] text-white hover:bg-[#343434]'
+                  ? 'bg-[#1f78ff] text-white'
+                  : 'bg-[#2a2a2a] text-white hover:bg-[#343434]'
               "
               @click="selectSeller(seller)"
             >
@@ -261,7 +181,7 @@
             <UButton
               block
               color="primary"
-              class="cursor-pointer justify-center rounded-[16px] py-3 font-semibold disabled:cursor-not-allowed"
+              class="justify-center rounded-[16px] py-3 font-semibold disabled:cursor-not-allowed"
               :disabled="!selectedSeller"
               @click="sellerModalOpen = false"
             >
@@ -272,7 +192,7 @@
               block
               color="neutral"
               variant="soft"
-              class="cursor-pointer justify-center rounded-[16px] bg-[#404040] py-3 font-semibold text-white hover:bg-[#5e5e5e]"
+              class="justify-center rounded-[16px] bg-[#404040] py-3 font-semibold text-white hover:bg-[#5e5e5e]"
               @click="clearSeller"
             >
               Сбросить
@@ -291,15 +211,6 @@ import { useCartStore } from "@/store/cart";
 import { useApi } from "~/composables/useApi";
 import CartItem from "./CartItem.vue";
 
-type DiscountType = "%" | "uzs";
-
-type CartItemType = {
-  id: number;
-  quantity: number;
-  discountValue?: number;
-  discountType?: DiscountType;
-};
-
 type Seller = {
   id: string | number;
   name: string;
@@ -310,15 +221,9 @@ type Seller = {
 const store = useCartStore();
 const { apiFetch } = useApi();
 const { cart } = storeToRefs(store);
-const { removeFromCart, updateDiscount } = store;
-
-const discountTypeOptions = [
-  { label: "%", value: "%" },
-  { label: "UZS", value: "uzs" },
-] satisfies Array<{ label: string; value: DiscountType }>;
 
 const totalQuantity = computed(() =>
-  cart.value.reduce((sum, item) => sum + item.quantity, 0)
+  cart.value.reduce((sum, item) => sum + item.quantity, 0),
 );
 const randomSaleNumber = ref(Math.floor(100000 + Math.random() * 900000));
 const saleDisplayNumber = computed(() =>
@@ -326,24 +231,14 @@ const saleDisplayNumber = computed(() =>
     ? `№ ${store.saleNumber}`
     : store.saleId
       ? `#${store.saleId}`
-      : `№ ${randomSaleNumber.value}`
+      : `№ ${randomSaleNumber.value}`,
 );
 
-const editingItem = ref<CartItemType | null>(null);
-const discountValue = ref(0);
-const discountType = ref<DiscountType>("%");
 const sellerModalOpen = ref(false);
 const sellerLoading = ref(false);
 const sellerSearch = ref("");
 const sellers = ref<Seller[]>([]);
 const selectedSeller = ref<Seller | null>(null);
-
-const slideoverOpen = computed({
-  get: () => editingItem.value !== null,
-  set: (value: boolean) => {
-    if (!value) closeDiscountPanel();
-  },
-});
 
 const filteredSellers = computed(() => {
   const query = sellerSearch.value.trim().toLowerCase();
@@ -351,30 +246,13 @@ const filteredSellers = computed(() => {
 
   return sellers.value.filter((seller) =>
     [seller.name, seller.role, seller.phone].some((field) =>
-      field.toLowerCase().includes(query)
-    )
+      field.toLowerCase().includes(query),
+    ),
   );
 });
 
-function openDiscountPanel(item: CartItemType) {
-  editingItem.value = item;
-  discountValue.value = Number(item.discountValue || 0);
-  discountType.value = item.discountType || "%";
-}
-
-function closeDiscountPanel() {
-  editingItem.value = null;
-}
-
-function applyDiscount() {
-  if (!editingItem.value) return;
-
-  updateDiscount(
-    editingItem.value.id,
-    Number(discountValue.value || 0),
-    discountType.value
-  );
-  closeDiscountPanel();
+function removeFromCart(productId: number | string) {
+  void store.removeFromCartServer(productId);
 }
 
 async function openSellerModal() {

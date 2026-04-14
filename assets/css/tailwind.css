@@ -26,7 +26,13 @@ body {
 
 button,
 [role="button"] {
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 .app-shell {

@@ -58,35 +58,8 @@
 
       <div class="flex shrink-0 items-center gap-3">
         <div class="flex flex-col items-end">
-          <button
-            type="button"
-            class="flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-0.5 transition hover:bg-white/5"
-            @click="$emit('edit-discount', props.item)"
-          >
-            <template v-if="finalPrice < props.item.price">
-              <span class="text-[13px] text-[#8b8b8b] line-through">
-                {{ formatPrice(props.item.price) }} UZS
-              </span>
-              <span class="text-[17px] font-bold text-[#4993dd]">
-                {{ formatPrice(finalPrice) }} UZS
-              </span>
-            </template>
-
-            <template v-else>
-              <span class="text-[17px] font-bold text-[#4993dd]">
-                {{ formatPrice(finalPrice) }} UZS
-              </span>
-            </template>
-
-            <span
-              class="flex h-9 w-9 items-center justify-center rounded-[14px] text-[#4993dd] transition"
-            >
-              <Icon name="boxicons:pencil-filled" class="h-5 w-5" />
-            </span>
-          </button>
-
-          <span class="mt-1 text-lg font-medium tracking-[0.02em] ">
-            Iskandarjon Yusupov
+          <span class="px-2 py-0.5 text-[17px] font-bold text-[#4993dd]">
+            {{ formatPrice(finalPrice) }} UZS
           </span>
         </div>  
 
@@ -111,7 +84,6 @@ import { useFormatPrice } from "@/composables/useFormatPrice";
 const props = defineProps<{ item: any }>();
 defineEmits<{
   remove: [];
-  "edit-discount": [item: any];
 }>();
 
 const store = useCartStore();
@@ -120,15 +92,18 @@ const { formatPrice } = useFormatPrice();
 const finalPrice = computed(() => store.itemFinalPriceWithGlobal(props.item));
 
 function decreaseQuantity() {
-  store.setCartItemQuantity(props.item.id, Math.max(1, Number(props.item.quantity || 1) - 1));
+  void store.syncCartItemQuantity(
+    props.item.id,
+    Math.max(1, Number(props.item.quantity || 1) - 1),
+  );
 }
 
 function increaseQuantity() {
-  store.setCartItemQuantity(props.item.id, Number(props.item.quantity || 1) + 1);
+  void store.syncCartItemQuantity(props.item.id, Number(props.item.quantity || 1) + 1);
 }
 
 function onQuantityInput(event: Event) {
   const target = event.target as HTMLInputElement | null;
-  store.setCartItemQuantity(props.item.id, Number(target?.value || 1));
+  void store.syncCartItemQuantity(props.item.id, Number(target?.value || 1));
 }
 </script>

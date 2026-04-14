@@ -56,13 +56,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useRoute } from "vue-router";
 import { useHead } from "#imports";
-import DataTable from "@/components/DataTable.vue";
+import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
+import { useLocationStore } from "@/store/useLocationStore";
 
 const store = useCatalogDataTableStore();
+const route = useRoute();
+const locationStore = useLocationStore();
+const { selectedLocation } = storeToRefs(locationStore);
 const showStats = ref(false);
 const statsItems = computed(() => store.statsCards);
 
@@ -89,6 +95,34 @@ const statsToggleLabel = computed(() =>
 function toggleStats() {
   showStats.value = !showStats.value;
 }
+
+async function refreshCatalog() {
+  await store.fetchData({
+    page: 1,
+    search: store.globalFilter || undefined,
+    status: store.activeStatusFilter,
+  });
+}
+
+watch(
+  () => route.path,
+  async (path) => {
+    if (path === "/products/catalog") {
+      await refreshCatalog();
+    }
+  },
+);
+
+watch(
+  () => selectedLocation.value?.id,
+  async (next, prev) => {
+    if (next && next !== prev) {
+      await refreshCatalog();
+    }
+  },
+);
+
+onMounted(refreshCatalog);
 
 useHead({
   title: "Каталог | Konkurent.cases",

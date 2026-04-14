@@ -88,6 +88,8 @@ export const useUserStore = defineStore("user", {
     token: null as string | null,
     location: null as null | { id: string; name: string },
     initializing: false as boolean,
+    refreshingUser: false as boolean,
+    lastUserFetchAt: 0 as number,
   }),
   getters: {
     isLoggedIn: (state) => !!state.token,
@@ -213,16 +215,31 @@ export const useUserStore = defineStore("user", {
           ? { id: normalized.currentShopId, name: normalized.currentShopName }
           : null;
     },
-    async fetchMe() {
+    async fetchMe(options?: { force?: boolean }) {
+      const now = Date.now();
+      const force = Boolean(options?.force);
+
+      if (this.refreshingUser) {
+        return;
+      }
+
+      if (!force && this.lastUserFetchAt && now - this.lastUserFetchAt < 1500) {
+        return;
+      }
+
+      this.refreshingUser = true;
       try {
         const { apiFetch } = useApi();
         const me = await apiFetch<any>("/auth/me", { method: "GET" });
         this.setUser(me);
         useLocationStore().syncFromUser(me);
+        this.lastUserFetchAt = Date.now();
       } catch (error: any) {
         if (error?.status === 401 || error?.response?.status === 401) {
           this.logout();
         }
+      } finally {
+        this.refreshingUser = false;
       }
     },
     login(token: string, userData: any) {
@@ -282,7 +299,7 @@ export const useUserStore = defineStore("user", {
         this.loadToken();
         this.loadLocation();
         if (this.token) {
-          await this.fetchMe();
+          await this.fetchMe({ force: true });
         }
       } finally {
         this.initializing = false;
@@ -292,6 +309,8 @@ export const useUserStore = defineStore("user", {
       this.user = createEmptyUser() as typeof this.user;
       this.token = null;
       this.location = null;
+      this.refreshingUser = false;
+      this.lastUserFetchAt = 0;
       useLocationStore().reset();
       try {
         const tokenCookie = useCookie<string | null>("auth_token");

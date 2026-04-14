@@ -39,22 +39,28 @@ import ClientForm from "@/components/pos/ClientForm.vue";
 import DiscountSwitcher from "@/components/pos/DiscountSwitcher.vue";
 import Summary from "@/components/pos/SummaryBlock.vue";
 import { useHead } from "#imports";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useApi } from "~/composables/useApi";
 import { useCartStore } from "~/store/cart";
+import { useLocationStore } from "~/store/useLocationStore";
 
 useHead({ title: "Новая продажа | Konkurent.cases" });
 
 const { apiFetch } = useApi();
 const cartStore = useCartStore();
+const locationStore = useLocationStore();
+const { selectedLocation } = storeToRefs(locationStore);
 
 const page = ref(1);
 const limit = ref(10);
 const search = computed(() => cartStore.searchQuery);
+const currentShopId = computed(() => String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""));
 
 async function fetchProducts() {
   try {
     cartStore.productsLoading = true as any;
+    cartStore.lastCartError = "";
     const pageSize = Math.min(Math.max(limit.value, 1), 100);
     const response: any = await apiFetch("/v2/new-sale/products", {
       method: "GET",
@@ -62,7 +68,7 @@ async function fetchProducts() {
         page: page.value,
         limit: pageSize,
         search: search.value || undefined,
-        shop_id: cartStore.resolveCurrentShopId() || undefined,
+        shop_id: currentShopId.value || undefined,
       },
     });
 
@@ -116,6 +122,14 @@ async function fetchProducts() {
 
     page.value = Math.max(1, page.value);
     limit.value = pageSize;
+  } catch (error: any) {
+    try {
+      (cartStore.products as any).splice(0, (cartStore.products as any).length);
+    } catch {
+      // ignore
+    }
+    cartStore.lastCartError =
+      error?.data?.message || error?.message || "Не удалось загрузить товары для текущего филиала.";
   } finally {
     cartStore.productsLoading = false as any;
   }
@@ -123,11 +137,37 @@ async function fetchProducts() {
 
 let t: ReturnType<typeof setTimeout> | null = null;
 watch(
-  [search, page, limit],
+  [search, page, limit, currentShopId],
   () => {
     if (t) clearTimeout(t);
     t = setTimeout(fetchProducts, 250);
   },
   { immediate: true },
 );
+
+watch(currentShopId, (next, prev) => {
+  if (!prev || next === prev) return;
+
+  if (cartStore.saleId || cartStore.cart.length) {
+    cartStore.resetSaleState({ keepReceipt: true });
+    cartStore.lastCartError = "Филиал изменён. Корзина очищена, чтобы не смешивать остатки разных магазинов.";
+  }
+});
+
+onMounted(async () => {
+  await cartStore.loadPaymentMethods();
+
+  if (cartStore.saleId) {
+    try {
+      await cartStore.loadSale(cartStore.saleId);
+    } catch {
+      cartStore.resetSaleState({ keepReceipt: true });
+      cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
+    }
+  }
+});
+
+onBeforeUnmount(() => {
+  if (t) clearTimeout(t);
+});
 </script>

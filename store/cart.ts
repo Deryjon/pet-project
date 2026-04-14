@@ -15,8 +15,6 @@ type CartProduct = {
   availableQuantity?: number;
   shopId?: string;
   quantity?: number;
-  discountValue?: number;
-  discountType?: "%" | "uzs";
 };
 
 type CompanyPaymentMethod = {
@@ -112,6 +110,35 @@ export const useCartStore = defineStore("cart", () => {
         p.barcode.toLowerCase().includes(q)
     );
   });
+
+  function resetSaleState(options?: {
+    keepSearchQuery?: boolean;
+    keepReceipt?: boolean;
+    keepError?: boolean;
+  }) {
+    cart.value = [];
+    saleId.value = null;
+    saleShopId.value = "";
+    saleNumber.value = null;
+    orderRaw.value = null;
+    discountValue.value = 0;
+    discountType.value = "%";
+    discountPercent.value = 0;
+    discountAmount.value = 0;
+    payableTotal.value = 0;
+
+    if (!options?.keepReceipt) {
+      receipt.value = null;
+    }
+
+    if (!options?.keepError) {
+      lastCartError.value = "";
+    }
+
+    if (!options?.keepSearchQuery) {
+      searchQuery.value = "";
+    }
+  }
 
   function resolveCurrentShopId() {
     const locationStore = useLocationStore();
@@ -225,8 +252,6 @@ export const useCartStore = defineStore("cart", () => {
         : 0,
       availableQuantity,
       shopId: String(product?.shopId ?? resolveCurrentShopId() ?? ""),
-      discountValue: Number(product?.discountValue ?? 0),
-      discountType: product?.discountType === "uzs" ? "uzs" : "%",
     });
   }
 
@@ -277,7 +302,13 @@ export const useCartStore = defineStore("cart", () => {
 
     try {
       const parsed = JSON.parse(raw);
-      cart.value = Array.isArray(parsed?.cart) ? parsed.cart : [];
+      cart.value = Array.isArray(parsed?.cart)
+        ? parsed.cart.map((item: any) => ({
+            ...item,
+            discountValue: 0,
+            discountType: "%",
+          }))
+        : [];
       saleId.value = parsed?.saleId ?? null;
       saleShopId.value = String(parsed?.saleShopId ?? "");
       saleNumber.value = parsed?.saleNumber ?? null;
@@ -287,6 +318,16 @@ export const useCartStore = defineStore("cart", () => {
       discountPercent.value = Number(parsed?.discountPercent ?? 0);
       discountAmount.value = Number(parsed?.discountAmount ?? 0);
       payableTotal.value = Number(parsed?.payableTotal ?? 0);
+
+      const currentShopId = String(resolveCurrentShopId() ?? "");
+      if (
+        saleId.value &&
+        saleShopId.value &&
+        currentShopId &&
+        String(saleShopId.value) !== currentShopId
+      ) {
+        resetSaleState();
+      }
     } catch {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -371,8 +412,6 @@ export const useCartStore = defineStore("cart", () => {
             resolveCurrentShopId() ??
             "",
         ),
-        discountValue: 0,
-        discountType: "%",
       }));
 
       saleId.value = String(res?.id ?? res?.data?.id ?? saleId.value ?? "");
@@ -439,8 +478,12 @@ export const useCartStore = defineStore("cart", () => {
         body: { product_id: product.id, quantity: 1, sale_price: product.price },
       });
       await loadSale(sid);
-    } catch {
-      upsertCartItem(product, 1);
+    } catch (error: any) {
+      lastCartError.value =
+        error?.data?.message || error?.message || "Не удалось добавить товар в продажу.";
+      if (saleId.value) {
+        await loadSale(saleId.value);
+      }
     } finally {
       addingItem.value = false;
       searchQuery.value = "";
@@ -451,12 +494,89 @@ export const useCartStore = defineStore("cart", () => {
     void addToCartServer(product);
   }
 
-  function removeFromCart(id: number) {
-    cart.value = cart.value.filter((c) => c.id !== id);
+  function removeFromCart(id: number | string) {
+    cart.value = cart.value.filter((c) => String(c.id) !== String(id));
   }
 
   function clearCart() {
     cart.value = [];
+  }
+
+  async function syncCartItemQuantity(productId: number | string, nextQuantity: number) {
+    const item = cart.value.find((entry) => String(entry.id) === String(productId));
+    if (!item) return;
+
+    const availableQuantity = Math.max(0, Number(item.availableQuantity ?? 0));
+    const normalizedQuantity =
+      availableQuantity <= 0
+        ? 0
+        : Math.min(Math.max(1, Number(nextQuantity || 1)), availableQuantity);
+
+    if (!saleId.value) {
+      item.quantity = normalizedQuantity;
+      return;
+    }
+
+    try {
+      await runSaleItemMutation([
+        () =>
+          useApi().apiFetch(
+            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
+            {
+              method: "PUT",
+              body: { quantity: normalizedQuantity },
+            },
+          ),
+        () =>
+          useApi().apiFetch(
+            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
+            {
+              method: "PATCH",
+              body: { quantity: normalizedQuantity },
+            },
+          ),
+        () =>
+          useApi().apiFetch(`/new-sale/${saleId.value}/items`, {
+            method: "PUT",
+            body: { product_id: productId, quantity: normalizedQuantity },
+          }),
+      ]);
+      await loadSale(saleId.value);
+      lastCartError.value = "";
+    } catch {
+      item.quantity = normalizedQuantity;
+      await loadSale(saleId.value);
+      lastCartError.value = "Не удалось обновить количество товара. Корзина синхронизирована заново.";
+    }
+  }
+
+  async function removeFromCartServer(productId: number | string) {
+    if (!saleId.value) {
+      removeFromCart(productId);
+      return;
+    }
+
+    try {
+      await runSaleItemMutation([
+        () =>
+          useApi().apiFetch(
+            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
+            {
+              method: "DELETE",
+            },
+          ),
+        () =>
+          useApi().apiFetch(`/new-sale/${saleId.value}/items`, {
+            method: "DELETE",
+            body: { product_id: productId },
+          }),
+      ]);
+      await loadSale(saleId.value);
+      lastCartError.value = "";
+    } catch {
+      await loadSale(saleId.value);
+      lastCartError.value = "Не удалось удалить товар из продажи. Корзина синхронизирована заново.";
+    }
   }
 
   async function paySale(payload: OrderPaymentPayload) {
@@ -470,17 +590,11 @@ export const useCartStore = defineStore("cart", () => {
         body: payload,
       });
       receipt.value = res;
-      lastCartError.value = "";
-      cart.value = [];
-      saleId.value = null;
-      saleShopId.value = "";
-      saleNumber.value = null;
-      orderRaw.value = null;
-      discountPercent.value = 0;
-      discountAmount.value = 0;
-      payableTotal.value = 0;
+      resetSaleState({ keepReceipt: true });
       return res;
-    } catch {
+    } catch (error: any) {
+      lastCartError.value =
+        error?.data?.message || error?.message || "Не удалось провести оплату.";
       return null;
     } finally {
       payLoading.value = false;
@@ -496,22 +610,20 @@ export const useCartStore = defineStore("cart", () => {
           await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
         } catch {}
       }
-
-      cart.value = [];
-      saleId.value = null;
-      saleShopId.value = "";
-      saleNumber.value = null;
-      orderRaw.value = null;
-      lastCartError.value = "";
-      discountPercent.value = 0;
-      discountAmount.value = 0;
-      payableTotal.value = 0;
+      resetSaleState();
     } finally {
       cancelLoading.value = false;
     }
   }
 
   async function applySaleDiscount() {
+    if (cart.value.length === 0) {
+      discountPercent.value = 0;
+      discountAmount.value = 0;
+      payableTotal.value = 0;
+      return;
+    }
+
     if (!saleId.value) {
       await initSale();
     }
@@ -545,24 +657,8 @@ export const useCartStore = defineStore("cart", () => {
     }
   }
 
-  function updateDiscount(id: number, value: number, type: "%" | "uzs") {
-    const product = cart.value.find((c) => c.id === id);
-    if (!product) return;
-
-    product.discountValue = value;
-    product.discountType = type;
-  }
-
   function itemFinalPrice(item: any) {
-    const basePrice = Number(item.price || 0);
-    const dv = Number(item.discountValue || 0);
-    const dt = item.discountType || "%";
-
-    if (dt === "%") {
-      return Math.max(0, Math.round(basePrice - (basePrice * dv) / 100));
-    }
-
-    return Math.max(0, Math.round(basePrice - dv));
+    return Math.max(0, Math.round(Number(item.price || 0)));
   }
 
   const subtotal = computed(() =>
@@ -572,13 +668,7 @@ export const useCartStore = defineStore("cart", () => {
     )
   );
 
-  const itemDiscounts = computed(() =>
-    cart.value.reduce((sum, item) => {
-      const basePrice = Number(item.price || 0);
-      const quantity = Math.max(1, Number(item.quantity || 1));
-      return sum + (basePrice - itemFinalPrice(item)) * quantity;
-    }, 0)
-  );
+  const itemDiscounts = computed(() => 0);
 
   function globalDiscountAmount() {
     const base = Math.max(0, subtotal.value - itemDiscounts.value);
@@ -691,15 +781,17 @@ export const useCartStore = defineStore("cart", () => {
     addToCartServer,
     addToCart,
     setCartItemQuantity,
+    syncCartItemQuantity,
     removeFromCart,
+    removeFromCartServer,
     applySaleDiscount,
     paySale,
     loadPaymentMethods,
     cancelSale,
-    updateDiscount,
     itemFinalPrice,
     itemFinalPriceWithGlobal,
     clearCart,
+    resetSaleState,
     subtotal,
     itemDiscounts,
     total,
@@ -711,6 +803,22 @@ export const useCartStore = defineStore("cart", () => {
     paymentTypeIdByMethod,
   };
 });
+
+async function runSaleItemMutation(
+  attempts: Array<() => Promise<unknown>>,
+) {
+  let lastError: unknown = null;
+
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
 
 function extractOrderItems(res: any) {
   if (Array.isArray(res?.items)) return res.items;
