@@ -175,6 +175,17 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
   }
 
   function openProduct(importRow: ImportSessionListItem) {
+    if (!importRow?.id) {
+      return router.push("/products/import");
+    }
+
+    if (importRow.status === "draft" || importRow.status === "validating") {
+      return router.push({
+        path: `/products/import/edit/${importRow.id}`,
+        query: { page: "1" },
+      });
+    }
+
     return router.push({
       path: `/products/import/list/${importRow.id}`,
       query: { limit: "20", page: "1" },
@@ -182,9 +193,13 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
   }
 
   function openDraft(id: string) {
+    if (!String(id || "").trim()) {
+      return router.push("/products/import");
+    }
+
     return router.push({
-      path: `/products/import/list/${id}`,
-      query: { limit: "20", page: "1" },
+      path: `/products/import/edit/${id}`,
+      query: { page: "1" },
     });
   }
 

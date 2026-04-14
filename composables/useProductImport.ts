@@ -545,8 +545,23 @@ export function useProductImport() {
       });
 
       const data = unwrapPayload(response);
+      const id = String(
+        data?.id ??
+        data?.import_id ??
+        data?.uuid ??
+        data?.import?.id ??
+        data?.import?.import_id ??
+        data?.session?.id ??
+        data?.session?.import_id ??
+        "",
+      ).trim();
+
+      if (!id) {
+        throw new Error("Сервер не вернул ID импорта");
+      }
+
       return {
-        id: String(data?.id ?? ""),
+        id,
         status: String(data?.status ?? "draft") as ImportStatus,
       };
     } catch (error: any) {

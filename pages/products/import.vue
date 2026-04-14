@@ -399,7 +399,6 @@ const {
   getAllowedShops,
   getImportProperties,
   createImportSession,
-  validateImportSession,
 } = useProductImport();
 
 const templateDownloadUrl = "/templates/product-import-template.xlsx";
@@ -753,14 +752,25 @@ async function submitImport() {
       availableProperties: availableProperties.value,
     };
     const created = await createImportSession(payload);
-
-    if (payload.mode === "with_check") {
-      await validateImportSession(created.id, payload);
-    }
+    let resolvedImportId = String(created?.id ?? "").trim();
 
     closeImportModal();
     await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
-    await router.push(`/products/import/list/${created.id}?limit=20&page=1`);
+
+    if (!resolvedImportId) {
+      resolvedImportId =
+        importStore.rawData.find(
+          (item) => item.name === payload.name && (item.status === "draft" || item.status === "validating"),
+        )?.id ||
+        importStore.rawData.find((item) => item.name === payload.name)?.id ||
+        "";
+    }
+
+    if (!resolvedImportId) {
+      throw new Error("Сервер создал импорт, но не вернул его ID");
+    }
+
+    await router.push(`/products/import/edit/${resolvedImportId}?page=1`);
   } catch (error: any) {
     errors.value = [error?.message || "Не удалось создать импорт."];
     modalStep.value = 2;
