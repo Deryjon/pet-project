@@ -297,7 +297,7 @@ async function pollProgress(jobId: string, nextImportId?: string) {
         );
 
         stopPolling();
-        await router.replace(`/products/import/list/${resolvedImportId}?limit=20&page=1`);
+        await router.replace(`/products/import/list/${resolvedImportId}?limit=5&page=1`);
         return;
       }
 
@@ -320,6 +320,10 @@ async function validateImport() {
   try {
     const result = await validateImportSession(session.value.id);
     await loadSession();
+    if (!String(result.jobId || "").trim()) {
+      await router.replace(`/products/import/list/${result.importId}?limit=5&page=1`);
+      return;
+    }
     await pollProgress(result.jobId, result.importId);
   } catch (err: any) {
     error.value = err?.message || "Не удалось запустить проверку.";
@@ -336,7 +340,7 @@ async function commitImport() {
 
   try {
     await commitImportSession(session.value.id);
-    await router.replace(`/products/import/list/${session.value.id}?limit=20&page=1`);
+    await router.replace(`/products/import/list/${session.value.id}?limit=5&page=1`);
   } catch (err: any) {
     error.value = err?.message || "Не удалось подтвердить импорт.";
   } finally {

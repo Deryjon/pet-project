@@ -317,6 +317,14 @@ const differenceOnly = ref(false);
 const commitRequested = ref(false);
 
 const resolvedImportId = computed(() => session.value?.id || importId.value);
+const currentPage = computed(() => {
+  const page = Number(route.query.page ?? 1);
+  return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+});
+const currentLimit = computed(() => {
+  const limit = Number(route.query.limit ?? 5);
+  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5;
+});
 const tableRows = computed<ImportPreviewItem[]>(() => preview.value.items);
 const dryRunSummary = computed<ImportDryRunSummary | null>(
   () => session.value?.dry_run_summary ?? preview.value.dry_run_summary ?? null,
@@ -479,9 +487,74 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function buildFallbackPreviewItems(sessionValue: ImportSession): ImportPreviewItem[] {
+  if (sessionValue.preview_items.length) {
+    return sessionValue.preview_items;
+  }
+
+  return sessionValue.rows.map((row, index) => ({
+    id: `${sessionValue.id}-${index + 1}`,
+    import_id: sessionValue.id,
+    row_number: index + 1,
+    product_id: null,
+    product_name: row.name || "",
+    product_base_name: row.name || "",
+    product_sku: row.article || "",
+    product_barcode: row.barcode || "",
+    description: row.description || "",
+    measurement_value: Number(row.quantity || 0),
+    supply_price: Number(row.supplyPrice || 0),
+    retail_price: Number(row.retailPrice || 0),
+    supply_currency: "",
+    retail_currency: "",
+    measurement_type: row.unit || "",
+    product_info: null,
+    free_price: false,
+    action: "create",
+    difference: false,
+    different_fields: [],
+    old_product: null,
+    error: undefined,
+    raw: {
+      name: row.name || "",
+      sku: row.article || "",
+      barcode: row.barcode || "",
+      quantity: Number(row.quantity || 0),
+      supplyPrice: Number(row.supplyPrice || 0),
+      retailPrice: Number(row.retailPrice || 0),
+      categoryName: row.category || undefined,
+      brandName: row.brand || undefined,
+      measurementUnit: row.unit || undefined,
+      supplier: row.supplier || undefined,
+      description: row.description || undefined,
+    },
+  }));
+}
+
 async function loadTableRows() {
   if (!session.value || !isTableStage.value) {
     preview.value = emptyPreview();
+    return;
+  }
+
+  if (!String(session.value.shop_id || "").trim()) {
+    const fallbackItems = buildFallbackPreviewItems(session.value);
+    preview.value = {
+      items: fallbackItems,
+      count: session.value.rows_count || fallbackItems.length,
+      total_measurement_value: fallbackItems.reduce((sum, item) => sum + item.measurement_value, 0),
+      total_supply_price: fallbackItems.reduce(
+        (sum, item) => sum + item.supply_price * item.measurement_value,
+        0,
+      ),
+      total_retail_price: fallbackItems.reduce(
+        (sum, item) => sum + item.retail_price * item.measurement_value,
+        0,
+      ),
+      fields: [],
+      dry_run_summary: null,
+    };
+    actionMessage.value = "Импорт загружен без shop_id. Показываем строки из import session без server preview.";
     return;
   }
 
@@ -489,8 +562,8 @@ async function loadTableRows() {
 
   try {
     const previewResult = await getImportPreview(resolvedImportId.value, {
-      page: 1,
-      limit: 10000,
+      page: currentPage.value,
+      limit: currentLimit.value,
       difference: showDifferenceToggle.value ? differenceOnly.value : false,
     });
 
@@ -500,8 +573,8 @@ async function loadTableRows() {
     }
 
     preview.value = await getImportItems(resolvedImportId.value, {
-      page: 1,
-      limit: 10000,
+      page: currentPage.value,
+      limit: currentLimit.value,
     });
   } catch (previewError) {
     if (session.value.mode !== "without_check") {
@@ -509,8 +582,8 @@ async function loadTableRows() {
     }
 
     preview.value = await getImportItems(resolvedImportId.value, {
-      page: 1,
-      limit: 10000,
+      page: currentPage.value,
+      limit: currentLimit.value,
     });
   } finally {
     previewLoading.value = false;

@@ -50,6 +50,7 @@ export interface ImportDraftMappingPayload {
 export interface ImportProgressResponse {
   correlation_id?: string;
   import_id?: string;
+  job_id?: string;
   message?: string;
   total?: number;
   current?: number;
@@ -631,11 +632,18 @@ export function useProductImport() {
           : undefined,
       });
 
-      const payload = unwrapPayload(response);
+      const responsePayload = unwrapPayload(response);
+      const resolvedJobId = String(
+        responsePayload?.job_id ??
+          responsePayload?.correlation_id ??
+          responsePayload?.import_id ??
+          "",
+      ).trim();
+
       return {
-        jobId: String(payload?.message ?? payload?.job_id ?? "").trim(),
-        importId: String(payload?.import_id ?? payload?.correlation_id ?? importId).trim(),
-        correlationId: String(payload?.correlation_id ?? payload?.import_id ?? importId).trim(),
+        jobId: resolvedJobId,
+        importId: String(responsePayload?.import_id ?? responsePayload?.correlation_id ?? importId).trim(),
+        correlationId: String(responsePayload?.correlation_id ?? responsePayload?.import_id ?? importId).trim(),
       };
     } catch (error: any) {
       throw new Error(normalizeApiError(error));

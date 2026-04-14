@@ -188,7 +188,7 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
 
     return router.push({
       path: `/products/import/list/${importRow.id}`,
-      query: { limit: "20", page: "1" },
+      query: { limit: "5", page: "1" },
     });
   }
 
