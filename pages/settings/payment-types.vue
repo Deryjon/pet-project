@@ -69,8 +69,16 @@ function normalizeItem(item: any): EditablePaymentType {
     dont_show_in_make_payment: Boolean(item?.dont_show_in_make_payment),
     dont_show_in_settings: Boolean(item?.dont_show_in_settings),
     is_cash_payment_type: Boolean(item?.is_cash_payment_type),
-    payment_type_id: item?.payment_type_id ? String(item.payment_type_id) : undefined,
-    payment_type_name: item?.payment_type_name ? String(item.payment_type_name) : undefined,
+    payment_type_id: item?.payment_type_id
+      ? String(item.payment_type_id)
+      : item?.payment_type?.id
+        ? String(item.payment_type.id)
+        : undefined,
+    payment_type_name: item?.payment_type_name
+      ? String(item.payment_type_name)
+      : item?.payment_type?.name
+        ? String(item.payment_type.name)
+        : undefined,
   };
 }
 

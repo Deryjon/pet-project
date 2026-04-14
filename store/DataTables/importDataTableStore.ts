@@ -12,7 +12,7 @@ import {
   type ImportSessionListItem,
 } from "~/composables/useProductImport";
 
-function formatDateTime(value: string) {
+function formatDateTimeWithSeconds(value: string) {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) {
     return value || "—";
@@ -24,7 +24,18 @@ function formatDateTime(value: string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }).format(date);
+}
+
+function formatNumber(value?: number) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return new Intl.NumberFormat("ru-RU").format(value);
+}
+
+function formatCurrency(value?: number) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${new Intl.NumberFormat("ru-RU").format(value)} UZS`;
 }
 
 function getStatusLabel(status: string) {
@@ -83,11 +94,16 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     return rawData.value.filter((row) =>
       [
         row.id,
+        row.int_id,
         row.name,
         row.status,
-        row.mode,
         row.shop_id,
+        row.shop_name,
         row.created_at,
+        row.finished_at,
+        row.created_by,
+        row.finished_by,
+        row.import_type,
       ]
         .join(" ")
         .toLowerCase()
@@ -99,16 +115,60 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     Math.max(1, Math.ceil(totalItems.value / pagination.value.pageSize)),
   );
 
-  const columns = [
-    { accessorKey: "id", header: "ID" },
-    { accessorKey: "name", header: "Импорт" },
+  const columns: any[] = [
     {
-      accessorKey: "mode",
-      header: "Режим",
-      cell: ({ getValue }: any) =>
-        getValue() === "without_check" ? "Без проверки" : "С проверкой",
+      accessorKey: "int_id",
+      header: "ID",
+      cell: ({ row }: any) => row.original.int_id || row.original.id || "—",
     },
-    { accessorKey: "shop_id", header: "Магазин" },
+    {
+      accessorKey: "name",
+      header: "Наименование",
+      cell: ({ row }: any) => row.original.name || "—",
+    },
+    {
+      accessorKey: "shop_name",
+      header: "Магазин",
+      cell: ({ row }: any) => row.original.shop_name || row.original.shop_id || "—",
+    },
+    {
+      id: "quantity_info",
+      accessorKey: "quantity_info",
+      header: "Кол-во",
+      accessorFn: (row: ImportSessionListItem) => ({
+        loaded: row.total_loaded_measurement_value,
+        arrived: row.total_arrived_measurement_value,
+      }),
+      cell: ({ getValue }: any) => {
+        const value = getValue();
+        return h("div", { class: "whitespace-normal leading-6" }, [
+          h("div", {}, `приход ${formatNumber(value?.loaded)}`),
+          h("div", {}, `проверено ${formatNumber(value?.arrived)}`),
+        ]);
+      },
+      meta: {
+        tdClass: "whitespace-normal min-w-[170px]",
+      },
+    },
+    {
+      id: "amount_info",
+      accessorKey: "amount_info",
+      header: "Сумма",
+      accessorFn: (row: ImportSessionListItem) => ({
+        supply: row.total_supply_price,
+        retail: row.total_retail_price,
+      }),
+      cell: ({ getValue }: any) => {
+        const value = getValue();
+        return h("div", { class: "whitespace-normal leading-6" }, [
+          h("div", {}, `приход ${formatCurrency(value?.supply)}`),
+          h("div", {}, `продажа ${formatCurrency(value?.retail)}`),
+        ]);
+      },
+      meta: {
+        tdClass: "whitespace-normal min-w-[220px]",
+      },
+    },
     {
       accessorKey: "status",
       header: "Статус",
@@ -122,9 +182,35 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
         ),
     },
     {
-      accessorKey: "created_at",
+      id: "date_display",
+      accessorKey: "date_display",
       header: "Дата",
-      cell: ({ getValue }: any) => formatDateTime(String(getValue())),
+      accessorFn: (row: ImportSessionListItem) => row.finished_at || row.created_at || "",
+      cell: ({ getValue }: any) => formatDateTimeWithSeconds(String(getValue() || "")),
+    },
+    {
+      accessorKey: "created_by",
+      header: "Создал",
+      cell: ({ row }: any) => row.original.created_by || "—",
+      meta: {
+        tdClass: "whitespace-normal min-w-[170px]",
+      },
+    },
+    {
+      accessorKey: "finished_by",
+      header: "Завершил",
+      cell: ({ row }: any) => row.original.finished_by || "—",
+      meta: {
+        tdClass: "whitespace-normal min-w-[170px]",
+      },
+    },
+    {
+      accessorKey: "import_type",
+      header: "Тип импорта",
+      cell: ({ row }: any) => row.original.import_type || "Поступление",
+      meta: {
+        tdClass: "whitespace-normal min-w-[160px]",
+      },
     },
   ];
 
@@ -188,7 +274,7 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
 
     return router.push({
       path: `/products/import/list/${importRow.id}`,
-      query: { limit: "20", page: "1" },
+      query: { limit: "5", page: "1" },
     });
   }
 
@@ -219,6 +305,7 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
 
   return {
     rawData,
+    filteredData,
     loading,
     globalFilter,
     pagination,

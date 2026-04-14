@@ -1,10 +1,18 @@
-<template>
+﻿<template>
   <section v-if="loading" class="rounded-[28px] bg-[#2b2b2b] p-8 text-white">
     Загружаем импорт...
   </section>
 
   <section v-else-if="error" class="rounded-[28px] border border-[#7f3d3d] bg-[#442f2f] p-8 text-white">
-    <h1 class="text-[28px] font-bold">Не удалось загрузить импорт</h1>
+    <button
+      type="button"
+      class="inline-flex cursor-pointer items-center gap-2 rounded-[14px] bg-[#5a3838] px-4 py-3 text-[14px] font-bold text-white transition-colors duration-200 hover:bg-[#704646]"
+      @click="goBack"
+    >
+      <Icon name="heroicons:arrow-left-20-solid" class="h-5 w-5 text-[#ffb4b4]" />
+      Назад к импортам
+    </button>
+    <h1 class="mt-5 text-[28px] font-bold">Не удалось загрузить импорт</h1>
     <p class="mt-3 text-[#ffd7d7]">{{ error }}</p>
   </section>
 
@@ -310,6 +318,7 @@ const session = ref<ImportSession | null>(null);
 const preview = ref<ImportPreviewResult>(emptyPreview());
 const loading = ref(true);
 const previewLoading = ref(false);
+const toast = useToast();
 const actionLoading = ref(false);
 const error = ref("");
 const actionMessage = ref("");
@@ -317,6 +326,14 @@ const differenceOnly = ref(false);
 const commitRequested = ref(false);
 
 const resolvedImportId = computed(() => session.value?.id || importId.value);
+const currentPage = computed(() => {
+  const page = Number(route.query.page ?? 1);
+  return Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+});
+const currentLimit = computed(() => {
+  const limit = Number(route.query.limit ?? 5);
+  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5;
+});
 const tableRows = computed<ImportPreviewItem[]>(() => preview.value.items);
 const dryRunSummary = computed<ImportDryRunSummary | null>(
   () => session.value?.dry_run_summary ?? preview.value.dry_run_summary ?? null,
@@ -479,9 +496,74 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function buildFallbackPreviewItems(sessionValue: ImportSession): ImportPreviewItem[] {
+  if (sessionValue.preview_items.length) {
+    return sessionValue.preview_items;
+  }
+
+  return sessionValue.rows.map((row, index) => ({
+    id: `${sessionValue.id}-${index + 1}`,
+    import_id: sessionValue.id,
+    row_number: index + 1,
+    product_id: null,
+    product_name: row.name || "",
+    product_base_name: row.name || "",
+    product_sku: row.article || "",
+    product_barcode: row.barcode || "",
+    description: row.description || "",
+    measurement_value: Number(row.quantity || 0),
+    supply_price: Number(row.supplyPrice || 0),
+    retail_price: Number(row.retailPrice || 0),
+    supply_currency: "",
+    retail_currency: "",
+    measurement_type: row.unit || "",
+    product_info: null,
+    free_price: false,
+    action: "create",
+    difference: false,
+    different_fields: [],
+    old_product: null,
+    error: undefined,
+    raw: {
+      name: row.name || "",
+      sku: row.article || "",
+      barcode: row.barcode || "",
+      quantity: Number(row.quantity || 0),
+      supplyPrice: Number(row.supplyPrice || 0),
+      retailPrice: Number(row.retailPrice || 0),
+      categoryName: row.category || undefined,
+      brandName: row.brand || undefined,
+      measurementUnit: row.unit || undefined,
+      supplier: row.supplier || undefined,
+      description: row.description || undefined,
+    },
+  }));
+}
+
 async function loadTableRows() {
   if (!session.value || !isTableStage.value) {
     preview.value = emptyPreview();
+    return;
+  }
+
+  if (!String(session.value.shop_id || "").trim()) {
+    const fallbackItems = buildFallbackPreviewItems(session.value);
+    preview.value = {
+      items: fallbackItems,
+      count: session.value.rows_count || fallbackItems.length,
+      total_measurement_value: fallbackItems.reduce((sum, item) => sum + item.measurement_value, 0),
+      total_supply_price: fallbackItems.reduce(
+        (sum, item) => sum + item.supply_price * item.measurement_value,
+        0,
+      ),
+      total_retail_price: fallbackItems.reduce(
+        (sum, item) => sum + item.retail_price * item.measurement_value,
+        0,
+      ),
+      fields: [],
+      dry_run_summary: null,
+    };
+    actionMessage.value = "Импорт загружен без shop_id. Показываем строки из import session без server preview.";
     return;
   }
 
@@ -489,8 +571,8 @@ async function loadTableRows() {
 
   try {
     const previewResult = await getImportPreview(resolvedImportId.value, {
-      page: 1,
-      limit: 10000,
+      page: currentPage.value,
+      limit: currentLimit.value,
       difference: showDifferenceToggle.value ? differenceOnly.value : false,
     });
 
@@ -500,8 +582,8 @@ async function loadTableRows() {
     }
 
     preview.value = await getImportItems(resolvedImportId.value, {
-      page: 1,
-      limit: 10000,
+      page: currentPage.value,
+      limit: currentLimit.value,
     });
   } catch (previewError) {
     if (session.value.mode !== "without_check") {
@@ -509,8 +591,8 @@ async function loadTableRows() {
     }
 
     preview.value = await getImportItems(resolvedImportId.value, {
-      page: 1,
-      limit: 10000,
+      page: currentPage.value,
+      limit: currentLimit.value,
     });
   } finally {
     previewLoading.value = false;
@@ -564,7 +646,9 @@ async function commitImport() {
     }
 
     commitRequested.value = false;
+    toast.add({ title: "Импорт отменен", color: "success" });
     error.value = message;
+    toast.add({ title: "Не удалось подтвердить импорт", description: message, color: "error" });
   } finally {
     actionLoading.value = false;
   }
@@ -581,6 +665,7 @@ async function cancelImport() {
     session.value = await cancelImportSession(resolvedImportId.value);
     preview.value = emptyPreview();
     commitRequested.value = false;
+    toast.add({ title: "Импорт отменен", color: "success" });
   } catch (err: any) {
     error.value = err?.message || "Не удалось отменить импорт.";
   } finally {
@@ -600,3 +685,4 @@ useHead({
   title: computed(() => (session.value ? `${session.value.name} | Импорт` : "Импорт")),
 });
 </script>
+

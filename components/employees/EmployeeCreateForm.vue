@@ -24,6 +24,7 @@ const props = withDefaults(
 const { apiFetch } = useApi();
 const { getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
+const toast = useToast();
 
 const first_name = ref("");
 const last_name = ref("");
