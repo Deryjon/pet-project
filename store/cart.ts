@@ -4,7 +4,6 @@ import { useApi } from "~/composables/useApi";
 import { useLocationStore } from "./useLocationStore";
 import { useUserStore } from "./useUserStore";
 
-type PaymentMethodCode = "cash" | "card" | "payme" | "click" | "transfer";
 
 type CartProduct = {
   id: number | string;
@@ -23,6 +22,7 @@ type CompanyPaymentMethod = {
   paymentTypeId?: string;
   paymentTypeName?: string;
   isCash?: boolean;
+  dontShowInMakePayment?: boolean;
 };
 
 type OrderPaymentPayload = {
@@ -153,35 +153,6 @@ export const useCartStore = defineStore("cart", () => {
     );
   }
 
-  function paymentTypeIdByMethod(method: PaymentMethodCode) {
-    const normalizedMethod = String(method || "").trim().toLowerCase();
-    const fromLoaded = paymentMethods.value.find((item) => {
-      const id = String(item.id || "").trim().toLowerCase();
-      const name = String(item.name || "").trim().toLowerCase();
-      const paymentTypeName = String(item.paymentTypeName || "").trim().toLowerCase();
-      return (
-        id === normalizedMethod ||
-        name === normalizedMethod ||
-        paymentTypeName === normalizedMethod
-      );
-    });
-
-    if (fromLoaded?.id) {
-      return String(fromLoaded.id);
-    }
-
-    const config = useRuntimeConfig();
-    const mapping = (config.public as any)?.posPaymentTypeIds as
-      | Partial<Record<PaymentMethodCode, string>>
-      | undefined;
-
-    return String(
-      mapping?.[method] ||
-        mapping?.cash ||
-        "41839fa3-4121-4572-ab19-394e3a7319fe",
-    );
-  }
-
   async function loadPaymentMethods(inputCompanyId?: string) {
     const userStore = useUserStore();
     const companyId = String(
@@ -213,10 +184,19 @@ export const useCartStore = defineStore("cart", () => {
       paymentMethods.value = items
         .map((item: any) => ({
           id: String(item?.id ?? ""),
-          name: String(item?.name ?? item?.payment_type_name ?? ""),
-          paymentTypeId: item?.payment_type_id ? String(item.payment_type_id) : undefined,
-          paymentTypeName: item?.payment_type_name ? String(item.payment_type_name) : undefined,
+          name: String(item?.name ?? item?.payment_type_name ?? item?.payment_type?.name ?? ""),
+          paymentTypeId: item?.payment_type_id
+            ? String(item.payment_type_id)
+            : item?.payment_type?.id
+              ? String(item.payment_type.id)
+              : undefined,
+          paymentTypeName: item?.payment_type_name
+            ? String(item.payment_type_name)
+            : item?.payment_type?.name
+              ? String(item.payment_type.name)
+              : undefined,
           isCash: Boolean(item?.is_cash_payment_type),
+          dontShowInMakePayment: Boolean(item?.dont_show_in_make_payment),
         }))
         .filter((item: CompanyPaymentMethod) => Boolean(item.id && item.name));
     } catch {
@@ -800,7 +780,6 @@ export const useCartStore = defineStore("cart", () => {
     globalDiscountAmount,
     getCartItemQuantity,
     resolveCurrentShopId,
-    paymentTypeIdByMethod,
   };
 });
 

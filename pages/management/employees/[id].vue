@@ -32,6 +32,7 @@ const router = useRouter();
 const { apiFetch } = useApi();
 const { getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
+const toast = useToast();
 
 const id = computed(() => route.params.id as string);
 

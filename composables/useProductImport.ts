@@ -61,6 +61,7 @@ export interface ImportDraftMappingPayload {
 export interface ImportProgressResponse {
   correlation_id?: string;
   import_id?: string;
+  job_id?: string;
   message?: string;
   total?: number;
   current?: number;
@@ -158,7 +159,17 @@ export interface ImportSessionListItem {
   status: ImportStatus;
   mode: ImportMode;
   shop_id: string;
+  shop_name?: string;
   created_at: string;
+  finished_at?: string;
+  created_by?: string;
+  finished_by?: string;
+  import_type?: string;
+  int_id?: string;
+  total_loaded_measurement_value?: number;
+  total_arrived_measurement_value?: number;
+  total_supply_price?: number;
+  total_retail_price?: number;
 }
 
 export interface ImportSession {
@@ -267,6 +278,86 @@ function toArray<T = any>(value: any, fallbackKeys: string[] = []): T[] {
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function isImportStatus(value: string): value is ImportStatus {
+  return [
+    "draft",
+    "validating",
+    "preview_ready",
+    "importing",
+    "completed",
+    "cancelled",
+    "failed",
+  ].includes(value);
+}
+
+function normalizeImportStatus(raw: any, fallback: ImportStatus = "draft"): ImportStatus {
+  const directCandidates = [
+    raw?.status,
+    raw?.status_name,
+    raw?.status_code,
+    raw?.import_status,
+    raw?.importStatus,
+    raw?.import_status_name,
+    raw?.import_status_code,
+    raw?.import_status?.status,
+    raw?.import_status?.code,
+    raw?.import_status?.system_name,
+    raw?.import_status?.name,
+  ];
+
+  for (const candidate of directCandidates) {
+    const normalized = String(candidate ?? "").trim().toLowerCase();
+    if (!normalized) continue;
+
+    if (isImportStatus(normalized)) {
+      return normalized;
+    }
+
+    if (["done", "finished", "success", "successful"].includes(normalized)) {
+      return "completed";
+    }
+
+    if (["canceled", "cancelled", "abort", "aborted"].includes(normalized)) {
+      return "cancelled";
+    }
+
+    if (["error", "errored"].includes(normalized)) {
+      return "failed";
+    }
+
+    if (["processing", "in_progress", "running"].includes(normalized)) {
+      return "importing";
+    }
+
+    if (["pending", "created", "new"].includes(normalized)) {
+      return "draft";
+    }
+  }
+
+  if (raw?.finished_at) {
+    return "completed";
+  }
+
+  const processPercentage = toNumber(raw?.process_percentage, -1);
+  if (processPercentage >= 100) {
+    return "completed";
+  }
+  if (processPercentage > 0) {
+    return "importing";
+  }
+
+  const previewItemsCount = toArray(raw?.preview_items ?? raw?.items_preview, [
+    "preview_items",
+    "items_preview",
+    "previewItems",
+  ]).length;
+  if (previewItemsCount > 0) {
+    return "preview_ready";
+  }
+
+  return fallback;
 }
 
 function ensureImportId(value: unknown) {
@@ -592,7 +683,7 @@ function normalizeImportSession(raw: any): ImportSession {
     branch_code: payload?.branch_code ? String(payload.branch_code) : undefined,
     name: String(payload?.name ?? payload?.import_name ?? ""),
     mode: payload?.mode === "without_check" ? "without_check" : "with_check",
-    status: String(payload?.status ?? "draft") as ImportStatus,
+    status: normalizeImportStatus(payload),
     rows_count: fallbackRowsCount,
     fields: toArray(payload?.fields),
     rows: normalizedRows,
@@ -659,8 +750,48 @@ function normalizeActionResult(raw: any, fallbackId = ""): ImportSessionActionRe
 
   return {
     id,
-    status: String(payload?.status ?? "completed") as ImportStatus,
+    status: normalizeImportStatus(payload, "completed"),
     result: normalizeCommitResult(payload),
+  };
+}
+
+function normalizeImportSessionListItem(raw: any): ImportSessionListItem {
+  const shopName = String(raw?.shop_name ?? raw?.shop?.name ?? "").trim();
+  const createdByName = String(
+    raw?.created_by?.name ?? raw?.created_by_name ?? raw?.created_by ?? "",
+  ).trim();
+  const finishedByName = String(
+    raw?.finished_by?.name ?? raw?.finished_by_name ?? raw?.finished_by ?? "",
+  ).trim();
+  const importTypeName = String(
+    raw?.import_type?.name ?? raw?.import_type_name ?? raw?.type_name ?? "",
+  ).trim();
+
+  return {
+    id: String(raw?.id ?? raw?.import_id ?? raw?.uuid ?? ""),
+    name: String(raw?.name ?? raw?.import_name ?? ""),
+    status: normalizeImportStatus(raw),
+    mode: raw?.mode === "without_check" ? "without_check" : "with_check",
+    shop_id: String(raw?.shop_id ?? shopName ?? ""),
+    shop_name: shopName || undefined,
+    created_at: String(raw?.created_at ?? raw?.createdAt ?? ""),
+    finished_at: raw?.finished_at ? String(raw.finished_at) : undefined,
+    created_by: createdByName || undefined,
+    finished_by: finishedByName || undefined,
+    import_type: importTypeName || (raw?.import_type_id ? "Поступление" : undefined),
+    int_id: raw?.int_id != null ? String(raw.int_id) : undefined,
+    total_loaded_measurement_value:
+      raw?.total_loaded_measurement_value != null
+        ? toNumber(raw.total_loaded_measurement_value)
+        : undefined,
+    total_arrived_measurement_value:
+      raw?.total_arrived_measurement_value != null
+        ? toNumber(raw.total_arrived_measurement_value)
+        : undefined,
+    total_supply_price:
+      raw?.total_supply_price != null ? toNumber(raw.total_supply_price) : undefined,
+    total_retail_price:
+      raw?.total_retail_price != null ? toNumber(raw.total_retail_price) : undefined,
   };
 }
 
@@ -737,16 +868,12 @@ export function useProductImport() {
       });
 
       const payload = unwrapPayload(response);
+      const items = toArray<any>(payload, ["items", "imports", "sessions", "data"])
+        .map(normalizeImportSessionListItem) satisfies ImportSessionListItem[];
+
       return {
         count: toNumber(payload?.count),
-        items: toArray<any>(payload, ["items"]).map((item) => ({
-          id: String(item?.id ?? item?.import_id ?? ""),
-          name: String(item?.name ?? ""),
-          status: String(item?.status ?? "draft") as ImportStatus,
-          mode: item?.mode === "without_check" ? "without_check" : "with_check",
-          shop_id: String(item?.shop_id ?? ""),
-          created_at: String(item?.created_at ?? ""),
-        })) satisfies ImportSessionListItem[],
+        items,
       };
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
@@ -782,8 +909,16 @@ export function useProductImport() {
       });
 
       const resolved = unwrapPayload(response);
+      const resolvedJobId = String(
+        resolved?.job_id ??
+          resolved?.correlation_id ??
+          resolved?.message ??
+          resolved?.import_id ??
+          "",
+      ).trim();
+
       return {
-        jobId: String(resolved?.job_id ?? resolved?.message ?? "").trim(),
+        jobId: resolvedJobId,
         importId: String(resolved?.import_id ?? resolved?.correlation_id ?? importId).trim(),
         correlationId: String(resolved?.correlation_id ?? resolved?.import_id ?? importId).trim(),
       };

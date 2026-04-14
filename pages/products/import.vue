@@ -420,6 +420,7 @@ const mappings = ref<ImportDraftMappingPayload[]>([]);
 const errors = ref<string[]>([]);
 const availableProperties = ref<ImportProperty[]>([]);
 const shops = ref<ImportShopOption[]>([]);
+const toast = useToast();
 
 const form = ref<ImportFormState>({
   name: "",
@@ -780,6 +781,7 @@ async function submitImport() {
       throw new Error("Сервер создал импорт, но не вернул его ID");
     }
 
+    toast.add({ title: "Импорт создан", color: "success" });
     await router.push(`/products/import/edit/${resolvedImportId}?page=1`);
   } catch (error: any) {
     errors.value = [error?.message || "Не удалось создать импорт."];
