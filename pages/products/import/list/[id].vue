@@ -1,10 +1,18 @@
-<template>
+﻿<template>
   <section v-if="loading" class="rounded-[28px] bg-[#2b2b2b] p-8 text-white">
     Загружаем импорт...
   </section>
 
   <section v-else-if="error" class="rounded-[28px] border border-[#7f3d3d] bg-[#442f2f] p-8 text-white">
-    <h1 class="text-[28px] font-bold">Не удалось загрузить импорт</h1>
+    <button
+      type="button"
+      class="inline-flex cursor-pointer items-center gap-2 rounded-[14px] bg-[#5a3838] px-4 py-3 text-[14px] font-bold text-white transition-colors duration-200 hover:bg-[#704646]"
+      @click="goBack"
+    >
+      <Icon name="heroicons:arrow-left-20-solid" class="h-5 w-5 text-[#ffb4b4]" />
+      Назад к импортам
+    </button>
+    <h1 class="mt-5 text-[28px] font-bold">Не удалось загрузить импорт</h1>
     <p class="mt-3 text-[#ffd7d7]">{{ error }}</p>
   </section>
 
@@ -310,6 +318,7 @@ const session = ref<ImportSession | null>(null);
 const preview = ref<ImportPreviewResult>(emptyPreview());
 const loading = ref(true);
 const previewLoading = ref(false);
+const toast = useToast();
 const actionLoading = ref(false);
 const error = ref("");
 const actionMessage = ref("");
@@ -637,7 +646,9 @@ async function commitImport() {
     }
 
     commitRequested.value = false;
+    toast.add({ title: "Импорт отменен", color: "success" });
     error.value = message;
+    toast.add({ title: "Не удалось подтвердить импорт", description: message, color: "error" });
   } finally {
     actionLoading.value = false;
   }
@@ -654,6 +665,7 @@ async function cancelImport() {
     session.value = await cancelImportSession(resolvedImportId.value);
     preview.value = emptyPreview();
     commitRequested.value = false;
+    toast.add({ title: "Импорт отменен", color: "success" });
   } catch (err: any) {
     error.value = err?.message || "Не удалось отменить импорт.";
   } finally {
@@ -673,3 +685,4 @@ useHead({
   title: computed(() => (session.value ? `${session.value.name} | Импорт` : "Импорт")),
 });
 </script>
+

@@ -184,6 +184,7 @@ const session = ref<ImportSession | null>(null);
 const loading = ref(true);
 const actionLoading = ref(false);
 const error = ref("");
+const toast = useToast();
 const progressPercent = ref(0);
 const progressMessage = ref("");
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -327,10 +328,12 @@ async function validateImport() {
     });
     await loadSession();
     if (result.jobId) {
+      toast.add({ title: "Проверка импорта запущена", color: "success" });
       await pollProgress(result.jobId, result.importId);
       return;
     }
 
+    toast.add({ title: "Импорт проверен", color: "success" });
     await router.replace(`/products/import/list/${result.importId}?limit=20&page=1`);
   } catch (err: any) {
     error.value = err?.message || "Не удалось запустить проверку.";
@@ -347,6 +350,7 @@ async function commitImport() {
 
   try {
     await commitImportSession(session.value.id);
+    toast.add({ title: "Импорт подтвержден", color: "success" });
     await router.replace(`/products/import/list/${session.value.id}?limit=20&page=1`);
   } catch (err: any) {
     error.value = err?.message || "Не удалось подтвердить импорт.";
@@ -363,6 +367,7 @@ async function cancelImport() {
 
   try {
     session.value = await cancelImportSession(session.value.id);
+    toast.add({ title: "Импорт отменен", color: "success" });
   } catch (err: any) {
     error.value = err?.message || "Не удалось отменить импорт.";
   } finally {

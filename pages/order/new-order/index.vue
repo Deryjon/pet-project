@@ -9,9 +9,6 @@
       >
         {{ cartStore.lastCartError }}
       </div>
-      <div class="mt-3 text-[13px] text-[#9f9f9f]">
-        В поиске показывается остаток выбранного филиала.
-      </div>
       <Cart />
       <div
         v-if="cartStore.productsLoading || cartStore.creatingSale || cartStore.loadingSale || cartStore.addingItem"

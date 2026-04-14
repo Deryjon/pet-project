@@ -50,6 +50,7 @@ import { useUserStore } from '~/store/useUserStore'
 
 const { apiFetch } = useApi()
 const user = useUserStore()
+const toast = useToast()
 
 const key = ref<string>('')
 const loaded = ref<any | null>(null)
@@ -82,6 +83,7 @@ async function save() {
     loaded.value = res
     title.value = String(res?.title ?? title.value)
     ok.value = true
+    toast.add({ title: "Филиал сохранен", color: "success" })
   } catch (e: any) {
     err.value = e?.data?.message || e?.message || 'Не удалось сохранить'
   } finally {
