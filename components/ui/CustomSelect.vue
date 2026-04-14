@@ -24,11 +24,11 @@
           >
             <li
               v-for="option in filteredOptions"
-              :key="option"
+              :key="option.value"
               @mousedown.prevent="selectOption(option)"
               class="px-4 py-2 hover:bg-[#505050] cursor-pointer text-white"
             >
-              {{ option }}
+              {{ option.label }}
             </li>
           </ul>
         </transition>
@@ -39,35 +39,51 @@
   <script setup lang="ts">
   import { ref, computed, watch } from "vue";
   
+  interface SelectOption {
+    label: string;
+    value: string;
+  }
+
   const props = defineProps<{
     label?: string;
-    options: string[];
+    options: Array<string | SelectOption>;
     placeholder?: string;
     modelValue?: string;
   }>();
   
   const emit = defineEmits(["update:modelValue"]);
   
-  const searchQuery = ref(props.modelValue || "");
+  function normalizeOption(option: string | SelectOption): SelectOption {
+    return typeof option === "string" ? { label: option, value: option } : option;
+  }
+
+  const normalizedOptions = computed(() => props.options.map(normalizeOption));
+  const searchQuery = ref("");
   const isOpen = ref(false);
-  
+
+  function syncSearchQuery(value?: string) {
+    const selected = normalizedOptions.value.find((option) => option.value === (value || ""));
+    searchQuery.value = selected?.label || value || "";
+  }
+
   watch(
     () => props.modelValue,
     (val) => {
-      searchQuery.value = val || "";
-    }
+      syncSearchQuery(val);
+    },
+    { immediate: true },
   );
   
   const filteredOptions = computed(() => {
-    if (!searchQuery.value) return props.options;
-    return props.options.filter(opt =>
-      opt.toLowerCase().includes(searchQuery.value.toLowerCase())
+    if (!searchQuery.value) return normalizedOptions.value;
+    return normalizedOptions.value.filter((opt) =>
+      opt.label.toLowerCase().includes(searchQuery.value.toLowerCase()),
     );
   });
   
-  const selectOption = (option: string) => {
-    searchQuery.value = option;
-    emit("update:modelValue", option);
+  const selectOption = (option: SelectOption) => {
+    searchQuery.value = option.label;
+    emit("update:modelValue", option.value);
     isOpen.value = false;
   };
   

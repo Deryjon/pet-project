@@ -140,16 +140,14 @@
                     </p>
                   </div>
 
-                  <a
-                    :href="templateDownloadUrl"
-                    download
-                    target="_blank"
-                    rel="noopener"
+                  <button
+                    type="button"
                     class="inline-flex items-center justify-center rounded-[16px] bg-[#1f78ff] px-5 py-3 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9]"
+                    @click="downloadTemplate"
                   >
                     <Icon name="heroicons:arrow-down-tray-20-solid" class="mr-2 h-5 w-5" />
                     Скачать шаблон
-                  </a>
+                  </button>
                 </div>
               </div>
 
@@ -431,9 +429,11 @@ const form = ref<ImportFormState>({
   generateArticles: true,
 });
 
-const shopOptions = computed(() => shops.value.map((shop) => shop.name));
+const shopOptions = computed(() =>
+  shops.value.map((shop) => ({ label: shop.name, value: shop.id })),
+);
 const selectedShopName = computed(
-  () => shops.value.find((shop) => shop.name === form.value.shopId)?.name || form.value.shopId,
+  () => shops.value.find((shop) => shop.id === form.value.shopId)?.name || form.value.shopId,
 );
 const totalQuantity = computed(() => parsedRows.value.reduce((sum, row) => sum + row.quantity, 0));
 const totalAmount = computed(() => parsedRows.value.reduce((sum, row) => sum + row.quantity * row.retailPrice, 0));
@@ -463,6 +463,16 @@ function formatFileSize(size: number) {
 
 function formatCurrency(value: number) {
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value)} UZS`;
+}
+
+function downloadTemplate() {
+  const link = document.createElement("a");
+  link.href = templateDownloadUrl;
+  link.download = `${crypto.randomUUID()}.xlsx`;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 function normalizeText(value: unknown) {
@@ -499,7 +509,7 @@ function createEmptyRow(): ParsedImportRow {
 function resetForm() {
   form.value = {
     name: createDefaultImportName(),
-    shopId: shops.value[0]?.name || "",
+    shopId: shops.value[0]?.id || "",
     mode: "with_check",
     generateBarcodes: true,
     generateArticles: true,
@@ -731,7 +741,7 @@ function goToPreviousStep() {
 async function submitImport() {
   if (!selectedFile.value || !parsedRows.value.length) return;
 
-  const selectedShop = shops.value.find((shop) => shop.name === form.value.shopId);
+  const selectedShop = shops.value.find((shop) => shop.id === form.value.shopId);
   if (!selectedShop) {
     errors.value = ["Не удалось определить выбранный магазин."];
     modalStep.value = 1;
@@ -743,7 +753,7 @@ async function submitImport() {
   try {
     const payload = {
       name: form.value.name.trim(),
-      shopId: selectedShop.id,
+      shopId: form.value.shopId,
       mode: form.value.mode,
       generateBarcodes: form.value.generateBarcodes,
       generateArticles: form.value.generateArticles,

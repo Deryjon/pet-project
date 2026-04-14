@@ -214,9 +214,6 @@ const showValidateButton = computed(
 );
 const showCommitButton = computed(() => {
   if (!session.value) return false;
-  if (session.value.mode === "without_check") {
-    return session.value.status === "draft";
-  }
 
   return session.value.status === "preview_ready";
 });
@@ -318,9 +315,23 @@ async function validateImport() {
   error.value = "";
 
   try {
-    const result = await validateImportSession(session.value.id);
+    const result = await validateImportSession(session.value.id, {
+      name: session.value.name,
+      shopId: session.value.shop_id,
+      mode: session.value.mode,
+      generateBarcodes: false,
+      generateArticles: false,
+      rows: session.value.rows,
+      mappings: [],
+      onMatch: session.value.on_match,
+    });
     await loadSession();
-    await pollProgress(result.jobId, result.importId);
+    if (result.jobId) {
+      await pollProgress(result.jobId, result.importId);
+      return;
+    }
+
+    await router.replace(`/products/import/list/${result.importId}?limit=20&page=1`);
   } catch (err: any) {
     error.value = err?.message || "Не удалось запустить проверку.";
   } finally {
