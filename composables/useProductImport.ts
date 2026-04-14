@@ -11,6 +11,17 @@ export type ImportStatus =
   | "cancelled"
   | "failed";
 
+export type ImportMatchPolicy = "keep_store" | "from_file";
+
+export interface ImportOnMatchPolicy {
+  name: ImportMatchPolicy;
+  brand: ImportMatchPolicy;
+  category: ImportMatchPolicy;
+  description: ImportMatchPolicy;
+  measurementUnit: ImportMatchPolicy;
+  supplier: ImportMatchPolicy;
+}
+
 export interface ImportProperty {
   id: string;
   name: string;
@@ -96,6 +107,13 @@ export interface ImportPreviewItem {
   };
 }
 
+export interface ImportDryRunSummary {
+  create_count: number;
+  update_count: number;
+  error_count: number;
+  conflict_fields: Record<string, number>;
+}
+
 export interface ImportPreviewResult {
   items: ImportPreviewItem[];
   count: number;
@@ -103,13 +121,36 @@ export interface ImportPreviewResult {
   total_supply_price: number;
   total_retail_price: number;
   fields: unknown[];
+  dry_run_summary: ImportDryRunSummary | null;
+}
+
+export interface ImportAuditChangeField {
+  field: string;
+  reason: string;
+}
+
+export interface ImportAuditRow {
+  row?: number;
+  action: string;
+  reason: string;
+  product_id?: string;
+  changed_fields: string[];
+}
+
+export interface ImportCommitError {
+  row?: number;
+  message: string;
 }
 
 export interface ImportCommitResult {
   created_count: number;
   updated_count: number;
   error_count: number;
-  errors: Array<{ row?: number; message: string }>;
+  errors: ImportCommitError[];
+  audit_rows: ImportAuditRow[];
+  committed_at?: string;
+  committed_by?: string;
+  idempotent?: boolean;
 }
 
 export interface ImportSessionListItem {
@@ -135,6 +176,8 @@ export interface ImportSession {
   rows: ParsedImportRow[];
   preview_items: ImportPreviewItem[];
   result: ImportCommitResult | null;
+  on_match: ImportOnMatchPolicy;
+  dry_run_summary: ImportDryRunSummary | null;
   created_at: string;
   updated_at?: string;
   created_by?: string;
@@ -150,7 +193,28 @@ export interface CreateImportPayload {
   rows: ParsedImportRow[];
   mappings: ImportDraftMappingPayload[];
   availableProperties?: ImportProperty[];
+  onMatch?: Partial<ImportOnMatchPolicy>;
+  companyId?: string;
 }
+
+export interface ValidateImportPayload extends CreateImportPayload {
+  autoCommit?: boolean;
+}
+
+export interface ImportSessionActionResult {
+  id: string;
+  status: ImportStatus;
+  result: ImportCommitResult | null;
+}
+
+const DEFAULT_ON_MATCH_POLICY: ImportOnMatchPolicy = {
+  name: "keep_store",
+  brand: "keep_store",
+  category: "keep_store",
+  description: "from_file",
+  measurementUnit: "keep_store",
+  supplier: "keep_store",
+};
 
 function unwrapPayload<T = any>(response: any): T {
   return response?.data ?? response?.result ?? response?.item ?? response;
@@ -159,13 +223,7 @@ function unwrapPayload<T = any>(response: any): T {
 function resolveImportPayload(raw: any) {
   const payload = unwrapPayload(raw);
 
-  return (
-    payload?.import ??
-    payload?.session ??
-    payload?.import_session ??
-    payload?.importSession ??
-    payload
-  );
+  return payload?.import ?? payload?.session ?? payload?.import_session ?? payload?.importSession ?? payload;
 }
 
 function parseJsonIfNeeded<T = any>(value: any): T | null {
@@ -238,6 +296,77 @@ function normalizeProperty(raw: any, index: number): ImportProperty | null {
   };
 }
 
+function normalizeOnMatchPolicy(raw: any): ImportOnMatchPolicy {
+  return {
+    name: raw?.name === "from_file" ? "from_file" : "keep_store",
+    brand: raw?.brand === "from_file" ? "from_file" : "keep_store",
+    category: raw?.category === "from_file" ? "from_file" : "keep_store",
+    description: raw?.description === "keep_store" ? "keep_store" : "from_file",
+    measurementUnit:
+      raw?.measurementUnit === "from_file" || raw?.measurement_unit === "from_file"
+        ? "from_file"
+        : "keep_store",
+    supplier: raw?.supplier === "from_file" ? "from_file" : "keep_store",
+  };
+}
+
+function buildOnMatchPayload(policy?: Partial<ImportOnMatchPolicy>) {
+  const resolved = normalizeOnMatchPolicy({
+    ...DEFAULT_ON_MATCH_POLICY,
+    ...(policy ?? {}),
+  });
+
+  return {
+    name: resolved.name,
+    brand: resolved.brand,
+    category: resolved.category,
+    description: resolved.description,
+    measurementUnit: resolved.measurementUnit,
+    supplier: resolved.supplier,
+  };
+}
+
+function normalizeDryRunSummary(raw: any): ImportDryRunSummary | null {
+  const payload = raw && typeof raw === "object" ? raw : parseJsonIfNeeded(raw);
+  if (!payload || typeof payload !== "object") return null;
+
+  const sourceFields = payload?.conflict_fields && typeof payload.conflict_fields === "object"
+    ? payload.conflict_fields
+    : {};
+
+  return {
+    create_count: toNumber(payload?.create_count),
+    update_count: toNumber(payload?.update_count),
+    error_count: toNumber(payload?.error_count),
+    conflict_fields: Object.fromEntries(
+      Object.entries(sourceFields).map(([field, count]) => [field, toNumber(count)]),
+    ),
+  };
+}
+
+function normalizeAuditRows(raw: any): ImportAuditRow[] {
+  const parsed = Array.isArray(raw) ? raw : parseJsonIfNeeded<any[]>(raw);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.map((item: any) => ({
+    row: item?.row != null ? toNumber(item.row) : undefined,
+    action: String(item?.action ?? ""),
+    reason: String(item?.reason ?? ""),
+    product_id: item?.product_id != null ? String(item.product_id) : undefined,
+    changed_fields: Array.isArray(item?.changed_fields)
+      ? item.changed_fields.map((field: any) =>
+          typeof field === "string"
+            ? field
+            : field?.field
+              ? field?.reason
+                ? `${String(field.field)}: ${String(field.reason)}`
+                : String(field.field)
+              : "",
+        ).filter(Boolean)
+      : [],
+  }));
+}
+
 function normalizeCommitResult(raw: any): ImportCommitResult {
   const payload = resolveImportPayload(raw);
   const parsedErrors = parseJsonIfNeeded<any[]>(payload?.errors);
@@ -253,10 +382,14 @@ function normalizeCommitResult(raw: any): ImportCommitResult {
         }))
       : Array.isArray(parsedErrors)
         ? parsedErrors.map((item: any) => ({
-          row: item?.row != null ? toNumber(item.row) : undefined,
-          message: String(item?.message ?? item?.error ?? ""),
-        }))
+            row: item?.row != null ? toNumber(item.row) : undefined,
+            message: String(item?.message ?? item?.error ?? ""),
+          }))
         : [],
+    audit_rows: normalizeAuditRows(payload?.audit_rows),
+    committed_at: payload?.committed_at ? String(payload.committed_at) : undefined,
+    committed_by: payload?.committed_by ? String(payload.committed_by) : undefined,
+    idempotent: payload?.idempotent === true,
   };
 }
 
@@ -419,6 +552,7 @@ function normalizePreviewResult(raw: any, importId: string): ImportPreviewResult
     total_supply_price: totalSupplyPrice,
     total_retail_price: totalRetailPrice,
     fields: toArray(payload?.fields),
+    dry_run_summary: normalizeDryRunSummary(payload?.dry_run_summary),
   };
 }
 
@@ -444,6 +578,12 @@ function normalizeImportSession(raw: any): ImportSession {
       payload?.rowsCount ??
       normalizedRows.length,
   );
+  const resultPayload =
+    payload?.result && typeof payload.result === "object"
+      ? payload.result
+      : parsedResult && typeof parsedResult === "object"
+        ? parsedResult
+        : null;
 
   return {
     id,
@@ -457,15 +597,10 @@ function normalizeImportSession(raw: any): ImportSession {
     rows_count: fallbackRowsCount,
     fields: toArray(payload?.fields),
     rows: normalizedRows,
-    preview_items: previewItemsSource.map((item) =>
-      normalizePreviewItem(item, id),
-    ),
-    result:
-      payload?.result && typeof payload.result === "object"
-        ? normalizeCommitResult(payload.result)
-        : parsedResult && typeof parsedResult === "object"
-          ? normalizeCommitResult(parsedResult)
-          : null,
+    preview_items: previewItemsSource.map((item) => normalizePreviewItem(item, id)),
+    result: resultPayload ? normalizeCommitResult(resultPayload) : null,
+    on_match: normalizeOnMatchPolicy(payload?.on_match),
+    dry_run_summary: normalizeDryRunSummary(payload?.dry_run_summary),
     created_at: String(payload?.created_at ?? payload?.createdAt ?? ""),
     updated_at: payload?.updated_at
       ? String(payload.updated_at)
@@ -477,12 +612,56 @@ function normalizeImportSession(raw: any): ImportSession {
       : payload?.createdBy
         ? String(payload.createdBy)
         : undefined,
-    shop_name: String(
-      payload?.shop_name ??
-        nestedShop?.name ??
-        nestedShop?.shop_name ??
-        "",
-    ).trim() || undefined,
+    shop_name: String(payload?.shop_name ?? nestedShop?.name ?? nestedShop?.shop_name ?? "").trim() || undefined,
+  };
+}
+
+function buildCreateBody(payload: CreateImportPayload) {
+  return {
+    name: payload.name,
+    shop_id: payload.shopId,
+    rows: payload.rows.map(buildImportRow),
+    mode: payload.mode,
+    generate_barcode: payload.generateBarcodes,
+    generate_sku: payload.generateArticles,
+    properties: buildPropertiesPayload(payload.mappings, payload.availableProperties),
+    on_match: buildOnMatchPayload(payload.onMatch),
+    ...(payload.companyId ? { company_id: payload.companyId } : {}),
+  };
+}
+
+function buildValidateBody(payload: ValidateImportPayload) {
+  return {
+    name: payload.name,
+    shop_id: payload.shopId,
+    rows: payload.rows.map(buildImportRow),
+    mode: payload.mode,
+    generate_barcode: payload.generateBarcodes,
+    generate_sku: payload.generateArticles,
+    properties: buildPropertiesPayload(payload.mappings, payload.availableProperties),
+    on_match: buildOnMatchPayload(payload.onMatch),
+    auto_commit: payload.autoCommit === true,
+    ...(payload.companyId ? { company_id: payload.companyId } : {}),
+  };
+}
+
+function normalizeActionResult(raw: any, fallbackId = ""): ImportSessionActionResult {
+  const payload = resolveImportPayload(raw);
+  const id = String(
+    payload?.id ??
+      payload?.import_id ??
+      payload?.uuid ??
+      payload?.import?.id ??
+      payload?.import?.import_id ??
+      payload?.session?.id ??
+      payload?.session?.import_id ??
+      fallbackId,
+  ).trim();
+
+  return {
+    id,
+    status: String(payload?.status ?? "completed") as ImportStatus,
+    result: normalizeCommitResult(payload),
   };
 }
 
@@ -534,37 +713,15 @@ export function useProductImport() {
     try {
       const response = await apiFetch<any>("/v2/imports", {
         method: "POST",
-        body: {
-          name: payload.name,
-          shop_id: payload.shopId,
-          mode: payload.mode,
-          generate_barcode: payload.generateBarcodes,
-          generate_sku: payload.generateArticles,
-          properties: buildPropertiesPayload(payload.mappings, payload.availableProperties),
-          rows: payload.rows.map(buildImportRow),
-        },
+        body: buildCreateBody(payload),
       });
 
-      const data = unwrapPayload(response);
-      const id = String(
-        data?.id ??
-        data?.import_id ??
-        data?.uuid ??
-        data?.import?.id ??
-        data?.import?.import_id ??
-        data?.session?.id ??
-        data?.session?.import_id ??
-        "",
-      ).trim();
-
-      if (!id) {
+      const created = normalizeActionResult(response);
+      if (!created.id) {
         throw new Error("Сервер не вернул ID импорта");
       }
 
-      return {
-        id,
-        status: String(data?.status ?? "draft") as ImportStatus,
-      };
+      return created;
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
     }
@@ -584,7 +741,7 @@ export function useProductImport() {
       return {
         count: toNumber(payload?.count),
         items: toArray<any>(payload, ["items"]).map((item) => ({
-          id: String(item?.id ?? ""),
+          id: String(item?.id ?? item?.import_id ?? ""),
           name: String(item?.name ?? ""),
           status: String(item?.status ?? "draft") as ImportStatus,
           mode: item?.mode === "without_check" ? "without_check" : "with_check",
@@ -614,36 +771,30 @@ export function useProductImport() {
     }
   }
 
-  async function validateImportSession(id: string, payload?: CreateImportPayload) {
+  async function validateImportSession(id: string, payload: ValidateImportPayload) {
     try {
       const importId = ensureImportId(id);
       const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}/validate`, {
         method: "POST",
-        body: payload
-          ? {
-              name: payload.name,
-              shop_id: payload.shopId,
-              mode: payload.mode,
-              generate_barcode: payload.generateBarcodes,
-              generate_sku: payload.generateArticles,
-              properties: buildPropertiesPayload(payload.mappings, payload.availableProperties),
-              rows: payload.rows.map(buildImportRow),
-            }
-          : undefined,
+        body: buildValidateBody({
+          ...payload,
+          autoCommit: false,
+        }),
       });
 
-      const responsePayload = unwrapPayload(response);
+      const resolved = unwrapPayload(response);
       const resolvedJobId = String(
-        responsePayload?.job_id ??
-          responsePayload?.correlation_id ??
-          responsePayload?.import_id ??
+        resolved?.job_id ??
+          resolved?.correlation_id ??
+          resolved?.message ??
+          resolved?.import_id ??
           "",
       ).trim();
 
       return {
         jobId: resolvedJobId,
-        importId: String(responsePayload?.import_id ?? responsePayload?.correlation_id ?? importId).trim(),
-        correlationId: String(responsePayload?.correlation_id ?? responsePayload?.import_id ?? importId).trim(),
+        importId: String(resolved?.import_id ?? resolved?.correlation_id ?? importId).trim(),
+        correlationId: String(resolved?.correlation_id ?? resolved?.import_id ?? importId).trim(),
       };
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
@@ -673,8 +824,7 @@ export function useProductImport() {
       if (progress?.is_finished) {
         return {
           progress,
-          importId:
-            String(progress.import_id ?? progress.correlation_id ?? jobId).trim() || jobId,
+          importId: String(progress.import_id ?? progress.correlation_id ?? jobId).trim() || jobId,
         };
       }
 
@@ -691,7 +841,7 @@ export function useProductImport() {
         method: "GET",
         query: {
           page: options?.page ?? 1,
-          limit: options?.limit ?? 10000,
+          limit: options?.limit ?? 20,
           ...(options?.difference ? { difference: true } : {}),
         },
       });
@@ -752,13 +902,13 @@ export function useProductImport() {
         body: {
           name: payload.name,
           shop_id: payload.shopId,
-          generate_barcode: payload.generateBarcodes,
-          generate_sku: payload.generateArticles,
           rows: payload.rows.map(buildImportRow),
+          on_match: buildOnMatchPayload(payload.onMatch),
+          ...(payload.companyId ? { company_id: payload.companyId } : {}),
         },
       });
 
-      return normalizeCommitResult(response);
+      return normalizeActionResult(response);
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
     }
@@ -778,5 +928,6 @@ export function useProductImport() {
     commitImportSession,
     cancelImportSession,
     importWithoutCheck,
+    defaultOnMatchPolicy: DEFAULT_ON_MATCH_POLICY,
   };
 }
