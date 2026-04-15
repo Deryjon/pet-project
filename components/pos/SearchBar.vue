@@ -39,21 +39,37 @@
 
     <transition name="fade">
       <div
-        v-if="showResults"
+        v-if="showDropdown"
         class="fixed inset-0 z-10 bg-black/40 backdrop-blur-sm"
         @click="searchQuery = ''"
       />
     </transition>
 
     <div
-      v-if="showResults"
+      v-if="showDropdown"
       class="absolute top-full z-20 mt-2 flex max-h-[250px] w-full flex-col gap-2 overflow-y-auto rounded-xl shadow-lg"
     >
+      <div
+        v-if="store.productsLoading"
+        class="flex items-center gap-3 rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
+      >
+        <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+        Загружаем товары...
+      </div>
+
+      <div
+        v-else-if="filteredProducts.length === 0"
+        class="rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
+      >
+        Ничего не найдено
+      </div>
+
       <button
         v-for="product in filteredProducts"
         :key="product.id"
         type="button"
-        class="flex cursor-pointer flex-col items-start gap-3 rounded-[12px] bg-[#262626] p-3 text-left text-[14px] font-semibold transition hover:bg-[#303030] sm:flex-row sm:items-center sm:justify-between sm:text-[16px]"
+        :disabled="store.isItemBusy(product.id) || store.addingItem"
+        class="flex cursor-pointer flex-col items-start gap-3 rounded-[12px] bg-[#262626] p-3 text-left text-[14px] font-semibold transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-row sm:items-center sm:justify-between sm:text-[16px]"
         @click="addToCart(product)"
       >
         <div class="flex w-full min-w-0 items-center gap-3 sm:gap-4">
@@ -66,6 +82,13 @@
         <div class="flex w-full flex-col text-left sm:w-auto sm:text-right">
           <span>{{ formatPrice(product.price) }} UZS</span>
           <span class="text-[#999]">Кол-во: {{ Number(product.availableQuantity ?? 0) }} шт</span>
+          <span
+            v-if="store.isItemBusy(product.id)"
+            class="mt-1 inline-flex items-center gap-1 text-[#78b3ff]"
+          >
+            <Icon name="heroicons:arrow-path" class="h-3.5 w-3.5 animate-spin" />
+            Добавляем...
+          </span>
         </div>
       </button>
     </div>
@@ -80,9 +103,7 @@ const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 const { searchQuery, filteredProducts } = storeToRefs(store);
 const addToCart = store.addToCartServer;
-const showResults = computed(
-  () => Boolean(searchQuery.value) && filteredProducts.value.length > 0
-);
+const showDropdown = computed(() => Boolean(searchQuery.value.trim()));
 </script>
 
 <style scoped>

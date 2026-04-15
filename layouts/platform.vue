@@ -55,7 +55,7 @@ function logout() {
         <AdminSidebar mobile @close="mobileSidebarOpen = false" @logout="logout" />
       </div>
 
-      <main class="platform-main relative w-full px-4 py-4 sm:px-6 lg:ml-[304px] lg:px-8 lg:py-6">
+      <main class="platform-main relative min-w-0 w-full px-4 py-4 sm:px-6 lg:ml-[304px] lg:w-[calc(100%-304px)] lg:px-8 lg:py-6">
         <AdminTopbar @open-sidebar="mobileSidebarOpen = true" @logout="logout" />
         <slot />
       </main>
