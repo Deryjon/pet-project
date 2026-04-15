@@ -1,13 +1,13 @@
 <template>
-  <div class="relative mt-[30px] rounded-xl">
+  <div class="relative mt-6 rounded-xl sm:mt-[30px]">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex flex-wrap items-center gap-3">
-        <h3 class="text-[28px] font-semibold sm:text-[36px]">Корзина</h3>
+        <h3 class="text-[24px] font-semibold sm:text-[36px]">Корзина</h3>
 
         <UBadge
           color="neutral"
           variant="soft"
-          class="inline-flex items-center gap-2 rounded-[30px] bg-[#404040] px-4 py-2 text-[18px] font-bold text-white sm:text-[24px]"
+          class="inline-flex items-center gap-2 rounded-[30px] bg-[#404040] px-3 py-2 text-[16px] font-bold text-white sm:px-4 sm:text-[24px]"
         >
           <span class="min-w-[24px] text-center leading-none">{{ totalQuantity }}</span>
 
@@ -24,18 +24,18 @@
         </UBadge>
       </div>
 
-      <span class="break-all text-[24px] font-bold text-[#bdbdbd] sm:text-[36px]">
+      <span class="break-all text-[18px] font-bold text-[#bdbdbd] sm:text-[36px]">
         {{ saleDisplayNumber }}
       </span>
     </div>
 
-    <div class="sellers mt-[15px] flex flex-wrap gap-4">
+    <div class="sellers mt-[15px] flex flex-wrap gap-3">
       <UButton
         color="primary"
         variant="solid"
         class="rounded-[20px] bg-[#1f78ff] px-4 py-2 hover:bg-[#4993dd]"
       >
-        <span class="text-[16px] font-semibold">
+        <span class="text-[14px] font-semibold sm:text-[16px]">
           {{ selectedSeller ? selectedSeller.name : "Все продавцы" }}
         </span>
       </UButton>
@@ -64,19 +64,19 @@
     <UCard
       v-if="cart.length === 0"
       :ui="{
-        root: 'mt-[20px] h-[400px] rounded-[25px] border border-dashed border-[#919090] bg-transparent shadow-none ring-0',
+        root: 'mt-[20px] h-[320px] rounded-[25px] border border-dashed border-[#919090] bg-transparent shadow-none ring-0 sm:h-[400px]',
         body: 'flex h-full flex-col items-center justify-center p-[20px]',
       }"
     >
-      <span class="text-center text-[20px] font-bold sm:text-[24px]">Корзина пока что пуста</span>
-      <span class="w-full max-w-[340px] text-center text-[16px] font-bold text-[#5e5e5e] sm:text-[18px]">
+      <span class="text-center text-[18px] font-bold sm:text-[24px]">Корзина пока что пуста</span>
+      <span class="w-full max-w-[340px] text-center text-[14px] font-bold text-[#5e5e5e] sm:text-[18px]">
         Нажмите "/" для поиска товаров или отсканируйте товары
       </span>
     </UCard>
 
     <div
       v-else
-      class="mt-[20px] max-h-[400px] w-full overflow-y-auto rounded-[25px]"
+      class="mt-[20px] max-h-[360px] w-full overflow-y-auto rounded-[25px] sm:max-h-[400px]"
     >
       <CartItem
         v-for="item in cart"
@@ -90,17 +90,17 @@
       v-model:open="sellerModalOpen"
       :ui="{
         overlay: 'bg-black/50 backdrop-blur-sm',
-        content: 'max-w-[520px] rounded-[28px] border border-white/10 bg-[rgba(38,38,38,0.88)] text-white shadow-2xl backdrop-blur-xl ring-0',
-        header: 'px-6 pt-6 pb-0',
-        body: 'px-6 py-5',
-        footer: 'px-6 pb-6 pt-0',
+        content: 'mx-4 max-w-[520px] rounded-[28px] border border-white/10 bg-[rgba(38,38,38,0.88)] text-white shadow-2xl backdrop-blur-xl ring-0 sm:mx-0',
+        header: 'px-4 pt-4 pb-0 sm:px-6 sm:pt-6',
+        body: 'px-4 py-4 sm:px-6 sm:py-5',
+        footer: 'px-4 pb-4 pt-0 sm:px-6 sm:pb-6',
       }"
     >
       <template #content>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div class="mb-5 flex items-start justify-between gap-4">
             <div>
-              <h3 class="text-[24px] font-semibold">Выбрать продавца</h3>
+              <h3 class="text-[20px] font-semibold sm:text-[24px]">Выбрать продавца</h3>
               <p class="mt-1 text-sm text-[#bdbdbd]">
                 Найдите сотрудника и выберите, кто оформляет продажу.
               </p>
@@ -177,7 +177,7 @@
             </button>
           </div>
 
-          <div class="mt-5 flex gap-2">
+          <div class="mt-5 flex flex-col gap-2 sm:flex-row">
             <UButton
               block
               color="primary"

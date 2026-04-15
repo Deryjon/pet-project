@@ -38,7 +38,7 @@ const handleSidebarAction = () => {
 
 <template>
   <div
-    class="flex h-full min-h-0 flex-col overflow-y-auto transition-[padding] duration-300 ease-in-out"
+    class="sidebar-scroll flex h-full min-h-0 flex-col overflow-y-auto transition-[padding] duration-300 ease-in-out"
     :class="props.collapsed ? 'px-[10px]' : 'px-[20px] py-2'"
   >
     <div class="flex flex-1 flex-col gap-[30px]">
@@ -119,6 +119,15 @@ const handleSidebarAction = () => {
 </template>
 
 <style scoped>
+.sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar-label-enter-active,
 .sidebar-label-leave-active {
   transition: opacity 0.22s ease, transform 0.22s ease;

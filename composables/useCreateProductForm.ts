@@ -244,9 +244,15 @@ function isUuidLike(value: string): boolean {
   );
 }
 
-export function buildCreateProductPayload(
+function buildProductPayload(
   form: CreateProductFormState,
+  options?: {
+    mode?: "create" | "update";
+    sourceProduct?: any;
+  },
 ): CreateProductApiPayload {
+  const mode = options?.mode ?? "create";
+  const sourceProduct = options?.sourceProduct ?? {};
   const variationType = mapVariationType(form.variationType);
   const isVariative = variationType === "variant";
   const isGoods = mapProductType(form.productType) === "goods";
@@ -266,17 +272,22 @@ export function buildCreateProductPayload(
 
   const payload: CreateProductApiPayload = {
     name: form.name.trim(),
-    sku: form.sku.trim(),
-    barcode: form.barcode.trim(),
     product_type_id: mapProductType(form.productType),
     measurement_type: "unit",
     description: form.attributes.optionalField.trim() || undefined,
     brand_name: form.attributes.brand.trim() || undefined,
-    supplier_ids: [],
     supply_price: nonNegative(basePrices.purchasePrice),
     retail_price: nonNegative(basePrices.salePrice),
     profit_margin: nonNegative(basePrices.markupPercent),
   };
+
+  if (form.sku.trim()) {
+    payload.sku = form.sku.trim();
+  }
+
+  if (form.barcode.trim()) {
+    payload.barcode = form.barcode.trim();
+  }
 
   if (form.category) {
     payload.category_ids = [form.category];
@@ -339,10 +350,25 @@ export function buildCreateProductPayload(
   }
 
   payload.metadata = {
+    ...(isRecord(sourceProduct?.metadata) ? sourceProduct.metadata : {}),
     ui_unit: form.unit || "Штука",
     supplier_name: form.attributes.supplier.trim(),
     variation_attribute: form.variationAttribute.trim(),
   };
+
+  if (mode === "update") {
+    const sourceSuppliers = Array.isArray(sourceProduct?.suppliers)
+      ? sourceProduct.suppliers
+          .map((supplier: any) => supplier?.id ?? supplier?.supplier_id)
+          .filter((id: unknown) => id != null && id !== "")
+      : [];
+
+    if (sourceSuppliers.length) {
+      payload.supplier_ids = sourceSuppliers;
+    }
+  } else {
+    payload.supplier_ids = [];
+  }
 
   return Object.fromEntries(
     Object.entries(payload).filter(([, value]) => {
@@ -352,4 +378,207 @@ export function buildCreateProductPayload(
       return true;
     }),
   ) as CreateProductApiPayload;
+}
+
+export function buildCreateProductPayload(
+  form: CreateProductFormState,
+): CreateProductApiPayload {
+  return buildProductPayload(form, { mode: "create" });
+}
+
+export function buildUpdateProductPayload(
+  form: CreateProductFormState,
+  sourceProduct?: any,
+): CreateProductApiPayload {
+  return buildProductPayload(form, { mode: "update", sourceProduct });
+}
+
+export function createProductFormStateFromApi(
+  raw: any,
+  shops: ProductFormShopOption[] = [],
+): CreateProductFormState {
+  const form = createInitialProductFormState(shops);
+  const productType = normalizeProductTypeLabel(raw?.product_type_id ?? raw?.product_type);
+  const variationType = normalizeVariationTypeLabel(raw);
+  const quantityByShop = extractShopQuantities(raw);
+  const purchasePrice = Number(
+    raw?.supply_price ??
+      raw?.purchase_price ??
+      raw?.shop_prices?.[0]?.supply_price ??
+      0,
+  );
+  const salePrice = Number(
+    raw?.retail_price ??
+      raw?.sale_price ??
+      raw?.price ??
+      raw?.shop_prices?.[0]?.retail_price ??
+      0,
+  );
+
+  form.productType = productType;
+  form.variationType = variationType;
+  form.name = String(raw?.name ?? raw?.base_name ?? "").trim();
+  form.sku = String(raw?.sku ?? "").trim();
+  form.barcode = String(raw?.barcode ?? "").trim();
+  form.unit = normalizeMeasurementUnit(raw);
+  form.images = extractImages(raw);
+  form.prices = {
+    purchasePrice: nonNegative(purchasePrice),
+    salePrice: nonNegative(salePrice),
+    markupPercent: calculateMarkup(purchasePrice, salePrice),
+  };
+  form.stocks = createStockRows(shops).map((stock) => ({
+    ...stock,
+    qty: nonNegative(quantityByShop[stock.id] ?? 0),
+  }));
+  form.attributes = {
+    brand: String(raw?.brand_name ?? raw?.brand?.name ?? raw?.brand ?? "").trim(),
+    supplier: extractSupplierName(raw),
+    optionalField: String(raw?.description ?? raw?.metadata?.description ?? "").trim(),
+  };
+  form.category =
+    String(
+      raw?.category?.id ??
+        raw?.category_id ??
+        raw?.category_name ??
+        raw?.category ??
+        raw?.category_ids?.[0] ??
+        "",
+    ).trim() || undefined;
+  form.variationAttribute = String(raw?.metadata?.variation_attribute ?? "").trim();
+
+  if (mapProductType(productType) === "goods" && variationType === "Вариативный") {
+    const variants = Array.isArray(raw?.variants) ? raw.variants : [];
+    form.variations = variants.length
+      ? variants.map((variant: any) => createVariationFromApi(variant, shops))
+      : [createVariation(shops)];
+  }
+
+  return form;
+}
+
+function normalizeProductTypeLabel(value: unknown): ProductTypeLabel {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "service") return "Услуга";
+  if (normalized === "bundle") return "Комплект";
+  return "Товар";
+}
+
+function normalizeVariationTypeLabel(raw: any): VariationTypeLabel {
+  if (raw?.is_variative === true) {
+    return "Вариативный";
+  }
+
+  if (Array.isArray(raw?.variants) && raw.variants.length > 0) {
+    return "Вариативный";
+  }
+
+  return "Простой";
+}
+
+function normalizeMeasurementUnit(raw: any): string {
+  const measurementUnitId = String(raw?.measurement_unit_id ?? "").trim();
+  if (measurementUnitId && isUuidLike(measurementUnitId)) {
+    return measurementUnitId;
+  }
+
+  return String(
+    raw?.measurement_unit?.short_name ??
+      raw?.measurement_unit?.name ??
+      raw?.metadata?.ui_unit ??
+      raw?.unit ??
+      "Штука",
+  ).trim();
+}
+
+function extractShopQuantities(raw: any): Record<string, number> {
+  const entries = Array.isArray(raw?.shop_measurement_values)
+    ? raw.shop_measurement_values
+    : Array.isArray(raw?.product_supply_stock)
+      ? raw.product_supply_stock
+      : [];
+
+  return entries.reduce((acc: Record<string, number>, item: any) => {
+    const shopId = String(
+      item?.shop_id ?? item?.shopId ?? item?.branch_code ?? item?.branchCode ?? "",
+    ).trim();
+
+    if (!shopId) {
+      return acc;
+    }
+
+    acc[shopId] = nonNegative(
+      item?.active_measurement_value ??
+        item?.measurement_value ??
+        item?.total_measurement_value ??
+        item?.quantity ??
+        0,
+    );
+    return acc;
+  }, {} as Record<string, number>);
+}
+
+function extractImages(raw: any): CreateProductFormState["images"] {
+  const imageValues = Array.isArray(raw?.images) ? raw.images : raw?.photo ? [raw.photo] : [];
+
+  return imageValues
+    .map((image: any, index: number) => {
+      const src = String(image?.url ?? image?.src ?? image?.path ?? image ?? "").trim();
+      if (!src) return null;
+
+      const filename = src.split("/").pop() || `image_${index + 1}`;
+      return {
+        id: `existing_${index}_${filename}`,
+        file: null,
+        name: filename,
+        size: 0,
+        previewUrl: src,
+      };
+    })
+    .filter((image: CreateProductFormState["images"][number] | null): image is CreateProductFormState["images"][number] => Boolean(image));
+}
+
+function extractSupplierName(raw: any): string {
+  if (typeof raw?.metadata?.supplier_name === "string" && raw.metadata.supplier_name.trim()) {
+    return raw.metadata.supplier_name.trim();
+  }
+
+  if (Array.isArray(raw?.suppliers) && raw.suppliers.length) {
+    return raw.suppliers
+      .map((supplier: any) => String(supplier?.name ?? supplier ?? "").trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  return "";
+}
+
+function createVariationFromApi(
+  variant: any,
+  shops: ProductFormShopOption[] = [],
+): ProductVariationForm {
+  const stocks = createVariation(shops).stocks;
+  const rawStocks = isRecord(variant?.stocks) ? variant.stocks : {};
+
+  for (const [shopId, qty] of Object.entries(rawStocks)) {
+    stocks[String(shopId).trim()] = nonNegative(Number(qty) || 0);
+  }
+
+  const purchasePrice = nonNegative(variant?.supply_price ?? variant?.purchase_price ?? 0);
+  const salePrice = nonNegative(variant?.retail_price ?? variant?.sale_price ?? 0);
+
+  return {
+    id: String(variant?.id ?? randomId("variation")).trim(),
+    value: String(variant?.name ?? variant?.value ?? "").trim(),
+    prices: {
+      purchasePrice,
+      salePrice,
+      markupPercent: calculateMarkup(purchasePrice, salePrice),
+    },
+    stocks,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

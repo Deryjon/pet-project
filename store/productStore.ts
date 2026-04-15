@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import {
+  createProductFormStateFromApi,
   createBundleItem,
   createInitialProductFormState,
   createStockRows,
@@ -22,6 +23,8 @@ const CATEGORIES = ["аудио-система", "пылесос", "станци
 
 interface ProductStoreState {
   form: CreateProductFormState;
+  editingProductId: string | null;
+  editingProductSource: any | null;
   productTypes: ProductTypeLabel[];
   productVariants: VariationTypeLabel[];
   units: string[];
@@ -40,6 +43,8 @@ function fallbackBarcode() {
 export const useProductStore = defineStore("product", {
   state: (): ProductStoreState => ({
     form: createInitialProductFormState(),
+    editingProductId: null,
+    editingProductSource: null,
     productTypes: [...PRODUCT_TYPES],
     productVariants: [...PRODUCT_VARIANTS],
     units: [...UNITS],
@@ -84,6 +89,20 @@ export const useProductStore = defineStore("product", {
     },
     resetForm() {
       this.form = createInitialProductFormState(this.availableShops);
+      this.editingProductId = null;
+      this.editingProductSource = null;
+    },
+    startEditingProduct(product: any) {
+      const source = product?._original ?? product;
+      const id = source?.id ?? source?.product_id;
+
+      this.editingProductId = id != null ? String(id) : null;
+      this.editingProductSource = source ?? null;
+      this.form = createProductFormStateFromApi(source, this.availableShops);
+    },
+    stopEditingProduct() {
+      this.editingProductId = null;
+      this.editingProductSource = null;
     },
     setProductType(type: ProductTypeLabel) {
       this.form.productType = type;

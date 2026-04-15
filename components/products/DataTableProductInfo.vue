@@ -1,7 +1,9 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
+import { useProductStore } from "@/store/productStore";
 
 type TableSection = {
   title: string;
@@ -10,6 +12,8 @@ type TableSection = {
 };
 
 const store = useCatalogDataTableStore();
+const router = useRouter();
+const productStore = useProductStore();
 const placeholderImgUrl = new URL(
   "../../assets/images/placeholder_img.svg",
   import.meta.url,
@@ -244,6 +248,24 @@ function closeSidebar() {
   store.closeProductSidebar();
 }
 
+async function handleFooterAction(actionLabel: string) {
+  if (actionLabel !== "Изменить" || !selectedProduct.value) {
+    return;
+  }
+
+  const product = selectedProduct.value;
+
+  productStore.startEditingProduct(product);
+  closeSidebar();
+  await router.push({
+    path: "/products/create",
+    query: {
+      mode: "edit",
+      id: String(product.id ?? ""),
+    },
+  });
+}
+
 function getProductImage(photo?: string | null) {
   const src = typeof photo === "string" ? photo.trim() : "";
   return src.length > 0 ? src : placeholderImgUrl;
@@ -358,30 +380,30 @@ function formatHistoryAction(item: any) {
     :ui="{
       overlay: 'bg-black/45 backdrop-blur-[1px]',
       content:
-        'z-[9999] h-full w-full max-w-[950px] overflow-y-auto rounded-l-[60px] border-0 ring-0 sm:ring-0 bg-[#2b2b2b] px-16 pt-14 pb-0 text-white shadow-lg',
+        'z-[9999] h-full w-full max-w-[950px] overflow-y-auto rounded-none border-0 ring-0 bg-[#2b2b2b] px-4 pt-6 pb-0 text-white shadow-lg sm:rounded-l-[40px] sm:px-8 sm:pt-10 lg:rounded-l-[60px] lg:px-16 lg:pt-14',
     }"
     :close="false"
   >
     <template #content>
       <div class="flex min-h-full flex-col">
         <div class="flex-1 pb-24">
-          <div class="relative mb-6 flex items-center justify-between">
-            <div class="flex gap-[20px] border-gray-600">
+          <div class="relative mb-6 flex items-start justify-between gap-4">
+            <div class="flex min-w-0 gap-4 border-gray-600 sm:gap-[20px]">
               <img
                 :src="getProductImage(selectedProduct?.photo)"
                 @error="onProductImageError"
                 alt="Фото товара"
-                class="h-[60px] w-[60px] rounded-[20px] object-cover"
+                class="h-[56px] w-[56px] rounded-[16px] object-cover sm:h-[60px] sm:w-[60px] sm:rounded-[20px]"
               />
-              <div class="flex flex-col font-semibold">
-                <p class="text-[24px]">{{ selectedProduct?.name }}</p>
-                <p class="text-[16px] text-[#bdbdbd]">{{ productMeta }}</p>
+              <div class="flex min-w-0 flex-col font-semibold">
+                <p class="break-words text-[18px] sm:text-[24px]">{{ selectedProduct?.name }}</p>
+                <p class="break-words text-[13px] text-[#bdbdbd] sm:text-[16px]">{{ productMeta }}</p>
               </div>
             </div>
 
             <UButton
               @click="closeSidebar"
-              class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#404040] text-white hover:bg-gray-400"
+              class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#404040] text-white hover:bg-gray-400 sm:h-12 sm:w-12"
             >
               <Icon name="mingcute:close-fill" class="h-6 w-6" />
             </UButton>
@@ -396,12 +418,12 @@ function formatHistoryAction(item: any) {
             class="mb-6"
           >
             <div class="mb-3 flex items-center justify-between gap-4">
-              <h3 class="text-2xl font-bold">{{ section.title }}</h3>
+              <h3 class="text-xl font-bold sm:text-2xl">{{ section.title }}</h3>
               <UButton
                 v-if="sectionIndex === 0"
                 color="neutral"
                 variant="ghost"
-                class="text-lg flex items-center gap-2 rounded-[12px] px-4 py-2 text-[#3b82f6]"
+                class="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm text-[#3b82f6] sm:px-4 sm:text-lg"
                 @click="filtersOpen = !filtersOpen"
               >
                 <Icon
@@ -422,13 +444,13 @@ function formatHistoryAction(item: any) {
                 :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
                 :ui="{
                   content:
-                    'z-[10050] w-[320px] rounded-[12px] bg-[#262626] p-3 shadow-xl',
+                    'z-[10050] w-[280px] max-w-[calc(100vw-32px)] rounded-[12px] bg-[#262626] p-3 shadow-xl sm:w-[320px]',
                 }"
               >
                 <UButton
                   color="neutral"
                   variant="ghost"
-                  class="text-md flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-4 text-left text-white hover:bg-[#a7a6a6]"
+                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-left text-sm text-white hover:bg-[#a7a6a6] sm:py-4 sm:text-base"
                 >
                   <span>{{ formatSingleDate(selectedDate) }}</span>
                   <Icon name="ph:calendar" class="h-4 w-4 text-[#3b82f6]" />
@@ -453,13 +475,13 @@ function formatHistoryAction(item: any) {
                 :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
                 :ui="{
                   content:
-                    'z-[10050] w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 shadow-xl text-md ',
+                    'z-[10050] w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 text-sm shadow-xl sm:text-base',
                 }"
               >
                 <UButton
                   color="neutral"
                   variant="ghost"
-                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-white hover:bg-[#a7a6a6] text-md"
+                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-sm text-white hover:bg-[#a7a6a6] sm:text-base"
                 >
                   <span>{{ selectedAction }}</span>
                   <Icon name="heroicons:chevron-down" class="h-4 w-4" />
@@ -487,13 +509,13 @@ function formatHistoryAction(item: any) {
                 :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
                 :ui="{
                   content:
-                    'text-md z-[10050] w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 shadow-xl',
+                    'z-[10050] w-full min-w-[220px] rounded-[12px] border border-[#404040] bg-[#262626] p-2 text-sm shadow-xl sm:text-base',
                 }"
               >
                 <UButton
                   color="neutral"
                   variant="ghost"
-                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-white hover:bg-[#a7a6a6] text-md"
+                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-sm text-white hover:bg-[#a7a6a6] sm:text-base"
                 >
                   <span>{{ selectedShop }}</span>
                   <Icon name="heroicons:chevron-down" class="h-5 w-5" />
@@ -517,36 +539,36 @@ function formatHistoryAction(item: any) {
               </UPopover>
             </div>
 
-            <table
-              class="w-full overflow-hidden rounded-lg border border-gray-700 text-sm"
-            >
-              <thead class="bg-[#3a3a3a] text-left">
-                <tr>
-                  <th
-                    v-for="column in section.columns"
-                    :key="column"
-                    class="p-2"
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+              <table class="min-w-[560px] w-full overflow-hidden text-sm">
+                <thead class="bg-[#3a3a3a] text-left">
+                  <tr>
+                    <th
+                      v-for="column in section.columns"
+                      :key="column"
+                      class="p-2"
+                    >
+                      {{ column }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, rowIndex) in section.rows"
+                    :key="`${section.title}-${rowIndex}`"
+                    class="border-t border-gray-700"
                   >
-                    {{ column }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(row, rowIndex) in section.rows"
-                  :key="`${section.title}-${rowIndex}`"
-                  class="border-t border-gray-700"
-                >
-                  <td
-                    v-for="(cell, cellIndex) in row"
-                    :key="`${section.title}-${rowIndex}-${cellIndex}`"
-                    class="whitespace-pre-line p-2"
-                  >
-                    {{ cell }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    <td
+                      v-for="(cell, cellIndex) in row"
+                      :key="`${section.title}-${rowIndex}-${cellIndex}`"
+                      class="whitespace-pre-line p-2"
+                    >
+                      {{ cell }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div
               class="relative after:block after:h-[0.8px] after:w-full after:bg-[repeating-linear-gradient(to_right,#6f6f6f_0_12px,transparent_12px_24px)] after:content-[''] my-10"
             ></div>
@@ -555,7 +577,7 @@ function formatHistoryAction(item: any) {
           <div class="mb-6">
             <h3 class="mb-3 text-lg font-bold">Характеристики</h3>
             <div
-              class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm  text-[#bdbdbd]"
+              class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm text-[#bdbdbd] sm:grid-cols-2"
             >
               <p
                 class="bg-[#3a3a3a] py-3 px-3 flex flex-col rounded-[15px]"
@@ -575,13 +597,14 @@ function formatHistoryAction(item: any) {
         </div>
 
         <div
-          class="sticky bottom-0 left-0 right-0 z-10 -mx-16 mt-auto border-[#4a4a4a] bg-[#2b2b2b] px-16 pb-8 pt-4"
+          class="sticky bottom-0 left-0 right-0 z-10 -mx-4 mt-auto border-[#4a4a4a] bg-[#2b2b2b] px-4 pb-4 pt-4 sm:-mx-8 sm:px-8 sm:pb-6 lg:-mx-16 lg:px-16 lg:pb-8"
         >
           <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
             <UButton
               v-for="action in footerActions"
               :key="action.label"
-              class="flex items-center justify-center gap-2 rounded-2xl bg-[#3b82f6] px-4 py-4 text-lg font-semibold text-white transition hover:bg-[#1659d9]"
+              class="flex items-center justify-center gap-2 rounded-2xl bg-[#3b82f6] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1659d9] sm:py-4 sm:text-lg"
+              @click="handleFooterAction(action.label)"
             >
               <Icon :name="action.icon" class="h-6 w-6" />
               <span>{{ action.label }}</span>

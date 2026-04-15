@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col bg-[#262626] text-[17px] font-bold shadow-style">
+  <div class="flex flex-col bg-[#262626] text-[15px] font-bold shadow-style sm:text-[17px]">
     <div class="flex items-center justify-between p-4">
       <span>Промежуточно</span>
       <span>{{ formatPrice(subtotal) }} UZS</span>
@@ -11,16 +11,16 @@
     </div>
 
     <button
-      class="flex w-full items-center justify-between rounded-[15px] px-5 py-6"
+      class="flex w-full items-center justify-between rounded-[15px] px-4 py-5 sm:px-5 sm:py-6"
       :class="canPay ? 'bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
       :disabled="!canPay"
       @click="openPaymentPanel"
     >
-      <span class="flex items-center gap-2 uppercase">
+      <span class="flex items-center gap-2 text-[13px] uppercase sm:text-base">
         <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Оплатить
       </span>
-      <span>{{ formatPrice(payableAmount) }} UZS</span>
+      <span class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(payableAmount) }} UZS</span>
     </button>
 
     <button
@@ -43,14 +43,14 @@
       :close="false"
       :ui="{
         overlay: 'bg-black/50 backdrop-blur-sm',
-        content: 'w-full max-w-[980px] border-0 bg-[#1f1f1f] p-6 text-white shadow-2xl ring-0',
+        content: 'w-full max-w-[980px] border-0 bg-[#1f1f1f] p-4 text-white shadow-2xl ring-0 sm:p-6',
       }"
     >
       <template #content>
         <div class="flex h-full flex-col">
           <div class="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h3 class="text-[28px] font-semibold">Оплата продажи</h3>
+              <h3 class="text-[22px] font-semibold sm:text-[28px]">Оплата продажи</h3>
               <p class="mt-1 text-sm text-[#a3a3a3]">
                 Выберите способ оплаты для полного закрытия суммы.
               </p>
@@ -168,7 +168,7 @@
             </div>
           </div>
 
-          <div class="mt-6 flex gap-3">
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row">
             <UButton
               block
               color="neutral"
