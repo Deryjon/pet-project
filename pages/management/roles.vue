@@ -29,6 +29,7 @@ const {
   updateRolePermissions,
   getRolesForSelect,
 } = useRolePermissionsApi();
+const toast = useToast();
 
 const loadingRoles = ref(false);
 const loadingPermissions = ref(false);
@@ -286,6 +287,7 @@ async function submitRole() {
       error,
       panelMode.value === "create" ? "Не удалось создать роль." : "Не удалось обновить роль.",
     );
+    toast.add({ title: panelMode.value === "create" ? "Не удалось создать роль" : "Не удалось обновить роль", description: serverError.value || undefined, color: "error" });
   } finally {
     savingRole.value = false;
   }

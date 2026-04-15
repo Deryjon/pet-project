@@ -38,10 +38,10 @@ const handleSidebarAction = () => {
 
 <template>
   <div
-    class="flex h-full flex-col justify-between overflow-y-auto transition-[padding] duration-300 ease-in-out"
+    class="sidebar-scroll flex h-full min-h-0 flex-col overflow-y-auto transition-[padding] duration-300 ease-in-out"
     :class="props.collapsed ? 'px-[10px]' : 'px-[20px] py-2'"
   >
-    <div class="flex flex-col gap-[30px]">
+    <div class="flex flex-1 flex-col gap-[30px]">
       <div
         :class="[
           'logo flex items-center p-[5px] text-[20px] font-bold text-white transition-all duration-300 ease-in-out',
@@ -88,7 +88,7 @@ const handleSidebarAction = () => {
 
     <div
       :class="[
-        'flex flex-col gap-5 transition-all duration-300 ease-in-out',
+        'mt-auto flex flex-col gap-5 transition-all duration-300 ease-in-out',
         props.collapsed ? 'mb-3 items-center' : 'pb-4',
       ]"
     >
@@ -119,6 +119,15 @@ const handleSidebarAction = () => {
 </template>
 
 <style scoped>
+.sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar-label-enter-active,
 .sidebar-label-leave-active {
   transition: opacity 0.22s ease, transform 0.22s ease;

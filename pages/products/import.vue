@@ -18,10 +18,10 @@
       <transition name="slide-panel">
         <aside
           v-if="isImportModalOpen"
-          class="fixed right-0 top-0 z-[60] flex h-full w-full max-w-[640px] flex-col overflow-hidden rounded-l-[40px] bg-[#2b2b2b] text-white shadow-2xl"
+          class="fixed right-0 top-0 z-[60] flex h-full w-full max-w-[640px] flex-col overflow-hidden rounded-none bg-[#2b2b2b] text-white shadow-2xl sm:rounded-l-[40px]"
           @click.stop
         >
-          <div class="flex items-center justify-between border-b border-white/10 px-8 py-6">
+          <div class="flex items-start justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-8 sm:py-6">
             <div>
               <p class="text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]">
                 Шаг {{ modalStep }} из 2
@@ -47,14 +47,14 @@
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto px-8 py-8">
+          <div class="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
             <div v-if="modalStep === 1" class="space-y-6">
               <div class="space-y-2">
                 <label class="text-[16px] font-bold text-white">Наименование</label>
                 <input
                   v-model="form.name"
                   type="text"
-                  class="w-full rounded-[18px] border border-transparent bg-[#404040] px-5 py-4 text-[16px] text-white outline-none transition-colors duration-200 placeholder:text-[#9f9f9f] focus:border-[#4993dd]"
+                  class="w-full rounded-[18px] border border-transparent bg-[#404040] px-4 py-3 text-[15px] text-white outline-none transition-colors duration-200 placeholder:text-[#9f9f9f] focus:border-[#4993dd] sm:px-5 sm:py-4 sm:text-[16px]"
                   placeholder="Импорт 13.04.2026 01:37"
                 />
               </div>
@@ -77,7 +77,7 @@
               <div class="space-y-2">
                 <span class="block text-[16px] font-bold text-white">Файл</span>
                 <label
-                  class="block cursor-pointer rounded-[24px] border border-dashed p-6 transition-colors duration-200"
+                  class="block cursor-pointer rounded-[24px] border border-dashed p-4 transition-colors duration-200 sm:p-6"
                   :class="isDragging ? 'border-[#4993dd] bg-[#24384f]' : 'border-[#5e5e5e] bg-[#363636]'"
                   @dragenter.prevent="isDragging = true"
                   @dragover.prevent="isDragging = true"
@@ -112,7 +112,7 @@
 
                 <div
                   v-if="selectedFile"
-                  class="flex items-center justify-between rounded-[18px] bg-[#363636] px-5 py-4"
+                  class="flex flex-col gap-3 rounded-[18px] bg-[#363636] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
                 >
                   <div>
                     <p class="text-[16px] font-bold text-white">{{ selectedFile.name }}</p>
@@ -202,19 +202,19 @@
               </div>
 
               <div class="rounded-[24px] bg-[#363636] p-5">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-[16px] font-bold text-white">Режим импорта</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
                       Оба режима создают import session, после чего можно открыть общую таблицу товаров перед загрузкой.
                     </p>
                   </div>
-                  <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
+                  <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
                     <button
                       v-for="option in modeOptions"
                       :key="option.value"
                       type="button"
-                      class="rounded-[10px] px-4 py-2 text-[14px] font-bold transition-colors duration-200"
+                      class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
                       :class="form.mode === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
                       @click="form.mode = option.value"
                     >
@@ -225,19 +225,19 @@
               </div>
 
               <div class="rounded-[24px] bg-[#363636] p-5">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-[16px] font-bold text-white">Генерировать штрихкоды</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
                       Если barcode пустой, backend сможет подставить новый.
                     </p>
                   </div>
-                  <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
+                  <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
                     <button
                       v-for="option in booleanOptions"
                       :key="`barcode-${option.value}`"
                       type="button"
-                      class="rounded-[10px] px-4 py-2 text-[14px] font-bold transition-colors duration-200"
+                      class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
                       :class="form.generateBarcodes === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
                       @click="form.generateBarcodes = option.value"
                     >
@@ -248,19 +248,19 @@
               </div>
 
               <div class="rounded-[24px] bg-[#363636] p-5">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-[16px] font-bold text-white">Генерировать SKU</p>
                     <p class="mt-1 text-[14px] text-[#bdbdbd]">
                       Если SKU пустой, backend сможет сгенерировать значение.
                     </p>
                   </div>
-                  <div class="flex rounded-[14px] bg-[#2b2b2b] p-1">
+                  <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
                     <button
                       v-for="option in booleanOptions"
                       :key="`sku-${option.value}`"
                       type="button"
-                      class="rounded-[10px] px-4 py-2 text-[14px] font-bold transition-colors duration-200"
+                      class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
                       :class="form.generateArticles === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
                       @click="form.generateArticles = option.value"
                     >
@@ -280,7 +280,7 @@
             </div>
           </div>
 
-          <div class="border-t border-white/10 px-8 py-6">
+          <div class="border-t border-white/10 px-4 py-4 sm:px-8 sm:py-6">
             <div class="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -420,6 +420,7 @@ const mappings = ref<ImportDraftMappingPayload[]>([]);
 const errors = ref<string[]>([]);
 const availableProperties = ref<ImportProperty[]>([]);
 const shops = ref<ImportShopOption[]>([]);
+const toast = useToast();
 
 const form = ref<ImportFormState>({
   name: "",
@@ -780,6 +781,7 @@ async function submitImport() {
       throw new Error("Сервер создал импорт, но не вернул его ID");
     }
 
+    toast.add({ title: "Импорт создан", color: "success" });
     await router.push(`/products/import/edit/${resolvedImportId}?page=1`);
   } catch (error: any) {
     errors.value = [error?.message || "Не удалось создать импорт."];

@@ -10,7 +10,7 @@
         variant="none"
         :ui="{
           root: 'w-full',
-          base: 'h-[58px] rounded-[15px] border-0 bg-[#404040] px-4 text-[17px] font-bold text-[#bdbdbd] placeholder:text-[#bdbdbd] focus:outline-none focus:ring-0',
+          base: 'h-[52px] rounded-[15px] border-0 bg-[#404040] px-4 text-[15px] font-bold text-[#bdbdbd] placeholder:text-[#bdbdbd] focus:outline-none focus:ring-0 sm:h-[58px] sm:text-[17px]',
           leading: 'ps-4'
         }"
       >
@@ -24,14 +24,14 @@
       <UButton
         color="primary"
         variant="solid"
-        class="h-[58px] flex-1 justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd] sm:w-[58px] sm:flex-none"
+        class="h-[52px] flex-1 justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd] sm:h-[58px] sm:w-[58px] sm:flex-none"
       >
         <Icon name="fa7-solid:exchange" class="h-5 w-5" />
       </UButton>
       <UButton
         color="primary"
         variant="solid"
-        class="h-[58px] flex-1 justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd] sm:w-[58px] sm:flex-none"
+        class="h-[52px] flex-1 justify-center rounded-[15px] bg-[#1f78ff] text-white hover:bg-[#4993dd] sm:h-[58px] sm:w-[58px] sm:flex-none"
       >
         <Icon name="heroicons:clock" class="h-5 w-5" />
       </UButton>
@@ -47,23 +47,23 @@
 
     <div
       v-if="showResults"
-      class="absolute top-full z-20 mt-2 flex max-h-[250px] w-full flex-col gap-3 overflow-y-auto rounded-xl shadow-lg"
+      class="absolute top-full z-20 mt-2 flex max-h-[250px] w-full flex-col gap-2 overflow-y-auto rounded-xl shadow-lg"
     >
       <button
         v-for="product in filteredProducts"
         :key="product.id"
         type="button"
-        class="flex cursor-pointer items-center justify-between rounded-[12px] bg-[#262626] p-3 text-left text-[16px] font-semibold transition hover:bg-[#303030]"
+        class="flex cursor-pointer flex-col items-start gap-3 rounded-[12px] bg-[#262626] p-3 text-left text-[14px] font-semibold transition hover:bg-[#303030] sm:flex-row sm:items-center sm:justify-between sm:text-[16px]"
         @click="addToCart(product)"
       >
-        <div class="flex items-center gap-4">
-          <div class="h-[20px] w-[20px] bg-[#404040]" />
-          <div class="flex flex-col">
-            <span class="text-[#4993dd]">{{ product.name }}</span>
-            <span>{{ product.barcode }} / {{ product.article }}</span>
+        <div class="flex w-full min-w-0 items-center gap-3 sm:gap-4">
+          <div class="h-[20px] w-[20px] shrink-0 bg-[#404040]" />
+          <div class="flex min-w-0 flex-col">
+            <span class="truncate text-[#4993dd]">{{ product.name }}</span>
+            <span class="break-all text-[12px] sm:text-[14px]">{{ product.barcode }} / {{ product.article }}</span>
           </div>
         </div>
-        <div class="flex flex-col text-right">
+        <div class="flex w-full flex-col text-left sm:w-auto sm:text-right">
           <span>{{ formatPrice(product.price) }} UZS</span>
           <span class="text-[#999]">Кол-во: {{ Number(product.availableQuantity ?? 0) }} шт</span>
         </div>

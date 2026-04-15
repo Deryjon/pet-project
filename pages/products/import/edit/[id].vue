@@ -32,7 +32,7 @@
         </p>
       </div>
 
-      <div class="flex flex-wrap gap-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           v-if="canCancel"
           type="button"
@@ -108,7 +108,7 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-full border-separate border-spacing-y-2 text-left">
+        <table class="min-w-[920px] w-full border-separate border-spacing-y-2 text-left">
           <thead>
             <tr class="text-[13px] uppercase tracking-[0.12em] text-[#8f8f8f]">
               <th class="px-4 py-3">Name</th>
@@ -184,6 +184,7 @@ const session = ref<ImportSession | null>(null);
 const loading = ref(true);
 const actionLoading = ref(false);
 const error = ref("");
+const toast = useToast();
 const progressPercent = ref(0);
 const progressMessage = ref("");
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -327,10 +328,12 @@ async function validateImport() {
     });
     await loadSession();
     if (result.jobId) {
+      toast.add({ title: "Проверка импорта запущена", color: "success" });
       await pollProgress(result.jobId, result.importId);
       return;
     }
 
+    toast.add({ title: "Импорт проверен", color: "success" });
     await router.replace(`/products/import/list/${result.importId}?limit=20&page=1`);
   } catch (err: any) {
     error.value = err?.message || "Не удалось запустить проверку.";
@@ -347,6 +350,7 @@ async function commitImport() {
 
   try {
     await commitImportSession(session.value.id);
+    toast.add({ title: "Импорт подтвержден", color: "success" });
     await router.replace(`/products/import/list/${session.value.id}?limit=20&page=1`);
   } catch (err: any) {
     error.value = err?.message || "Не удалось подтвердить импорт.";
@@ -363,6 +367,7 @@ async function cancelImport() {
 
   try {
     session.value = await cancelImportSession(session.value.id);
+    toast.add({ title: "Импорт отменен", color: "success" });
   } catch (err: any) {
     error.value = err?.message || "Не удалось отменить импорт.";
   } finally {

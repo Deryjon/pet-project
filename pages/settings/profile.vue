@@ -21,6 +21,7 @@ type ProfileResponse = {
 const userStore = useUserStore();
 const { user, fullName } = storeToRefs(userStore);
 const { apiFetch } = useApi();
+const toast = useToast();
 
 const firstName = ref("");
 const lastName = ref("");
