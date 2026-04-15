@@ -13,6 +13,10 @@ function handleCellClick(cell: any, row: any) {
     return;
   }
 
+  if (props.store?.productDetailsLoading) {
+    return;
+  }
+
   if (props.onRowClick) {
     props.onRowClick(row.original);
     return;

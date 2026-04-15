@@ -6,6 +6,7 @@ import {
   useVueTable,
 } from "@tanstack/vue-table";
 import { useProducts, type ProductDTO } from "~/composables/useProducts";
+import type { ProductCardData } from "~/types/product-detail";
 import { useLocationStore } from "@/store/useLocationStore";
 
 type CatalogFilterState = {
@@ -39,6 +40,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   const rawData = ref<any[]>([]);
   const globalFilter = ref("");
   const loading = ref(false);
+  const productDetailsLoading = ref(false);
   const totalItems = ref(0);
   const count = ref(0);
   const fields = ref<CatalogField[]>([]);
@@ -224,6 +226,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
 
       rawData.value = result.products.map((p: ProductDTO) => ({
         id: p.id,
+        public_id: (p as any)?._original?.public_id ?? p.id,
         variation_id: (p as any).variation_id ?? p.id,
         photo: p.photo || undefined,
         name: p.name,
@@ -433,9 +436,37 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     table.getSelectedRowModel().rows.map((row: any) => row.original.id),
   );
 
-  function openProduct(product: any) {
-    selectedProduct.value = product;
-    showProductSidebar.value = true;
+  async function openProduct(product: any) {
+    const publicId = String(
+      product?.public_id ??
+        product?._original?.public_id ??
+        product?.id ??
+        product?._original?.id ??
+        "",
+    ).trim();
+
+    if (!publicId) {
+      selectedProduct.value = product;
+      showProductSidebar.value = true;
+      return;
+    }
+
+    productDetailsLoading.value = true;
+
+    try {
+      const { loadProductCard } = useProducts();
+      const productCard = await loadProductCard(publicId);
+      const normalizedDetail = normalizeDetailedProduct(productCard);
+
+      selectedProduct.value = normalizedDetail;
+      showProductSidebar.value = true;
+    } catch (error) {
+      console.error("Failed to load product details", error);
+      selectedProduct.value = product;
+      showProductSidebar.value = true;
+    } finally {
+      productDetailsLoading.value = false;
+    }
   }
 
   function closeProductSidebar() {
@@ -457,6 +488,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     rawData,
     globalFilter,
     loading,
+    productDetailsLoading,
     totalItems,
     count,
     fields,
@@ -546,6 +578,111 @@ function parseNumber(value: string) {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeDetailedProduct(productCard: ProductCardData) {
+  const { product, measurementUnit, movement, shops, priceTags } = productCard;
+  const shopNameById = new Map<string, string>(
+    shops.map((shop) => [String(shop.id ?? "").trim(), String(shop.name ?? "").trim()]),
+  );
+
+  const shopMeasurementValues = Array.isArray(product?.shop_measurement_values)
+    ? product.shop_measurement_values.map((item: any) => ({
+        ...item,
+        shop_name:
+          item?.shop_name ??
+          item?.shop?.name ??
+          shopNameById.get(String(item?.shop_id ?? "").trim()) ??
+          "-",
+      }))
+    : [];
+
+  const productSupplyStock = Array.isArray(product?.product_supply_stock)
+    ? product.product_supply_stock.map((item: any) => ({
+        ...item,
+        shop_name:
+          item?.shop_name ??
+          item?.shop?.name ??
+          shopNameById.get(String(item?.shop_id ?? "").trim()) ??
+          "-",
+      }))
+    : [];
+
+  const history = Array.isArray(movement?.movements)
+    ? movement.movements.map((movementItem: any) => ({
+        ...movement,
+        shop_name:
+          movementItem?.shop_name ??
+          shopNameById.get(String(movementItem?.to_shop ?? "").trim()) ??
+          shopNameById.get(String(movementItem?.from_shop ?? "").trim()) ??
+          shopNameById.get(
+            String(
+              movementItem?.to_shop ??
+                movementItem?.from_shop ??
+                "",
+            ).trim(),
+          ) ??
+          "-",
+      }))
+    : [];
+
+  const firstCategory = Array.isArray(product?.categories) ? product.categories[0] : null;
+  const firstSupplier = Array.isArray(product?.suppliers) ? product.suppliers : [];
+  const shopPrices = Array.isArray(product?.shop_prices) ? product.shop_prices : [];
+
+  return {
+    id: product?.id ?? "",
+    photo: product?.main_image_url ?? null,
+    name: String(product?.name ?? ""),
+    sku: String(product?.sku ?? ""),
+    barcode: String(product?.barcode ?? ""),
+    category:
+      typeof firstCategory?.name === "string"
+        ? firstCategory.name
+        : typeof firstCategory === "string"
+          ? firstCategory
+          : "",
+    shop_name:
+      productSupplyStock[0]?.shop_name ??
+      shopMeasurementValues[0]?.shop_name ??
+      "",
+    suppliers: firstSupplier.length
+      ? firstSupplier
+          .map((supplier: any) => String(supplier?.name ?? supplier ?? "").trim())
+          .filter(Boolean)
+          .join(", ")
+      : "",
+    quantity: Number(
+      product?.measurement_values?.total_measurement_value ??
+        shopMeasurementValues.reduce(
+          (sum: number, item: any) => sum + Number(item?.measurement_value ?? 0),
+          0,
+        ) ??
+        0,
+    ),
+    purchase_price: Number(product?.supply_price ?? shopPrices[0]?.supply_price ?? 0),
+    sale_price: Number(product?.retail_price ?? shopPrices[0]?.retail_price ?? 0),
+    wholesale_price: Number(shopPrices[0]?.wholesale_price ?? 0),
+    discount_price: null,
+    brand: String(product?.brand_name ?? ""),
+    unit: String(
+      measurementUnit?.short_name ??
+        measurementUnit?.name ??
+        product?.measurement_unit?.short_name ??
+        product?.measurement_unit?.name ??
+        product?.measurement_type ??
+        "",
+    ),
+    _original: {
+      ...product,
+      measurement_unit: measurementUnit ?? product?.measurement_unit ?? null,
+      product_supply_stock: productSupplyStock,
+      shop_measurement_values: shopMeasurementValues,
+      history,
+      price_tags: priceTags,
+      shops,
+    },
+  };
 }
 
 function buildCatalogColumns(

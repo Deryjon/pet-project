@@ -1,7 +1,9 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
+import { useProductStore } from "@/store/productStore";
 
 type TableSection = {
   title: string;
@@ -10,6 +12,8 @@ type TableSection = {
 };
 
 const store = useCatalogDataTableStore();
+const router = useRouter();
+const productStore = useProductStore();
 const placeholderImgUrl = new URL(
   "../../assets/images/placeholder_img.svg",
   import.meta.url,
@@ -242,6 +246,24 @@ const productMeta = computed(() => {
 
 function closeSidebar() {
   store.closeProductSidebar();
+}
+
+async function handleFooterAction(actionLabel: string) {
+  if (actionLabel !== "Изменить" || !selectedProduct.value) {
+    return;
+  }
+
+  const product = selectedProduct.value;
+
+  productStore.startEditingProduct(product);
+  closeSidebar();
+  await router.push({
+    path: "/products/create",
+    query: {
+      mode: "edit",
+      id: String(product.id ?? ""),
+    },
+  });
 }
 
 function getProductImage(photo?: string | null) {
@@ -582,6 +604,7 @@ function formatHistoryAction(item: any) {
               v-for="action in footerActions"
               :key="action.label"
               class="flex items-center justify-center gap-2 rounded-2xl bg-[#3b82f6] px-4 py-4 text-lg font-semibold text-white transition hover:bg-[#1659d9]"
+              @click="handleFooterAction(action.label)"
             >
               <Icon :name="action.icon" class="h-6 w-6" />
               <span>{{ action.label }}</span>
