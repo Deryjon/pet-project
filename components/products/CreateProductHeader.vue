@@ -4,9 +4,11 @@ import { useRouter } from "vue-router";
 withDefaults(
   defineProps<{
     submitting?: boolean;
+    mode?: "create" | "edit";
   }>(),
   {
     submitting: false,
+    mode: "create",
   },
 );
 
@@ -31,7 +33,7 @@ const router = useRouter();
           >
             <Icon name="tabler:chevron-left" class="h-6 w-6 text-[#1f78ff]" />
           </UButton>
-          <h2 class="text-4xl font-bold">Новый продукт</h2>
+          <h2 class="text-4xl font-bold">{{ mode === "edit" ? "Изменить продукт" : "Новый продукт" }}</h2>
         </div>
 
         <UButton
@@ -41,7 +43,7 @@ const router = useRouter();
           :loading="submitting"
           @click="emit('create')"
         >
-          Создать
+          {{ mode === "edit" ? "Сохранить" : "Создать" }}
         </UButton>
       </div>
     </div>

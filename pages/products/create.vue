@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useHead } from "#imports";
 import {
   buildCreateProductPayload,
+  buildUpdateProductPayload,
   validateCreateProductForm,
 } from "~/composables/useCreateProductForm";
 import { normalizeApiError, useProducts } from "~/composables/useProducts";
@@ -20,17 +21,26 @@ import CreateProductStocks from "@/components/products/CreateProductStocks.vue";
 definePageMeta({ layout: "empty" });
 
 const router = useRouter();
+const route = useRoute();
 const store = useProductStore();
 const locationStore = useLocationStore();
-const { createProduct } = useProducts();
+const { createProduct, updateProduct } = useProducts();
 const toast = useToast();
 
 const submitting = ref(false);
 const validationMessages = ref<string[]>([]);
+const isEditMode = computed(() => route.query.mode === "edit");
 
 useHead({
-  title: "Новый продукт | Konkurent.cases",
-  meta: [{ name: "description", content: "Создание нового продукта" }],
+  title: computed(() =>
+    isEditMode.value ? "Изменить продукт | Konkurent.cases" : "Новый продукт | Konkurent.cases",
+  ),
+  meta: [
+    {
+      name: "description",
+      content: "Создание и редактирование продукта",
+    },
+  ],
 });
 
 const showStocks = computed(() => store.form.productType === "Товар");
@@ -91,6 +101,21 @@ function updateActiveSectionByScroll() {
 
 onMounted(() => {
   store.syncAvailableShops(locationStore.locations);
+
+  if (!isEditMode.value && store.editingProductId) {
+    store.resetForm();
+  }
+
+  if (isEditMode.value && !store.editingProductId) {
+    toast.add({
+      title: "Не удалось открыть режим редактирования",
+      description: "Откройте товар из каталога заново.",
+      color: "warning",
+    });
+    void router.replace("/products/catalog");
+    return;
+  }
+
   window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
   updateActiveSectionByScroll();
 });
@@ -114,16 +139,33 @@ async function submitForm(mode: "save" | "save-and-new") {
   validationMessages.value = issues.map((issue) => issue.message);
 
   if (issues.length > 0) {
-    toast.add({ title: "��������� �����", description: issues[0]?.message || "���� ������ ���������", color: "warning" });
+    toast.add({
+      title: "Проверьте форму",
+      description: issues[0]?.message || "Исправьте ошибки перед сохранением.",
+      color: "warning",
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
 
   submitting.value = true;
   try {
+    if (isEditMode.value) {
+      if (!store.editingProductId) {
+        throw new Error("Не найден редактируемый товар");
+      }
+
+      const payload = buildUpdateProductPayload(store.form, store.editingProductSource);
+      await updateProduct(store.editingProductId, payload);
+      toast.add({ title: "Продукт обновлен", color: "success" });
+      store.stopEditingProduct();
+      await router.push("/products/catalog");
+      return;
+    }
+
     const payload = buildCreateProductPayload(store.form);
     await createProduct(payload);
-    toast.add({ title: "������� ������", color: "success" });
+    toast.add({ title: "Продукт создан", color: "success" });
 
     if (mode === "save-and-new") {
       store.resetForm();
@@ -136,9 +178,13 @@ async function submitForm(mode: "save" | "save-and-new") {
     await router.push("/products/catalog");
   } catch (error: any) {
     validationMessages.value = [normalizeApiError(error)];
-    toast.add({ title: "�� ������� ������� �������", description: validationMessages.value[0], color: "error" });
+    toast.add({
+      title: "Не удалось сохранить продукт",
+      description: validationMessages.value[0],
+      color: "error",
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
-    console.error("Failed to create product", error);
+    console.error("Failed to save product", error);
   } finally {
     submitting.value = false;
   }
@@ -147,7 +193,11 @@ async function submitForm(mode: "save" | "save-and-new") {
 
 <template>
   <section class="operations">
-    <CreateProductHeader :submitting="submitting" @create="submitForm('save')" />
+    <CreateProductHeader
+      :submitting="submitting"
+      :mode="isEditMode ? 'edit' : 'create'"
+      @create="submitForm('save')"
+    />
 
     <div class="mx-auto mt-8 flex items-start gap-10 px-[120px] pb-12">
       <CreateProductSidebar
@@ -196,7 +246,3 @@ async function submitForm(mode: "save" | "save-and-new") {
 <style>
 @reference "tailwindcss";
 </style>
-
-
-
-

@@ -6,7 +6,7 @@ export type VariationTypeLabel = "Простой" | "Вариативный";
 
 export interface ProductImage {
   id: string;
-  file: File;
+  file?: File | null;
   name: string;
   size: number;
   previewUrl: string;
@@ -67,18 +67,18 @@ export interface FormValidationIssue {
 
 export interface CreateProductApiPayload {
   name: string;
-  sku: string;
-  barcode: string;
+  sku?: string;
+  barcode?: string;
   product_type_id: ProductType;
   measurement_type: string;
   measurement_unit_id?: string;
   description?: string;
   brand_name?: string;
-  supplier_ids?: string[];
+  supplier_ids?: Array<number | string>;
   supply_price?: number;
   retail_price?: number;
   profit_margin?: number;
-  category_ids?: string[];
+  category_ids?: Array<number | string>;
   images?: string[];
   shop_measurement_values?: Array<{
     shop_id: string;

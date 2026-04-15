@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 
 definePageMeta({
@@ -7,6 +7,7 @@ definePageMeta({
 });
 
 const router = useRouter();
+const route = useRoute();
 
 const operations = [
 { title: "Печать ценников", slug: "print-tag" },
@@ -18,7 +19,10 @@ const operations = [
 ];
 
 function goTo(slug: string) {
-  router.push(`/products/settings/${slug}`);
+  router.push({
+    path: `/products/settings/${slug}`,
+    query: route.query.ids ? { ids: String(route.query.ids) } : {},
+  });
 }
 </script>
 

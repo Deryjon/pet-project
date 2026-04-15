@@ -15,7 +15,7 @@
       </button>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
       <div class="min-w-0 flex-1">
         <UInput
           :model-value="discountInput"
@@ -29,7 +29,7 @@
           :placeholder="inputPlaceholder"
           :ui="{
             root: 'w-full',
-            base: 'h-[58px] rounded-[15px] border-0 bg-[#404040] px-4 text-[17px] font-semibold text-white placeholder:text-[#8f8f8f] focus:outline-none focus:ring-0',
+            base: 'h-[52px] rounded-[15px] border-0 bg-[#404040] px-4 text-[15px] font-semibold text-white placeholder:text-[#8f8f8f] focus:outline-none focus:ring-0 sm:h-[58px] sm:text-[17px]',
             trailing: 'pe-4'
           }"
         >
@@ -41,13 +41,13 @@
         </UInput>
       </div>
 
-      <div class="flex w-full max-w-[180px] rounded-[15px] bg-[#404040] p-1">
+      <div class="flex w-full rounded-[15px] bg-[#404040] p-1 sm:max-w-[180px]">
         <button type="button" :class="switcherClass('%')" @click="setType('%')">%</button>
         <button type="button" :class="switcherClass('uzs')" @click="setType('uzs')">uzs</button>
       </div>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center">
       <button
         v-for="item in options"
         :key="item.value"
@@ -93,17 +93,6 @@ const discountInput = computed(() =>
     ? formatCommaMoney(Math.max(0, globalDiscountBase.value - Number(cartStore.discountValue || 0)))
     : String(cartStore.discountValue || "")
 );
-
-const statusText = computed(() => {
-  if (cartStore.discountLoading) return "Применяем скидку...";
-
-  const value = Number(cartStore.discountValue || 0);
-  if (!value) return activeSwitcher.value === "%" ? "Скидка в процентах" : "Скидка в сумме";
-
-  return activeSwitcher.value === "%"
-    ? `Текущая скидка: ${value}%`
-    : `Текущая скидка: ${formatPrice(value)} UZS`;
-});
 
 watch(
   () => cartStore.discountType,
@@ -169,7 +158,7 @@ function onDiscountInput(value: string | number) {
 
 function switcherClass(type: "%" | "uzs") {
   return [
-    'w-1/2 rounded-[12px] p-3 text-center text-[14px] font-semibold uppercase transition',
+    'w-1/2 rounded-[12px] p-3 text-center text-[13px] font-semibold uppercase transition sm:text-[14px]',
     activeSwitcher.value === type
       ? 'bg-[#262626] text-white'
       : 'text-[#bdbdbd] hover:bg-[#5e5e5e]'
@@ -181,7 +170,7 @@ function presetClass(value: number) {
     ? Number(cartStore.discountValue || 0) === value
     : Math.max(0, globalDiscountBase.value - Number(cartStore.discountValue || 0)) === value;
   return [
-    'flex-1 rounded-[15px] p-3 text-center text-white transition',
+    'rounded-[15px] p-3 text-center text-[13px] text-white transition sm:flex-1 sm:text-base',
     isActive ? 'bg-[#262626] ring-1 ring-[#4993dd]' : 'bg-[#404040] hover:bg-[#5e5e5e]'
   ];
 }

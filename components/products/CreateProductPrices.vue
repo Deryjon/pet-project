@@ -1,5 +1,5 @@
-﻿<script setup lang="ts">
-import { computed, ref, watch } from "vue";
+<script setup lang="ts">
+import { computed } from "vue";
 import {
   calculateMarkup,
   calculateSalePrice,
@@ -8,7 +8,6 @@ import {
 import { useProductStore } from "@/store/productStore";
 
 const store = useProductStore();
-const internalUpdate = ref(false);
 
 const isVariantGoods = computed(
   () =>
@@ -16,37 +15,23 @@ const isVariantGoods = computed(
     store.form.variationType === "Вариативный",
 );
 
-watch(
-  [() => store.form.prices.purchasePrice, () => store.form.prices.markupPercent],
-  ([purchasePrice, markupPercent]) => {
-    if (isVariantGoods.value) return;
+function updateSimpleSale() {
+  store.form.prices.purchasePrice = nonNegative(store.form.prices.purchasePrice);
+  store.form.prices.markupPercent = nonNegative(store.form.prices.markupPercent);
+  store.form.prices.salePrice = calculateSalePrice(
+    store.form.prices.purchasePrice,
+    store.form.prices.markupPercent,
+  );
+}
 
-    internalUpdate.value = true;
-    store.form.prices.purchasePrice = nonNegative(purchasePrice);
-    store.form.prices.markupPercent = nonNegative(markupPercent);
-    store.form.prices.salePrice = calculateSalePrice(
-      store.form.prices.purchasePrice,
-      store.form.prices.markupPercent,
-    );
-
-    queueMicrotask(() => {
-      internalUpdate.value = false;
-    });
-  },
-);
-
-watch(
-  () => store.form.prices.salePrice,
-  (salePrice) => {
-    if (isVariantGoods.value || internalUpdate.value) return;
-
-    store.form.prices.salePrice = nonNegative(salePrice);
-    store.form.prices.markupPercent = calculateMarkup(
-      store.form.prices.purchasePrice,
-      store.form.prices.salePrice,
-    );
-  },
-);
+function updateSimpleMarkup() {
+  store.form.prices.purchasePrice = nonNegative(store.form.prices.purchasePrice);
+  store.form.prices.salePrice = nonNegative(store.form.prices.salePrice);
+  store.form.prices.markupPercent = calculateMarkup(
+    store.form.prices.purchasePrice,
+    store.form.prices.salePrice,
+  );
+}
 
 function updateVariationSale(variationId: string) {
   const variation = store.form.variations.find((v) => v.id === variationId);
@@ -93,6 +78,7 @@ function updateVariationMarkup(variationId: string) {
             class="w-full"
             placeholder="0"
             :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+            @blur="updateSimpleSale"
           />
           <span class="text-sm text-gray-300">UZS</span>
         </div>
@@ -107,6 +93,7 @@ function updateVariationMarkup(variationId: string) {
             class="w-full"
             placeholder="0"
             :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+            @blur="updateSimpleSale"
           />
           <span class="text-sm text-gray-300">%</span>
         </div>
@@ -121,6 +108,7 @@ function updateVariationMarkup(variationId: string) {
             class="w-full"
             placeholder="0"
             :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+            @blur="updateSimpleMarkup"
           />
           <span class="text-sm text-gray-300">UZS</span>
         </div>
@@ -180,5 +168,3 @@ function updateVariationMarkup(variationId: string) {
     </div>
   </section>
 </template>
-
-

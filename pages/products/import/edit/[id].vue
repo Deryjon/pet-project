@@ -32,7 +32,7 @@
         </p>
       </div>
 
-      <div class="flex flex-wrap gap-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           v-if="canCancel"
           type="button"
@@ -108,7 +108,7 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-full border-separate border-spacing-y-2 text-left">
+        <table class="min-w-[920px] w-full border-separate border-spacing-y-2 text-left">
           <thead>
             <tr class="text-[13px] uppercase tracking-[0.12em] text-[#8f8f8f]">
               <th class="px-4 py-3">Name</th>

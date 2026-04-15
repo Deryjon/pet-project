@@ -1,6 +1,14 @@
 import { useState } from "#imports";
 import { useApi } from "~/composables/useApi";
 import type { CreateProductApiPayload } from "~/types/product-create";
+import type {
+  MeasurementUnit,
+  PriceTagResponse,
+  ProductCardData,
+  ProductDetailResponse,
+  ProductMovementResponse,
+  ShopListResponse,
+} from "~/types/product-detail";
 
 export interface ProductStockPayload {
   branch_code: string;
@@ -118,6 +126,140 @@ export function useProducts() {
       }
 
       return { success: true, item: created };
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function updateProduct(
+    id: number | string,
+    payload: CreateProductApiPayload,
+  ) {
+    try {
+      const res = await apiFetch<any>(`/v2/product/${encodeURIComponent(String(id))}`, {
+        method: "PUT",
+        body: payload,
+      });
+
+      const updatedRaw =
+        res?.data?.products?.[0] ??
+        res?.data?.product ??
+        res?.product ??
+        res?.item ??
+        res?.data ??
+        res;
+      const updated = normalizeCatalogProduct(updatedRaw);
+
+      try {
+        await listProducts(lastListParams.value ?? { page: 1, pageSize: 10, statistics: true });
+      } catch {
+        products.value = [];
+      }
+
+      return { success: true, item: updated };
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function fetchProductDetail(publicId: number | string) {
+    try {
+      const res = await apiFetch<ProductDetailResponse>(`/v2/product/${encodeURIComponent(String(publicId))}`);
+      return unwrapPayload<ProductDetailResponse>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function fetchMeasurementUnit(measurementUnitId: number | string) {
+    try {
+      const res = await apiFetch<MeasurementUnit>(
+        `/v2/measurement-unit/${encodeURIComponent(String(measurementUnitId))}`,
+      );
+      return unwrapPayload<MeasurementUnit>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function fetchPriceTags() {
+    try {
+      const res = await apiFetch<PriceTagResponse>("/v1/price-tag");
+      return unwrapPayload<PriceTagResponse>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function fetchProductMovements(
+    publicId: number | string,
+    params?: {
+      limit?: number;
+      page?: number;
+      from_created_at?: string;
+      to_created_at?: string;
+    },
+  ) {
+    try {
+      const query = new URLSearchParams({
+        limit: String(params?.limit ?? 10),
+        page: String(params?.page ?? 1),
+        from_created_at: params?.from_created_at ?? "",
+        to_created_at: params?.to_created_at ?? "",
+      });
+
+      const res = await apiFetch<ProductMovementResponse>(
+        `/v2/product-movement/${encodeURIComponent(String(publicId))}?${query.toString()}`,
+      );
+      return unwrapPayload<ProductMovementResponse>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function fetchAllowedShops(limit = 100) {
+    try {
+      const res = await apiFetch<ShopListResponse>(`/shop?limit=${limit}&only_allowed=true`);
+      return unwrapPayload<ShopListResponse>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function loadProductCard(productId: string): Promise<ProductCardData> {
+    const [product, priceTagsRes, shopsRes] = await Promise.all([
+      fetchProductDetail(productId),
+      fetchPriceTags(),
+      fetchAllowedShops(),
+    ]);
+
+    const [measurementUnit, movement] = await Promise.all([
+      product.measurement_unit_id ? fetchMeasurementUnit(product.measurement_unit_id) : Promise.resolve(null),
+      fetchProductMovements(product.id, { page: 1, limit: 10, from_created_at: "", to_created_at: "" }),
+    ]);
+
+    return {
+      product,
+      measurementUnit,
+      movement,
+      priceTags: Array.isArray(priceTagsRes?.price_tags) ? priceTagsRes.price_tags : [],
+      shops: Array.isArray(shopsRes?.shops) ? shopsRes.shops : [],
+    };
+  }
+
+  async function bulkArchiveProducts(productIds: Array<string | number>) {
+    try {
+      return await apiFetch<{
+        count: number;
+        product_ids: Array<string | number>;
+        archived_at: string;
+        archived_by: { id: string; name: string };
+      }>("/v2/products/bulk/archive", {
+        method: "PUT",
+        body: {
+          product_ids: productIds,
+        },
+      });
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
     }
@@ -253,7 +395,24 @@ export function useProducts() {
     return String(res?.barcode || "");
   }
 
-  return { createProduct, listProducts, generateSku, generateBarcode };
+  return {
+    createProduct,
+    updateProduct,
+    fetchProductDetail,
+    fetchMeasurementUnit,
+    fetchPriceTags,
+    fetchProductMovements,
+    fetchAllowedShops,
+    loadProductCard,
+    bulkArchiveProducts,
+    listProducts,
+    generateSku,
+    generateBarcode,
+  };
+}
+
+function unwrapPayload<T>(res: any): T {
+  return (res?.data ?? res) as T;
 }
 
 function buildCatalogGetPath(basePath: string, payload: ProductSearchPayload) {
@@ -402,7 +561,7 @@ function normalizeBillzProduct(raw: any): ProductDTO {
     : Number(raw?.measurement_values?.total_measurement_value ?? 0);
 
   return {
-    id: raw?.id ?? "",
+    id: raw?.public_id ?? raw?.id ?? "",
     name: String(raw?.name ?? raw?.base_name ?? ""),
     sku: String(raw?.sku ?? ""),
     barcode: String(raw?.barcode ?? ""),
@@ -439,11 +598,11 @@ function normalizeCatalogProduct(raw: any): ProductDTO {
     : undefined;
 
   return {
-    id: raw?.id ?? raw?.product_id ?? "",
+    id: raw?.public_id ?? raw?.id ?? raw?.product_id ?? "",
     name: String(raw?.name ?? raw?.base_name ?? raw?.title ?? ""),
     sku: String(raw?.sku ?? raw?.article ?? raw?.vendor_code ?? ""),
     barcode: String(raw?.barcode ?? raw?.plu_code ?? ""),
-    photo: raw?.photo ?? raw?.image ?? null,
+    photo: raw?.photo ?? raw?.main_image_url ?? raw?.image ?? null,
     product_type: String(raw?.product_type ?? raw?.product_type_id ?? "goods"),
     variant_type: String(raw?.variant_type ?? "simple"),
     unit: String(
