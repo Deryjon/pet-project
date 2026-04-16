@@ -1,17 +1,14 @@
 <template>
-  <div
-    class="mb-3 rounded-[24px] border border-white/5 bg-[#3a3a3a] px-4 py-3 text-[16px] text-white shadow-xl"
-  >
+  <div class="mb-3 rounded-[24px] border border-white/5 bg-[#3a3a3a] px-4 py-3 text-[16px] text-white shadow-xl">
     <div class="flex items-center justify-between gap-4">
       <div class="flex min-w-0 items-center gap-4">
-        <div
-          class="flex items-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5"
-        >
+        <div class="flex items-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5">
           <input
             :value="item.quantity"
             type="number"
             min="1"
-            class="w-5 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none"
+            :disabled="itemBusy"
+            class="w-5 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-60"
             @input="onQuantityInput"
           />
           <span class="text-sm font-semibold text-[#9f9f9f]">ШТ</span>
@@ -19,14 +16,16 @@
           <div class="flex flex-col">
             <button
               type="button"
-              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
+              :disabled="itemBusy"
+              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               @click="increaseQuantity"
             >
               <Icon name="heroicons:chevron-up-20-solid" class="h-4 w-4" />
             </button>
             <button
               type="button"
-              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white"
+              :disabled="itemBusy"
+              class="flex h-4 cursor-pointer items-center justify-center text-[#9f9f9f] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               @click="decreaseQuantity"
             >
               <Icon name="heroicons:chevron-down-20-solid" class="h-4 w-4" />
@@ -34,9 +33,7 @@
           </div>
         </div>
 
-        <div
-          class="flex h-[50px] w-[50px] items-center justify-center rounded-[18px]"
-        >
+        <div class="flex h-[50px] w-[50px] items-center justify-center rounded-[18px]">
           <img
             src="../../assets/images/placeholder_img.svg"
             alt="Товар"
@@ -61,12 +58,20 @@
           <span class="px-2 py-0.5 text-[17px] font-bold text-[#4993dd]">
             {{ formatPrice(finalPrice) }} UZS
           </span>
-        </div>  
+          <span
+            v-if="itemBusy"
+            class="inline-flex items-center gap-1 px-2 text-[12px] font-semibold text-[#8fbfff]"
+          >
+            <Icon name="heroicons:arrow-path" class="h-3.5 w-3.5 animate-spin" />
+            Загрузка...
+          </span>
+        </div>
 
         <UButton
           color="error"
           variant="ghost"
-          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
+          :disabled="itemBusy"
+          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
           @click="$emit('remove')"
         >
           <Icon name="ic:baseline-delete" class="h-4 w-4" />
@@ -90,6 +95,7 @@ const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 
 const finalPrice = computed(() => store.itemFinalPriceWithGlobal(props.item));
+const itemBusy = computed(() => store.isItemBusy(props.item.id));
 
 function decreaseQuantity() {
   void store.syncCartItemQuantity(

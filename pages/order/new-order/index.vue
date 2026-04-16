@@ -9,6 +9,13 @@
       >
         {{ cartStore.lastCartError }}
       </div>
+      <div
+        v-if="initialPageLoading"
+        class="mt-4 flex items-center gap-3 rounded-[16px] border border-white/10 bg-[#2b2b2b] px-4 py-3 text-[14px] font-medium text-[#d3d3d3]"
+      >
+        <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+        Восстанавливаем продажу и способы оплаты...
+      </div>
       <Cart />
       <div
         v-if="cartStore.productsLoading || cartStore.creatingSale || cartStore.loadingSale || cartStore.addingItem"
@@ -51,6 +58,7 @@ const { selectedLocation } = storeToRefs(locationStore);
 
 const page = ref(1);
 const limit = ref(10);
+const initialPageLoading = ref(true);
 const search = computed(() => cartStore.searchQuery);
 const currentShopId = computed(() => String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""));
 
@@ -113,7 +121,6 @@ async function fetchProducts() {
     try {
       (cartStore.products as any).splice(0, (cartStore.products as any).length, ...mapped);
     } catch {
-      // @ts-ignore
       cartStore.products = mapped as any;
     }
 
@@ -143,24 +150,36 @@ watch(
 );
 
 watch(currentShopId, (next, prev) => {
-  if (!prev || next === prev) return;
+  if (!next) return;
 
-  if (cartStore.saleId || cartStore.cart.length) {
+  if (cartStore.hasSaleShopMismatch(next) || (prev && next !== prev && (cartStore.saleId || cartStore.cart.length))) {
     cartStore.resetSaleState({ keepReceipt: true });
-    cartStore.lastCartError = "Филиал изменён. Корзина очищена, чтобы не смешивать остатки разных магазинов.";
+    cartStore.lastCartError = !prev
+      ? "Найдена сохранённая продажа из другого филиала. Корзина очищена."
+      : "Филиал изменён. Корзина очищена, чтобы не смешивать остатки разных магазинов.";
   }
 });
 
 onMounted(async () => {
-  await cartStore.loadPaymentMethods();
+  try {
+    await cartStore.loadPaymentMethods();
 
-  if (cartStore.saleId) {
-    try {
-      await cartStore.loadSale(cartStore.saleId);
-    } catch {
+    if (cartStore.hasSaleShopMismatch(currentShopId.value)) {
       cartStore.resetSaleState({ keepReceipt: true });
-      cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
+      cartStore.lastCartError = "Найдена сохранённая продажа из другого филиала. Корзина очищена.";
+      return;
     }
+
+    if (cartStore.saleId) {
+      try {
+        await cartStore.loadSale(cartStore.saleId);
+      } catch {
+        cartStore.resetSaleState({ keepReceipt: true });
+        cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
+      }
+    }
+  } finally {
+    initialPageLoading.value = false;
   }
 });
 
