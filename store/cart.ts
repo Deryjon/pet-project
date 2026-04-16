@@ -54,6 +54,8 @@ export const useCartStore = defineStore("cart", () => {
   const cancelLoading = ref(false);
   const discountLoading = ref(false);
   const paymentMethodsLoading = ref(false);
+  const restoringSale = ref(false);
+  const itemBusyMap = ref<Record<string, boolean>>({});
 
   const discountPercent = ref<number>(0);
   const discountAmount = ref<number>(0);
@@ -126,6 +128,7 @@ export const useCartStore = defineStore("cart", () => {
     discountPercent.value = 0;
     discountAmount.value = 0;
     payableTotal.value = 0;
+    itemBusyMap.value = {};
 
     if (!options?.keepReceipt) {
       receipt.value = null;
@@ -150,6 +153,33 @@ export const useCartStore = defineStore("cart", () => {
       userStore.user.currentShopId ||
       userStore.user.branchCode ||
       ""
+    );
+  }
+
+  function setItemBusy(productId: number | string, busy: boolean) {
+    const key = String(productId);
+
+    if (busy) {
+      itemBusyMap.value = { ...itemBusyMap.value, [key]: true };
+      return;
+    }
+
+    const nextMap = { ...itemBusyMap.value };
+    delete nextMap[key];
+    itemBusyMap.value = nextMap;
+  }
+
+  function isItemBusy(productId: number | string) {
+    return Boolean(itemBusyMap.value[String(productId)]);
+  }
+
+  function hasSaleShopMismatch(shopId?: string | number | null) {
+    const currentShopId = String(shopId ?? resolveCurrentShopId() ?? "");
+    return Boolean(
+      saleId.value &&
+      saleShopId.value &&
+      currentShopId &&
+      String(saleShopId.value) !== currentShopId,
     );
   }
 
@@ -300,12 +330,7 @@ export const useCartStore = defineStore("cart", () => {
       payableTotal.value = Number(parsed?.payableTotal ?? 0);
 
       const currentShopId = String(resolveCurrentShopId() ?? "");
-      if (
-        saleId.value &&
-        saleShopId.value &&
-        currentShopId &&
-        String(saleShopId.value) !== currentShopId
-      ) {
+      if (hasSaleShopMismatch(currentShopId)) {
         resetSaleState();
       }
     } catch {
@@ -355,6 +380,7 @@ export const useCartStore = defineStore("cart", () => {
     if (!id) return null;
 
     loadingSale.value = true;
+    restoringSale.value = true;
     try {
       const { apiFetch } = useApi();
       const res: any = await apiFetch(`/v2/order/${id}`, { method: "GET" });
@@ -429,11 +455,16 @@ export const useCartStore = defineStore("cart", () => {
       return res;
     } finally {
       loadingSale.value = false;
+      restoringSale.value = false;
     }
   }
 
   async function addToCartServer(product: any) {
+    const productId = String(product?.id ?? "");
+    if (!productId || addingItem.value || isItemBusy(productId)) return;
+
     try {
+      setItemBusy(productId, true);
       addingItem.value = true;
       lastCartError.value = "";
       const availableQuantity = Math.max(0, Number(product?.availableQuantity ?? 0));
@@ -465,6 +496,7 @@ export const useCartStore = defineStore("cart", () => {
         await loadSale(saleId.value);
       }
     } finally {
+      setItemBusy(productId, false);
       addingItem.value = false;
       searchQuery.value = "";
     }
@@ -485,6 +517,7 @@ export const useCartStore = defineStore("cart", () => {
   async function syncCartItemQuantity(productId: number | string, nextQuantity: number) {
     const item = cart.value.find((entry) => String(entry.id) === String(productId));
     if (!item) return;
+    if (isItemBusy(productId)) return;
 
     const availableQuantity = Math.max(0, Number(item.availableQuantity ?? 0));
     const normalizedQuantity =
@@ -498,6 +531,7 @@ export const useCartStore = defineStore("cart", () => {
     }
 
     try {
+      setItemBusy(productId, true);
       await runSaleItemMutation([
         () =>
           useApi().apiFetch(
@@ -527,16 +561,21 @@ export const useCartStore = defineStore("cart", () => {
       item.quantity = normalizedQuantity;
       await loadSale(saleId.value);
       lastCartError.value = "Не удалось обновить количество товара. Корзина синхронизирована заново.";
+    } finally {
+      setItemBusy(productId, false);
     }
   }
 
   async function removeFromCartServer(productId: number | string) {
+    if (isItemBusy(productId)) return;
+
     if (!saleId.value) {
       removeFromCart(productId);
       return;
     }
 
     try {
+      setItemBusy(productId, true);
       await runSaleItemMutation([
         () =>
           useApi().apiFetch(
@@ -556,6 +595,8 @@ export const useCartStore = defineStore("cart", () => {
     } catch {
       await loadSale(saleId.value);
       lastCartError.value = "Не удалось удалить товар из продажи. Корзина синхронизирована заново.";
+    } finally {
+      setItemBusy(productId, false);
     }
   }
 
@@ -748,6 +789,8 @@ export const useCartStore = defineStore("cart", () => {
     cancelLoading,
     paymentMethods,
     paymentMethodsLoading,
+    restoringSale,
+    itemBusyMap,
     products,
     searchQuery,
     filteredProducts,
@@ -779,6 +822,8 @@ export const useCartStore = defineStore("cart", () => {
     discountType,
     globalDiscountAmount,
     getCartItemQuantity,
+    isItemBusy,
+    hasSaleShopMismatch,
     resolveCurrentShopId,
   };
 });

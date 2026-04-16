@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="app-shell relative flex min-h-screen bg-[#1f1f1f]">
+  <section class=" relative flex min-h-screen bg-[#1f1f1f]">
     <transition name="fade-overlay">
       <div
         v-if="isMobileViewport && mobileSidebarOpen"
@@ -98,8 +98,12 @@ onBeforeUnmount(() => {
 
     <div
       :class="[
-        'app-main-content w-full min-h-screen px-4 pb-24 pt-4 text-white transition-all duration-300 ease-in-out sm:px-6 sm:pb-28 lg:px-[30px] lg:pb-6 lg:pt-[40px]',
-        isMobileViewport ? 'ml-0' : sidebar.collapsed ? 'lg:ml-[80px]' : 'lg:ml-[256px]',
+        'app-main-content min-h-screen min-w-0 px-4 pb-24 pt-4 text-white transition-all duration-300 ease-in-out sm:px-6 sm:pb-28 lg:px-[30px] lg:pb-6 lg:pt-[40px]',
+        isMobileViewport
+          ? 'w-full ml-0'
+          : sidebar.collapsed
+            ? 'w-full lg:ml-[80px] lg:w-[calc(100%-80px)]'
+            : 'w-full lg:ml-[256px] lg:w-[calc(100%-256px)]',
       ]"
       style="max-width: 100vw; overflow-x: hidden"
     >

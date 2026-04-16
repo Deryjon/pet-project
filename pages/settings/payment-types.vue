@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { useHead } from "#imports";
+import { useRouter } from "vue-router";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "~/store/useUserStore";
 
-useHead({ title: "Способы оплаты | Konkurent.cases" });
+useHead({ title: "Типы оплат | Konkurent.cases" });
 
 type PaymentTypeItem = {
   id: string;
@@ -24,17 +25,22 @@ type EditablePaymentType = PaymentTypeItem & {
   _deleting?: boolean;
 };
 
+type DraftMode = "create" | "edit";
+
 const { apiFetch } = useApi();
 const userStore = useUserStore();
+const router = useRouter();
 const toast = useToast();
 
 const items = ref<EditablePaymentType[]>([]);
 const loading = ref(false);
-const creating = ref(false);
-const successMessage = ref("");
-const errorMessage = ref("");
+const panelOpen = ref(false);
+const panelSaving = ref(false);
+const deletingId = ref("");
+const panelMode = ref<DraftMode>("create");
+const editingId = ref("");
 
-const form = ref({
+const draft = reactive({
   name: "",
   token: "",
   is_editable: true,
@@ -54,9 +60,41 @@ const companyId = computed(() =>
   ).trim(),
 );
 
-function clearMessages() {
-  successMessage.value = "";
-  errorMessage.value = "";
+const stats = computed(() => {
+  const total = items.value.length;
+  const system = items.value.filter((item) => isSystemItem(item)).length;
+  const custom = Math.max(0, total - system);
+  const active = items.value.filter((item) => isDisplayed(item)).length;
+
+  return { total, system, custom, active };
+});
+
+const sortedItems = computed(() =>
+  [...items.value].sort((a, b) => {
+    const systemDelta = Number(isSystemItem(b)) - Number(isSystemItem(a));
+    if (systemDelta !== 0) return systemDelta;
+    return String(a.name || "").localeCompare(String(b.name || ""), "ru");
+  }),
+);
+
+const panelTitle = computed(() =>
+  panelMode.value === "create" ? "Добавить тип оплаты" : "Редактировать тип оплаты",
+);
+
+const canSubmitDraft = computed(() => {
+  if (panelSaving.value || !companyId.value) return false;
+  return Boolean(String(draft.name || "").trim());
+});
+
+function clearDraft() {
+  draft.name = "";
+  draft.token = "";
+  draft.is_editable = true;
+  draft.dont_show_in_make_payment = false;
+  draft.dont_show_in_settings = false;
+  draft.is_cash_payment_type = false;
+  draft.payment_type_id = "";
+  draft.payment_type_name = "Кастомный";
 }
 
 function normalizeItem(item: any): EditablePaymentType {
@@ -82,12 +120,43 @@ function normalizeItem(item: any): EditablePaymentType {
   };
 }
 
-async function loadPaymentTypes() {
-  clearMessages();
+function normalizeApiMessage(error: any, fallback: string) {
+  const message = error?.data?.message ?? error?.message;
+  if (Array.isArray(message)) {
+    return message.join(", ");
+  }
 
+  return String(message || fallback);
+}
+
+function normalizeName(value: string) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isSystemItem(item: EditablePaymentType) {
+  const normalizedName = normalizeName(item.name);
+  const normalizedType = normalizeName(item.payment_type_name || "");
+
+  return (
+    item.is_editable === false ||
+    normalizedName === "наличные" ||
+    normalizedName === "карта" ||
+    normalizedType === "системный"
+  );
+}
+
+function isDisplayed(item: EditablePaymentType) {
+  return !item.dont_show_in_make_payment;
+}
+
+function paymentKind(item: EditablePaymentType) {
+  return isSystemItem(item) ? "Системный" : "Кастомный";
+}
+
+async function loadPaymentTypes() {
   if (!companyId.value) {
     items.value = [];
-    errorMessage.value = "Не найден company_id для загрузки способов оплаты";
+    toast.add({ title: "Не найден company_id", color: "error" });
     return;
   }
 
@@ -111,70 +180,94 @@ async function loadPaymentTypes() {
     items.value = rawItems.map(normalizeItem);
   } catch (error: any) {
     items.value = [];
-    errorMessage.value =
-      error?.data?.message || error?.message || "Не удалось загрузить способы оплаты";
+    toast.add({
+      title: "Не удалось загрузить типы оплат",
+      description: normalizeApiMessage(error, "Ошибка загрузки"),
+      color: "error",
+    });
   } finally {
     loading.value = false;
   }
 }
 
-async function createPaymentType() {
-  clearMessages();
+function openCreatePanel() {
+  panelMode.value = "create";
+  editingId.value = "";
+  clearDraft();
+  panelOpen.value = true;
+}
 
-  if (!companyId.value) {
-    toast.add({ title: "Не найден company_id", color: "error" });
-    errorMessage.value = "Не найден company_id";
-    return;
-  }
+function openEditPanel(item: EditablePaymentType) {
+  panelMode.value = "edit";
+  editingId.value = item.id;
+  draft.name = item.name || "";
+  draft.token = item.token || "";
+  draft.is_editable = Boolean(item.is_editable ?? true);
+  draft.dont_show_in_make_payment = Boolean(item.dont_show_in_make_payment);
+  draft.dont_show_in_settings = Boolean(item.dont_show_in_settings);
+  draft.is_cash_payment_type = Boolean(item.is_cash_payment_type);
+  draft.payment_type_id = String(item.payment_type_id || "");
+  draft.payment_type_name = String(item.payment_type_name || "Кастомный");
+  panelOpen.value = true;
+}
 
-  if (!form.value.name.trim()) {
-    toast.add({ title: "Введите название способа оплаты", color: "warning" });
-    errorMessage.value = "Введите название способа оплаты";
-    return;
-  }
+function closePanel() {
+  panelOpen.value = false;
+  panelSaving.value = false;
+  editingId.value = "";
+  clearDraft();
+}
 
-  creating.value = true;
+async function submitDraft() {
+  if (!canSubmitDraft.value) return;
+
+  panelSaving.value = true;
   try {
-    await apiFetch("/company-payment-type", {
-      method: "POST",
-      body: {
-        company_id: companyId.value,
-        name: form.value.name.trim(),
-        token: form.value.token.trim(),
-        is_editable: form.value.is_editable,
-        dont_show_in_make_payment: form.value.dont_show_in_make_payment,
-        dont_show_in_settings: form.value.dont_show_in_settings,
-        is_cash_payment_type: form.value.is_cash_payment_type,
-        payment_type_id: form.value.payment_type_id.trim() || undefined,
-        payment_type_name: form.value.payment_type_name.trim() || undefined,
-      },
-    });
-
-    form.value = {
-      name: "",
-      token: "",
-      is_editable: true,
-      dont_show_in_make_payment: false,
-      dont_show_in_settings: false,
-      is_cash_payment_type: false,
-      payment_type_id: "",
-      payment_type_name: "Кастомный",
+    const payload = {
+      company_id: companyId.value,
+      name: draft.name.trim(),
+      token: draft.token.trim(),
+      is_editable: draft.is_editable,
+      dont_show_in_make_payment: draft.dont_show_in_make_payment,
+      dont_show_in_settings: draft.dont_show_in_settings,
+      is_cash_payment_type: draft.is_cash_payment_type,
+      payment_type_id: draft.payment_type_id.trim() || undefined,
+      payment_type_name: draft.payment_type_name.trim() || undefined,
     };
 
+    if (panelMode.value === "create") {
+      await apiFetch("/company-payment-type", {
+        method: "POST",
+        body: payload,
+      });
+
+      toast.add({ title: "Тип оплаты добавлен", color: "success" });
+    } else {
+      await apiFetch(`/company-payment-type/${encodeURIComponent(editingId.value)}`, {
+        method: "PUT",
+        body: payload,
+      });
+
+      toast.add({ title: "Тип оплаты обновлен", color: "success" });
+    }
+
     await loadPaymentTypes();
-    successMessage.value = "Способ оплаты добавлен";
-    toast.add({ title: "Способ оплаты добавлен", color: "success" });
+    closePanel();
   } catch (error: any) {
-    toast.add({ title: "Не удалось добавить способ оплаты", color: "error" });
-    errorMessage.value =
-      error?.data?.message || error?.message || "Не удалось добавить способ оплаты";
+    toast.add({
+      title: panelMode.value === "create" ? "Не удалось добавить тип оплаты" : "Не удалось сохранить тип оплаты",
+      description: normalizeApiMessage(error, "Ошибка сохранения"),
+      color: "error",
+    });
   } finally {
-    creating.value = false;
+    panelSaving.value = false;
   }
 }
 
-async function updatePaymentType(item: EditablePaymentType) {
-  clearMessages();
+async function toggleDisplay(item: EditablePaymentType) {
+  if (item._saving) return;
+
+  const nextValue = isDisplayed(item) ? true : false;
   item._saving = true;
 
   try {
@@ -184,7 +277,7 @@ async function updatePaymentType(item: EditablePaymentType) {
         name: item.name?.trim(),
         token: item.token?.trim(),
         is_editable: Boolean(item.is_editable),
-        dont_show_in_make_payment: Boolean(item.dont_show_in_make_payment),
+        dont_show_in_make_payment: nextValue,
         dont_show_in_settings: Boolean(item.dont_show_in_settings),
         is_cash_payment_type: Boolean(item.is_cash_payment_type),
         payment_type_id: item.payment_type_id?.trim() || undefined,
@@ -192,273 +285,292 @@ async function updatePaymentType(item: EditablePaymentType) {
       },
     });
 
-    successMessage.value = `Способ оплаты "${item.name}" обновлен`;
-    toast.add({ title: "Способ оплаты обновлен", color: "success" });
-    await loadPaymentTypes();
+    item.dont_show_in_make_payment = nextValue;
+    toast.add({
+      title: nextValue ? "Тип оплаты скрыт" : "Тип оплаты отображается",
+      color: "success",
+    });
   } catch (error: any) {
-    errorMessage.value =
-      error?.data?.message || error?.message || "Не удалось обновить способ оплаты";
+    toast.add({
+      title: "Не удалось обновить отображение",
+      description: normalizeApiMessage(error, "Ошибка обновления"),
+      color: "error",
+    });
   } finally {
     item._saving = false;
   }
 }
 
 async function deletePaymentType(item: EditablePaymentType) {
-  clearMessages();
-  item._deleting = true;
+  if (isSystemItem(item)) {
+    toast.add({
+      title: "Системный тип оплаты нельзя удалить",
+      color: "warning",
+    });
+    return;
+  }
 
+  deletingId.value = item.id;
   try {
     await apiFetch(`/company-payment-type/${encodeURIComponent(item.id)}`, {
       method: "DELETE",
     });
 
     items.value = items.value.filter((entry) => entry.id !== item.id);
-    successMessage.value = `Способ оплаты "${item.name}" удален`;
+    toast.add({ title: "Тип оплаты удален", color: "success" });
   } catch (error: any) {
-    toast.add({ title: "Не удалось удалить способ оплаты", color: "error" });
-    errorMessage.value =
-      error?.data?.message || error?.message || "Не удалось удалить способ оплаты";
+    toast.add({
+      title: "Не удалось удалить тип оплаты",
+      description: normalizeApiMessage(error, "Ошибка удаления"),
+      color: "error",
+    });
   } finally {
-    item._deleting = false;
+    deletingId.value = "";
   }
+}
+
+function goBack() {
+  router.back();
 }
 
 onMounted(loadPaymentTypes);
 </script>
 
 <template>
-  <section class="payment-types-page mx-auto w-full max-w-[1320px] p-6 text-white">
-    <div class="hero-panel">
-      <div>
-        <p class="hero-kicker">Settings</p>
-        <h1 class="hero-title">Способы оплаты</h1>
-        <p class="hero-copy">
-          Добавляйте, редактируйте и удаляйте способы оплаты, которые используются в продаже.
-        </p>
+  <section class="payment-types-page mx-auto w-full max-w-[1260px] text-white">
+    <header class="page-header">
+      <div class="page-headline">
+        <button type="button" class="icon-shell" @click="goBack">
+          <Icon name="heroicons:arrow-left-20-solid" class="h-5 w-5" />
+        </button>
+
+        <div>
+          <p class="page-kicker">Настройки / Валюты и оплаты</p>
+          <h1 class="page-title">Типы оплат</h1>
+        </div>
       </div>
 
-      <div class="hero-meta">
-        <span class="meta-label">Company ID</span>
-        <span class="meta-value">{{ companyId || "Не найден" }}</span>
+      <button
+        type="button"
+        class="save-button"
+        :disabled="!panelOpen || !canSubmitDraft"
+        @click="submitDraft"
+      >
+        <Icon v-if="panelSaving" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+        <span>Сохранить</span>
+      </button>
+    </header>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <span class="stat-label">Всего типов</span>
+        <span class="stat-value">{{ stats.total }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Системные</span>
+        <span class="stat-value">{{ stats.system }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Кастомные</span>
+        <span class="stat-value">{{ stats.custom }}</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Отображаются</span>
+        <span class="stat-value">{{ stats.active }}</span>
+      </article>
+    </section>
+
+    <section class="table-card">
+      <div class="table-head">
+        <span>Название</span>
+        <span>Тип оплаты</span>
+        <span>Действие</span>
+        <span class="head-toggle">Отображение</span>
       </div>
-    </div>
 
-    <div v-if="successMessage" class="status-banner status-success">{{ successMessage }}</div>
-    <div v-else-if="errorMessage" class="status-banner status-error">{{ errorMessage }}</div>
+      <div v-if="loading" class="table-empty">
+        <Icon name="heroicons:arrow-path" class="h-5 w-5 animate-spin" />
+        <span>Загружаем типы оплат...</span>
+      </div>
 
-    <div class="grid gap-6 xl:grid-cols-[420px_1fr]">
-      <article class="settings-card">
-        <div class="card-header">
-          <div>
-            <p class="card-eyebrow">Новый способ</p>
-            <h2 class="card-title">Добавить оплату</h2>
-          </div>
-        </div>
+      <div v-else-if="!sortedItems.length" class="table-empty">
+        <Icon name="heroicons:credit-card" class="h-5 w-5" />
+        <span>Список типов оплат пока пуст</span>
+      </div>
 
-        <div class="space-y-4">
-          <label class="field-group">
-            <span class="field-label">Название</span>
-            <input
-              v-model="form.name"
-              type="text"
-              class="field-input"
-              placeholder="Click"
-            />
-          </label>
-
-          <label class="field-group">
-            <span class="field-label">Token</span>
-            <input
-              v-model="form.token"
-              type="text"
-              class="field-input"
-              placeholder="Необязательно"
-            />
-          </label>
-
-          <label class="field-group">
-            <span class="field-label">Payment type id</span>
-            <input
-              v-model="form.payment_type_id"
-              type="text"
-              class="field-input"
-              placeholder="00ed9cff-9576-432f-849b-7bbcc2fed640"
-            />
-          </label>
-
-          <label class="field-group">
-            <span class="field-label">Payment type name</span>
-            <input
-              v-model="form.payment_type_name"
-              type="text"
-              class="field-input"
-              placeholder="Кастомный"
-            />
-          </label>
-
-          <label class="toggle-row">
-            <span>Редактируемый</span>
-            <input v-model="form.is_editable" type="checkbox" class="toggle-input" />
-          </label>
-
-          <label class="toggle-row">
-            <span>Не показывать при оплате</span>
-            <input
-              v-model="form.dont_show_in_make_payment"
-              type="checkbox"
-              class="toggle-input"
-            />
-          </label>
-
-          <label class="toggle-row">
-            <span>Не показывать в настройках</span>
-            <input
-              v-model="form.dont_show_in_settings"
-              type="checkbox"
-              class="toggle-input"
-            />
-          </label>
-
-          <label class="toggle-row">
-            <span>Наличный способ</span>
-            <input
-              v-model="form.is_cash_payment_type"
-              type="checkbox"
-              class="toggle-input"
-            />
-          </label>
-
-          <button
-            type="button"
-            class="primary-action w-full justify-center"
-            :disabled="creating || !companyId"
-            @click="createPaymentType"
-          >
-            {{ creating ? "Сохраняем..." : "Добавить способ оплаты" }}
-          </button>
-        </div>
-      </article>
-
-      <article class="settings-card">
-        <div class="card-header">
-          <div>
-            <p class="card-eyebrow">Список</p>
-            <h2 class="card-title">Текущие способы оплаты</h2>
+      <div v-else class="table-body">
+        <article
+          v-for="item in sortedItems"
+          :key="item.id"
+          class="table-row"
+        >
+          <div class="cell-title">
+            <div class="title-stack">
+              <span class="title-text">{{ item.name || "Без названия" }}</span>
+              <span class="title-id">{{ item.id }}</span>
+            </div>
           </div>
 
-          <button
-            type="button"
-            class="secondary-action"
-            :disabled="loading"
-            @click="loadPaymentTypes"
-          >
-            {{ loading ? "Обновляем..." : "Обновить" }}
-          </button>
-        </div>
+          <div class="cell-type">
+            <span :class="['type-badge', isSystemItem(item) ? 'type-badge-system' : 'type-badge-custom']">
+              {{ paymentKind(item) }}
+            </span>
+          </div>
 
-        <div v-if="loading" class="empty-state">Загрузка способов оплаты...</div>
+          <div class="cell-actions">
+            <button
+              type="button"
+              class="icon-button"
+              :class="isSystemItem(item) ? 'icon-button-system' : 'icon-button-custom'"
+              @click="openEditPanel(item)"
+            >
+              <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
+            </button>
 
-        <div v-else-if="items.length === 0" class="empty-state">
-          Нет способов оплаты
-        </div>
+            <button
+              type="button"
+              class="icon-button"
+              :class="isSystemItem(item) ? 'icon-button-disabled' : 'icon-button-danger'"
+              :disabled="isSystemItem(item) || deletingId === item.id"
+              @click="deletePaymentType(item)"
+            >
+              <Icon
+                v-if="deletingId === item.id"
+                name="heroicons:arrow-path"
+                class="h-5 w-5 animate-spin"
+              />
+              <Icon
+                v-else
+                name="heroicons:x-mark-20-solid"
+                class="h-5 w-5"
+              />
+            </button>
+          </div>
 
-        <div v-else class="space-y-4">
-          <div
-            v-for="item in items"
-            :key="item.id"
-            class="rounded-[24px] border border-white/5 bg-[#202020] p-5"
-          >
-            <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-[18px] font-semibold">{{ item.name || "Без названия" }}</p>
-                <p class="text-sm text-[#9ca3af]">{{ item.id }}</p>
-              </div>
+          <div class="cell-toggle">
+            <button
+              type="button"
+              class="toggle-shell"
+              :class="isDisplayed(item) ? 'toggle-shell-on' : 'toggle-shell-off'"
+              :disabled="item._saving"
+              @click="toggleDisplay(item)"
+            >
+              <span class="toggle-thumb" :class="isDisplayed(item) ? 'toggle-thumb-on' : 'toggle-thumb-off'" />
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
 
-              <button
-                type="button"
-                class="danger-action"
-                :disabled="Boolean(item._deleting)"
-                @click="deletePaymentType(item)"
+    <footer class="page-footer">
+      <button type="button" class="add-button" @click="openCreatePanel">
+        <Icon name="heroicons:plus-20-solid" class="h-5 w-5" />
+        <span>Добавить тип оплаты</span>
+      </button>
+    </footer>
+
+    <UModal
+      v-model:open="panelOpen"
+      :ui="{
+        overlay: 'bg-black/60 backdrop-blur-sm',
+        content: 'mx-4 max-w-[560px] rounded-[28px] border border-white/10 bg-[#1d1d1f] text-white shadow-2xl ring-0 sm:mx-0',
+      }"
+    >
+      <template #content>
+        <div class="modal-body">
+          <div class="modal-header">
+            <div>
+              <p class="modal-kicker">Типы оплат</p>
+              <h2 class="modal-title">{{ panelTitle }}</h2>
+            </div>
+
+            <button type="button" class="icon-shell" @click="closePanel">
+              <Icon name="heroicons:x-mark-20-solid" class="h-5 w-5" />
+            </button>
+          </div>
+
+          <div class="form-grid">
+            <label class="field-group">
+              <span class="field-label">Название</span>
+              <input v-model="draft.name" type="text" class="field-input" placeholder="Например, Click QR" />
+            </label>
+
+            <label class="field-group">
+              <span class="field-label">Тип оплаты</span>
+              <input v-model="draft.payment_type_name" type="text" class="field-input" placeholder="Кастомный" />
+            </label>
+
+            <label class="field-group">
+              <span class="field-label">Token</span>
+              <input v-model="draft.token" type="text" class="field-input" placeholder="Необязательно" />
+            </label>
+
+            <label class="field-group">
+              <span class="field-label">Payment Type ID</span>
+              <input
+                v-model="draft.payment_type_id"
+                type="text"
+                class="field-input"
+                placeholder="00ed9cff-9576-432f-849b-7bbcc2fed640"
+              />
+            </label>
+          </div>
+
+          <div class="switch-list">
+            <label class="switch-row">
+              <span>Редактируемый</span>
+              <input v-model="draft.is_editable" type="checkbox" class="hidden-toggle" />
+              <span class="mini-toggle" :class="draft.is_editable ? 'mini-toggle-on' : 'mini-toggle-off'">
+                <span class="mini-thumb" :class="draft.is_editable ? 'mini-thumb-on' : 'mini-thumb-off'" />
+              </span>
+            </label>
+
+            <label class="switch-row">
+              <span>Показывать в продаже</span>
+              <input v-model="draft.dont_show_in_make_payment" type="checkbox" class="hidden-toggle" />
+              <span
+                class="mini-toggle"
+                :class="!draft.dont_show_in_make_payment ? 'mini-toggle-on' : 'mini-toggle-off'"
               >
-                {{ item._deleting ? "Удаляем..." : "Удалить" }}
-              </button>
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-2">
-              <label class="field-group lg:col-span-2">
-                <span class="field-label">Название</span>
-                <input v-model="item.name" type="text" class="field-input" />
-              </label>
-
-              <label class="field-group">
-                <span class="field-label">Token</span>
-                <input v-model="item.token" type="text" class="field-input" />
-              </label>
-
-              <label class="field-group">
-                <span class="field-label">Company ID</span>
-                <input :value="item.company_id || companyId" type="text" class="field-input field-disabled" disabled />
-              </label>
-
-              <label class="field-group">
-                <span class="field-label">Payment type id</span>
-                <input v-model="item.payment_type_id" type="text" class="field-input" />
-              </label>
-
-              <label class="field-group">
-                <span class="field-label">Payment type name</span>
-                <input v-model="item.payment_type_name" type="text" class="field-input" />
-              </label>
-            </div>
-
-            <div class="mt-4 grid gap-3 md:grid-cols-2">
-              <label class="toggle-row">
-                <span>Редактируемый</span>
-                <input v-model="item.is_editable" type="checkbox" class="toggle-input" />
-              </label>
-
-              <label class="toggle-row">
-                <span>Наличный способ</span>
-                <input
-                  v-model="item.is_cash_payment_type"
-                  type="checkbox"
-                  class="toggle-input"
+                <span
+                  class="mini-thumb"
+                  :class="!draft.dont_show_in_make_payment ? 'mini-thumb-on' : 'mini-thumb-off'"
                 />
-              </label>
+              </span>
+            </label>
 
-              <label class="toggle-row">
-                <span>Не показывать при оплате</span>
-                <input
-                  v-model="item.dont_show_in_make_payment"
-                  type="checkbox"
-                  class="toggle-input"
-                />
-              </label>
+            <label class="switch-row">
+              <span>Скрыть в настройках</span>
+              <input v-model="draft.dont_show_in_settings" type="checkbox" class="hidden-toggle" />
+              <span class="mini-toggle" :class="draft.dont_show_in_settings ? 'mini-toggle-on' : 'mini-toggle-off'">
+                <span class="mini-thumb" :class="draft.dont_show_in_settings ? 'mini-thumb-on' : 'mini-thumb-off'" />
+              </span>
+            </label>
 
-              <label class="toggle-row">
-                <span>Не показывать в настройках</span>
-                <input
-                  v-model="item.dont_show_in_settings"
-                  type="checkbox"
-                  class="toggle-input"
-                />
-              </label>
-            </div>
+            <label class="switch-row">
+              <span>Наличный способ</span>
+              <input v-model="draft.is_cash_payment_type" type="checkbox" class="hidden-toggle" />
+              <span class="mini-toggle" :class="draft.is_cash_payment_type ? 'mini-toggle-on' : 'mini-toggle-off'">
+                <span class="mini-thumb" :class="draft.is_cash_payment_type ? 'mini-thumb-on' : 'mini-thumb-off'" />
+              </span>
+            </label>
+          </div>
 
-            <div class="mt-4 flex justify-end">
-              <button
-                type="button"
-                class="primary-action"
-                :disabled="Boolean(item._saving || item._deleting)"
-                @click="updatePaymentType(item)"
-              >
-                {{ item._saving ? "Сохраняем..." : "Сохранить" }}
-              </button>
-            </div>
+          <div class="modal-footer">
+            <button type="button" class="ghost-button" @click="closePanel">Отмена</button>
+            <button
+              type="button"
+              class="save-button"
+              :disabled="!canSubmitDraft"
+              @click="submitDraft"
+            >
+              <Icon v-if="panelSaving" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+              <span>Сохранить</span>
+            </button>
           </div>
         </div>
-      </article>
-    </div>
+      </template>
+    </UModal>
   </section>
 </template>
 
@@ -467,132 +579,360 @@ onMounted(loadPaymentTypes);
   padding: 24px;
 }
 
-.hero-panel {
+.page-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   margin-bottom: 24px;
-  padding: 28px 32px;
-  border-radius: 32px;
-  background:
-    radial-gradient(circle at top left, rgba(80, 140, 228, 0.3), transparent 38%),
-    linear-gradient(135deg, rgba(18, 29, 44, 0.98), rgba(28, 36, 46, 0.94));
-  border: 1px solid rgba(123, 169, 216, 0.18);
 }
 
-.hero-kicker {
-  margin-bottom: 10px;
-  color: #7ba9d8;
+.page-headline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.page-kicker {
+  color: #8095b3;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.hero-title {
-  font-size: 38px;
+.page-title {
+  margin-top: 4px;
+  font-size: 34px;
   font-weight: 700;
   line-height: 1.05;
 }
 
-.hero-copy {
-  max-width: 620px;
-  margin-top: 12px;
-  color: #b7c3d7;
-  font-size: 15px;
-  line-height: 1.6;
+.icon-shell,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
-.hero-meta {
-  min-width: 260px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 18px;
+.icon-shell {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #252527;
+  color: #f5f7fb;
 }
 
-.meta-label {
-  display: block;
-  margin-bottom: 8px;
-  color: #7ba9d8;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.icon-shell:hover {
+  background: #2d2d31;
+  transform: translateY(-1px);
 }
 
-.meta-value {
-  word-break: break-all;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.status-banner {
-  margin-bottom: 18px;
+.save-button,
+.add-button,
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
   border-radius: 18px;
-  padding: 14px 18px;
+  padding: 0 18px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
-.status-success {
-  background: rgba(75, 133, 77, 0.24);
-  color: #9ee5a0;
+.save-button {
+  background: #1f78ff;
+  color: white;
 }
 
-.status-error {
-  background: rgba(157, 61, 61, 0.24);
-  color: #ffb3b3;
+.save-button:hover:not(:disabled) {
+  background: #2e84ff;
+  transform: translateY(-1px);
 }
 
-.settings-card {
-  border-radius: 28px;
-  background: linear-gradient(180deg, #262626, #2e2e2e);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  padding: 24px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+.save-button:disabled,
+.add-button:disabled,
+.ghost-button:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
-.card-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
 }
 
-.card-eyebrow {
-  color: #7ba9d8;
-  font-size: 12px;
+.stat-card {
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(31, 120, 255, 0.16), transparent 38%),
+    linear-gradient(180deg, #262629 0%, #1f1f22 100%);
+  padding: 18px 20px;
+}
+
+.stat-label {
+  display: block;
+  color: #9eb4d4;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.card-title {
-  margin-top: 6px;
-  font-size: 26px;
+.stat-value {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
   font-weight: 700;
+}
+
+.table-card {
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #242427 0%, #1c1c1f 100%);
+}
+
+.table-head,
+.table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) 170px 150px 140px;
+  gap: 16px;
+  align-items: center;
+}
+
+.table-head {
+  padding: 18px 22px;
+  color: #8f9cb1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.head-toggle {
+  text-align: center;
+}
+
+.table-body {
+  padding: 8px;
+}
+
+.table-row {
+  min-height: 82px;
+  margin-bottom: 8px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0 14px;
+}
+
+.table-row:last-child {
+  margin-bottom: 0;
+}
+
+.title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title-text {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.title-id {
+  color: #7f8695;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.type-badge,
+.feature-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.type-badge-system {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d7dde7;
+}
+
+.type-badge-custom {
+  background: rgba(31, 120, 255, 0.16);
+  color: #9ac4ff;
+}
+
+.cell-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-button-system {
+  background: rgba(255, 255, 255, 0.06);
+  color: #b7bfcd;
+}
+
+.icon-button-custom {
+  background: rgba(31, 120, 255, 0.15);
+  color: #7fb4ff;
+}
+
+.icon-button-danger {
+  background: rgba(220, 38, 38, 0.14);
+  color: #ff8b8b;
+}
+
+.icon-button-disabled {
+  background: rgba(255, 255, 255, 0.05);
+  color: #7b838f;
+}
+
+.icon-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.cell-toggle {
+  display: flex;
+  justify-content: center;
+}
+
+.toggle-shell,
+.mini-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 56px;
+  height: 32px;
+  border-radius: 999px;
+  padding: 4px;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.toggle-shell-on,
+.mini-toggle-on {
+  background: #1f78ff;
+}
+
+.toggle-shell-off,
+.mini-toggle-off {
+  background: #4a4a4f;
+}
+
+.toggle-thumb,
+.mini-thumb {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: white;
+  transition: transform 0.2s ease;
+}
+
+.toggle-thumb-on,
+.mini-thumb-on {
+  transform: translateX(24px);
+}
+
+.toggle-thumb-off,
+.mini-thumb-off {
+  transform: translateX(0);
+}
+
+.table-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  color: #a1a8b5;
+}
+
+.page-footer {
+  margin-top: 22px;
+}
+
+.add-button {
+  background: #242427;
+  color: white;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.add-button:hover {
+  background: #2d2d31;
+}
+
+.modal-body {
+  padding: 22px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.modal-kicker {
+  color: #89a5cf;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.modal-title {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .field-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .field-label {
-  color: #d8dde6;
-  font-size: 14px;
+  color: #cdd5e1;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .field-input {
   width: 100%;
+  min-height: 48px;
   border: 1px solid transparent;
-  border-radius: 18px;
-  background: #404040;
-  padding: 14px 16px;
+  border-radius: 16px;
+  background: #2a2a2e;
+  padding: 0 14px;
   color: white;
   outline: none;
   transition: border-color 0.2s ease, background 0.2s ease;
@@ -600,122 +940,92 @@ onMounted(loadPaymentTypes);
 
 .field-input:focus {
   border-color: #4993dd;
-  background: #454545;
+  background: #303036;
 }
 
-.field-disabled {
-  opacity: 0.7;
+.switch-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
 }
 
-.toggle-row {
+.switch-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   border-radius: 18px;
-  background: #202020;
+  background: #26262a;
   padding: 14px 16px;
-  color: white;
   font-size: 14px;
   font-weight: 600;
 }
 
-.toggle-input {
-  height: 18px;
-  width: 18px;
-  accent-color: #1f78ff;
+.hidden-toggle {
+  display: none;
 }
 
-.primary-action,
-.secondary-action,
-.danger-action {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 16px;
-  padding: 14px 18px;
-  font-weight: 700;
-  transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
 }
 
-.primary-action {
-  background: #1f78ff;
-  color: white;
+.ghost-button {
+  background: #2a2a2e;
+  color: #d6dde8;
 }
 
-.secondary-action {
-  background: #404040;
-  color: white;
+.ghost-button:hover {
+  background: #313138;
 }
 
-.danger-action {
-  background: #6f3030;
-  color: white;
-}
-
-.primary-action:hover,
-.secondary-action:hover,
-.danger-action:hover {
-  transform: translateY(-1px);
-}
-
-.primary-action:hover {
-  background: #2a84ff;
-}
-
-.secondary-action:hover {
-  background: #4a4a4a;
-}
-
-.danger-action:hover {
-  background: #823838;
-}
-
-.primary-action:disabled,
-.secondary-action:disabled,
-.danger-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.empty-state {
-  border-radius: 20px;
-  background: #202020;
-  padding: 24px;
-  color: #bdbdbd;
-  text-align: center;
-}
-
-@media (max-width: 960px) {
-  .hero-panel {
-    flex-direction: column;
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .hero-meta {
-    min-width: 0;
+  .table-head,
+  .table-row {
+    grid-template-columns: minmax(0, 1fr) 140px 120px 110px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .payment-types-page {
     padding: 16px;
   }
 
-  .hero-panel,
-  .settings-card {
-    padding: 20px;
-    border-radius: 24px;
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .hero-title {
-    font-size: 30px;
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 
-  .card-title {
-    font-size: 22px;
+  .table-head {
+    display: none;
   }
 
-  .card-header {
+  .table-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .cell-actions,
+  .cell-toggle {
+    justify-content: flex-start;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-footer {
     flex-direction: column;
   }
 }
