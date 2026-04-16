@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="app-shell relative flex min-h-screen bg-[#1f1f1f]">
+  <section class=" relative flex min-h-screen bg-[#1f1f1f]">
     <transition name="fade-overlay">
       <div
         v-if="isMobileViewport && mobileSidebarOpen"
