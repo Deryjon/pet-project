@@ -32,6 +32,13 @@ function handleCellClick(cell: any, row: any) {
       Загружаем данные...
     </div>
 
+    <div
+      v-else-if="store.errorMessage"
+      class="rounded-[20px] bg-red-500/10 px-6 py-10 text-center text-[15px] text-red-200 ring-1 ring-red-400/20"
+    >
+      {{ store.errorMessage }}
+    </div>
+
     <div v-else-if="table.getRowModel().rows.length" class="overflow-x-auto">
       <table
         class="min-w-[720px] w-full text-left text-sm text-[#bdbdbd] sm:min-w-full sm:text-[17px]"

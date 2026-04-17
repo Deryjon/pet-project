@@ -18,14 +18,28 @@ type RawEmployee = {
   name?: string;
   phone_number?: string;
   role_name?: string;
+  roles?: Array<{
+    role_id?: string;
+    role?: {
+      name?: string;
+    };
+  }>;
   branch_code?: string;
   branch_title?: string;
   branchCode?: string;
+  shops?: Array<{
+    shop_id?: string;
+    shop?: {
+      name?: string;
+    };
+  }>;
+  current_shop_id?: string;
+  status_id?: string;
   is_active?: boolean;
   is_blocked?: boolean;
   is_deleted?: boolean;
-  blocked_at?: string | null;
-  deleted_at?: string | null;
+  blocked_at?: string | number | null;
+  deleted_at?: string | number | null;
   status?: string;
 };
 
@@ -51,7 +65,66 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function actionIcon(name: "edit" | "delete") {
+function compactTextList(values: unknown[]) {
+  return values
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function hasStatusMarker(value: unknown) {
+  return value !== undefined && value !== null && value !== "" && value !== 0 && value !== "0";
+}
+
+function getRoleName(user: RawEmployee) {
+  const fromRoles = Array.isArray(user.roles)
+    ? compactTextList(user.roles.map((item) => item?.role?.name || item?.role_id))
+    : "";
+
+  return user.role_name || fromRoles || "—";
+}
+
+function getAvailableShopNames(user: RawEmployee) {
+  const fromShops = Array.isArray(user.shops)
+    ? compactTextList(user.shops.map((item) => item?.shop?.name || item?.shop_id))
+    : "";
+
+  return user.branch_title || user.branchCode || fromShops || "—";
+}
+
+function getEmployeeStatus(user: RawEmployee, fallback: EmployeeStatusFilter) {
+  if (user.is_deleted || hasStatusMarker(user.deleted_at)) return "Удалён";
+  if (user.is_blocked || hasStatusMarker(user.blocked_at)) return "Заблокирован";
+  if (user.status) return user.status;
+  if (user.is_active === false) return "Неактивен";
+  if (fallback === "deleted") return "Удалён";
+  if (fallback === "blocked") return "Заблокирован";
+  return "Активен";
+}
+
+function statusBadgeClass(status: string) {
+  const normalized = status.trim().toLowerCase();
+
+  if (["активен", "active", "current"].includes(normalized)) {
+    return "border-emerald-400/30 bg-emerald-500/15 text-emerald-300";
+  }
+
+  if (["заблокирован", "blocked", "block"].includes(normalized)) {
+    return "border-amber-400/30 bg-amber-500/15 text-amber-300";
+  }
+
+  if (["удалён", "удален", "deleted"].includes(normalized)) {
+    return "border-red-400/30 bg-red-500/15 text-red-300";
+  }
+
+  if (["неактивен", "inactive"].includes(normalized)) {
+    return "border-slate-400/30 bg-slate-500/15 text-slate-300";
+  }
+
+  return "border-white/15 bg-white/10 text-white";
+}
+
+function actionIcon(name: "pause" | "edit" | "delete") {
   const commonAttrs = {
     viewBox: "0 0 24 24",
     fill: "none",
@@ -62,6 +135,13 @@ function actionIcon(name: "edit" | "delete") {
     class: "h-4 w-4",
     "aria-hidden": "true",
   };
+
+  if (name === "pause") {
+    return h("svg", commonAttrs, [
+      h("path", { d: "M10 5v14" }),
+      h("path", { d: "M14 5v14" }),
+    ]);
+  }
 
   if (name === "edit") {
     return h("svg", commonAttrs, [
@@ -90,6 +170,7 @@ export const useEmployeesDataTableStore = defineStore(
     const globalFilter = ref("");
     const employeeStatusFilter = ref<EmployeeStatusFilter>("current");
     const loading = ref(false);
+    const errorMessage = ref("");
     const totalCount = ref(0);
     const employeeStatusCounts = ref<Record<EmployeeStatusFilter, number>>({
       current: 0,
@@ -121,8 +202,18 @@ export const useEmployeesDataTableStore = defineStore(
 
     async function fetchData() {
       loading.value = true;
+      errorMessage.value = "";
       rawData.value = [];
       try {
+        if (!userStore.token) {
+          userStore.loadToken();
+        }
+
+        if (!userStore.token) {
+          totalCount.value = 0;
+          return;
+        }
+
         const response = normalizeUsersResponse(
           await apiFetch<any>(usersEndpoint, {
             method: "GET",
@@ -155,12 +246,29 @@ export const useEmployeesDataTableStore = defineStore(
             id: u.id ?? u.phone_number,
             name: (u.name || fullName || "").trim(),
             phone_number: u.phone_number || "",
-            role_name: u.role_name || "",
-            branch_title: u.branch_title || u.branchCode || "",
+            role_name: getRoleName(u),
+            branch_title: getAvailableShopNames(u),
+            status_label: getEmployeeStatus(u, employeeStatusFilter.value),
             is_active: u.is_active !== false,
             _original: u,
           } as any;
         });
+      } catch (error: any) {
+        const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+        rawData.value = [];
+        totalCount.value = 0;
+
+        if (status === 401 || status === 403) {
+          errorMessage.value = "Сессия истекла. Войдите заново.";
+          userStore.logout();
+          if (import.meta.client) {
+            await router.push("/auth/login");
+          }
+          return;
+        }
+
+        errorMessage.value =
+          error?.data?.message || error?.message || "Не удалось загрузить сотрудников.";
       } finally {
         loading.value = false;
       }
@@ -202,7 +310,23 @@ export const useEmployeesDataTableStore = defineStore(
       const id = idFor(row);
       if (!id) return;
 
-      await apiFetch(`${usersEndpoint}/${encodeURIComponent(String(id))}`, { method: "DELETE" });
+      await apiFetch(`/users/${encodeURIComponent(String(id))}`, { method: "DELETE" });
+      await fetchData();
+    }
+
+    async function pauseEmployee(row: any) {
+      if (!canManageEmployees.value) return;
+
+      const id = idFor(row);
+      if (!id) return;
+
+      await apiFetch(`/users/${encodeURIComponent(String(id))}`, {
+        method: "PUT",
+        body: {
+          is_active: false,
+          status_id: USER_STATUS_IDS.blocked,
+        },
+      });
       await fetchData();
     }
 
@@ -239,10 +363,27 @@ export const useEmployeesDataTableStore = defineStore(
       },
       { accessorKey: "id", header: "ID" },
       { accessorKey: "name", header: "ФИО" },
-      { accessorKey: "branch_title", header: "Магазин" },
       { accessorKey: "phone_number", header: "Телефон" },
       { accessorKey: "role_name", header: "Роль" },
-      { accessorKey: "", header: "Статус" },
+      { accessorKey: "branch_title", header: "Доступные магазины" },
+      {
+        accessorKey: "status_label",
+        header: "Статус",
+        cell: ({ getValue }: any) => {
+          const status = String(getValue() || "—");
+
+          return h(
+            "span",
+            {
+              class: [
+                "inline-flex min-w-[92px] items-center justify-center rounded-full border px-3 py-1 text-[12px] font-semibold leading-none sm:text-[13px]",
+                statusBadgeClass(status),
+              ].join(" "),
+            },
+            status,
+          );
+        },
+      },
       {
         id: "actions",
         header: "Действия",
@@ -251,17 +392,23 @@ export const useEmployeesDataTableStore = defineStore(
             return h("span", { class: "text-[#8f8f8f]" }, "Недоступно");
           }
 
+          const isPaused = String(row.original?.status_label || "").trim().toLowerCase() === "заблокирован";
+
           return h("div", { class: "flex gap-2" }, [
             h(
               "button",
               {
                 class:
-                  "inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#404040] text-white transition hover:bg-[#5e5e5e]",
-                title: "Изменить",
-                "aria-label": "Изменить сотрудника",
-                onClick: () => editEmployee(row.original),
+                  "inline-flex h-9 w-9 items-center justify-center rounded-md bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/30 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-45",
+                title: isPaused ? "Сотрудник уже отключён" : "Отключить сотрудника",
+                "aria-label": isPaused ? "Сотрудник уже отключён" : "Отключить сотрудника",
+                disabled: isPaused,
+                onClick: async (event: Event) => {
+                  event.stopPropagation();
+                  if (!isPaused && confirm("Отключить сотрудника?")) await pauseEmployee(row.original);
+                },
               },
-              actionIcon("edit"),
+              actionIcon("pause"),
             ),
             h(
               "button",
@@ -270,7 +417,8 @@ export const useEmployeesDataTableStore = defineStore(
                   "inline-flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white transition hover:bg-red-700",
                 title: "Удалить",
                 "aria-label": "Удалить сотрудника",
-                onClick: async () => {
+                onClick: async (event: Event) => {
+                  event.stopPropagation();
                   if (confirm("Удалить сотрудника?")) await deleteEmployee(row.original);
                 },
               },
@@ -322,13 +470,16 @@ export const useEmployeesDataTableStore = defineStore(
       editEmployee(row);
     }
 
-    fetchData();
+    if (import.meta.client) {
+      fetchData();
+    }
 
     return {
       rawData,
       globalFilter,
       employeeStatusFilter,
       employeeStatusCounts,
+      errorMessage,
       totalCount,
       totalPages,
       loading,
@@ -341,6 +492,7 @@ export const useEmployeesDataTableStore = defineStore(
       previousPage,
       nextPage,
       editEmployee,
+      pauseEmployee,
       deleteEmployee,
       openProduct,
     };
