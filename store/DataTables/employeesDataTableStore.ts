@@ -44,6 +44,14 @@ type RawEmployee = {
 };
 
 type EmployeeStatusFilter = "current" | "deleted" | "blocked";
+type EmployeeActionTone = "danger" | "success" | "warning";
+type PendingEmployeeAction = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone: EmployeeActionTone;
+  run: () => Promise<void>;
+};
 
 const USER_STATUS_IDS: Record<EmployeeStatusFilter, string> = {
   current: "75af5991-a4a3-4bea-b2a7-1306e22d6529",
@@ -124,7 +132,7 @@ function statusBadgeClass(status: string) {
   return "border-white/15 bg-white/10 text-white";
 }
 
-function actionIcon(name: "pause" | "edit" | "delete") {
+function actionIcon(name: "pause" | "play" | "restore" | "delete") {
   const commonAttrs = {
     viewBox: "0 0 24 24",
     fill: "none",
@@ -143,10 +151,16 @@ function actionIcon(name: "pause" | "edit" | "delete") {
     ]);
   }
 
-  if (name === "edit") {
+  if (name === "play") {
     return h("svg", commonAttrs, [
-      h("path", { d: "M12 20h9" }),
-      h("path", { d: "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" }),
+      h("path", { d: "m6 3 15 9-15 9V3Z" }),
+    ]);
+  }
+
+  if (name === "restore") {
+    return h("svg", commonAttrs, [
+      h("path", { d: "M3 12a9 9 0 1 0 3-6.7" }),
+      h("path", { d: "M3 3v6h6" }),
     ]);
   }
 
@@ -171,6 +185,8 @@ export const useEmployeesDataTableStore = defineStore(
     const employeeStatusFilter = ref<EmployeeStatusFilter>("current");
     const loading = ref(false);
     const errorMessage = ref("");
+    const employeeActionConfirm = ref<PendingEmployeeAction | null>(null);
+    const employeeActionSubmitting = ref(false);
     const totalCount = ref(0);
     const employeeStatusCounts = ref<Record<EmployeeStatusFilter, number>>({
       current: 0,
@@ -304,6 +320,37 @@ export const useEmployeesDataTableStore = defineStore(
       return row?.id ?? row?._original?.id ?? row?._original?.phone_number;
     }
 
+    function employeeNameFor(row: any) {
+      const name = String(row?.name ?? row?._original?.name ?? "").trim();
+      return name || "этого сотрудника";
+    }
+
+    function requestEmployeeAction(action: PendingEmployeeAction) {
+      employeeActionConfirm.value = action;
+    }
+
+    function closeEmployeeActionConfirm() {
+      if (employeeActionSubmitting.value) return;
+      employeeActionConfirm.value = null;
+    }
+
+    async function confirmEmployeeAction() {
+      if (!employeeActionConfirm.value || employeeActionSubmitting.value) return;
+
+      const action = employeeActionConfirm.value;
+      employeeActionSubmitting.value = true;
+
+      try {
+        await action.run();
+        employeeActionConfirm.value = null;
+      } catch (error: any) {
+        errorMessage.value =
+          error?.data?.message || error?.message || "Не удалось выполнить действие с сотрудником.";
+      } finally {
+        employeeActionSubmitting.value = false;
+      }
+    }
+
     async function deleteEmployee(row: any) {
       if (!canManageEmployees.value) return;
 
@@ -320,12 +367,38 @@ export const useEmployeesDataTableStore = defineStore(
       const id = idFor(row);
       if (!id) return;
 
-      await apiFetch(`/users/${encodeURIComponent(String(id))}`, {
-        method: "PUT",
+      await apiFetch(`/users/${encodeURIComponent(String(id))}/status`, {
+        method: "PATCH",
         body: {
           is_active: false,
-          status_id: USER_STATUS_IDS.blocked,
         },
+      });
+      await fetchData();
+    }
+
+    async function startEmployee(row: any) {
+      if (!canManageEmployees.value) return;
+
+      const id = idFor(row);
+      if (!id) return;
+
+      await apiFetch(`/users/${encodeURIComponent(String(id))}/status`, {
+        method: "PATCH",
+        body: {
+          is_active: true,
+        },
+      });
+      await fetchData();
+    }
+
+    async function restoreEmployee(row: any) {
+      if (!canManageEmployees.value) return;
+
+      const id = idFor(row);
+      if (!id) return;
+
+      await apiFetch(`/users/${encodeURIComponent(String(id))}/restore`, {
+        method: "PATCH",
       });
       await fetchData();
     }
@@ -392,24 +465,85 @@ export const useEmployeesDataTableStore = defineStore(
             return h("span", { class: "text-[#8f8f8f]" }, "Недоступно");
           }
 
-          const isPaused = String(row.original?.status_label || "").trim().toLowerCase() === "заблокирован";
+          const activeTab = employeeStatusFilter.value;
+          const actionButtons = [];
 
-          return h("div", { class: "flex gap-2" }, [
-            h(
-              "button",
-              {
-                class:
-                  "inline-flex h-9 w-9 items-center justify-center rounded-md bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/30 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-45",
-                title: isPaused ? "Сотрудник уже отключён" : "Отключить сотрудника",
-                "aria-label": isPaused ? "Сотрудник уже отключён" : "Отключить сотрудника",
-                disabled: isPaused,
-                onClick: async (event: Event) => {
-                  event.stopPropagation();
-                  if (!isPaused && confirm("Отключить сотрудника?")) await pauseEmployee(row.original);
+          if (activeTab === "deleted") {
+            actionButtons.push(
+              h(
+                "button",
+                {
+                  class:
+                    "inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/25",
+                  title: "Вернуть сотрудника",
+                  "aria-label": "Вернуть сотрудника",
+                  onClick: (event: Event) => {
+                    event.stopPropagation();
+                    requestEmployeeAction({
+                      title: "Вернуть сотрудника",
+                      description: `Вернуть ${employeeNameFor(row.original)} в текущие сотрудники?`,
+                      confirmLabel: "Вернуть",
+                      tone: "success",
+                      run: () => restoreEmployee(row.original),
+                    });
+                  },
                 },
-              },
-              actionIcon("pause"),
-            ),
+                actionIcon("restore"),
+              ),
+            );
+
+            return h("div", { class: "flex gap-2" }, actionButtons);
+          }
+
+          if (activeTab === "blocked") {
+            actionButtons.push(
+              h(
+                "button",
+                {
+                  class:
+                    "inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30 transition hover:bg-emerald-500/25",
+                  title: "Запустить сотрудника",
+                  "aria-label": "Запустить сотрудника",
+                  onClick: (event: Event) => {
+                    event.stopPropagation();
+                    requestEmployeeAction({
+                      title: "Активировать сотрудника",
+                      description: `Активировать ${employeeNameFor(row.original)} и вернуть доступ?`,
+                      confirmLabel: "Активировать",
+                      tone: "success",
+                      run: () => startEmployee(row.original),
+                    });
+                  },
+                },
+                actionIcon("play"),
+              ),
+            );
+          } else {
+            actionButtons.push(
+              h(
+                "button",
+                {
+                  class:
+                    "inline-flex h-9 w-9 items-center justify-center rounded-md bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/30 transition hover:bg-amber-500/25",
+                  title: "Отключить сотрудника",
+                  "aria-label": "Отключить сотрудника",
+                  onClick: (event: Event) => {
+                    event.stopPropagation();
+                    requestEmployeeAction({
+                      title: "Заблокировать сотрудника",
+                      description: `Заблокировать ${employeeNameFor(row.original)}? Доступ сотрудника будет отключен.`,
+                      confirmLabel: "Заблокировать",
+                      tone: "warning",
+                      run: () => pauseEmployee(row.original),
+                    });
+                  },
+                },
+                actionIcon("pause"),
+              ),
+            );
+          }
+
+          actionButtons.push(
             h(
               "button",
               {
@@ -417,14 +551,22 @@ export const useEmployeesDataTableStore = defineStore(
                   "inline-flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white transition hover:bg-red-700",
                 title: "Удалить",
                 "aria-label": "Удалить сотрудника",
-                onClick: async (event: Event) => {
+                onClick: (event: Event) => {
                   event.stopPropagation();
-                  if (confirm("Удалить сотрудника?")) await deleteEmployee(row.original);
+                  requestEmployeeAction({
+                    title: "Удалить сотрудника",
+                    description: `Удалить ${employeeNameFor(row.original)}? Это действие перенесет сотрудника в удаленные.`,
+                    confirmLabel: "Удалить",
+                    tone: "danger",
+                    run: () => deleteEmployee(row.original),
+                  });
                 },
               },
               actionIcon("delete"),
             ),
-          ]);
+          );
+
+          return h("div", { class: "flex gap-2" }, actionButtons);
         },
       },
     ];
@@ -479,6 +621,8 @@ export const useEmployeesDataTableStore = defineStore(
       globalFilter,
       employeeStatusFilter,
       employeeStatusCounts,
+      employeeActionConfirm,
+      employeeActionSubmitting,
       errorMessage,
       totalCount,
       totalPages,
@@ -493,7 +637,11 @@ export const useEmployeesDataTableStore = defineStore(
       nextPage,
       editEmployee,
       pauseEmployee,
+      startEmployee,
+      restoreEmployee,
       deleteEmployee,
+      closeEmployeeActionConfirm,
+      confirmEmployeeAction,
       openProduct,
     };
   },
