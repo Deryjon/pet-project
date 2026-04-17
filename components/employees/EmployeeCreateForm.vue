@@ -22,7 +22,7 @@ const props = withDefaults(
 );
 
 const { apiFetch } = useApi();
-const { getRolesForSelect } = useRolePermissionsApi();
+const { getCompanyRolesForSelect, getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
 const toast = useToast();
 
@@ -37,6 +37,7 @@ const current_shop_id = ref("");
 const allowed_shop_ids = ref<string[]>([]);
 const can_switch_shops = ref(false);
 const roleOptions = ref<RoleSelectItem[]>([]);
+const companyRoleOptions = ref<RoleSelectItem[]>([]);
 const rolesLoading = ref(false);
 
 const loading = ref(false);
@@ -140,15 +141,67 @@ watch(phone, (value) => {
   if (formatted !== value) phone.value = formatted;
 });
 
+function normalizeLookup(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function roleCodeFromName(name: string) {
+  const normalized = normalizeLookup(name);
+  const known: Record<string, string> = {
+    "админ": "admin",
+    "administrator": "admin",
+    "admin": "admin",
+    "сотрудник": "employee",
+    "employee": "employee",
+    "кассир": "cashier",
+    "cashier": "cashier",
+    "владелец": "owner",
+    "owner": "owner",
+    "управляющий_магазином": "store_manager",
+    "менеджер_магазина": "store_manager",
+    "store_manager": "store_manager",
+  };
+
+  return known[normalized] || "";
+}
+
+function selectedRoleCode() {
+  const selectedCrmRole = roleOptions.value.find((role) => role.id === crm_role_id.value);
+  const selectedCode = String(selectedCrmRole?.code || "").trim();
+  const selectedName = String(selectedCrmRole?.name || "").trim();
+  const matchedCompanyRole = companyRoleOptions.value.find((role) => {
+    const code = normalizeLookup(role.code || role.id);
+    const name = normalizeLookup(role.name);
+    return (
+      code === normalizeLookup(selectedCode) ||
+      name === normalizeLookup(selectedName) ||
+      code === normalizeLookup(roleCodeFromName(selectedName))
+    );
+  });
+
+  return (
+    matchedCompanyRole?.code ||
+    matchedCompanyRole?.id ||
+    roleCodeFromName(selectedName) ||
+    selectedCode
+  );
+}
+
 async function loadRoles() {
   rolesLoading.value = true;
   try {
-    roleOptions.value = await getRolesForSelect();
+    const [crmRoles, companyRoles] = await Promise.all([
+      getRolesForSelect(),
+      getCompanyRolesForSelect().catch(() => []),
+    ]);
+    roleOptions.value = crmRoles;
+    companyRoleOptions.value = companyRoles;
     if (!crm_role_id.value) {
       crm_role_id.value = roleOptions.value[0]?.id || "";
     }
   } catch {
     roleOptions.value = [];
+    companyRoleOptions.value = [];
   } finally {
     rolesLoading.value = false;
   }
@@ -166,6 +219,7 @@ const preparedData = computed(() => {
     birth_date: birth_date.value.trim() || undefined,
     phone_number: `${code}${digits}`,
     password: password.value,
+    role: selectedRoleCode(),
     crm_role_id: crm_role_id.value.trim(),
     current_shop_id: current_shop_id.value,
     allowed_shop_ids: [...allowed_shop_ids.value],
@@ -208,6 +262,10 @@ async function submit() {
   }
   if (!preparedData.value.crm_role_id) {
     errorMessage.value = "Укажите роль.";
+    return;
+  }
+  if (!preparedData.value.role) {
+    errorMessage.value = "Не удалось определить код роли. Проверьте ответ /company/roles.";
     return;
   }
   if (!preparedData.value.current_shop_id) {

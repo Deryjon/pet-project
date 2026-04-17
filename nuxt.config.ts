@@ -18,6 +18,20 @@ export default defineNuxtConfig({
     provider: "iconify",
     serverBundle: false,
   },
+  vite: {
+    server: {
+      watch: {
+        usePolling: true,
+        interval: 300,
+        ignored: [
+          "**/.git/**",
+          "**/.nuxt/**",
+          "**/.output/**",
+          "**/node_modules/**",
+        ],
+      },
+    },
+  },
   runtimeConfig: {
     apiProxyTarget: import.meta.env.NUXT_API_PROXY_TARGET || '',
     public: {

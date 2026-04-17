@@ -6,15 +6,13 @@ import { useEmployeesDataTableStore } from "@/store/DataTables/employeesDataTabl
 const store = useEmployeesDataTableStore();
 
 const currentPage = computed(() => store.pagination.pageIndex + 1);
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(store.filteredData.length / store.pagination.pageSize)),
-);
 </script>
 
 <template>
   <BaseDataTablePagination
     :currentPage="currentPage"
-    :totalPages="totalPages"
+    :totalPages="store.totalPages"
+    :loading="store.loading"
     @previous="store.previousPage()"
     @next="store.nextPage()"
   />

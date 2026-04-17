@@ -26,15 +26,10 @@ type CompanyPaymentMethod = {
 };
 
 type OrderPaymentPayload = {
-  comment: string;
   payments: Array<{
     company_payment_type_id: string;
-    paid_amount: number;
-    returned_amount: number;
-    skip_ofd: boolean;
+    amount: number;
   }>;
-  with_cashback: number;
-  without_cashback: boolean;
 };
 
 export const useCartStore = defineStore("cart", () => {
@@ -54,6 +49,7 @@ export const useCartStore = defineStore("cart", () => {
   const cancelLoading = ref(false);
   const discountLoading = ref(false);
   const paymentMethodsLoading = ref(false);
+  const referenceDataLoading = ref(false);
   const restoringSale = ref(false);
   const itemBusyMap = ref<Record<string, boolean>>({});
 
@@ -63,6 +59,13 @@ export const useCartStore = defineStore("cart", () => {
   const orderRaw = ref<any | null>(null);
   const lastCartError = ref<string>("");
   const paymentMethods = ref<CompanyPaymentMethod[]>([]);
+  const cashBoxes = ref<any[]>([]);
+  const selectedCashBox = ref<any | null>(null);
+  const saleCheque = ref<any | null>(null);
+  const shopInfo = ref<any | null>(null);
+  const orderDraftDebt = ref<any | null>(null);
+  const loyaltyProgram = ref<any | null>(null);
+  const companyCurrency = ref<any | null>(null);
 
   const products = ref<CartProduct[]>([
     {
@@ -123,6 +126,7 @@ export const useCartStore = defineStore("cart", () => {
     saleShopId.value = "";
     saleNumber.value = null;
     orderRaw.value = null;
+    orderDraftDebt.value = null;
     discountValue.value = 0;
     discountType.value = "%";
     discountPercent.value = 0;
@@ -156,6 +160,18 @@ export const useCartStore = defineStore("cart", () => {
     );
   }
 
+  function resolveCompanyId(inputCompanyId?: string) {
+    const userStore = useUserStore();
+
+    return String(
+      inputCompanyId ||
+        userStore.user.companyId ||
+        userStore.user.company?.companyId ||
+        userStore.user.company?.id ||
+        "",
+    ).trim();
+  }
+
   function setItemBusy(productId: number | string, busy: boolean) {
     const key = String(productId);
 
@@ -184,21 +200,14 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   async function loadPaymentMethods(inputCompanyId?: string) {
-    const userStore = useUserStore();
-    const companyId = String(
-      inputCompanyId ||
-      userStore.user.companyId ||
-      userStore.user.company?.companyId ||
-      userStore.user.company?.id ||
-      "",
-    ).trim();
+    const companyId = resolveCompanyId(inputCompanyId);
 
     paymentMethodsLoading.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch("/company-payment-type", {
+      const res: any = await apiFetch("/v1/company-payment-type", {
         method: "GET",
-        query: companyId ? { company_id: companyId } : {},
+        query: companyId ? { company_id: companyId, limit: 1000 } : { limit: 1000 },
       });
 
       const items = Array.isArray(res)
@@ -233,6 +242,119 @@ export const useCartStore = defineStore("cart", () => {
       paymentMethods.value = [];
     } finally {
       paymentMethodsLoading.value = false;
+    }
+  }
+
+  async function loadCashBoxes() {
+    const { apiFetch } = useApi();
+    const res: any = await apiFetch("/v1/cash-box", {
+      method: "GET",
+      query: { limit: 100 },
+    });
+    const items = Array.isArray(res?.cash_boxes)
+      ? res.cash_boxes
+      : Array.isArray(res?.data?.cash_boxes)
+        ? res.data.cash_boxes
+        : Array.isArray(res)
+          ? res
+          : [];
+    const shopId = String(resolveCurrentShopId() || "");
+
+    cashBoxes.value = items;
+    selectedCashBox.value =
+      items.find((cashBox: any) => String(cashBox?.shop_id ?? cashBox?.shop?.id ?? "") === shopId) ??
+      items[0] ??
+      null;
+
+    return selectedCashBox.value;
+  }
+
+  async function loadShopInfo(shopId = resolveCurrentShopId()) {
+    if (!shopId) {
+      shopInfo.value = null;
+      return null;
+    }
+
+    const { apiFetch } = useApi();
+    const res = await apiFetch(`/v1/shop/${encodeURIComponent(String(shopId))}`, {
+      method: "GET",
+    });
+    shopInfo.value = res;
+    return res;
+  }
+
+  async function loadLoyaltyProgram() {
+    const { apiFetch } = useApi();
+    const res = await apiFetch("/v1/loyalty-program", { method: "GET" });
+    loyaltyProgram.value = res;
+    return res;
+  }
+
+  async function loadCompanyCurrency() {
+    const { apiFetch } = useApi();
+    const res: any = await apiFetch("/v2/company-currencies", { method: "GET" });
+    const currencies = Array.isArray(res?.company_currencies)
+      ? res.company_currencies
+      : Array.isArray(res?.data?.company_currencies)
+        ? res.data.company_currencies
+        : [];
+    companyCurrency.value = currencies[0]?.currency ?? currencies[0] ?? null;
+    return companyCurrency.value;
+  }
+
+  async function loadSaleCheque(inputCompanyId?: string) {
+    const companyId = resolveCompanyId(inputCompanyId);
+    const { apiFetch } = useApi();
+    const res: any = await apiFetch("/v1/cheque", {
+      method: "GET",
+      query: companyId ? { company_id: companyId } : undefined,
+    });
+    const cheques = Array.isArray(res?.cheques)
+      ? res.cheques
+      : Array.isArray(res?.data?.cheques)
+        ? res.data.cheques
+        : [];
+    const cashBoxChequeId = String(selectedCashBox.value?.cheque_id ?? "");
+
+    saleCheque.value =
+      cheques.find((cheque: any) => cashBoxChequeId && String(cheque?.id) === cashBoxChequeId) ??
+      cheques.find((cheque: any) => Boolean(cheque?.is_default)) ??
+      cheques[0] ??
+      null;
+
+    return saleCheque.value;
+  }
+
+  async function loadOrderDraftDebt(sid?: string | number | null) {
+    const id = sid ?? saleId.value;
+    if (!id) {
+      orderDraftDebt.value = null;
+      return null;
+    }
+
+    const { apiFetch } = useApi();
+    const res = await apiFetch(`/v1/order-draft-debt/${encodeURIComponent(String(id))}`, {
+      method: "GET",
+    });
+    orderDraftDebt.value = res;
+    return res;
+  }
+
+  async function loadSaleReferenceData() {
+    referenceDataLoading.value = true;
+    try {
+      await Promise.allSettled([
+        loadPaymentMethods(),
+        loadCashBoxes(),
+        loadShopInfo(),
+        loadLoyaltyProgram(),
+        loadCompanyCurrency(),
+      ]);
+      await loadSaleCheque().catch(() => {
+        saleCheque.value = null;
+      });
+    } finally {
+      referenceDataLoading.value = false;
     }
   }
 
@@ -346,9 +468,10 @@ export const useCartStore = defineStore("cart", () => {
       const shopId = resolveCurrentShopId();
       const res: any = await apiFetch("/v2/order", {
         method: "POST",
+        query: { "Billz-Response-Channel": "HTTP" },
         body: shopId ? { shop_id: shopId } : {},
       });
-      const orderId = res?.id ?? res?.data?.id ?? res?.order?.id ?? null;
+      const orderId = res?.data?.id ?? res?.id ?? res?.order?.id ?? null;
       saleId.value = orderId != null ? String(orderId) : null;
       saleShopId.value = String(
         res?.shop_id ??
@@ -369,6 +492,11 @@ export const useCartStore = defineStore("cart", () => {
       discountPercent.value = Number(res?.discount_percent ?? 0);
       discountAmount.value = Number(res?.discount_amount ?? 0);
       payableTotal.value = Number(res?.payable_total ?? 0);
+      if (saleId.value) {
+        await loadOrderDraftDebt(saleId.value).catch(() => {
+          orderDraftDebt.value = null;
+        });
+      }
       return saleId.value;
     } finally {
       creatingSale.value = false;
@@ -423,7 +551,9 @@ export const useCartStore = defineStore("cart", () => {
       saleId.value = String(res?.id ?? res?.data?.id ?? saleId.value ?? "");
       saleShopId.value = String(
         res?.shop_id ??
+          res?.order_detail?.shop_id ??
           res?.data?.shop_id ??
+          res?.data?.order_detail?.shop_id ??
           res?.order?.shop_id ??
           saleShopId.value ??
           resolveCurrentShopId() ??
@@ -445,12 +575,16 @@ export const useCartStore = defineStore("cart", () => {
           res?.total_price ??
           res?.order_detail?.total_price ??
           res?.data?.total_price ??
+          res?.data?.order_detail?.total_price ??
           res?.total ??
           res?.amount ??
           res?.grand_total ??
           payableTotal.value ??
           0,
       );
+      await loadOrderDraftDebt(saleId.value).catch(() => {
+        orderDraftDebt.value = null;
+      });
 
       return res;
     } finally {
@@ -606,11 +740,18 @@ export const useCartStore = defineStore("cart", () => {
     const { apiFetch } = useApi();
     payLoading.value = true;
     try {
-      const res: any = await apiFetch(`/v2/order-payment/${saleId.value}`, {
+      const paidSaleId = saleId.value;
+      const res: any = await apiFetch(`/v2/order-payment/${paidSaleId}`, {
         method: "POST",
         body: payload,
       });
-      receipt.value = res;
+      let paidOrder: any = null;
+      try {
+        paidOrder = await apiFetch(`/v2/order/${paidSaleId}`, { method: "GET" });
+      } catch {
+        paidOrder = null;
+      }
+      receipt.value = { payment: res, order: paidOrder };
       resetSaleState({ keepReceipt: true });
       return res;
     } catch (error: any) {
@@ -789,6 +930,14 @@ export const useCartStore = defineStore("cart", () => {
     cancelLoading,
     paymentMethods,
     paymentMethodsLoading,
+    referenceDataLoading,
+    cashBoxes,
+    selectedCashBox,
+    saleCheque,
+    shopInfo,
+    orderDraftDebt,
+    loyaltyProgram,
+    companyCurrency,
     restoringSale,
     itemBusyMap,
     products,
@@ -810,6 +959,13 @@ export const useCartStore = defineStore("cart", () => {
     applySaleDiscount,
     paySale,
     loadPaymentMethods,
+    loadCashBoxes,
+    loadShopInfo,
+    loadLoyaltyProgram,
+    loadCompanyCurrency,
+    loadSaleCheque,
+    loadOrderDraftDebt,
+    loadSaleReferenceData,
     cancelSale,
     itemFinalPrice,
     itemFinalPriceWithGlobal,

@@ -262,8 +262,27 @@ async function openSellerModal() {
 
   sellerLoading.value = true;
   try {
-    const res = await apiFetch<any>("/users", { method: "GET" });
-    const items = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+    const shopId = String(store.resolveCurrentShopId() || "");
+    const res = await apiFetch<any>("/v1/user", {
+      method: "GET",
+      query: {
+        search: sellerSearch.value.trim(),
+        limit: 100,
+        page: 1,
+        shop_ids: shopId || undefined,
+        show_sellers: true,
+        type: 1,
+      },
+    });
+    const items = Array.isArray(res?.users)
+      ? res.users
+      : Array.isArray(res?.data?.users)
+        ? res.data.users
+        : Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res)
+            ? res
+            : [];
 
     sellers.value = items.map((user: any, index: number) => {
       const fullName = (
@@ -274,7 +293,7 @@ async function openSellerModal() {
       return {
         id: user?.id ?? user?.phone_number ?? `seller-${index}`,
         name: fullName || "Без имени",
-        role: String(user?.role || ""),
+        role: String(user?.role_name || user?.role || user?.branch_title || ""),
         phone: String(user?.phone_number || user?.phone || ""),
       };
     });

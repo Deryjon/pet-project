@@ -3,6 +3,7 @@ import { useUserStore } from "~/store/useUserStore";
 export function useApi() {
   const config = useRuntimeConfig();
   const user = useUserStore();
+  const { startPageLoading, stopPageLoading } = usePageLoader();
 
   const apiBase = config.public.apiBase as string; // e.g. '/api'
 
@@ -40,12 +41,19 @@ export function useApi() {
       headers["Content-Type"] = "application/json";
     }
 
-    return $fetch<T>(path, {
-      baseURL: apiBase,
-      credentials: "include",
-      ...opts,
-      headers,
-    });
+    startPageLoading();
+
+    try {
+      return await $fetch<T>(path, {
+        baseURL: apiBase,
+        credentials: "include",
+        timeout: 20000,
+        ...opts,
+        headers,
+      });
+    } finally {
+      stopPageLoading();
+    }
   }
 
   return { apiBase, apiFetch };

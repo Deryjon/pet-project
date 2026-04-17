@@ -193,6 +193,103 @@
         </div>
       </template>
     </USlideover>
+
+    <UModal
+      v-model:open="printStore.receiptPreviewOpen"
+      :ui="{
+        overlay: 'bg-black/50 backdrop-blur-sm',
+        content: 'mx-4 max-w-[520px] rounded-[28px] border border-white/10 bg-[#262626] p-0 text-white shadow-2xl ring-0 sm:mx-0',
+      }"
+    >
+      <template #content>
+        <div class="p-5 sm:p-6">
+          <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-[22px] font-semibold">Чек продажи</h3>
+              <p class="mt-1 text-sm text-[#bdbdbd]">
+                Проверьте чек перед печатью или закройте окно.
+              </p>
+            </div>
+
+            <UButton
+              color="neutral"
+              variant="ghost"
+              class="flex h-10 w-10 items-center justify-center rounded-full bg-[#404040] p-0 text-white hover:bg-[#505050]"
+              @click="printStore.receiptPreviewOpen = false"
+            >
+              <Icon name="heroicons:x-mark" class="h-5 w-5" />
+            </UButton>
+          </div>
+
+          <div
+            v-if="printStore.latestReceipt"
+            class="mx-auto rounded-lg bg-white p-3 font-sans text-[12px] text-black"
+            :class="printStore.receiptPaperClass === 'receipt-paper-58' ? 'max-w-[250px]' : 'max-w-[320px]'"
+          >
+            <div v-if="printStore.settings.showCompanyName" class="text-center font-bold">
+              {{ printStore.settings.companyName }}
+            </div>
+            <div
+              v-if="printStore.settings.showShopName && (printStore.settings.shopName || printStore.settings.address)"
+              class="text-center text-[#555]"
+            >
+              {{ printStore.settings.shopName || printStore.settings.address }}
+            </div>
+            <div v-if="printStore.settings.phone" class="text-center text-[#555]">
+              {{ printStore.settings.phone }}
+            </div>
+            <div class="my-2 border-t border-dashed border-black"></div>
+            <div>Чек: {{ printStore.latestReceipt.saleNumber || printStore.latestReceipt.saleId || "-" }}</div>
+            <div>Дата: {{ new Date(printStore.latestReceipt.paidAt).toLocaleString("ru-RU") }}</div>
+            <div v-if="printStore.settings.showPaymentMethod">
+              Оплата: {{ printStore.latestReceipt.paymentMethodName }}
+            </div>
+            <div class="my-2 border-t border-dashed border-black"></div>
+            <div
+              v-for="line in printStore.latestReceipt.lines"
+              :key="line.name"
+              class="mb-2 flex justify-between gap-3"
+            >
+              <div>
+                <div class="font-bold">{{ line.name }}</div>
+                <div class="text-[#555]">{{ line.quantity }} x {{ printStore.formatMoney(line.price) }}</div>
+              </div>
+              <b class="whitespace-nowrap">{{ printStore.formatMoney(line.total) }}</b>
+            </div>
+            <div class="my-2 border-t border-dashed border-black"></div>
+            <div class="flex justify-between font-bold">
+              <span>Итого</span>
+              <span>{{ printStore.formatMoney(printStore.latestReceipt.total) }}</span>
+            </div>
+            <template v-if="printStore.settings.showFooter && printStore.settings.footerText">
+              <div class="my-2 border-t border-dashed border-black"></div>
+              <div class="text-center">{{ printStore.settings.footerText }}</div>
+            </template>
+          </div>
+
+          <div class="mt-5 flex flex-col gap-2 sm:flex-row">
+            <UButton
+              block
+              color="neutral"
+              variant="soft"
+              class="justify-center rounded-[16px] bg-[#404040] py-3 font-semibold text-white hover:bg-[#505050]"
+              @click="printStore.receiptPreviewOpen = false"
+            >
+              Закрыть
+            </UButton>
+            <UButton
+              block
+              color="primary"
+              class="justify-center rounded-[16px] py-3 font-semibold"
+              @click="printStore.printReceipt()"
+            >
+              <Icon name="heroicons:printer" class="h-5 w-5" />
+              Печать
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -200,9 +297,11 @@
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useCartStore } from "@/store/cart";
+import { usePrintSettingsStore, type SaleReceiptSnapshot } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
 const cartStore = useCartStore();
+const printStore = usePrintSettingsStore();
 const { subtotal, totalDiscount, total, cart, paymentMethods, paymentMethodsLoading } = storeToRefs(cartStore);
 const { formatPrice } = useFormatPrice();
 const toast = useToast();
@@ -255,19 +354,35 @@ async function confirmPay() {
 
   const companyPaymentTypeId = String(selectedPaymentMethod.value || "").trim();
   if (!companyPaymentTypeId) return;
+  const selectedMethod = singlePaymentMethods.value.find((method) => method.value === companyPaymentTypeId);
+  const receiptSnapshot: SaleReceiptSnapshot = {
+    saleId: cartStore.saleId,
+    saleNumber: cartStore.saleNumber,
+    paidAt: new Date().toISOString(),
+    paymentMethodName: selectedMethod?.label || "Не указано",
+    subtotal: subtotal.value,
+    discount: totalDiscount.value,
+    total: payableAmount.value,
+    lines: cart.value.map((item: any) => {
+      const quantity = Math.max(1, Number(item.quantity || 1));
+      const price = Number(item.price || 0);
+
+      return {
+        name: String(item.name || "Товар"),
+        quantity,
+        price,
+        total: price * quantity,
+      };
+    }),
+  };
 
   const result = await cartStore.paySale({
-    comment: "",
     payments: [
       {
         company_payment_type_id: companyPaymentTypeId,
-        paid_amount: payableAmount.value,
-        returned_amount: 0,
-        skip_ofd: false,
+        amount: payableAmount.value,
       },
     ],
-    with_cashback: 0,
-    without_cashback: false,
   });
 
   if (!result) {
@@ -279,6 +394,10 @@ async function confirmPay() {
     return;
   }
 
+  printStore.setLatestReceipt({
+    ...receiptSnapshot,
+    receiptResponse: result,
+  });
   closePaymentPanel();
   toast.add({
     title: "Оплата проведена",
