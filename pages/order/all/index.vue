@@ -201,7 +201,7 @@
 
           <div class="modal-group">
             <p class="modal-label">Оплата</p>
-            <USelect v-model="paymentFilter" :items="paymentOptions" color="neutral" variant="none" :ui="selectUi" />
+            <USelect v-model="paymentFilter" :items="dynamicPaymentOptions" color="neutral" variant="none" :ui="selectUi" />
           </div>
         </div>
       </template>
@@ -239,6 +239,7 @@ interface SaleView {
   amountLabel: string;
   amountValue: number;
   paymentKey: string;
+  paymentLabel: string;
   clientLabel: string;
   statusKey: string;
   itemsCountLabel: string;
@@ -265,10 +266,19 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const limitOptions = [{ label: "10", value: 10 }, { label: "25", value: 25 }, { label: "50", value: 50 }];
 const statusOptions = [{ label: "Все", value: "all" }, { label: "Оплачен", value: "paid" }, { label: "Ожидает", value: "pending" }, { label: "Отменён", value: "cancelled" }];
-const paymentOptions = [{ label: "Все", value: "all" }, { label: "Наличные", value: "cash" }, { label: "Карта", value: "card" }, { label: "Click QR", value: "click" }, { label: "Перевод", value: "transfer" }];
 
 const searchUi = { root: "w-full", base: "h-[54px] rounded-[18px] border-0 bg-transparent px-4 pl-11 text-white placeholder:text-slate-300 focus:outline-none focus:ring-0" };
 const selectUi = { base: "h-[44px] rounded-[14px] border border-white/10 bg-white/5 px-3 text-white focus:outline-none focus:ring-0" };
+
+const dynamicPaymentOptions = computed(() => {
+  const options = new Map<string, string>([["all", "Все"]]);
+
+  for (const sale of sales.value) {
+    options.set(sale.paymentKey, sale.paymentLabel);
+  }
+
+  return Array.from(options.entries()).map(([value, label]) => ({ value, label }));
+});
 
 const todayLabel = computed(() => new Date().toLocaleDateString("ru-RU"));
 
@@ -327,7 +337,7 @@ const paymentEntries = computed(() => {
   }, {});
 
   return Object.entries(base)
-    .map(([key, amount]) => ({ key, label: formatPaymentLabel(key), amount: toNumber(amount), amountLabel: formatUzs(toNumber(amount)) }))
+    .map(([key, amount]) => ({ key, label: paymentLabelForKey(key), amount: toNumber(amount), amountLabel: formatUzs(toNumber(amount)) }))
     .filter((entry) => entry.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 });
@@ -352,6 +362,7 @@ function normalizeSale(raw: any): SaleView {
     type: normalizeItemType(item?.type ?? item?.product_type ?? item?.kind),
   })) : [];
   const itemsCount = items.reduce((sum: number, item: SaleItemView) => sum + item.quantity, 0);
+  const paymentInfo = resolvePaymentInfo(raw);
 
   return {
     id,
@@ -362,7 +373,8 @@ function normalizeSale(raw: any): SaleView {
     pointLabel: raw?.shop?.name ?? raw?.branch_title ?? raw?.branch_name ?? raw?.location?.name ?? raw?.point?.name ?? "Не указана",
     amountLabel: formatUzs(amountValue),
     amountValue,
-    paymentKey: detectPaymentKey(raw),
+    paymentKey: paymentInfo.key,
+    paymentLabel: paymentInfo.label,
     clientLabel: raw?.client?.name ?? raw?.customer?.name ?? raw?.buyer?.name ?? raw?.client_name ?? "Без клиента",
     statusKey: String(raw?.status ?? "paid").toLowerCase(),
     itemsCountLabel: `${itemsCount} ед.`,
@@ -378,14 +390,32 @@ function normalizeItemType(value: unknown) {
   return "goods";
 }
 
-function detectPaymentKey(raw: any) {
-  const direct = String(raw?.payment?.name ?? raw?.payment_method ?? raw?.payment_type ?? raw?.paymentType ?? raw?.payment?.method ?? raw?.payment?.type ?? "").toLowerCase();
-  if (direct) return normalizePaymentKey(direct);
+function resolvePaymentInfo(raw: any) {
+  const paymentName = String(raw?.payment?.name ?? raw?.payment_type_name ?? "").trim();
+  const paymentId = String(raw?.payment?.id ?? raw?.payment_method ?? raw?.payment_type ?? raw?.paymentType ?? "").trim();
+  const direct = paymentName || paymentId || String(raw?.payment?.method ?? raw?.payment?.type ?? "").trim();
+
+  if (direct) {
+    return {
+      key: normalizePaymentKey(paymentId || direct),
+      label: paymentName || formatPaymentLabel(direct),
+    };
+  }
+
   if (raw?.payments && typeof raw.payments === "object") {
     const first = Object.entries(raw.payments as Record<string, unknown>).find(([, amount]) => toNumber(amount) > 0)?.[0];
-    if (first) return normalizePaymentKey(first);
+    if (first) {
+      return {
+        key: normalizePaymentKey(first),
+        label: formatPaymentLabel(first),
+      };
+    }
   }
-  return "cash";
+
+  return {
+    key: "cash",
+    label: "Наличные",
+  };
 }
 
 function normalizePaymentKey(value: string) {
@@ -406,6 +436,10 @@ function formatPaymentLabel(value: string) {
 
 function toIsoDate(value: string | number | Date) {
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function paymentLabelForKey(key: string) {
+  return sales.value.find((sale) => sale.paymentKey === key)?.paymentLabel || formatPaymentLabel(key);
 }
 
 function toNumber(value: unknown) {
@@ -447,7 +481,7 @@ function printReport() {
 
 function downloadReport() {
   if (!import.meta.client) return;
-  const rows = filteredSales.value.map((sale) => [sale.id, sale.numberLabel, sale.dateTimeLabel, sale.clientLabel, sale.sellerLabel, sale.pointLabel, sale.amountValue, formatPaymentLabel(sale.paymentKey)]);
+  const rows = filteredSales.value.map((sale) => [sale.id, sale.numberLabel, sale.dateTimeLabel, sale.clientLabel, sale.sellerLabel, sale.pointLabel, sale.amountValue, sale.paymentLabel]);
   const csv = [["id", "number", "datetime", "client", "user", "shop", "amount", "payment"].join(","), ...rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, "\"\"")}"`).join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);

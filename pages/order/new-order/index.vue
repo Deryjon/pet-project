@@ -62,6 +62,20 @@ const initialPageLoading = ref(true);
 const search = computed(() => cartStore.searchQuery);
 const currentShopId = computed(() => String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""));
 
+async function prepareDraftSale() {
+  if (!currentShopId.value) return;
+
+  await cartStore.loadSaleReferenceData();
+
+  if (!cartStore.saleId) {
+    await cartStore.initSale();
+  }
+
+  if (cartStore.saleId) {
+    await cartStore.loadSale(cartStore.saleId);
+  }
+}
+
 async function fetchProducts() {
   try {
     cartStore.productsLoading = true as any;
@@ -158,16 +172,18 @@ watch(currentShopId, (next, prev) => {
       ? "Найдена сохранённая продажа из другого филиала. Корзина очищена."
       : "Филиал изменён. Корзина очищена, чтобы не смешивать остатки разных магазинов.";
   }
+  if (prev && next !== prev) {
+    void prepareDraftSale();
+  }
 });
 
 onMounted(async () => {
   try {
-    await cartStore.loadPaymentMethods();
+    await cartStore.loadSaleReferenceData();
 
     if (cartStore.hasSaleShopMismatch(currentShopId.value)) {
       cartStore.resetSaleState({ keepReceipt: true });
       cartStore.lastCartError = "Найдена сохранённая продажа из другого филиала. Корзина очищена.";
-      return;
     }
 
     if (cartStore.saleId) {
@@ -176,6 +192,11 @@ onMounted(async () => {
       } catch {
         cartStore.resetSaleState({ keepReceipt: true });
         cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
+      }
+    } else {
+      await cartStore.initSale();
+      if (cartStore.saleId) {
+        await cartStore.loadSale(cartStore.saleId);
       }
     }
   } finally {
