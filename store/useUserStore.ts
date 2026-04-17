@@ -220,11 +220,11 @@ export const useUserStore = defineStore("user", {
       const force = Boolean(options?.force);
 
       if (this.refreshingUser) {
-        return;
+        return false;
       }
 
       if (!force && this.lastUserFetchAt && now - this.lastUserFetchAt < 1500) {
-        return;
+        return Boolean(this.user.id);
       }
 
       this.refreshingUser = true;
@@ -234,10 +234,13 @@ export const useUserStore = defineStore("user", {
         this.setUser(me);
         useLocationStore().syncFromUser(me);
         this.lastUserFetchAt = Date.now();
+        return Boolean(this.user.id);
       } catch (error: any) {
-        if (error?.status === 401 || error?.response?.status === 401) {
+        const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+        if (status === 401 || status === 403) {
           this.logout();
         }
+        return false;
       } finally {
         this.refreshingUser = false;
       }

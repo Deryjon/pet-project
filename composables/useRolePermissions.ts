@@ -34,6 +34,7 @@ export type RolePermissionsResponse = {
 export type RoleSelectItem = {
   id: string;
   name: string;
+  code: string;
   description: string;
 };
 
@@ -102,9 +103,13 @@ function normalizeRolePermissions(raw: any): RolePermissionsResponse {
 }
 
 function normalizeRole(raw: any): RoleSelectItem {
+  const id = asString(raw?.id ?? raw?.role_id ?? raw?.code ?? raw?.role);
+  const code = asString(raw?.code ?? raw?.role ?? raw?.role_id ?? raw?.slug ?? raw?.id);
+
   return {
-    id: asString(raw?.id),
+    id,
     name: asString(raw?.name),
+    code,
     description: asString(raw?.description),
   };
 }
@@ -231,11 +236,17 @@ export function useRolePermissionsApi() {
     return [];
   }
 
+  async function getCompanyRolesForSelect(): Promise<RoleSelectItem[]> {
+    const response = await apiFetch<any>("/company/roles", { method: "GET" });
+    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole).filter((role) => role.id);
+  }
+
   return {
     createRole,
     updateRole,
     getRolePermissions,
     updateRolePermissions,
     getRolesForSelect,
+    getCompanyRolesForSelect,
   };
 }

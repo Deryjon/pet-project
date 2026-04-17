@@ -41,6 +41,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
     userStore.loadToken();
   }
 
+  if (!userStore.token && import.meta.server && !publicRoute) {
+    return;
+  }
+
   if (userStore.token && !userStore.user.id && !userStore.initializing) {
     await userStore.fetchMe();
   }

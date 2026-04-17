@@ -14,7 +14,7 @@ type User = {
   first_name?: string;
   last_name?: string;
   phone_number?: string;
-  role?: string | { id?: string; name?: string };
+  role?: string | { id?: string; name?: string; code?: string; role_id?: string };
   roles?: Array<any>;
   crm_role_id?: string;
   current_shop_id?: string;
@@ -30,7 +30,7 @@ type User = {
 const route = useRoute();
 const router = useRouter();
 const { apiFetch } = useApi();
-const { getRolesForSelect } = useRolePermissionsApi();
+const { getCompanyRolesForSelect, getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
 const toast = useToast();
 
@@ -45,11 +45,13 @@ const firstName = ref("");
 const lastName = ref("");
 const phone = ref("");
 const password = ref("");
+const role = ref("");
 const crm_role_id = ref("");
 const current_shop_id = ref("");
 const allowed_shop_ids = ref<string[]>([]);
 const can_switch_shops = ref(false);
 const roleOptions = ref<RoleSelectItem[]>([]);
+const companyRoleOptions = ref<RoleSelectItem[]>([]);
 const rolesLoading = ref(false);
 
 const shopOptions = computed(() =>
@@ -130,6 +132,30 @@ function toggleAllowedShop(shopId: string) {
     : [shopId];
 }
 
+function normalizeLookup(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function roleCodeFromName(name: string) {
+  const normalized = normalizeLookup(name);
+  const known: Record<string, string> = {
+    "админ": "admin",
+    "administrator": "admin",
+    "admin": "admin",
+    "сотрудник": "employee",
+    "employee": "employee",
+    "кассир": "cashier",
+    "cashier": "cashier",
+    "владелец": "owner",
+    "owner": "owner",
+    "управляющий_магазином": "store_manager",
+    "менеджер_магазина": "store_manager",
+    "store_manager": "store_manager",
+  };
+
+  return known[normalized] || "";
+}
+
 function normalizeRoleId(user: User) {
   return String(
     user?.crm_role_id ??
@@ -141,15 +167,59 @@ function normalizeRoleId(user: User) {
   ).trim();
 }
 
+function normalizeBaseRole(user: User) {
+  const primaryRole = user?.role;
+
+  return String(
+    (typeof primaryRole === "object"
+      ? primaryRole?.code ?? primaryRole?.role_id ?? primaryRole?.id ?? primaryRole?.name
+      : primaryRole) ??
+      user.roles?.[0]?.role_id ??
+      user.roles?.[0]?.role?.code ??
+      user.roles?.[0]?.role?.role_id ??
+      user.roles?.[0]?.role?.id ??
+      user.roles?.[0]?.role?.name ??
+      "",
+  ).trim();
+}
+
+function selectedRoleCode() {
+  const selectedCrmRole = roleOptions.value.find((item) => item.id === crm_role_id.value);
+  const selectedCode = String(selectedCrmRole?.code || role.value || "").trim();
+  const selectedName = String(selectedCrmRole?.name || "").trim();
+  const matchedCompanyRole = companyRoleOptions.value.find((item) => {
+    const code = normalizeLookup(item.code || item.id);
+    const name = normalizeLookup(item.name);
+    return (
+      code === normalizeLookup(selectedCode) ||
+      name === normalizeLookup(selectedName) ||
+      code === normalizeLookup(roleCodeFromName(selectedName))
+    );
+  });
+
+  return (
+    matchedCompanyRole?.code ||
+    matchedCompanyRole?.id ||
+    roleCodeFromName(selectedName) ||
+    selectedCode
+  );
+}
+
 async function loadRoles() {
   rolesLoading.value = true;
   try {
-    roleOptions.value = await getRolesForSelect();
+    const [crmRoles, companyRoles] = await Promise.all([
+      getRolesForSelect(),
+      getCompanyRolesForSelect().catch(() => []),
+    ]);
+    roleOptions.value = crmRoles;
+    companyRoleOptions.value = companyRoles;
     if (!crm_role_id.value) {
       crm_role_id.value = roleOptions.value[0]?.id || "";
     }
   } catch {
     roleOptions.value = [];
+    companyRoleOptions.value = [];
   } finally {
     rolesLoading.value = false;
   }
@@ -202,6 +272,7 @@ async function fetchUser() {
     firstName.value = user?.first_name || "";
     lastName.value = user?.last_name || "";
     phone.value = String(user?.phone_number || "");
+    role.value = normalizeBaseRole(user);
     crm_role_id.value = normalizeRoleId(user) || roleOptions.value[0]?.id || "";
     current_shop_id.value = String(
       user?.current_shop_id ?? user?.current_shop?.id ?? user?.current_shop?.shop_id ?? "",
@@ -231,6 +302,11 @@ async function saveMainData() {
     serverError.value = "Выберите роль сотрудника.";
     return;
   }
+  const roleCode = selectedRoleCode();
+  if (!roleCode) {
+    serverError.value = "Не удалось определить код роли. Проверьте ответ /company/roles.";
+    return;
+  }
 
   saving.value = true;
   serverError.value = null;
@@ -242,6 +318,7 @@ async function saveMainData() {
       body: {
         first_name: String(firstName.value || "").trim(),
         last_name: String(lastName.value || "").trim(),
+        role: roleCode,
         crm_role_id: String(crm_role_id.value || "").trim(),
         current_shop_id: String(current_shop_id.value || ""),
         allowed_shop_ids: [...allowed_shop_ids.value],

@@ -60,17 +60,19 @@ const companyId = computed(() =>
   ).trim(),
 );
 
+const settingsItems = computed(() => items.value.filter((item) => !item.dont_show_in_settings));
+
 const stats = computed(() => {
-  const total = items.value.length;
-  const system = items.value.filter((item) => isSystemItem(item)).length;
+  const total = settingsItems.value.length;
+  const system = settingsItems.value.filter((item) => isSystemItem(item)).length;
   const custom = Math.max(0, total - system);
-  const active = items.value.filter((item) => isDisplayed(item)).length;
+  const active = settingsItems.value.filter((item) => isDisplayed(item)).length;
 
   return { total, system, custom, active };
 });
 
 const sortedItems = computed(() =>
-  [...items.value].sort((a, b) => {
+  [...settingsItems.value].sort((a, b) => {
     const systemDelta = Number(isSystemItem(b)) - Number(isSystemItem(a));
     if (systemDelta !== 0) return systemDelta;
     return String(a.name || "").localeCompare(String(b.name || ""), "ru");
@@ -162,9 +164,9 @@ async function loadPaymentTypes() {
 
   loading.value = true;
   try {
-    const res: any = await apiFetch("/company-payment-type", {
+    const res: any = await apiFetch("/v1/company-payment-type", {
       method: "GET",
-      query: { company_id: companyId.value },
+      query: { limit: 1000, company_id: companyId.value },
     });
 
     const rawItems = Array.isArray(res)
@@ -236,14 +238,14 @@ async function submitDraft() {
     };
 
     if (panelMode.value === "create") {
-      await apiFetch("/company-payment-type", {
+      await apiFetch("/v1/company-payment-type", {
         method: "POST",
         body: payload,
       });
 
       toast.add({ title: "Тип оплаты добавлен", color: "success" });
     } else {
-      await apiFetch(`/company-payment-type/${encodeURIComponent(editingId.value)}`, {
+      await apiFetch(`/v1/company-payment-type/${encodeURIComponent(editingId.value)}`, {
         method: "PUT",
         body: payload,
       });
@@ -271,7 +273,7 @@ async function toggleDisplay(item: EditablePaymentType) {
   item._saving = true;
 
   try {
-    await apiFetch(`/company-payment-type/${encodeURIComponent(item.id)}`, {
+    await apiFetch(`/v1/company-payment-type/${encodeURIComponent(item.id)}`, {
       method: "PUT",
       body: {
         name: item.name?.trim(),
@@ -312,7 +314,7 @@ async function deletePaymentType(item: EditablePaymentType) {
 
   deletingId.value = item.id;
   try {
-    await apiFetch(`/company-payment-type/${encodeURIComponent(item.id)}`, {
+    await apiFetch(`/v1/company-payment-type/${encodeURIComponent(item.id)}`, {
       method: "DELETE",
     });
 
