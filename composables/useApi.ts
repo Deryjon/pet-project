@@ -43,6 +43,7 @@ export function useApi() {
     return $fetch<T>(path, {
       baseURL: apiBase,
       credentials: "include",
+      timeout: 20000,
       ...opts,
       headers,
     });
