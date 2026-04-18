@@ -32,6 +32,9 @@ const userStore = useUserStore();
 const router = useRouter();
 const toast = useToast();
 
+const COMPANY_PAYMENT_TYPE_LIST_PATH = "/v1/company-payment-type";
+const COMPANY_PAYMENT_TYPE_MUTATION_PATH = "/company-payment-type";
+
 const items = ref<EditablePaymentType[]>([]);
 const loading = ref(false);
 const panelOpen = ref(false);
@@ -164,7 +167,7 @@ async function loadPaymentTypes() {
 
   loading.value = true;
   try {
-    const res: any = await apiFetch("/v1/company-payment-type", {
+    const res: any = await apiFetch(COMPANY_PAYMENT_TYPE_LIST_PATH, {
       method: "GET",
       query: { limit: 1000, company_id: companyId.value },
     });
@@ -238,14 +241,14 @@ async function submitDraft() {
     };
 
     if (panelMode.value === "create") {
-      await apiFetch("/v1/company-payment-type", {
+      await apiFetch(COMPANY_PAYMENT_TYPE_MUTATION_PATH, {
         method: "POST",
         body: payload,
       });
 
       toast.add({ title: "Тип оплаты добавлен", color: "success" });
     } else {
-      await apiFetch(`/v1/company-payment-type/${encodeURIComponent(editingId.value)}`, {
+      await apiFetch(`${COMPANY_PAYMENT_TYPE_MUTATION_PATH}/${encodeURIComponent(editingId.value)}`, {
         method: "PUT",
         body: payload,
       });
@@ -273,7 +276,7 @@ async function toggleDisplay(item: EditablePaymentType) {
   item._saving = true;
 
   try {
-    await apiFetch(`/v1/company-payment-type/${encodeURIComponent(item.id)}`, {
+    await apiFetch(`${COMPANY_PAYMENT_TYPE_MUTATION_PATH}/${encodeURIComponent(item.id)}`, {
       method: "PUT",
       body: {
         name: item.name?.trim(),
@@ -314,7 +317,7 @@ async function deletePaymentType(item: EditablePaymentType) {
 
   deletingId.value = item.id;
   try {
-    await apiFetch(`/v1/company-payment-type/${encodeURIComponent(item.id)}`, {
+    await apiFetch(`${COMPANY_PAYMENT_TYPE_MUTATION_PATH}/${encodeURIComponent(item.id)}`, {
       method: "DELETE",
     });
 
@@ -475,7 +478,7 @@ onMounted(loadPaymentTypes);
       v-model:open="panelOpen"
       :ui="{
         overlay: 'bg-black/60 backdrop-blur-sm',
-        content: 'mx-4 max-w-[560px] rounded-[28px] border border-white/10 bg-[#1d1d1f] text-white shadow-2xl ring-0 sm:mx-0',
+        content: 'mx-4 max-h-[calc(100dvh-32px)] max-w-[560px] overflow-hidden rounded-[28px] border border-white/10 bg-[#1d1d1f] text-white shadow-2xl ring-0 sm:mx-0',
       }"
     >
       <template #content>
@@ -885,7 +888,10 @@ onMounted(loadPaymentTypes);
 }
 
 .modal-body {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   padding: 22px;
+  scrollbar-gutter: stable;
 }
 
 .modal-header {
