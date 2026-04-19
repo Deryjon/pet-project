@@ -11,7 +11,7 @@ import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Карточка компании | Konkurent Platform" });
+useHead({ title: "Карточка компании | Konkurent" });
 
 const route = useRoute();
 const router = useRouter();

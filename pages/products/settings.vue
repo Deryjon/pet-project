@@ -3,7 +3,7 @@ import { useRouter } from "vue-router";
 import { useHead } from "#imports";
 
 useHead({
-  title: "Массовые операции | Konkurent.cases",
+  title: "Массовые операции | Konkurent",
   meta: [{ name: "description", content: "Описание страницы" }],
 });
 

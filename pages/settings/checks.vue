@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useHead } from "#imports";
 import { usePrintSettingsStore } from "@/store/printSettings";
 
-useHead({ title: "Настройки чеков | Konkurent.cases" });
+useHead({ title: "Настройки чеков | Konkurent" });
 
 const printStore = usePrintSettingsStore();
 const settings = printStore.settings;

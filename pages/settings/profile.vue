@@ -5,7 +5,7 @@ import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
 import { useApi } from "~/composables/useApi";
 
-useHead({ title: "Настройки профиля | Konkurent.cases" });
+useHead({ title: "Настройки профиля | Konkurent" });
 
 type ProfileResponse = {
   id?: number | string;

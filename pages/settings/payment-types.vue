@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "~/store/useUserStore";
 
-useHead({ title: "Типы оплат | Konkurent.cases" });
+useHead({ title: "Типы оплат | Konkurent" });
 
 type PaymentTypeItem = {
   id: string;
@@ -32,8 +32,7 @@ const userStore = useUserStore();
 const router = useRouter();
 const toast = useToast();
 
-const COMPANY_PAYMENT_TYPE_LIST_PATH = "/v1/company-payment-type";
-const COMPANY_PAYMENT_TYPE_MUTATION_PATH = "/company-payment-type";
+const COMPANY_PAYMENT_TYPE_PATH = "/company-payment-type";
 
 const items = ref<EditablePaymentType[]>([]);
 const loading = ref(false);
@@ -167,7 +166,7 @@ async function loadPaymentTypes() {
 
   loading.value = true;
   try {
-    const res: any = await apiFetch(COMPANY_PAYMENT_TYPE_LIST_PATH, {
+    const res: any = await apiFetch(COMPANY_PAYMENT_TYPE_PATH, {
       method: "GET",
       query: { limit: 1000, company_id: companyId.value },
     });
@@ -241,14 +240,14 @@ async function submitDraft() {
     };
 
     if (panelMode.value === "create") {
-      await apiFetch(COMPANY_PAYMENT_TYPE_MUTATION_PATH, {
+      await apiFetch(COMPANY_PAYMENT_TYPE_PATH, {
         method: "POST",
         body: payload,
       });
 
       toast.add({ title: "Тип оплаты добавлен", color: "success" });
     } else {
-      await apiFetch(`${COMPANY_PAYMENT_TYPE_MUTATION_PATH}/${encodeURIComponent(editingId.value)}`, {
+      await apiFetch(`${COMPANY_PAYMENT_TYPE_PATH}/${encodeURIComponent(editingId.value)}`, {
         method: "PUT",
         body: payload,
       });
@@ -276,7 +275,7 @@ async function toggleDisplay(item: EditablePaymentType) {
   item._saving = true;
 
   try {
-    await apiFetch(`${COMPANY_PAYMENT_TYPE_MUTATION_PATH}/${encodeURIComponent(item.id)}`, {
+    await apiFetch(`${COMPANY_PAYMENT_TYPE_PATH}/${encodeURIComponent(item.id)}`, {
       method: "PUT",
       body: {
         name: item.name?.trim(),
@@ -317,7 +316,7 @@ async function deletePaymentType(item: EditablePaymentType) {
 
   deletingId.value = item.id;
   try {
-    await apiFetch(`${COMPANY_PAYMENT_TYPE_MUTATION_PATH}/${encodeURIComponent(item.id)}`, {
+    await apiFetch(`${COMPANY_PAYMENT_TYPE_PATH}/${encodeURIComponent(item.id)}`, {
       method: "DELETE",
     });
 

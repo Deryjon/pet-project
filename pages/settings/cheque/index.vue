@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useHead, useRoute, useRouter } from "#imports";
 import { useCheques, type Cheque } from "@/composables/useCheques";
 
-useHead({ title: "Чеки | Konkurent.cases" });
+useHead({ title: "Чеки | Konkurent" });
 
 const route = useRoute();
 const router = useRouter();

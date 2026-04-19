@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Отчеты по магазину | Konkurent.cases" });
+useHead({ title: "Отчеты по магазину | Konkurent" });
 
 const metrics = ["Выручка по дням", "Средний чек", "Нагрузка по сменам", "Динамика продаж"];
 </script>

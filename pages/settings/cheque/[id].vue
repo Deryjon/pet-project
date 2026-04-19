@@ -8,7 +8,7 @@ import {
   type ProductCharacteristic,
 } from "@/composables/useCheques";
 
-useHead({ title: "Редактирование чека | Konkurent.cases" });
+useHead({ title: "Редактирование чека | Konkurent" });
 
 const route = useRoute();
 const router = useRouter();

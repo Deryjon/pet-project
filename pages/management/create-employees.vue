@@ -5,7 +5,7 @@ import { useHead, navigateTo } from "#imports";
 import EmployeeCreateForm from "@/components/employees/EmployeeCreateForm.vue";
 import { useUserStore } from "@/store/useUserStore";
 
-useHead({ title: "Создать сотрудника | Konkurent.cases" });
+useHead({ title: "Создать сотрудника | Konkurent" });
 
 const router = useRouter();
 const userStore = useUserStore();

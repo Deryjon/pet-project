@@ -11,7 +11,7 @@
   import { useHead } from "#imports";
   import DataTable from "../../components/OrderDataTable.vue";
   useHead({
-    title: "Заказы | Konkurent.cases",
+    title: "Заказы | Konkurent",
   });
   </script>
   

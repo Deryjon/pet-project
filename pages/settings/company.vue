@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Настройки компании | Konkurent.cases" });
+useHead({ title: "Настройки компании | Konkurent" });
 
 const cards = [
   "Реквизиты и юридические данные",

@@ -1,5 +1,9 @@
 import { useUserStore } from "~/store/useUserStore";
 
+type ApiFetchOptions<T> = Parameters<typeof $fetch<T>>[1] & {
+  pageLoading?: boolean;
+};
+
 export function useApi() {
   const config = useRuntimeConfig();
   const user = useUserStore();
@@ -10,8 +14,10 @@ export function useApi() {
 
   async function apiFetch<T>(
     path: string,
-    opts: Parameters<typeof $fetch<T>>[1] = {}
+    opts: ApiFetchOptions<T> = {}
   ) {
+    const { pageLoading = false, ...fetchOptions } = opts;
+
     if (!user.token && typeof window !== "undefined") {
       try {
         user.loadToken();
@@ -27,10 +33,10 @@ export function useApi() {
 
     const isFormData =
       typeof FormData !== "undefined" &&
-      opts?.body instanceof FormData;
+      fetchOptions?.body instanceof FormData;
 
     const headers: Record<string, string> = {
-      ...(opts?.headers as Record<string, string> | undefined),
+      ...(fetchOptions?.headers as Record<string, string> | undefined),
       ...(needsToken ? { Authorization: `Bearer ${user.token}` } : {}),
       Accept: "application/json",
       // Help some backends detect AJAX and CSRF contexts
@@ -41,18 +47,22 @@ export function useApi() {
       headers["Content-Type"] = "application/json";
     }
 
-    startPageLoading();
+    if (pageLoading) {
+      startPageLoading();
+    }
 
     try {
       return await $fetch<T>(path, {
         baseURL: apiBase,
         credentials: "include",
         timeout: 20000,
-        ...opts,
+        ...fetchOptions,
         headers,
       });
     } finally {
-      stopPageLoading();
+      if (pageLoading) {
+        stopPageLoading();
+      }
     }
   }
 

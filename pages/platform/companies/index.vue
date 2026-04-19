@@ -11,7 +11,7 @@ import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Компании | Konkurent Platform" });
+useHead({ title: "Компании | Konkurent" });
 
 const router = useRouter();
 const { getCompanies, createCompany, updateCompany, deleteCompany } = usePlatformAdminApi();

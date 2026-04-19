@@ -9,7 +9,7 @@ import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Филиалы компаний | Konkurent Platform" });
+useHead({ title: "Филиалы компаний | Konkurent" });
 
 const { getCompanies, getCompanyShops } = usePlatformAdminApi();
 const { softSelectUi } = usePlatformFormUi();

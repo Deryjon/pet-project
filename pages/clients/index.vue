@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Клиенты | Konkurent.cases" });
+useHead({ title: "Клиенты | Konkurent" });
 
 const sections = [
   { title: "Все клиенты", description: "База клиентов, история и карточки покупателей.", to: "/clients/all" },

@@ -9,7 +9,7 @@ definePageMeta({
 });
 
 useHead({
-  title: "Архивация товаров | Konkurent.cases",
+  title: "Архивация товаров | Konkurent",
   meta: [{ name: "description", content: "Архивация выбранных товаров" }],
 });
 

@@ -171,7 +171,7 @@ import { useRouter } from "#app";
 const router = useRouter();
 
 useHead({
-  title: "Печать ценников | Konkurent.cases",
+  title: "Печать ценников | Konkurent",
   meta: [{ name: "description", content: "Описание страницы" }],
 });
 
@@ -283,4 +283,3 @@ onBeforeUnmount(() => {
   transform: translateY(-10px);
 }
 </style>
-

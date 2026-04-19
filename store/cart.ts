@@ -25,11 +25,9 @@ type CompanyPaymentMethod = {
   dontShowInMakePayment?: boolean;
 };
 
-type OrderPaymentPayload = {
-  payments: Array<{
-    company_payment_type_id: string;
-    amount: number;
-  }>;
+type SalePaymentPayload = {
+  payment_method: string;
+  client_name?: string;
 };
 
 export const useCartStore = defineStore("cart", () => {
@@ -205,7 +203,7 @@ export const useCartStore = defineStore("cart", () => {
     paymentMethodsLoading.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch("/v1/company-payment-type", {
+      const res: any = await apiFetch("/company-payment-type", {
         method: "GET",
         query: companyId ? { company_id: companyId, limit: 1000 } : { limit: 1000 },
       });
@@ -333,7 +331,7 @@ export const useCartStore = defineStore("cart", () => {
     }
 
     const { apiFetch } = useApi();
-    const res = await apiFetch(`/v1/order-draft-debt/${encodeURIComponent(String(id))}`, {
+    const res = await apiFetch(`/order-draft-debt/${encodeURIComponent(String(id))}`, {
       method: "GET",
     });
     orderDraftDebt.value = res;
@@ -466,10 +464,8 @@ export const useCartStore = defineStore("cart", () => {
     try {
       const { apiFetch } = useApi();
       const shopId = resolveCurrentShopId();
-      const res: any = await apiFetch("/v2/order", {
+      const res: any = await apiFetch("/new-sale", {
         method: "POST",
-        query: { "Billz-Response-Channel": "HTTP" },
-        body: shopId ? { shop_id: shopId } : {},
       });
       const orderId = res?.data?.id ?? res?.id ?? res?.order?.id ?? null;
       saleId.value = orderId != null ? String(orderId) : null;
@@ -511,7 +507,7 @@ export const useCartStore = defineStore("cart", () => {
     restoringSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch(`/v2/order/${id}`, { method: "GET" });
+      const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
       const items = extractOrderItems(res);
 
       cart.value = items.map((it: any) => ({
@@ -734,20 +730,20 @@ export const useCartStore = defineStore("cart", () => {
     }
   }
 
-  async function paySale(payload: OrderPaymentPayload) {
+  async function paySale(payload: SalePaymentPayload) {
     if (!saleId.value) return null;
 
     const { apiFetch } = useApi();
     payLoading.value = true;
     try {
       const paidSaleId = saleId.value;
-      const res: any = await apiFetch(`/v2/order-payment/${paidSaleId}`, {
+      const res: any = await apiFetch(`/new-sale/${paidSaleId}/pay`, {
         method: "POST",
         body: payload,
       });
       let paidOrder: any = null;
       try {
-        paidOrder = await apiFetch(`/v2/order/${paidSaleId}`, { method: "GET" });
+        paidOrder = await apiFetch(`/new-sale/${paidSaleId}`, { method: "GET" });
       } catch {
         paidOrder = null;
       }

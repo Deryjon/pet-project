@@ -33,7 +33,7 @@ const isEditMode = computed(() => route.query.mode === "edit");
 
 useHead({
   title: computed(() =>
-    isEditMode.value ? "Изменить продукт | Konkurent.cases" : "Новый продукт | Konkurent.cases",
+    isEditMode.value ? "Изменить продукт | Konkurent" : "Новый продукт | Konkurent",
   ),
   meta: [
     {
