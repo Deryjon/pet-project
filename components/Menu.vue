@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import type { IMenuItem } from "./menu.data";
 import { MENU_DATA } from "./menu.data";
@@ -9,12 +9,23 @@ import { useSidebarStore } from "../store/useSidebar";
 const store = useMenuStore();
 const sidebar = useSidebarStore();
 const route = useRoute();
+const { canAccess } = useAccessControl();
 
 const closeMenu = () => {
   store.isOpen = false;
 };
 
 const activeMenu = ref<IMenuItem | null>(null);
+
+const visibleMenuData = computed(() =>
+  MENU_DATA.map((item) => {
+    const items = item.items?.filter((subItem) => canAccess(subItem.url));
+    return { ...item, items };
+  }).filter((item) => {
+    if (item.items) return item.items.length > 0;
+    return canAccess(item.url);
+  })
+);
 
 const openMenu = (item: IMenuItem) => {
   activeMenu.value = item;
@@ -35,6 +46,12 @@ const isMenuItemActive = (item: IMenuItem) => {
   if (isPathActive(item.url)) return true;
   return item.items?.some((subItem) => isSubItemActive(subItem.url)) ?? false;
 };
+
+watch(visibleMenuData, (items) => {
+  if (activeMenu.value && !items.some((item) => item.name === activeMenu.value?.name)) {
+    activeMenu.value = null;
+  }
+});
 </script>
 
 <template>
@@ -74,7 +91,7 @@ const isMenuItemActive = (item: IMenuItem) => {
     </template>
 
     <template v-else>
-      <template v-for="(item, i) in MENU_DATA" :key="i">
+      <template v-for="(item, i) in visibleMenuData" :key="i">
         <NuxtLink
           v-if="!item.items"
           :to="item.url"

@@ -7,7 +7,7 @@ import StatusBadge from "@/components/platform/StatusBadge.vue";
 import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Дашборд платформы | Konkurent Platform" });
+useHead({ title: "Дашборд платформы | Konkurent" });
 
 const { getCompanies, getPlatformUsers, getDashboardStats } = usePlatformAdminApi();
 

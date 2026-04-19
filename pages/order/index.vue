@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Продажи | Konkurent.cases" });
+useHead({ title: "Продажи | Konkurent" });
 
 const sections = [
   { title: "Новая продажа", description: "Открыть POS и оформить новую продажу.", to: "/order/new-order" },

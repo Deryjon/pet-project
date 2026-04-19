@@ -8,7 +8,7 @@ import {
   type ProductCharacteristic,
 } from "@/composables/useCheques";
 
-useHead({ title: "Редактирование чека | Konkurent.cases" });
+useHead({ title: "Редактирование чека | Konkurent" });
 
 const route = useRoute();
 const router = useRouter();
@@ -536,7 +536,6 @@ watch(() => chequeId.value, fetchData, { immediate: true });
 <style scoped>
 .cheque-edit-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .page-header,

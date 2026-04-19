@@ -5,7 +5,7 @@ import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
 import { useApi } from "~/composables/useApi";
 
-useHead({ title: "Настройки профиля | Konkurent.cases" });
+useHead({ title: "Настройки профиля | Konkurent" });
 
 type ProfileResponse = {
   id?: number | string;
@@ -244,7 +244,7 @@ onBeforeUnmount(revokePreviewUrl);
 </script>
 
 <template>
-  <section class="profile-settings mx-auto w-full max-w-[1120px] text-white">
+  <section class="profile-settings w-full text-white">
     <div class="hero-panel">
       <div>
         <p class="hero-kicker">Settings</p>
@@ -470,10 +470,6 @@ onBeforeUnmount(revokePreviewUrl);
 </template>
 
 <style scoped>
-.profile-settings {
-  padding: 24px;
-}
-
 .hero-panel {
   display: flex;
   justify-content: space-between;

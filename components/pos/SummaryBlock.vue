@@ -320,12 +320,13 @@ const singlePaymentMethods = computed(() =>
       value: method.id,
       label: method.name,
       hint: method.paymentTypeName || "",
+      isCash: Boolean(method.isCash),
       icon: paymentMethodIcon(method),
     })),
 );
 
 const payableAmount = computed(() => Number(cartStore.payableTotal || total.value || 0));
-const canPay = computed(() => payableAmount.value > 0 && !cartStore.payLoading);
+const canPay = computed(() => payableAmount.value > 0 && !cartStore.payLoading && !paymentMethodsLoading.value);
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0),
 );
@@ -340,8 +341,9 @@ const canConfirmPayment = computed(() => {
   return Boolean(selectedPaymentMethod.value);
 });
 
-function openPaymentPanel() {
+async function openPaymentPanel() {
   if (!canPay.value) return;
+  await cartStore.loadPaymentMethods();
   paymentPanelOpen.value = true;
 }
 
@@ -377,12 +379,7 @@ async function confirmPay() {
   };
 
   const result = await cartStore.paySale({
-    payments: [
-      {
-        company_payment_type_id: companyPaymentTypeId,
-        amount: payableAmount.value,
-      },
-    ],
+    payment_method: companyPaymentTypeId,
   });
 
   if (!result) {
@@ -410,7 +407,8 @@ async function onCancel() {
 }
 
 watch(singlePaymentMethods, (methods) => {
-  const first = methods[0]?.value || "";
+  const defaultPaymentType = methods.find((method) => method.isCash) ?? methods[0];
+  const first = defaultPaymentType?.value || "";
   const available = new Set(methods.map((method) => method.value));
 
   if (!available.has(selectedPaymentMethod.value)) {

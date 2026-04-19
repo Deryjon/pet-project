@@ -51,10 +51,27 @@
     >
       <div
         v-if="store.productsLoading"
-        class="flex items-center gap-3 rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
+        class="flex flex-col gap-2"
       >
-        <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-        Загружаем товары...
+        <div
+          v-for="item in 3"
+          :key="item"
+          class="flex flex-col gap-3 rounded-[12px] bg-[#262626] p-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="flex min-w-0 items-center gap-3 sm:gap-4">
+            <div class="h-[20px] w-[20px] shrink-0 animate-pulse rounded bg-[#404040]" />
+            <div class="min-w-0 space-y-2">
+              <div class="h-4 w-48 max-w-[55vw] animate-pulse rounded-full bg-[#404040]" />
+              <div class="text-[12px] font-bold uppercase tracking-[0.1em] text-[#777] sm:text-[14px]">
+                #SKU-{{ item }} / 000{{ item }}000{{ item }}
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-2 sm:items-end">
+            <div class="h-4 w-24 animate-pulse rounded-full bg-[#404040]" />
+            <div class="text-[12px] font-bold uppercase tracking-[0.1em] text-[#777]">#QTY-{{ item }}</div>
+          </div>
+        </div>
       </div>
 
       <div

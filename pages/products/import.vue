@@ -801,7 +801,7 @@ onMounted(async () => {
 });
 
 useHead({
-  title: "Импорт | Konkurent.cases",
+  title: "Импорт | Konkurent",
 });
 </script>
 

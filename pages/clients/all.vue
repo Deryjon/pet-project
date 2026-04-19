@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Все клиенты | Konkurent.cases" });
+useHead({ title: "Все клиенты | Konkurent" });
 
 const stats = [
   { label: "Статус", value: "Готово", helper: "Маршрут создан и доступен из меню" },

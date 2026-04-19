@@ -61,8 +61,33 @@
       </UButton>
     </div>
 
+    <div
+      v-if="cartLoading"
+      class="mt-[20px] space-y-3 rounded-[25px] border border-white/8 bg-[#303030] p-4"
+    >
+      <div
+        v-for="item in 4"
+        :key="item"
+        class="flex items-center justify-between gap-4 rounded-[20px] bg-[#3a3a3a] px-4 py-3"
+      >
+        <div class="flex min-w-0 items-center gap-4">
+          <div class="h-10 w-12 animate-pulse rounded-[14px] bg-[#4a4a4a]" />
+          <div class="h-[50px] w-[50px] animate-pulse rounded-[16px] bg-[#4a4a4a]" />
+          <div class="min-w-0 space-y-2">
+            <div class="h-4 w-44 max-w-[45vw] animate-pulse rounded-full bg-[#4a4a4a]" />
+            <div class="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em] text-[#8f8f8f]">
+              <span>#SKU-{{ item }}</span>
+              <span>/</span>
+              <span>000{{ item }}000{{ item }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="hidden h-5 w-24 animate-pulse rounded-full bg-[#4a4a4a] sm:block" />
+      </div>
+    </div>
+
     <UCard
-      v-if="cart.length === 0"
+      v-else-if="cart.length === 0"
       :ui="{
         root: 'mt-[20px] h-[320px] rounded-[25px] border border-dashed border-[#919090] bg-transparent shadow-none ring-0 sm:h-[400px]',
         body: 'flex h-full flex-col items-center justify-center p-[20px]',
@@ -228,12 +253,13 @@ const totalQuantity = computed(() =>
 const randomSaleNumber = ref(Math.floor(100000 + Math.random() * 900000));
 const saleDisplayNumber = computed(() =>
   store.saleNumber
-    ? `№ ${store.saleNumber}`
+    ? `#${store.saleNumber}`
     : store.saleId
       ? `#${store.saleId}`
-      : `№ ${randomSaleNumber.value}`,
+      : `#${randomSaleNumber.value}`,
 );
 
+const cartLoading = computed(() => store.creatingSale || store.loadingSale || store.restoringSale);
 const sellerModalOpen = ref(false);
 const sellerLoading = ref(false);
 const sellerSearch = ref("");

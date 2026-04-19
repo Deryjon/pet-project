@@ -18,7 +18,7 @@ import {
   useRolePermissionsApi,
 } from "@/composables/useRolePermissions";
 
-useHead({ title: "Роли | Konkurent.cases" });
+useHead({ title: "Роли | Konkurent" });
 
 type PanelMode = "create" | "edit";
 

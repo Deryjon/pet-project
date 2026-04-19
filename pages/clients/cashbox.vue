@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Долги клиентов | Konkurent.cases" });
+useHead({ title: "Долги клиентов | Konkurent" });
 
 const sections = [
   { title: "Задолженность", text: "Таблица долгов по клиентам и остатки к оплате." },

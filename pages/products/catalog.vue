@@ -125,7 +125,7 @@ watch(
 onMounted(refreshCatalog);
 
 useHead({
-  title: "Каталог | Konkurent.cases",
+  title: "Каталог | Konkurent",
   meta: [{ name: "description", content: "Описание страницы" }],
 });
 </script>

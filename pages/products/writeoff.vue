@@ -11,7 +11,7 @@
   import { useHead } from "#imports";
   import DataTable from "../../components/WriteoffDataTable.vue";
   useHead({
-    title: "Списание | Konkurent.cases",
+    title: "Списание | Konkurent",
   });
   </script>
   

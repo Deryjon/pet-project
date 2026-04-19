@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { useHead, useRouter } from "#imports";
 import { useCheques, type Cheque, type ChequeItem } from "@/composables/useCheques";
 
-useHead({ title: "Создать чек | Konkurent.cases" });
+useHead({ title: "Создать чек | Konkurent" });
 
 const router = useRouter();
 const toast = useToast();
@@ -375,7 +375,6 @@ fetchDefaultCheque();
 <style scoped>
 .cheque-create-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .page-header,

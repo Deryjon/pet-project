@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Отчеты | Konkurent.cases" });
+useHead({ title: "Отчеты | Konkurent" });
 
 const sections = [
   { title: "Магазин", description: "Общие показатели магазина и операционная динамика.", to: "/analytics/shop" },
