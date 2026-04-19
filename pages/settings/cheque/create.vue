@@ -375,7 +375,6 @@ fetchDefaultCheque();
 <style scoped>
 .cheque-create-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .page-header,

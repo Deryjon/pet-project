@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
 
     <div
       :class="[
-        'app-main-content relative min-h-screen min-w-0 px-4 pb-24 pt-4 text-white transition-all duration-300 ease-in-out sm:px-6 sm:pb-28 lg:px-[30px] lg:pb-6 lg:pt-[40px]',
+        'app-main-content relative min-h-screen min-w-0 p-4 pb-24 text-white transition-all duration-300 ease-in-out sm:p-6 sm:pb-28 lg:p-6',
         isMobileViewport
           ? 'w-full ml-0'
           : sidebar.collapsed

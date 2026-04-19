@@ -114,12 +114,13 @@
                 :key="sale.id"
                 class="sale-card"
                 :class="{ 'sale-card--active': selectedSaleId === sale.id }"
-                @click="selectedSaleId = sale.id"
+                @click="openSaleDetails(sale)"
               >
-                <div class="sale-left">
-                  <div class="sale-badge">{{ sale.itemsCountLabel }}</div>
+                <div class="sale-left sale-left--stacked">
+                  <div class="sale-badge">{{ sale.typeLabel || "Продажа" }} {{ sale.itemsCountLabel }}</div>
                   <div>
-                    <p class="sale-id">{{ sale.numberLabel }}</p>
+                    <p class="sale-id">Продажа #</p>
+                    <p class="sale-number">{{ saleNumberValue(sale) }}</p>
                     <p class="sale-meta">{{ sale.dateTimeLabel }}</p>
                     <p class="sale-user">{{ sale.clientLabel }} · {{ sale.sellerLabel }}</p>
                   </div>
@@ -133,7 +134,7 @@
                     <span class="dot"></span>
                     {{ sale.pointLabel }}
                   </p>
-                  <button type="button" class="arrow-btn" @click.stop="selectedSaleId = sale.id">
+                  <button type="button" class="arrow-btn" @click.stop="openSaleDetails(sale)">
                     <Icon name="heroicons:arrow-right" class="h-4 w-4" />
                   </button>
                 </div>
@@ -227,6 +228,88 @@
           </div>
         </section>
       </aside>
+
+      <Transition name="drawer-fade">
+        <div v-if="detailsOpen && selectedSale" class="drawer-overlay" @click="detailsOpen = false">
+          <aside class="sale-drawer" @click.stop>
+            <header class="drawer-header">
+              <div>
+                <h2>Продажа #{{ saleNumberValue(selectedSale) }}</h2>
+                <strong>{{ selectedSale.amountLabel }}</strong>
+              </div>
+              <button type="button" class="drawer-close" @click="detailsOpen = false">
+                <Icon name="heroicons:x-mark-20-solid" class="h-5 w-5" />
+              </button>
+            </header>
+
+            <section class="drawer-section">
+              <h3>Оплата</h3>
+              <div class="drawer-row">
+                <span>{{ selectedSale.paymentLabel }}</span>
+                <strong>{{ selectedSale.amountLabel }}</strong>
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <h3>Корзина</h3>
+              <div class="cashier-line">
+                <span>Кассир:</span>
+                <strong>{{ selectedSale.cashierLabel }}</strong>
+              </div>
+
+              <div v-if="selectedSale.items.length" class="drawer-cart">
+                <article v-for="item in selectedSale.items" :key="item.key" class="drawer-item">
+                  <p class="drawer-item-title">{{ itemQuantityLabel(item) }} x {{ item.name || "Товар" }}</p>
+                  <p class="drawer-item-code">{{ item.codeLabel || "—" }}</p>
+                  <p v-if="item.discountLabel" class="drawer-item-discount">{{ item.discountLabel }}</p>
+                  <div class="drawer-price-row">
+                    <strong>{{ item.amountLabel || selectedSale.amountLabel }}</strong>
+                    <span v-if="item.originalAmountLabel">{{ item.originalAmountLabel }}</span>
+                  </div>
+                  <p class="drawer-item-seller">{{ item.sellerLabel || selectedSale.sellerLabel }}</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <h3>Детали</h3>
+              <div class="detail-list">
+                <div>
+                  <span>Дата и время:</span>
+                  <strong>{{ selectedSale.dateTimeLabel }}</strong>
+                </div>
+                <div>
+                  <span>Магазин:</span>
+                  <strong>{{ selectedSale.pointLabel }}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <h3>Кэшбек</h3>
+              <div class="drawer-row">
+                <span></span>
+                <strong>{{ selectedSale.cashbackLabel || formatUzs(0) }}</strong>
+              </div>
+            </section>
+
+            <footer class="drawer-actions">
+              <button type="button" class="drawer-action" @click="printSale(selectedSale)">
+                <Icon name="heroicons:printer" class="h-5 w-5" />
+                Печать чека
+              </button>
+              <button type="button" class="drawer-action drawer-action--secondary" @click="editSale(selectedSale)">
+                <Icon name="heroicons:pencil-square" class="h-5 w-5" />
+                Изменить
+              </button>
+              <button type="button" class="drawer-action drawer-action--danger" @click="requestDeleteSale(selectedSale)">
+                <Icon name="heroicons:trash" class="h-5 w-5" />
+                Удалить
+              </button>
+            </footer>
+          </aside>
+        </div>
+      </Transition>
     </div>
   </section>
 </template>
@@ -241,12 +324,21 @@ useHead({ title: "Все продажи | Konkurent" });
 interface SaleItemView {
   key: string;
   quantity: number;
+  quantityLabel?: string;
   type: string;
+  name?: string;
+  codeLabel?: string;
+  discountLabel?: string;
+  amountLabel?: string;
+  originalAmountLabel?: string;
+  sellerLabel?: string;
 }
 
 interface SaleView {
   id: string;
   numberLabel: string;
+  numberValue?: string;
+  typeLabel?: string;
   dateValue: string;
   dateTimeLabel: string;
   sellerLabel: string;
@@ -259,6 +351,7 @@ interface SaleView {
   cashierLabel: string;
   statusKey: string;
   itemsCountLabel: string;
+  cashbackLabel?: string;
   items: SaleItemView[];
 }
 
@@ -288,6 +381,7 @@ const page = ref(Math.max(1, Number(route.query.page || 1) || 1));
 const limit = ref(Math.max(1, Number(route.query.limit || 10) || 10));
 const total = ref(0);
 const selectedSaleId = ref<string | null>(null);
+const detailsOpen = ref(false);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const saleScopeOptions = [
@@ -444,31 +538,44 @@ async function syncRouteQuery() {
 
 function normalizeSale(raw: any): SaleView {
   const id = String(raw?.id ?? raw?.sale_id ?? raw?.number ?? Math.random());
+  const numberValue = String(raw?.number ?? raw?.sale_number ?? raw?.receipt_number ?? raw?.id ?? "—");
   const createdAt = raw?.created_at ?? raw?.createdAt ?? raw?.date ?? new Date().toISOString();
   const amountValue = toNumber(raw?.payable_total ?? raw?.total ?? raw?.amount ?? raw?.grand_total);
+  const cashbackValue = toNumber(raw?.cashback ?? raw?.cashback_amount ?? raw?.bonus ?? raw?.bonus_amount);
+  const sellerName = String(raw?.seller_name ?? raw?.seller?.name ?? raw?.cashier?.name ?? raw?.cashier_name ?? raw?.user?.name ?? "Iskandar Yusupov");
   const items = Array.isArray(raw?.items) ? raw.items.map((item: any, index: number) => ({
     key: String(item?.id ?? `${index}`),
     quantity: Math.max(toNumber(item?.quantity ?? item?.qty ?? 0), 0),
+    quantityLabel: formatQuantity(Math.max(toNumber(item?.quantity ?? item?.qty ?? 0), 0)),
     type: normalizeItemType(item?.type ?? item?.product_type ?? item?.kind),
+    name: String(item?.name ?? item?.product_name ?? item?.product?.name ?? item?.title ?? "Товар"),
+    codeLabel: String(item?.sku ?? item?.article ?? item?.barcode ?? item?.product?.sku ?? item?.product?.barcode ?? "—"),
+    discountLabel: formatDiscountLabel(item),
+    amountLabel: formatUzs(toNumber(item?.total ?? item?.amount ?? item?.line_total ?? item?.final_price ?? item?.price)),
+    originalAmountLabel: formatOriginalAmountLabel(item),
+    sellerLabel: String(item?.seller?.name ?? item?.seller_name ?? item?.user?.name ?? sellerName),
   })) : [];
   const itemsCount = items.reduce((sum: number, item: SaleItemView) => sum + item.quantity, 0);
   const paymentInfo = resolvePaymentInfo(raw);
 
   return {
     id,
-    numberLabel: `Продажа #${String(raw?.number ?? raw?.sale_number ?? raw?.id ?? "—")}`,
+    numberLabel: `Продажа #${numberValue}`,
+    numberValue,
+    typeLabel: String(raw?.type_label ?? raw?.operation_label ?? raw?.operation_type_label ?? "Продажа"),
     dateValue: toIsoDate(createdAt),
     dateTimeLabel: `${new Date(createdAt).toLocaleDateString("ru-RU")} | ${new Date(createdAt).toLocaleTimeString("ru-RU")}`,
-    sellerLabel: raw?.seller?.name ?? raw?.seller_name ?? raw?.cashier?.name ?? raw?.user?.name ?? "Не указан",
+    sellerLabel: sellerName,
     pointLabel: raw?.shop?.name ?? raw?.branch_title ?? raw?.branch_name ?? raw?.location?.name ?? raw?.point?.name ?? "Не указана",
     amountLabel: formatUzs(amountValue),
     amountValue,
     paymentKey: paymentInfo.key,
     paymentLabel: paymentInfo.label,
     clientLabel: raw?.client?.name ?? raw?.customer?.name ?? raw?.buyer?.name ?? raw?.client_name ?? "Без клиента",
-    cashierLabel: raw?.cashier?.name ?? raw?.cashier_name ?? raw?.user?.name ?? raw?.seller?.name ?? "Не указан",
+    cashierLabel: raw?.cashier?.name ?? raw?.cashier_name ?? raw?.user?.name ?? sellerName,
     statusKey: String(raw?.status ?? "paid").toLowerCase(),
     itemsCountLabel: `${itemsCount} ед.`,
+    cashbackLabel: formatUzs(cashbackValue),
     items,
   };
 }
@@ -571,6 +678,55 @@ function resetFilters() {
   amountTo.value = "";
 }
 
+function openSaleDetails(sale: SaleView) {
+  selectedSaleId.value = sale.id;
+  detailsOpen.value = true;
+}
+
+function saleNumberValue(sale: SaleView) {
+  if (sale.numberValue) return sale.numberValue;
+  return sale.numberLabel.replace(/^.*#/, "").trim() || sale.id;
+}
+
+function itemQuantityLabel(item: SaleItemView) {
+  return item.quantityLabel || formatQuantity(item.quantity);
+}
+
+function formatQuantity(value: number) {
+  return Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+}
+
+function formatDiscountLabel(item: any) {
+  const name = String(item?.discount_name ?? item?.discount?.name ?? item?.discount_type ?? "").trim();
+  const percent = toNumber(item?.discount_percent ?? item?.discount?.percent ?? item?.discount_percentage);
+  const amount = toNumber(item?.discount_amount ?? item?.discount?.amount);
+
+  if (name && percent) return `${name} (${formatQuantity(percent)}%)`;
+  if (name) return name;
+  if (percent) return `Ручная (${formatQuantity(percent)}%)`;
+  if (amount) return `Ручная (${formatUzs(amount)})`;
+  return "";
+}
+
+function formatOriginalAmountLabel(item: any) {
+  const original = toNumber(item?.original_total ?? item?.original_amount ?? item?.price_before_discount ?? item?.base_total ?? item?.old_price);
+  const current = toNumber(item?.total ?? item?.amount ?? item?.line_total ?? item?.final_price ?? item?.price);
+  return original && original !== current ? formatUzs(original) : "";
+}
+
+function printSale(_sale: SaleView) {
+  if (import.meta.client) window.print();
+}
+
+function editSale(sale: SaleView) {
+  detailsOpen.value = false;
+  void router.push({ path: "/order/new-order", query: { sale_id: sale.id } });
+}
+
+function requestDeleteSale(_sale: SaleView) {
+  detailsOpen.value = false;
+}
+
 function selectScope(value: (typeof saleScopeOptions)[number]["value"]) {
   saleScope.value = value;
   scopeOpen.value = false;
@@ -621,9 +777,9 @@ async function fetchSales() {
 
 <style scoped>
 .sales-page { min-height: calc(100vh - 88px); padding: 0 0 32px; color: white; }
-.sales-layout { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 16px; }
+.sales-layout { display: block; }
 .panel { border: 0; background: #262626; box-shadow: none; border-radius: 0; }
-.sales-header { padding: 0 0 16px; display: grid; gap: 16px; }
+.sales-header { padding: 0 0 18px; display: grid; gap: 16px; }
 .header-top, .sales-footer, .pagination, .footer-actions, .stats-head, .stats-row, .payment-label, .sale-left, .sale-right { display: flex; align-items: center; }
 .header-top, .sales-footer, .stats-head, .stats-row { justify-content: space-between; gap: 16px; }
 .scope-select { position: relative; width: fit-content; min-width: 240px; }
@@ -635,8 +791,8 @@ async function fetchSales() {
 .header-meta { display: flex; align-items: center; gap: 12px; }
 .count-inline { min-height: 46px; display: inline-flex; align-items: center; white-space: nowrap; border-radius: 15px; background: #303030; padding: 0 14px; color: #fff; font-size: 15px; font-weight: 800; }
 .count-badge span, .group-label, .sale-meta, .sale-user, .sale-shop, .stats-row span, .stats-head span, .stats-empty, .empty-text, .limit-box span, .total-panel span { color: #bdbdbd; }
-.header-controls { display: grid; grid-template-columns: minmax(320px,1fr) 132px; gap: 10px; align-items: stretch; }
-.search-wrap { position: relative; border: 1px solid transparent; border-radius: 15px; background: #404040; }
+.header-controls { display: grid; grid-template-columns: minmax(320px,1fr) 132px; gap: 12px; align-items: stretch; }
+.search-wrap { position: relative; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; background: #353535; }
 .search-icon { position: absolute; top: 50%; left: 16px; transform: translateY(-50%); color: #bdbdbd; }
 .toolbar-btn, .report-btn, .icon-btn { border: 1px solid rgba(255,255,255,.08); background: #404040; color: #fff; }
 .toolbar-btn, .report-btn { width: 100%; min-height: 52px; border-radius: 15px; justify-content: center; gap: 8px; padding: 0 12px; font-size: 14px; font-weight: 700; white-space: nowrap; }
@@ -645,39 +801,44 @@ async function fetchSales() {
 .toolbar-btn:hover, .icon-btn:hover { background: #505050; }
 .report-btn { background: #1f78ff; color: #fff; border-color: transparent; }
 .report-btn:hover { background: #4993dd; }
-.filters-panel { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 12px; border-top: 1px solid #404040; padding-top: 16px; }
+.filters-panel { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 12px; border-top: 1px solid #404040; padding-top: 18px; }
 .filter-field { display: grid; gap: 8px; min-width: 0; }
 .filter-field span { color: #bdbdbd; font-size: 13px; font-weight: 800; }
 .filter-field select, .filter-field input { width: 100%; min-height: 46px; border: 0; border-radius: 14px; background: #404040; padding: 0 12px; color: #fff; font-size: 14px; font-weight: 700; outline: none; }
 .range-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .filter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-self: end; }
-.sales-list { margin-top: 16px; padding: 14px; }
-.group + .group { margin-top: 16px; }
-.group-label { margin-bottom: 10px; padding: 0 4px; font-size: 14px; font-weight: 700; }
-.sale-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; border: 0; border-radius: 18px; background: #303030; transition: transform .2s ease, background .2s ease; cursor: pointer; }
-.sale-card + .sale-card { margin-top: 10px; }
-.sale-card:hover { transform: translateY(-1px); background: #363636; }
-.sale-card--active { background: rgba(31,120,255,.16); }
+.sales-list { margin-top: 0; padding: 18px; border-radius: 18px; background: #262626; }
+.group + .group { margin-top: 18px; }
+.group-label { margin-bottom: 12px; padding: 0 2px; font-size: 14px; font-weight: 800; }
+.sale-card { display: flex; align-items: stretch; justify-content: space-between; gap: 18px; padding: 18px; border: 1px solid rgba(255,255,255,.06); border-radius: 16px; background: #303030; box-shadow: inset 4px 0 0 rgba(120,179,255,.32); transition: transform .2s ease, background .2s ease, border-color .2s ease; cursor: pointer; }
+.sale-card + .sale-card { margin-top: 12px; }
+.sale-card:hover { transform: translateY(-1px); border-color: rgba(120,179,255,.28); background: #363636; }
+.sale-card--active { border-color: rgba(120,179,255,.42); background: rgba(31,120,255,.16); }
 .sale-left { gap: 14px; min-width: 0; }
-.sale-badge { min-width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: #404040; border: 0; font-size: 13px; font-weight: 700; color: #dfe9ff; }
+.sale-left--stacked { align-items: flex-start; flex-direction: column; justify-content: space-between; gap: 10px; }
+.sale-badge { display: inline-flex; min-height: 28px; align-items: center; justify-content: flex-start; border-radius: 10px; background: rgba(120,179,255,.12); border: 1px solid rgba(120,179,255,.18); padding: 0 10px; font-size: 13px; font-weight: 800; color: #dfe9ff; }
 .sale-id, .sale-amount, .stats-row strong, .total-panel strong, .empty-title { color: #f6f8fc; font-weight: 700; }
-.sale-id { font-size: 16px; }
+.sale-id { font-size: 13px; color: #bdbdbd; }
+.sale-number { margin-top: 3px; color: #f6f8fc; font-size: 18px; font-weight: 800; line-height: 1.25; }
 .sale-meta, .sale-user, .sale-shop { font-size: 13px; }
-.sale-amount { font-size: 18px; color: #78b3ff; text-align: right; }
+.sale-user { display: none; }
+.sale-right { min-width: 180px; align-items: flex-end; flex-direction: column; justify-content: space-between; gap: 12px; }
+.sale-amount { font-size: 19px; color: #78b3ff; text-align: right; font-weight: 800; }
 .sale-amount--negative { color: #ff7a7a; }
 .sale-shop, .payment-label { display: flex; align-items: center; gap: 8px; }
 .dot { width: 10px; height: 10px; border-radius: 999px; background: #1f78ff; flex: 0 0 auto; }
-.arrow-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 13px; background: #404040; color: #dfe9ff; }
+.arrow-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.08); border-radius: 13px; background: #404040; color: #dfe9ff; transition: background .2s ease, transform .2s ease; }
+.arrow-btn:hover { background: #505050; transform: translateX(2px); }
 .state { min-height: 420px; display: flex; align-items: center; justify-content: center; gap: 10px; color: rgb(203 213 225); }
 .state--empty { flex-direction: column; }
 .empty-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: #303030; color: #78b3ff; }
 .empty-title { font-size: 18px; }
-.sales-footer { margin-top: 16px; padding: 0 4px; }
+.sales-footer { margin-top: 18px; padding: 0; }
 .pagination, .footer-actions, .payment-label { gap: 10px; }
 .icon-btn { width: 42px; height: 42px; border-radius: 14px; }
 .page-index { min-width: 24px; text-align: center; font-weight: 700; color: #f6f8fc; }
 .limit-box { display: flex; align-items: center; gap: 10px; }
-.sales-sidebar { display: grid; gap: 18px; align-content: start; border-left: 1px solid #404040; padding-left: 16px; }
+.sales-sidebar { display: none; }
 .stats-panel, .total-panel { padding: 16px; }
 .stats-head { margin-bottom: 12px; }
 .stats-head h2 { font-size: 18px; font-weight: 600; color: #f6f8fc; }
@@ -686,8 +847,37 @@ async function fetchSales() {
 .total-panel { border-color: rgba(31,120,255,.25); background: #1f78ff; }
 .total-panel span { color: rgba(255,255,255,.78); }
 .total-panel strong { display: block; margin-top: 8px; font-size: 24px; }
-@media (max-width: 1440px) { .sales-layout { grid-template-columns: 1fr; } }
-@media (max-width: 1440px) { .sales-sidebar { border-left: 0; border-top: 1px solid #404040; padding-left: 0; padding-top: 16px; } }
+.drawer-overlay { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(0,0,0,.56); backdrop-filter: blur(4px); }
+.sale-drawer { width: min(100%, 480px); height: 100%; overflow-y: auto; border-left: 1px solid rgba(255,255,255,.1); background: #262626; padding: 26px; color: #fff; box-shadow: -24px 0 60px rgba(0,0,0,.38); }
+.drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid #404040; padding-bottom: 22px; }
+.drawer-header h2 { color: #f6f8fc; font-size: 22px; font-weight: 800; line-height: 1.25; }
+.drawer-header strong { display: block; margin-top: 14px; color: #78b3ff; font-size: 22px; font-weight: 800; }
+.drawer-close { display: inline-flex; width: 40px; height: 40px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 14px; background: #404040; color: #fff; }
+.drawer-close:hover { background: #505050; }
+.drawer-section { border-bottom: 1px solid #404040; padding: 22px 0; }
+.drawer-section h3 { margin-bottom: 16px; color: #f6f8fc; font-size: 17px; font-weight: 800; }
+.drawer-row, .drawer-price-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.drawer-row span, .cashier-line span, .detail-list span, .drawer-item-code, .drawer-item-discount, .drawer-item-seller, .drawer-price-row span { color: #bdbdbd; }
+.drawer-row strong, .detail-list strong, .drawer-price-row strong { color: #f6f8fc; font-weight: 800; text-align: right; }
+.cashier-line { display: grid; gap: 5px; margin-bottom: 16px; }
+.cashier-line strong { color: #f6f8fc; font-weight: 800; }
+.drawer-cart { display: grid; gap: 12px; }
+.drawer-item { display: grid; gap: 9px; border: 1px solid rgba(255,255,255,.06); border-radius: 16px; background: #303030; padding: 16px; }
+.drawer-item-title { color: #f6f8fc; font-size: 15px; font-weight: 800; line-height: 1.35; }
+.drawer-item-code, .drawer-item-discount, .drawer-item-seller { font-size: 13px; }
+.detail-list { display: grid; gap: 16px; }
+.detail-list div { display: grid; gap: 6px; }
+.drawer-actions { position: sticky; bottom: -26px; display: grid; grid-template-columns: 1fr; gap: 12px; margin: 0 -26px -26px; border-top: 1px solid #404040; background: rgba(38,38,38,.96); padding: 18px 26px 26px; backdrop-filter: blur(8px); }
+.drawer-action { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 15px; background: #1f78ff; color: #fff; font-size: 14px; font-weight: 800; transition: background .2s ease, border-color .2s ease, transform .2s ease; }
+.drawer-action:hover { background: #4993dd; transform: translateY(-1px); }
+.drawer-action--secondary { background: #404040; color: #f6f8fc; }
+.drawer-action--secondary:hover { background: #505050; border-color: rgba(255,255,255,.14); }
+.drawer-action--danger { background: transparent; border-color: rgba(239,68,68,.36); color: #ff9a9a; }
+.drawer-action--danger:hover { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.48); }
+.drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity .18s ease; }
+.drawer-fade-enter-active .sale-drawer, .drawer-fade-leave-active .sale-drawer { transition: transform .22s ease; }
+.drawer-fade-enter-from, .drawer-fade-leave-to { opacity: 0; }
+.drawer-fade-enter-from .sale-drawer, .drawer-fade-leave-to .sale-drawer { transform: translateX(100%); }
 @media (max-width: 1180px) { .filters-panel { grid-template-columns: repeat(2,minmax(0,1fr)); } .filter-actions { grid-column: span 2; } }
-@media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel { padding: 16px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-meta, .header-controls, .filters-panel, .filter-actions { grid-template-columns: 1fr; } .header-meta { align-items: stretch; } .scope-select { width: 100%; } .filter-actions { grid-column: auto; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } }
+@media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel { padding: 16px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-meta, .header-controls, .filters-panel, .filter-actions { grid-template-columns: 1fr; } .header-meta { align-items: stretch; } .scope-select { width: 100%; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
 </style>

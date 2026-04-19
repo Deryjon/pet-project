@@ -536,7 +536,6 @@ watch(() => chequeId.value, fetchData, { immediate: true });
 <style scoped>
 .cheque-edit-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .page-header,

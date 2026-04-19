@@ -30,7 +30,7 @@ function goTo(slug: string) {
   <section class="operations">
     <!-- Полоска на всю ширину -->
     <div class="border-b">
-      <div class="mx-auto px-[144px]">
+      <div class="w-full">
         <div class="top flex items-center gap-4 py-[32px]">
           <div
             class="exit bg-[#404040] w-[50px] h-[50px] rounded-full flex items-center justify-center cursor-pointer"
@@ -46,7 +46,7 @@ function goTo(slug: string) {
       </div>
     </div>
 
-    <div class="mx-auto px-[144px] mt-8">
+    <div class="mt-8 w-full">
       <p class="text-[18px] font-bold mb-6">Выберите тип массовых операций:</p>
 
       <div class="grid grid-cols-2 gap-6">

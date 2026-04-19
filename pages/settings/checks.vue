@@ -261,7 +261,6 @@ function save() {
 <style scoped>
 .checks-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .checks-header {

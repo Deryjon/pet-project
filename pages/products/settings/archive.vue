@@ -85,7 +85,7 @@ async function archiveProducts() {
 <template>
   <section class="operations">
     <div class="border-b">
-      <div class="mx-auto px-[144px]">
+      <div class="w-full">
         <div class="top flex items-center justify-between gap-4 py-[32px]">
           <div class="flex items-center gap-4">
             <div
@@ -109,7 +109,7 @@ async function archiveProducts() {
       </div>
     </div>
 
-    <div class="mx-auto mt-8 px-[144px]">
+    <div class="mt-8 w-full">
       <div class="rounded-[24px] bg-[#404040] p-8 text-white">
         <h3 class="text-[22px] font-bold">Выбранные товары</h3>
         <p class="mt-3 text-[16px] text-[#d1d5db]">

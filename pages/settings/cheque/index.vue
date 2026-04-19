@@ -332,7 +332,6 @@ watch(totalPages, (pages) => {
 <style scoped>
 .cheque-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .page-header,

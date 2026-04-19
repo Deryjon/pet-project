@@ -21,7 +21,7 @@ const router = useRouter();
 
 <template>
   <div class="sticky top-0 z-50 border-b bg-[#262626]">
-    <div class="mx-auto px-[144px]">
+    <div class="w-full">
       <div class="flex items-center justify-between py-[32px]">
         <div class="flex items-center gap-4">
           <UButton
