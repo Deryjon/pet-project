@@ -7,6 +7,7 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
+const { canAccess } = useAccessControl();
 
 const items = [
   {
@@ -35,6 +36,8 @@ const items = [
   },
 ];
 
+const visibleItems = computed(() => items.filter((item) => canAccess(item.to)));
+
 const isMenuActive = computed(() =>
   ["/settings", "/management"].some(
     (prefix) => route.path === prefix || route.path.startsWith(`${prefix}/`)
@@ -54,7 +57,7 @@ function isItemActive(matchers: string[]) {
   >
     <div class="grid grid-cols-5 gap-1 rounded-[24px] bg-[#2a2a2a]/95 p-1 shadow-[0_-12px_30px_rgba(0,0,0,0.22)]">
       <NuxtLink
-        v-for="item in items"
+        v-for="item in visibleItems"
         :key="item.to"
         :to="item.to"
         class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-1 py-2 text-center transition-colors"

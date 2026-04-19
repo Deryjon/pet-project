@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 text-white">
+  <div class="text-white">
     <h1 class="text-2xl font-bold mb-4">Магазин</h1>
 
     <div class="bg-[#262626] p-5 rounded-2xl max-w-2xl flex flex-col gap-4">

@@ -341,7 +341,7 @@ onMounted(loadPaymentTypes);
 </script>
 
 <template>
-  <section class="payment-types-page mx-auto w-full max-w-[1260px] text-white">
+  <section class="payment-types-page w-full text-white">
     <header class="page-header">
       <div class="page-headline">
         <button type="button" class="icon-shell" @click="goBack">
@@ -477,7 +477,7 @@ onMounted(loadPaymentTypes);
       v-model:open="panelOpen"
       :ui="{
         overlay: 'bg-black/60 backdrop-blur-sm',
-        content: 'mx-4 max-h-[calc(100dvh-32px)] max-w-[560px] overflow-hidden rounded-[28px] border border-white/10 bg-[#1d1d1f] text-white shadow-2xl ring-0 sm:mx-0',
+        content: 'mx-4 max-h-[calc(100dvh-32px)] max-w-[560px] overflow-hidden rounded-[24px] border border-white/10 bg-[#262626] text-white shadow-2xl ring-0 sm:mx-0',
       }"
     >
       <template #content>
@@ -579,10 +579,6 @@ onMounted(loadPaymentTypes);
 </template>
 
 <style scoped>
-.payment-types-page {
-  padding: 24px;
-}
-
 .page-header {
   display: flex;
   align-items: center;
@@ -598,7 +594,7 @@ onMounted(loadPaymentTypes);
 }
 
 .page-kicker {
-  color: #8095b3;
+  color: #79b7ff;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -625,12 +621,12 @@ onMounted(loadPaymentTypes);
 
 .icon-shell {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #252527;
+  background: #404040;
   color: #f5f7fb;
 }
 
 .icon-shell:hover {
-  background: #2d2d31;
+  background: #505050;
   transform: translateY(-1px);
 }
 
@@ -676,18 +672,16 @@ onMounted(loadPaymentTypes);
 }
 
 .stat-card {
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at top right, rgba(31, 120, 255, 0.16), transparent 38%),
-    linear-gradient(180deg, #262629 0%, #1f1f22 100%);
-  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #262626;
+  padding: 18px;
 }
 
 .stat-label {
   display: block;
-  color: #9eb4d4;
-  font-size: 11px;
+  color: #9b9b9b;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -702,9 +696,9 @@ onMounted(loadPaymentTypes);
 
 .table-card {
   overflow: hidden;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, #242427 0%, #1c1c1f 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #262626;
 }
 
 .table-head,
@@ -717,7 +711,7 @@ onMounted(loadPaymentTypes);
 
 .table-head {
   padding: 18px 22px;
-  color: #8f9cb1;
+  color: #9b9b9b;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -736,8 +730,8 @@ onMounted(loadPaymentTypes);
 .table-row {
   min-height: 82px;
   margin-bottom: 8px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.025);
+  border-radius: 16px;
+  background: #1f1f1f;
   padding: 0 14px;
 }
 
@@ -752,12 +746,13 @@ onMounted(loadPaymentTypes);
 }
 
 .title-text {
+  color: #8ec3ff;
   font-size: 15px;
   font-weight: 700;
 }
 
 .title-id {
-  color: #7f8695;
+  color: #9b9b9b;
   font-size: 12px;
   line-height: 1.4;
   word-break: break-all;
@@ -778,12 +773,12 @@ onMounted(loadPaymentTypes);
 
 .type-badge-system {
   background: rgba(255, 255, 255, 0.08);
-  color: #d7dde7;
+  color: #d8d8d8;
 }
 
 .type-badge-custom {
   background: rgba(31, 120, 255, 0.16);
-  color: #9ac4ff;
+  color: #8ec3ff;
 }
 
 .cell-actions {
@@ -793,13 +788,13 @@ onMounted(loadPaymentTypes);
 }
 
 .icon-button-system {
-  background: rgba(255, 255, 255, 0.06);
-  color: #b7bfcd;
+  background: #404040;
+  color: white;
 }
 
 .icon-button-custom {
   background: rgba(31, 120, 255, 0.15);
-  color: #7fb4ff;
+  color: #8ec3ff;
 }
 
 .icon-button-danger {
@@ -808,8 +803,13 @@ onMounted(loadPaymentTypes);
 }
 
 .icon-button-disabled {
-  background: rgba(255, 255, 255, 0.05);
-  color: #7b838f;
+  background: #404040;
+  color: #9b9b9b;
+}
+
+.icon-button-system:hover:not(:disabled),
+.icon-button-disabled:hover:not(:disabled) {
+  background: #505050;
 }
 
 .icon-button:hover:not(:disabled) {
@@ -840,7 +840,7 @@ onMounted(loadPaymentTypes);
 
 .toggle-shell-off,
 .mini-toggle-off {
-  background: #4a4a4f;
+  background: #404040;
 }
 
 .toggle-thumb,
@@ -869,7 +869,7 @@ onMounted(loadPaymentTypes);
   justify-content: center;
   gap: 10px;
   min-height: 220px;
-  color: #a1a8b5;
+  color: #bdbdbd;
 }
 
 .page-footer {
@@ -877,13 +877,13 @@ onMounted(loadPaymentTypes);
 }
 
 .add-button {
-  background: #242427;
+  background: #404040;
   color: white;
   border: 1px dashed rgba(255, 255, 255, 0.14);
 }
 
 .add-button:hover {
-  background: #2d2d31;
+  background: #505050;
 }
 
 .modal-body {
@@ -902,7 +902,7 @@ onMounted(loadPaymentTypes);
 }
 
 .modal-kicker {
-  color: #89a5cf;
+  color: #79b7ff;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -928,7 +928,7 @@ onMounted(loadPaymentTypes);
 }
 
 .field-label {
-  color: #cdd5e1;
+  color: #d7d7d7;
   font-size: 13px;
   font-weight: 600;
 }
@@ -936,9 +936,9 @@ onMounted(loadPaymentTypes);
 .field-input {
   width: 100%;
   min-height: 48px;
-  border: 1px solid transparent;
-  border-radius: 16px;
-  background: #2a2a2e;
+  border: 1px solid #404040;
+  border-radius: 14px;
+  background: #1f1f1f;
   padding: 0 14px;
   color: white;
   outline: none;
@@ -946,8 +946,8 @@ onMounted(loadPaymentTypes);
 }
 
 .field-input:focus {
-  border-color: #4993dd;
-  background: #303036;
+  border-color: #1f78ff;
+  background: #1f1f1f;
 }
 
 .switch-list {
@@ -961,8 +961,8 @@ onMounted(loadPaymentTypes);
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-radius: 18px;
-  background: #26262a;
+  border-radius: 14px;
+  background: #1f1f1f;
   padding: 14px 16px;
   font-size: 14px;
   font-weight: 600;
@@ -980,12 +980,12 @@ onMounted(loadPaymentTypes);
 }
 
 .ghost-button {
-  background: #2a2a2e;
-  color: #d6dde8;
+  background: #404040;
+  color: white;
 }
 
 .ghost-button:hover {
-  background: #313138;
+  background: #505050;
 }
 
 @media (max-width: 1024px) {
@@ -1001,7 +1001,7 @@ onMounted(loadPaymentTypes);
 
 @media (max-width: 768px) {
   .payment-types-page {
-    padding: 16px;
+    padding: 0;
   }
 
   .page-header {
