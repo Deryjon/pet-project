@@ -2,7 +2,7 @@
   <section class="operations">
     <!-- Верхняя панель -->
     <div class="border-b">
-      <div class="mx-auto px-[144px]">
+      <div class="w-full">
         <div class="top flex items-center justify-between gap-4 py-[32px]">
           <div class="flex items-center gap-4">
             <div
@@ -23,7 +23,7 @@
     </div>
 
     <!-- Контент -->
-    <div class="mx-auto px-[144px] mt-8 flex gap-8">
+    <div class="mt-8 flex w-full gap-8">
       <!-- Левая колонка: настройки -->
       <div class="w-1/2 space-y-6">
 
@@ -171,7 +171,7 @@ import { useRouter } from "#app";
 const router = useRouter();
 
 useHead({
-  title: "Печать ценников | Konkurent.cases",
+  title: "Печать ценников | Konkurent",
   meta: [{ name: "description", content: "Описание страницы" }],
 });
 
@@ -283,4 +283,3 @@ onBeforeUnmount(() => {
   transform: translateY(-10px);
 }
 </style>
-

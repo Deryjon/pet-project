@@ -11,7 +11,7 @@
   import { useHead } from "#imports";
   import DataTable from "../../components/RevaluationDataTable.vue";
   useHead({
-    title: "Переоценка | Konkurent.cases",
+    title: "Переоценка | Konkurent",
   });
   </script>
   

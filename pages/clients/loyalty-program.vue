@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Программа лояльности | Konkurent.cases" });
+useHead({ title: "Программа лояльности | Konkurent" });
 
 const blocks = [
   "Бонусные уровни и правила начисления",

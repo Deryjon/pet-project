@@ -3,7 +3,7 @@ import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Настройки | Konkurent Platform" });
+useHead({ title: "Настройки | Konkurent" });
 
 const settingCards = [
   {

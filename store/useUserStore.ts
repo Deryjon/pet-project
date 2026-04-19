@@ -113,29 +113,39 @@ export const useUserStore = defineStore("user", {
 
   actions: {
     setUser(user: any) {
-      const normalizedRole =
-        user?.role?.id ??
-        user?.role?.role_id ??
-        user?.role?.name ??
-        user?.roles?.[0]?.role_id ??
-        user?.roles?.[0]?.role?.id ??
-        user?.roles?.[0]?.role?.name ??
-        user?.role ??
-        "";
-      const normalizedRoles = Array.isArray(user?.roles)
-        ? user.roles
-            .flatMap((item: any) => [
-              item?.role_id,
-              item?.role?.id,
-              item?.role?.name,
-              item?.name,
-              item?.role,
-            ])
-            .filter(Boolean)
-            .map((role: any) => String(role))
-        : normalizedRole
-          ? [String(normalizedRole)]
-          : [];
+      const roleCandidates = [
+        user?.role?.code,
+        user?.role?.role,
+        user?.role?.name,
+        user?.role?.role_id,
+        user?.role?.id,
+        user?.role_name,
+        user?.crm_role_id,
+        user?.role,
+        user?.roles?.[0]?.role?.code,
+        user?.roles?.[0]?.role?.role,
+        user?.roles?.[0]?.role?.name,
+        user?.roles?.[0]?.role_id,
+        user?.roles?.[0]?.role?.id,
+      ];
+      const normalizedRole = roleCandidates.find(Boolean) ?? "";
+      const normalizedRoles = Array.from(
+        new Set([
+          ...roleCandidates,
+          ...(Array.isArray(user?.roles)
+            ? user.roles.flatMap((item: any) => [
+                item?.role_id,
+                item?.role?.id,
+                item?.role?.code,
+                item?.role?.role,
+                item?.role?.name,
+                item?.name,
+                item?.code,
+                item?.role,
+              ])
+            : []),
+        ].filter(Boolean).map((role: any) => String(role))),
+      );
 
       const normalizedCompany = normalizeCompany(user?.company);
       const normalizedShops = Array.isArray(user?.shops)

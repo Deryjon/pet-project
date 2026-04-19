@@ -10,7 +10,7 @@ import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Суппорты и админы | Konkurent Platform" });
+useHead({ title: "Суппорты и админы | Konkurent" });
 
 const statusOptions = [
   { label: "Все статусы", value: "all" },

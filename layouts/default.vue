@@ -9,8 +9,10 @@ import { useSidebarStore } from "../store/useSidebar";
 const userStore = useUserStore();
 const sidebar = useSidebarStore();
 const route = useRoute();
+const { isPageLoading } = usePageLoader();
 const mobileSidebarOpen = ref(false);
 const isMobileViewport = ref(false);
+const pageContentLoading = computed(() => userStore.initializing || isPageLoading.value);
 
 const syncViewport = () => {
   isMobileViewport.value = window.innerWidth < 1024;
@@ -98,7 +100,7 @@ onBeforeUnmount(() => {
 
     <div
       :class="[
-        'app-main-content min-h-screen min-w-0 px-4 pb-24 pt-4 text-white transition-all duration-300 ease-in-out sm:px-6 sm:pb-28 lg:px-[30px] lg:pb-6 lg:pt-[40px]',
+        'app-main-content relative min-h-screen min-w-0 p-4 pb-24 text-white transition-all duration-300 ease-in-out sm:p-6 sm:pb-28 lg:p-6',
         isMobileViewport
           ? 'w-full ml-0'
           : sidebar.collapsed
@@ -119,19 +121,25 @@ onBeforeUnmount(() => {
       </div>
 
       <slot />
+
+      <div
+        v-if="pageContentLoading"
+        class="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        role="status"
+        aria-live="polite"
+        aria-label="Загрузка"
+      >
+        <div class="inline-flex min-w-[168px] items-center justify-center gap-2.5 rounded-[18px] border border-white/10 bg-[#262626]/95 px-5 py-3.5 text-[15px] font-bold text-white shadow-2xl">
+          <Icon name="heroicons:arrow-path" class="h-5 w-5 animate-spin text-[#4993dd]" />
+          <span>Загрузка...</span>
+        </div>
+      </div>
     </div>
 
     <MobileBottomNav
       v-if="isMobileViewport"
       @open-menu="mobileSidebarOpen = true"
     />
-
-    <div
-      v-if="userStore.initializing"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-    >
-      <div class="h-14 w-14 animate-spin rounded-full border-4 border-white/30"></div>
-    </div>
   </section>
 </template>
 

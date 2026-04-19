@@ -33,7 +33,7 @@ const isEditMode = computed(() => route.query.mode === "edit");
 
 useHead({
   title: computed(() =>
-    isEditMode.value ? "Изменить продукт | Konkurent.cases" : "Новый продукт | Konkurent.cases",
+    isEditMode.value ? "Изменить продукт | Konkurent" : "Новый продукт | Konkurent",
   ),
   meta: [
     {
@@ -199,7 +199,7 @@ async function submitForm(mode: "save" | "save-and-new") {
       @create="submitForm('save')"
     />
 
-    <div class="mx-auto mt-8 flex items-start gap-10 px-[120px] pb-12">
+    <div class="mt-8 flex items-start gap-10 pb-12">
       <CreateProductSidebar
         :active-section="activeSection"
         :show-stocks="showStocks"

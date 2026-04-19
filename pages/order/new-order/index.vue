@@ -1,6 +1,6 @@
 <template>
-  <section class="flex h-full flex-col rounded-2xl bg-[#262626] text-white xl:flex-row">
-    <div class="relative flex h-full w-full flex-col overflow-y-auto p-4 sm:p-6 xl:pr-7">
+  <section class="flex h-full flex-col bg-[#262626] text-white xl:flex-row">
+    <div class="relative flex h-full w-full flex-col overflow-y-auto xl:pr-6">
       <div class="pointer-events-none absolute right-0 top-8 hidden h-[calc(100%-64px)] w-px bg-[#404040] xl:block" />
       <SearchBar />
       <div
@@ -16,17 +16,23 @@
         <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Восстанавливаем продажу и способы оплаты...
       </div>
-      <Cart />
       <div
-        v-if="cartStore.productsLoading || cartStore.creatingSale || cartStore.loadingSale || cartStore.addingItem"
-        class="absolute right-3 top-2 flex items-center gap-2 text-[#bdbdbd]"
+        v-if="operationStatuses.length"
+        class="mt-3 flex flex-wrap gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-[#bdbdbd]"
       >
-        <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-        Loading...
+        <span
+          v-for="status in operationStatuses"
+          :key="status"
+          class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#303030] px-3 py-1.5"
+        >
+          <Icon name="heroicons:arrow-path" class="h-3.5 w-3.5 animate-spin text-[#78b3ff]" />
+          {{ status }}
+        </span>
       </div>
+      <Cart />
     </div>
 
-    <div class="flex h-full w-full flex-col justify-between border-t border-white/10 p-4 sm:p-6 xl:w-[450px] xl:border-l xl:border-t-0 xl:border-white/10 xl:pl-[15px]">
+    <div class="mt-6 flex h-full w-full flex-col justify-between border-t border-white/10 pt-6 xl:ml-6 xl:mt-0 xl:w-[450px] xl:border-l xl:border-t-0 xl:border-white/10 xl:pl-6 xl:pt-0">
       <div class="flex flex-col">
         <ClientForm />
         <DiscountSwitcher />
@@ -49,7 +55,7 @@ import { useApi } from "~/composables/useApi";
 import { useCartStore } from "~/store/cart";
 import { useLocationStore } from "~/store/useLocationStore";
 
-useHead({ title: "Новая продажа | Konkurent.cases" });
+useHead({ title: "Новая продажа | Konkurent" });
 
 const { apiFetch } = useApi();
 const cartStore = useCartStore();
@@ -61,6 +67,16 @@ const limit = ref(10);
 const initialPageLoading = ref(true);
 const search = computed(() => cartStore.searchQuery);
 const currentShopId = computed(() => String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""));
+const operationStatuses = computed(() => {
+  const statuses: string[] = [];
+
+  if (cartStore.creatingSale) statuses.push("#SALE");
+  if (cartStore.loadingSale || cartStore.restoringSale) statuses.push("#ORDER");
+  if (cartStore.productsLoading) statuses.push("#PRODUCTS");
+  if (cartStore.addingItem) statuses.push("#ITEM");
+
+  return statuses;
+});
 
 async function prepareDraftSale() {
   if (!currentShopId.value) return;
@@ -81,7 +97,7 @@ async function fetchProducts() {
     cartStore.productsLoading = true as any;
     cartStore.lastCartError = "";
     const pageSize = Math.min(Math.max(limit.value, 1), 100);
-    const response: any = await apiFetch("/v2/new-sale/products", {
+    const response: any = await apiFetch("/new-sale/products", {
       method: "GET",
       query: {
         page: page.value,

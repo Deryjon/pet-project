@@ -1,29 +1,139 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useHead } from "#imports";
 
-useHead({ title: "Настройки компании | Konkurent.cases" });
+useHead({ title: "Настройки компании | Konkurent" });
 
-const cards = [
-  "Реквизиты и юридические данные",
-  "Основные параметры компании",
-  "Связь с филиалами и доступами",
+const sections = [
+  {
+    title: "Компания",
+    description: "Настройте информацию о компании",
+    to: "",
+  },
+  {
+    title: "Магазины",
+    description: "Настройте список магазинов и их детали",
+    to: "/settings/shop",
+  },
+  {
+    title: "Кассы",
+    description: "Настройте список касс и их детали",
+    to: "",
+  },
+  {
+    title: "Ключи интеграций",
+    description: "Настройте список ключей интеграции",
+    to: "",
+  },
 ];
 </script>
 
 <template>
-  <section class="space-y-6 text-white">
-    <div class="rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.12),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.94),rgba(30,41,59,0.88))] p-6 shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
-      <p class="text-[12px] font-semibold uppercase tracking-[0.24em] text-emerald-300">Настройки</p>
-      <h1 class="mt-3 text-[30px] font-bold tracking-[-0.04em] text-white">Компания</h1>
-      <p class="mt-3 max-w-3xl text-[15px] leading-7 text-slate-300">
-        Страница создана как отдельный маршрут для настроек компании и связанных параметров бизнеса.
-      </p>
-    </div>
+  <section class="company-settings-page text-white">
+    <header class="page-header">
+      <p class="page-kicker">Настройки</p>
+      <h1>Настройки компании</h1>
+    </header>
 
-    <div class="grid gap-4 md:grid-cols-3">
-      <div v-for="card in cards" :key="card" class="rounded-[24px] border border-white/10 bg-white/5 p-5 backdrop-blur">
-        <p class="text-[16px] font-semibold text-white">{{ card }}</p>
-      </div>
+    <div class="settings-list">
+      <article v-for="section in sections" :key="section.title" class="settings-card">
+        <div>
+          <h2>{{ section.title }}</h2>
+          <p>{{ section.description }}</p>
+        </div>
+
+        <NuxtLink v-if="section.to" :to="section.to" class="settings-action">
+          Настроить
+        </NuxtLink>
+        <button v-else type="button" class="settings-action">
+          Настроить
+        </button>
+      </article>
     </div>
   </section>
 </template>
+
+<style scoped>
+.company-settings-page {
+  display: grid;
+  gap: 24px;
+}
+
+.page-header {
+  display: grid;
+  gap: 8px;
+}
+
+.page-kicker {
+  color: #79b7ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.settings-list {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 96px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: #262626;
+  padding: 20px;
+}
+
+.settings-card h2 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.settings-card p {
+  margin-top: 6px;
+  color: #bdbdbd;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.settings-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 16px;
+  background: #1f78ff;
+  padding: 0 16px;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+.settings-action:hover {
+  background: #2e84ff;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .settings-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-action {
+    width: 100%;
+  }
+}
+</style>

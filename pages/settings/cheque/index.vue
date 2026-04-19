@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useHead, useRoute, useRouter } from "#imports";
 import { useCheques, type Cheque } from "@/composables/useCheques";
 
-useHead({ title: "Чеки | Konkurent.cases" });
+useHead({ title: "Чеки | Konkurent" });
 
 const route = useRoute();
 const router = useRouter();
@@ -332,7 +332,6 @@ watch(totalPages, (pages) => {
 <style scoped>
 .cheque-page {
   color: white;
-  padding-bottom: 32px;
 }
 
 .page-header,

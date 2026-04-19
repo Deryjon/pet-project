@@ -6,7 +6,7 @@ import EmployeeCreateForm from "@/components/employees/EmployeeCreateForm.vue";
 import { useEmployeesDataTableStore } from "@/store/DataTables/employeesDataTableStore";
 import { useUserStore } from "@/store/useUserStore";
 
-useHead({ title: "Сотрудники | Konkurent.cases" });
+useHead({ title: "Сотрудники | Konkurent" });
 
 const store = useEmployeesDataTableStore();
 const userStore = useUserStore();

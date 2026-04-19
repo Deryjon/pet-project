@@ -6,7 +6,7 @@ import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
 import { type RoleSelectItem, useRolePermissionsApi } from "@/composables/useRolePermissions";
 
-useHead({ title: "Редактирование сотрудника | Konkurent.cases" });
+useHead({ title: "Редактирование сотрудника | Konkurent" });
 
 
 type User = {
