@@ -4,12 +4,11 @@ import { useHead } from "#imports";
 import EmployeesDataTable from "@/components/EmployeesDataTable.vue";
 import EmployeeCreateForm from "@/components/employees/EmployeeCreateForm.vue";
 import { useEmployeesDataTableStore } from "@/store/DataTables/employeesDataTableStore";
-import { useUserStore } from "@/store/useUserStore";
 
 useHead({ title: "Сотрудники | Konkurent" });
 
 const store = useEmployeesDataTableStore();
-const userStore = useUserStore();
+const { can } = useAccessControl();
 const showCreateForm = ref(false);
 const activeEmployeeTab = computed({
   get: () => store.employeeStatusFilter,
@@ -18,7 +17,7 @@ const activeEmployeeTab = computed({
   },
 });
 
-const employeeTabs = [
+const employeeTabs: Array<{ value: "current" | "deleted" | "blocked"; label: string }> = [
   { value: "current", label: "Текущие сотрудники" },
   { value: "deleted", label: "Удаленные сотрудники" },
   { value: "blocked", label: "Заблокированные сотрудники" },
@@ -65,7 +64,7 @@ async function handleCreated() {
     </div>
 
     <EmployeeCreateForm
-      v-if="showCreateForm && userStore.isAdmin"
+      v-if="showCreateForm && can('employee-create')"
       :showCancel="true"
       @cancel="showCreateForm = false"
       @created="handleCreated"

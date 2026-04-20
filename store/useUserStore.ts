@@ -10,6 +10,14 @@ type NormalizedShop = {
   companyId?: string;
 };
 
+const FULL_ACCESS_FALLBACK_ROLES = new Set([
+  "admin",
+  "owner",
+  "superadmin",
+  "super_admin",
+  "platform_admin",
+]);
+
 function createEmptyUser() {
   return {
     id: null as number | null,
@@ -20,6 +28,12 @@ function createEmptyUser() {
     userType: "" as string,
     role: "" as string,
     roles: [] as string[],
+    crmRoleId: "" as string,
+    crmRole: null as null | {
+      id: string;
+      name: string;
+      isAdmin: boolean;
+    },
     companyId: "" as string,
     company: null as null | {
       id: string;
@@ -82,6 +96,37 @@ function normalizeShop(shop: any): NormalizedShop | null {
   };
 }
 
+function roleValue(value: any) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return "";
+}
+
+function normalizeRoleName(value: unknown) {
+  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function collectActiveSlugs(sections: any[]) {
+  const slugs = new Set<string>();
+
+  const walk = (node: any) => {
+    if (node?.is_active && node?.slug) {
+      slugs.add(String(node.slug));
+    }
+    if (Array.isArray(node?.children)) {
+      node.children.forEach(walk);
+    }
+  };
+
+  sections.forEach((section) => {
+    if (Array.isArray(section?.permissions)) {
+      section.permissions.forEach(walk);
+    }
+  });
+
+  return slugs;
+}
+
 export const useUserStore = defineStore("user", {
   state: () => ({
     user: createEmptyUser(),
@@ -90,6 +135,9 @@ export const useUserStore = defineStore("user", {
     initializing: false as boolean,
     refreshingUser: false as boolean,
     lastUserFetchAt: 0 as number,
+    permissionsLoaded: false as boolean,
+    permissionsLoading: false as boolean,
+    activePermissionSlugs: [] as string[],
   }),
   getters: {
     isLoggedIn: (state) => !!state.token,
@@ -100,33 +148,44 @@ export const useUserStore = defineStore("user", {
         .map((role) => String(role || "").trim().toLowerCase())
         .filter(Boolean),
     hasPlatformAccess(): boolean {
-      return ["platform_admin", "support"].some((role) => this.normalizedRoles.includes(role));
+      return (
+        this.user.userType === "platform" ||
+        ["platform_admin", "support", "superadmin"].some((role) => this.normalizedRoles.includes(role))
+      );
     },
     fullName: (state) =>
       state.user.firstName || state.user.lastName
         ? `${state.user.firstName} ${state.user.lastName}`.trim()
         : state.user.name,
     isAdmin(): boolean {
-      return this.normalizedRoles.includes("admin") || this.normalizedRoles.includes("админ");
+      return (
+        this.user.userType === "platform" ||
+        Boolean(this.user.crmRole?.isAdmin) ||
+        this.normalizedRoles.some((role) => FULL_ACCESS_FALLBACK_ROLES.has(normalizeRoleName(role)))
+      );
+    },
+    activeSlugs: (state) => new Set(state.activePermissionSlugs),
+    can(): (slug: string) => boolean {
+      return (slug: string) => this.isAdmin || this.activeSlugs.has(slug);
     },
   },
 
   actions: {
     setUser(user: any) {
       const roleCandidates = [
-        user?.role?.code,
-        user?.role?.role,
-        user?.role?.name,
-        user?.role?.role_id,
-        user?.role?.id,
-        user?.role_name,
-        user?.crm_role_id,
-        user?.role,
-        user?.roles?.[0]?.role?.code,
-        user?.roles?.[0]?.role?.role,
-        user?.roles?.[0]?.role?.name,
-        user?.roles?.[0]?.role_id,
-        user?.roles?.[0]?.role?.id,
+        roleValue(user?.role?.code),
+        roleValue(user?.role?.role),
+        roleValue(user?.role?.name),
+        roleValue(user?.role?.role_id),
+        roleValue(user?.role?.id),
+        roleValue(user?.role_name),
+        roleValue(user?.crm_role_id),
+        roleValue(user?.role),
+        roleValue(user?.roles?.[0]?.role?.code),
+        roleValue(user?.roles?.[0]?.role?.role),
+        roleValue(user?.roles?.[0]?.role?.name),
+        roleValue(user?.roles?.[0]?.role_id),
+        roleValue(user?.roles?.[0]?.role?.id),
       ];
       const normalizedRole = roleCandidates.find(Boolean) ?? "";
       const normalizedRoles = Array.from(
@@ -134,14 +193,14 @@ export const useUserStore = defineStore("user", {
           ...roleCandidates,
           ...(Array.isArray(user?.roles)
             ? user.roles.flatMap((item: any) => [
-                item?.role_id,
-                item?.role?.id,
-                item?.role?.code,
-                item?.role?.role,
-                item?.role?.name,
-                item?.name,
-                item?.code,
-                item?.role,
+                roleValue(item?.role_id),
+                roleValue(item?.role?.id),
+                roleValue(item?.role?.code),
+                roleValue(item?.role?.role),
+                roleValue(item?.role?.name),
+                roleValue(item?.name),
+                roleValue(item?.code),
+                roleValue(item?.role),
               ])
             : []),
         ].filter(Boolean).map((role: any) => String(role))),
@@ -187,6 +246,14 @@ export const useUserStore = defineStore("user", {
         userType: String(user?.user_type ?? ""),
         role: normalizedRole,
         roles: normalizedRoles,
+        crmRoleId: String(user?.crm_role_id ?? ""),
+        crmRole: user?.crm_role
+          ? {
+              id: String(user.crm_role.id ?? ""),
+              name: String(user.crm_role.name ?? ""),
+              isAdmin: Boolean(user.crm_role.is_admin ?? user.crm_role.isAdmin),
+            }
+          : null,
         companyId:
           String(user?.company_id ?? normalizedCompany?.companyId ?? normalizedCompany?.id ?? ""),
         company: normalizedCompany,
@@ -220,10 +287,47 @@ export const useUserStore = defineStore("user", {
       };
 
       this.user = normalized as typeof this.user;
+      this.permissionsLoaded = false;
+      this.activePermissionSlugs = [];
       this.location =
         normalized.currentShopId && normalized.currentShopName
           ? { id: normalized.currentShopId, name: normalized.currentShopName }
           : null;
+    },
+    async loadPermissionsForCurrentUser() {
+      if (!this.user.id || this.permissionsLoading) {
+        return;
+      }
+
+      this.permissionsLoading = true;
+
+      try {
+        if (this.isAdmin) {
+          this.activePermissionSlugs = [];
+          this.permissionsLoaded = true;
+          return;
+        }
+
+        const roleId = this.user.crmRoleId || String(this.user.roles?.[0] ?? "");
+        if (!roleId) {
+          this.activePermissionSlugs = [];
+          this.permissionsLoaded = true;
+          return;
+        }
+
+        const { apiFetch } = useApi();
+        const response = await apiFetch<any>(`/v2/role/${encodeURIComponent(roleId)}/permissions`, {
+          method: "GET",
+        });
+
+        this.activePermissionSlugs = [...collectActiveSlugs(response?.sections ?? [])];
+        this.permissionsLoaded = true;
+      } catch (_) {
+        this.activePermissionSlugs = [];
+        this.permissionsLoaded = true;
+      } finally {
+        this.permissionsLoading = false;
+      }
     },
     async fetchMe(options?: { force?: boolean }) {
       const now = Date.now();
@@ -243,6 +347,7 @@ export const useUserStore = defineStore("user", {
         const me = await apiFetch<any>("/auth/me", { method: "GET" });
         this.setUser(me);
         useLocationStore().syncFromUser(me);
+        await this.loadPermissionsForCurrentUser();
         this.lastUserFetchAt = Date.now();
         return Boolean(this.user.id);
       } catch (error: any) {
@@ -324,6 +429,9 @@ export const useUserStore = defineStore("user", {
       this.location = null;
       this.refreshingUser = false;
       this.lastUserFetchAt = 0;
+      this.permissionsLoaded = false;
+      this.permissionsLoading = false;
+      this.activePermissionSlugs = [];
       useLocationStore().reset();
       try {
         const tokenCookie = useCookie<string | null>("auth_token");

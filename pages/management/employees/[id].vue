@@ -33,6 +33,7 @@ const { apiFetch } = useApi();
 const { getCompanyRolesForSelect, getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
 const toast = useToast();
+const { can } = useAccessControl();
 
 const id = computed(() => route.params.id as string);
 
@@ -136,6 +137,12 @@ function normalizeLookup(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "_");
 }
 
+function systemRoleCode(value: string) {
+  const normalized = normalizeLookup(value);
+  const allowed = new Set(["admin", "employee", "cashier", "owner", "store_manager"]);
+  return allowed.has(normalized) ? normalized : "";
+}
+
 function roleCodeFromName(name: string) {
   const normalized = normalizeLookup(name);
   const known: Record<string, string> = {
@@ -198,10 +205,11 @@ function selectedRoleCode() {
   });
 
   return (
-    matchedCompanyRole?.code ||
-    matchedCompanyRole?.id ||
+    systemRoleCode(selectedCode) ||
+    systemRoleCode(matchedCompanyRole?.code || "") ||
+    systemRoleCode(matchedCompanyRole?.id || "") ||
     roleCodeFromName(selectedName) ||
-    selectedCode
+    "employee"
   );
 }
 
@@ -249,7 +257,7 @@ function normalizeAllowedShops(user: User) {
 }
 
 async function ensureAdminAccess() {
-  if (!userStore.isAdmin) {
+  if (!can("employee-edit")) {
     await navigateTo("/management/employees");
     return false;
   }
@@ -297,7 +305,7 @@ onMounted(async () => {
 watch(id, fetchUser);
 
 async function saveMainData() {
-  if (!id.value || !userStore.isAdmin) return;
+  if (!id.value || !can("employee-edit")) return;
   if (!crm_role_id.value) {
     serverError.value = "Выберите роль сотрудника.";
     return;
@@ -335,7 +343,7 @@ async function saveMainData() {
 }
 
 async function savePhonePassword() {
-  if (!id.value || !userStore.isAdmin) return;
+  if (!id.value || !can("employee-edit")) return;
   if (!phone.value && !password.value) return;
 
   saving.value = true;

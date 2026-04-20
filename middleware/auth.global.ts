@@ -1,5 +1,5 @@
 import { useUserStore } from "~/store/useUserStore";
-import { canAccessPath, firstAllowedCompanyRoute } from "~/composables/useAccessControl";
+import { routeCanAccess } from "~/composables/useAccessControl";
 
 function isPlatformRoute(path: string) {
   return path === "/platform" || path.startsWith("/platform/");
@@ -78,7 +78,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(hasPlatformAccess ? "/platform" : "/auth/login");
   }
 
-  if (!authRoute && hasCrmAccess && !canAccessPath(path, userStore.normalizedRoles)) {
-    return navigateTo(firstAllowedCompanyRoute(userStore.normalizedRoles));
+  if (!authRoute && hasCrmAccess && !routeCanAccess(path, userStore.can)) {
+    return navigateTo("/403");
   }
 });

@@ -19,7 +19,7 @@ watch(globalFilterInput, (val) => {
 });
 
 function handleCreateOrEdit() {
-  if (!store.canManageEmployees) {
+  if (!store.canCreateEmployees && !store.canEditEmployees) {
     return;
   }
 
@@ -28,6 +28,7 @@ function handleCreateOrEdit() {
     const row = selected[0];
     const rid = row?.original?.id ?? row?.original?._original?.id ?? row?.id;
     if (rid) {
+      if (!store.canEditEmployees) return;
       router.push(`/management/employees/${encodeURIComponent(String(rid))}`);
       return;
     }
@@ -45,7 +46,7 @@ function handleCreateOrEdit() {
     searchPlaceholder="Поиск сотрудников..."
     :showFilters="false"
     :createButton="
-      store.canManageEmployees
+      store.canCreateEmployees || store.canEditEmployees
         ? { label: 'Новый сотрудник', onClick: handleCreateOrEdit }
         : undefined
     "

@@ -374,7 +374,7 @@ watch(
             v-model="form.role"
             :items="platformRoleOptions"
             value-key="value"
-            placeholder="Р’С‹Р±РµСЂРёС‚Рµ СЂРѕР»СЊ"
+            placeholder="Выберите роль"
             :ui="softSelectUi"
             :loading="rolesLoading"
             class="w-full"

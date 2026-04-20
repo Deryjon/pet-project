@@ -26,6 +26,7 @@ const store = useProductStore();
 const locationStore = useLocationStore();
 const { createProduct, updateProduct } = useProducts();
 const toast = useToast();
+const { can } = useAccessControl();
 
 const submitting = ref(false);
 const validationMessages = ref<string[]>([]);
@@ -100,6 +101,11 @@ function updateActiveSectionByScroll() {
 }
 
 onMounted(() => {
+  if (!can(isEditMode.value ? "product-edit" : "product-create")) {
+    void router.replace("/403");
+    return;
+  }
+
   store.syncAvailableShops(locationStore.locations);
 
   if (!isEditMode.value && store.editingProductId) {

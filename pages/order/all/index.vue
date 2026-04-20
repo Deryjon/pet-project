@@ -515,11 +515,12 @@ watch(
 );
 
 async function syncRouteQuery() {
-  const nextQuery: Record<string, string> = {
-    ...Object.fromEntries(Object.entries(route.query).map(([key, value]) => [key, Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "")])),
-    page: String(page.value),
-    limit: String(limit.value),
-  };
+  const nextQuery: Record<string, string> = {};
+  for (const [key, value] of Object.entries(route.query)) {
+    nextQuery[key] = Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "");
+  }
+  nextQuery.page = String(page.value);
+  nextQuery.limit = String(limit.value);
 
   delete nextQuery.date;
 
@@ -733,7 +734,7 @@ function selectScope(value: (typeof saleScopeOptions)[number]["value"]) {
 }
 
 function uniqueOptions(values: string[]) {
-  return Array.from(new Set(values.filter((value) => value && !value.includes("РќРµ СѓРєР°Р·Р°РЅ")))).sort((a, b) => a.localeCompare(b, "ru"));
+  return Array.from(new Set(values.filter((value) => value && !value.includes("Не указан")))).sort((a, b) => a.localeCompare(b, "ru"));
 }
 
 function downloadReport() {

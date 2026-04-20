@@ -51,6 +51,7 @@ const userForm = reactive({
   currentShopId: "",
   allowedShopIds: [] as string[],
   canSwitchShops: false,
+  is_active: true,
 });
 
 
@@ -107,11 +108,12 @@ function resetUserForm() {
   userForm.lastName = "";
   userForm.phone = "";
   userForm.password = "";
-  userForm.role = companyRoleOptions.value[0]?.value || "employee";
+  userForm.role = companyRoleOptions.value[0]?.value || "";
   userForm.birthDate = "";
   userForm.currentShopId = shops.value[0]?.id || "";
   userForm.allowedShopIds = userForm.currentShopId ? [userForm.currentShopId] : [];
   userForm.canSwitchShops = false;
+  userForm.is_active = true;
 }
 
 function openCreateUser() {
@@ -148,11 +150,13 @@ function buildUserPayload(): PlatformUserPayload {
     first_name: userForm.firstName.trim(),
     last_name: userForm.lastName.trim(),
     phone_number: `+998${userForm.phone.replace(/\D/g, "")}`,
-    role: userForm.role,
+    role: "employee",
+    crm_role_id: userForm.role || undefined,
     company_id: companyId.value,
     current_shop_id: userForm.currentShopId,
     allowed_shop_ids: [...userForm.allowedShopIds],
     can_switch_shops: userForm.canSwitchShops,
+    is_active: Boolean(userForm.is_active),
   };
 
   if (userForm.password.trim()) payload.password = userForm.password.trim();
@@ -188,7 +192,7 @@ async function loadCompanyPage() {
 
   rolesLoading.value = true;
   try {
-    companyRoles.value = await getCompanyRoles();
+    companyRoles.value = await getCompanyRoles(companyId.value);
     if (!companyRoleOptions.value.some((option) => option.value === userForm.role)) {
       userForm.role = companyRoleOptions.value[0]?.value || userForm.role;
     }
@@ -235,6 +239,13 @@ async function submitUser() {
   successMessage.value = "";
 
   const payload = buildUserPayload();
+  if (!payload.crm_role_id) {
+    toast.add({ title: "Выберите CRM-роль сотрудника", color: "warning" });
+    errorMessage.value = "Выберите CRM-роль сотрудника.";
+    userSaving.value = false;
+    return;
+  }
+
   if (payload.current_shop_id && !payload.allowed_shop_ids?.includes(payload.current_shop_id)) {
     toast.add({ title: "Проверьте филиалы сотрудника", color: "warning" });
     errorMessage.value = "Текущий филиал должен входить в список доступных филиалов.";
@@ -570,6 +581,14 @@ watch(
         <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
           <input v-model="userForm.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />
           Может переключать филиалы
+        </label>
+
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
+          <input v-model="userForm.is_active" type="checkbox" class="h-4 w-4 accent-teal-600" />
+          <span>
+            <span class="block font-semibold">Активен</span>
+            <span class="block text-[12px] text-slate-500">Включает или выключает доступ конкретного сотрудника.</span>
+          </span>
         </label>
 
         <div class="space-y-2 md:col-span-2">
