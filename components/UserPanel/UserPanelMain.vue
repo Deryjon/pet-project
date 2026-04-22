@@ -7,6 +7,7 @@ import { useLocationStore } from "@/store/useLocationStore";
 import BaseButton from "../ui/BaseButton.vue";
 import ChangeShop from "../ChangeShop.vue";
 import ConfirmLogout from "./ConfirmLogout.vue";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 defineProps<{
   open: boolean;
@@ -17,7 +18,7 @@ const { user, fullName } = storeToRefs(useUserStore());
 const { selectedLocation, locations } = storeToRefs(useLocationStore());
 
 const displayName = computed(() => {
-  return fullName.value || user.value.name || user.value.phone || "Пользователь";
+  return fullName.value || user.value.name || formatUzPhoneDisplay(user.value.phone) || "Пользователь";
 });
 
 const displayLocation = computed(() => {
@@ -31,11 +32,11 @@ const displayLocation = computed(() => {
 });
 
 const displayPhone = computed(() => {
-  return user.value.phone || "Телефон не указан";
+  return formatUzPhoneDisplay(user.value.phone) || "Телефон не указан";
 });
 
 const displayRole = computed(() => {
-  return user.value.role || "Роль не указана";
+  return user.value.roleName || user.value.crmRole?.name || user.value.role || "Роль не указана";
 });
 
 const displayCompany = computed(() => {

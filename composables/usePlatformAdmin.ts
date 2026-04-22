@@ -1,6 +1,7 @@
 import { computed } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "~/store/useUserStore";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 export type PlatformStatus = "active" | "inactive";
 
@@ -270,11 +271,12 @@ function normalizeUser(raw: any): PlatformUser {
   const crmRoleId = String(pickValue(raw, ["crm_role_id", "crmRoleId"]) ?? "").trim();
   const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
   const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
+  const phone = formatUzPhoneDisplay(pickValue(raw, ["phone_number", "phone"])) || "";
   const fullName =
     String(pickValue(raw, ["full_name", "fullName"]) ?? "").trim() ||
     [firstName, lastName].filter(Boolean).join(" ").trim() ||
     String(pickValue(raw, ["name"]) ?? "").trim() ||
-    String(pickValue(raw, ["phone_number", "phone"]) ?? "").trim();
+    phone;
 
   const allowedShopIds = pickArray(raw, ["allowed_shop_ids", "allowedShopIds"]).map((item) =>
     String(item),
@@ -287,7 +289,7 @@ function normalizeUser(raw: any): PlatformUser {
     firstName,
     lastName,
     fullName,
-    phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
+    phone,
     email: String(raw?.email ?? ""),
     roleId: resolvedRoleId,
     crmRoleId,

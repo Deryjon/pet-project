@@ -19,6 +19,7 @@ import {
   type RoleSelectItem,
   useRolePermissionsApi,
 } from "@/composables/useRolePermissions";
+import { useUserStore } from "@/store/useUserStore";
 
 useHead({ title: "Роли | Konkurent" });
 
@@ -34,6 +35,7 @@ const {
 } = useRolePermissionsApi();
 const toast = useToast();
 const { can } = useAccessControl();
+const userStore = useUserStore();
 const route = useRoute();
 const managedCompanyId = computed(() => String(route.query.company_id || "").trim());
 
@@ -192,6 +194,10 @@ function setServerError(error: any, fallback: string) {
   serverError.value = error?.data?.message || error?.message || fallback;
 }
 
+async function refreshCurrentUserAccess() {
+  await userStore.fetchMe({ force: true });
+}
+
 function clearMessages() {
   serverError.value = "";
   serverOk.value = "";
@@ -300,6 +306,7 @@ async function submitRole() {
     });
 
     await loadRoles();
+    await refreshCurrentUserAccess();
     serverOk.value = "Данные роли сохранены.";
   } catch (error: any) {
     setServerError(
@@ -326,6 +333,7 @@ async function removeRole(role: RoleSelectItem) {
       resetForm();
     }
     await loadRoles();
+    await refreshCurrentUserAccess();
     serverOk.value = "Роль удалена.";
   } catch (error: any) {
     setServerError(error, "Не удалось удалить роль.");
@@ -416,6 +424,7 @@ async function savePermissions() {
       }, { companyId: managedCompanyId.value });
     }
 
+    await refreshCurrentUserAccess();
     serverOk.value = "Permissions сохранены.";
   } catch (error: any) {
     setServerError(error, "Не удалось сохранить permissions.");

@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useSidebarStore } from "../../store/useSidebar";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 const { selectedLocation } = storeToRefs(useLocationStore());
 const { user, fullName } = storeToRefs(useUserStore());
@@ -12,7 +13,7 @@ const { collapsed } = storeToRefs(useSidebarStore());
 defineEmits(["toggle"]);
 
 const displayName = computed(() => {
-  return fullName.value || user.value.name || user.value.phone || "Пользователь";
+  return fullName.value || user.value.name || formatUzPhoneDisplay(user.value.phone) || "Пользователь";
 });
 
 const displayLocation = computed(() => {

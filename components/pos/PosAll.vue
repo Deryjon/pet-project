@@ -10,7 +10,7 @@
           <option value="cancelled">Cancelled</option>
         </select>
         <input
-          v-if="isAdminOrManager"
+          v-if="canFilterByBranch"
           v-model="branchCode"
           placeholder="branch_code"
           class="bg-[#404040] p-2 rounded text-white"
@@ -77,12 +77,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useApi } from "~/composables/useApi";
-import { useUserStore } from "~/store/useUserStore";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 
 const { apiFetch } = useApi();
-const user = useUserStore();
 const { formatPrice } = useFormatPrice();
+const { can } = useAccessControl();
 
 const page = ref(1);
 const limit = ref(10);
@@ -90,7 +89,7 @@ const total = ref(0);
 const status = ref("");
 const branchCode = ref("");
 
-const isAdminOrManager = computed(() => ["admin", "manager"].includes((user.user?.role || "").toLowerCase()));
+const canFilterByBranch = computed(() => can("orders-other-shops"));
 
 const sales = ref<any[]>([]);
 const loading = ref(false);
@@ -111,7 +110,7 @@ function statusClass(s: string) {
 async function fetchSales() {
   const query: any = { page: page.value, limit: Math.min(Math.max(limit.value,1),100) };
   if (status.value) query.status = status.value;
-  if (isAdminOrManager.value && branchCode.value) query.branch_code = branchCode.value;
+  if (canFilterByBranch.value && branchCode.value) query.branch_code = branchCode.value;
   loading.value = true;
   try {
     const res: any = await apiFetch("/sales", { method: "GET", query });

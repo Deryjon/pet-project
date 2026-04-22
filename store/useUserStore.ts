@@ -10,14 +10,6 @@ type NormalizedShop = {
   companyId?: string;
 };
 
-const FULL_ACCESS_FALLBACK_ROLES = new Set([
-  "admin",
-  "owner",
-  "superadmin",
-  "super_admin",
-  "platform_admin",
-]);
-
 function createEmptyUser() {
   return {
     id: null as number | null,
@@ -27,6 +19,7 @@ function createEmptyUser() {
     phone: "" as string,
     userType: "" as string,
     role: "" as string,
+    roleName: "" as string,
     roles: [] as string[],
     crmRoleId: "" as string,
     crmRole: null as null | {
@@ -102,10 +95,6 @@ function roleValue(value: any) {
   return "";
 }
 
-function normalizeRoleName(value: unknown) {
-  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-}
-
 function collectActiveSlugs(sections: any[]) {
   const slugs = new Set<string>();
 
@@ -127,6 +116,8 @@ function collectActiveSlugs(sections: any[]) {
   return slugs;
 }
 
+let permissionsLoadPromise: Promise<void> | null = null;
+
 export const useUserStore = defineStore("user", {
   state: () => ({
     user: createEmptyUser(),
@@ -137,6 +128,7 @@ export const useUserStore = defineStore("user", {
     lastUserFetchAt: 0 as number,
     permissionsLoaded: false as boolean,
     permissionsLoading: false as boolean,
+    permissionSections: [] as any[],
     activePermissionSlugs: [] as string[],
   }),
   getters: {
@@ -160,30 +152,44 @@ export const useUserStore = defineStore("user", {
     isAdmin(): boolean {
       return (
         this.user.userType === "platform" ||
-        Boolean(this.user.crmRole?.isAdmin) ||
-        this.normalizedRoles.some((role) => FULL_ACCESS_FALLBACK_ROLES.has(normalizeRoleName(role)))
+        Boolean(this.user.crmRole?.isAdmin)
       );
     },
     activeSlugs: (state) => new Set(state.activePermissionSlugs),
+    visiblePermissionSections: (state) =>
+      state.permissionSections.map((section: any) => ({
+        ...section,
+        permissions: Array.isArray(section?.permissions)
+          ? section.permissions.filter(
+              (permission: any) => permission?.is_active && !permission?.hide_from_ui,
+            )
+          : [],
+      })),
     can(): (slug: string) => boolean {
-      return (slug: string) => this.isAdmin || this.activeSlugs.has(slug);
+      return (slug: string) => this.user.userType === "platform" || this.activeSlugs.has(slug);
     },
   },
 
   actions: {
     setUser(user: any) {
+      const crmRole = user?.crm_role
+        ? {
+            id: String(user.crm_role.id ?? ""),
+            name: String(user.crm_role.name ?? ""),
+            isAdmin: Boolean(user.crm_role.is_admin ?? user.crm_role.isAdmin),
+          }
+        : null;
+      const displayRoleName = String(crmRole?.name ?? user?.role_name ?? "").trim();
       const roleCandidates = [
         roleValue(user?.role?.code),
         roleValue(user?.role?.role),
-        roleValue(user?.role?.name),
+        roleValue(user?.role_code),
         roleValue(user?.role?.role_id),
         roleValue(user?.role?.id),
-        roleValue(user?.role_name),
         roleValue(user?.crm_role_id),
         roleValue(user?.role),
         roleValue(user?.roles?.[0]?.role?.code),
         roleValue(user?.roles?.[0]?.role?.role),
-        roleValue(user?.roles?.[0]?.role?.name),
         roleValue(user?.roles?.[0]?.role_id),
         roleValue(user?.roles?.[0]?.role?.id),
       ];
@@ -194,6 +200,7 @@ export const useUserStore = defineStore("user", {
           ...(Array.isArray(user?.roles)
             ? user.roles.flatMap((item: any) => [
                 roleValue(item?.role_id),
+                roleValue(item?.role_code),
                 roleValue(item?.role?.id),
                 roleValue(item?.role?.code),
                 roleValue(item?.role?.role),
@@ -237,6 +244,9 @@ export const useUserStore = defineStore("user", {
           }
         : null;
 
+      const previousUserId = String(this.user.id ?? "");
+      const previousCrmRoleId = String(this.user.crmRoleId ?? "");
+
       const normalized = {
         id: user?.id ?? null,
         firstName: user?.first_name ?? user?.firstName ?? "",
@@ -245,15 +255,10 @@ export const useUserStore = defineStore("user", {
         phone: user?.phone ?? user?.phone_number ?? "",
         userType: String(user?.user_type ?? ""),
         role: normalizedRole,
+        roleName: displayRoleName,
         roles: normalizedRoles,
-        crmRoleId: String(user?.crm_role_id ?? ""),
-        crmRole: user?.crm_role
-          ? {
-              id: String(user.crm_role.id ?? ""),
-              name: String(user.crm_role.name ?? ""),
-              isAdmin: Boolean(user.crm_role.is_admin ?? user.crm_role.isAdmin),
-            }
-          : null,
+        crmRoleId: String(user?.crm_role_id ?? crmRole?.id ?? user?.role_code ?? ""),
+        crmRole,
         companyId:
           String(user?.company_id ?? normalizedCompany?.companyId ?? normalizedCompany?.id ?? ""),
         company: normalizedCompany,
@@ -286,47 +291,82 @@ export const useUserStore = defineStore("user", {
         avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user.avatarUrl,
       };
 
+      const nextUserId = String(normalized.id ?? "");
+      const nextCrmRoleId = String(normalized.crmRoleId ?? "");
+      const accessScopeChanged =
+        previousUserId !== nextUserId || previousCrmRoleId !== nextCrmRoleId;
+
       this.user = normalized as typeof this.user;
-      this.permissionsLoaded = false;
-      this.activePermissionSlugs = [];
+      if (accessScopeChanged) {
+        this.permissionsLoaded = false;
+      }
+
+      if (previousUserId && previousUserId !== nextUserId) {
+        this.permissionSections = [];
+        this.activePermissionSlugs = [];
+      }
       this.location =
         normalized.currentShopId && normalized.currentShopName
           ? { id: normalized.currentShopId, name: normalized.currentShopName }
           : null;
     },
-    async loadPermissionsForCurrentUser() {
+    async loadPermissionsForCurrentUser(options?: { force?: boolean }) {
+      if (this.permissionsLoading && permissionsLoadPromise) {
+        await permissionsLoadPromise;
+        return;
+      }
+
+      if (this.permissionsLoaded && !options?.force) {
+        return;
+      }
+
       if (!this.user.id || this.permissionsLoading) {
         return;
       }
 
       this.permissionsLoading = true;
+      const hadPermissions = this.activePermissionSlugs.length > 0;
+
+      permissionsLoadPromise = (async () => {
+        try {
+          if (this.user.userType === "platform") {
+            this.permissionSections = [];
+            this.activePermissionSlugs = [];
+            this.permissionsLoaded = true;
+            return;
+          }
+
+          const userId = String(this.user.id ?? "");
+          if (!userId) {
+            this.permissionSections = [];
+            this.activePermissionSlugs = [];
+            this.permissionsLoaded = true;
+            return;
+          }
+
+          const { apiFetch } = useApi();
+          const response = await apiFetch<any>(`/v2/user/${encodeURIComponent(userId)}/permissions`, {
+            method: "GET",
+          });
+
+          const sections = Array.isArray(response?.sections) ? response.sections : [];
+          this.permissionSections = sections;
+          this.activePermissionSlugs = [...collectActiveSlugs(sections)];
+          this.permissionsLoaded = true;
+        } catch (_) {
+          if (!hadPermissions) {
+            this.permissionSections = [];
+            this.activePermissionSlugs = [];
+          }
+          this.permissionsLoaded = true;
+        }
+      })();
 
       try {
-        if (this.isAdmin) {
-          this.activePermissionSlugs = [];
-          this.permissionsLoaded = true;
-          return;
-        }
-
-        const roleId = this.user.crmRoleId || String(this.user.roles?.[0] ?? "");
-        if (!roleId) {
-          this.activePermissionSlugs = [];
-          this.permissionsLoaded = true;
-          return;
-        }
-
-        const { apiFetch } = useApi();
-        const response = await apiFetch<any>(`/v2/role/${encodeURIComponent(roleId)}/permissions`, {
-          method: "GET",
-        });
-
-        this.activePermissionSlugs = [...collectActiveSlugs(response?.sections ?? [])];
-        this.permissionsLoaded = true;
-      } catch (_) {
-        this.activePermissionSlugs = [];
-        this.permissionsLoaded = true;
+        await permissionsLoadPromise;
       } finally {
         this.permissionsLoading = false;
+        permissionsLoadPromise = null;
       }
     },
     async fetchMe(options?: { force?: boolean }) {
@@ -347,7 +387,7 @@ export const useUserStore = defineStore("user", {
         const me = await apiFetch<any>("/auth/me", { method: "GET" });
         this.setUser(me);
         useLocationStore().syncFromUser(me);
-        await this.loadPermissionsForCurrentUser();
+        await this.loadPermissionsForCurrentUser({ force });
         this.lastUserFetchAt = Date.now();
         return Boolean(this.user.id);
       } catch (error: any) {
@@ -431,6 +471,7 @@ export const useUserStore = defineStore("user", {
       this.lastUserFetchAt = 0;
       this.permissionsLoaded = false;
       this.permissionsLoading = false;
+      this.permissionSections = [];
       this.activePermissionSlugs = [];
       useLocationStore().reset();
       try {

@@ -5,6 +5,7 @@ import { navigateTo, useHead } from "#imports";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
 import { type RoleSelectItem, useRolePermissionsApi } from "@/composables/useRolePermissions";
+import { formatUzPhoneInput } from "~/utils/phone";
 
 useHead({ title: "Редактирование сотрудника | Konkurent" });
 
@@ -54,6 +55,11 @@ const can_switch_shops = ref(false);
 const roleOptions = ref<RoleSelectItem[]>([]);
 const companyRoleOptions = ref<RoleSelectItem[]>([]);
 const rolesLoading = ref(false);
+
+watch(phone, (value) => {
+  const formatted = formatUzPhoneInput(value);
+  if (formatted !== value) phone.value = formatted;
+});
 
 const shopOptions = computed(() =>
   (userStore.user.shops || []).map((shop) => ({
@@ -279,7 +285,7 @@ async function fetchUser() {
 
     firstName.value = user?.first_name || "";
     lastName.value = user?.last_name || "";
-    phone.value = String(user?.phone_number || "");
+    phone.value = formatUzPhoneInput(user?.phone_number);
     role.value = normalizeBaseRole(user);
     crm_role_id.value = normalizeRoleId(user) || roleOptions.value[0]?.id || "";
     current_shop_id.value = String(
@@ -335,6 +341,9 @@ async function saveMainData() {
     });
     serverOk.value = "Данные сотрудника сохранены";
     await fetchUser();
+    if (String(id.value) === String(userStore.user.id ?? "")) {
+      await userStore.fetchMe({ force: true });
+    }
   } catch (e: any) {
     serverError.value = e?.data?.message || e?.message || "Ошибка сохранения";
   } finally {
@@ -352,7 +361,10 @@ async function savePhonePassword() {
 
   try {
     const payload: any = {};
-    if (phone.value) payload.phone_number = String(phone.value).replace(/\D/g, "");
+    if (phone.value) {
+      const digits = String(phone.value).replace(/\D/g, "");
+      payload.phone_number = digits.length === 9 ? `998${digits}` : digits;
+    }
     if (password.value) payload.password = String(password.value);
 
     await apiFetch(`/users/${encodeURIComponent(String(id.value))}`, {
@@ -524,7 +536,7 @@ function goBack() {
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium text-[#d6d6d6]">Телефон</label>
-                <input v-model="phone" type="tel" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" placeholder="998901112233" />
+                <input v-model="phone" type="tel" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" placeholder="94 612 08 44" />
               </div>
 
               <div class="flex flex-col gap-2">

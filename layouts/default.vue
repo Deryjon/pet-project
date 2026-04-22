@@ -12,7 +12,9 @@ const route = useRoute();
 const { isPageLoading } = usePageLoader();
 const mobileSidebarOpen = ref(false);
 const isMobileViewport = ref(false);
-const pageContentLoading = computed(() => userStore.initializing || isPageLoading.value);
+const pageContentLoading = computed(
+  () => userStore.initializing || (userStore.permissionsLoading && !userStore.permissionsLoaded) || isPageLoading.value,
+);
 
 const syncViewport = () => {
   isMobileViewport.value = window.innerWidth < 1024;
@@ -44,12 +46,8 @@ const sidebarPositionClass = computed(() => {
 
 watch(
   () => route.path,
-  async () => {
+  () => {
     mobileSidebarOpen.value = false;
-
-    if (userStore.token && !userStore.initializing) {
-      await userStore.fetchMe({ force: true });
-    }
   }
 );
 
@@ -60,8 +58,6 @@ watch([isMobileViewport, mobileSidebarOpen], ([mobile, open]) => {
 onMounted(() => {
   if (!userStore.user.id && !userStore.initializing) {
     userStore.init();
-  } else if (userStore.token && !userStore.initializing) {
-    userStore.fetchMe({ force: true });
   }
   syncViewport();
   window.addEventListener("resize", syncViewport);

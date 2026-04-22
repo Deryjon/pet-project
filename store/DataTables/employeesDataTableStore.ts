@@ -8,6 +8,7 @@ import {
 } from "@tanstack/vue-table";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 type RawEmployee = {
   id?: number | string;
@@ -18,6 +19,9 @@ type RawEmployee = {
   name?: string;
   phone_number?: string;
   role_name?: string;
+  crm_role?: {
+    name?: string;
+  };
   roles?: Array<{
     role_id?: string;
     role?: {
@@ -89,7 +93,7 @@ function getRoleName(user: RawEmployee) {
     ? compactTextList(user.roles.map((item) => item?.role?.name || item?.role_id))
     : "";
 
-  return user.role_name || fromRoles || "—";
+  return user.crm_role?.name || user.role_name || fromRoles || "—";
 }
 
 function getAvailableShopNames(user: RawEmployee) {
@@ -201,7 +205,10 @@ export const useEmployeesDataTableStore = defineStore(
     const canCreateEmployees = computed(() => can("employee-create"));
     const canEditEmployees = computed(() => can("employee-edit"));
     const canDeleteEmployees = computed(() => can("employee-delete"));
-    const canManageEmployees = computed(() => canCreateEmployees.value || canEditEmployees.value);
+    const canBlockEmployees = computed(() => can("employee-block"));
+    const canManageEmployees = computed(
+      () => canCreateEmployees.value || canEditEmployees.value || canBlockEmployees.value,
+    );
 
     const filteredData = computed(() => rawData.value);
     const totalPages = computed(() =>
@@ -265,7 +272,7 @@ export const useEmployeesDataTableStore = defineStore(
           return {
             id: u.id ?? u.phone_number,
             name: (u.name || fullName || "").trim(),
-            phone_number: u.phone_number || "",
+            phone_number: formatUzPhoneDisplay(u.phone_number) || "",
             role_name: getRoleName(u),
             branch_title: getAvailableShopNames(u),
             status_label: getEmployeeStatus(u, employeeStatusFilter.value),
@@ -366,7 +373,7 @@ export const useEmployeesDataTableStore = defineStore(
     }
 
     async function pauseEmployee(row: any) {
-      if (!canEditEmployees.value) return;
+      if (!canBlockEmployees.value) return;
 
       const id = idFor(row);
       if (!id) return;
@@ -381,7 +388,7 @@ export const useEmployeesDataTableStore = defineStore(
     }
 
     async function startEmployee(row: any) {
-      if (!canEditEmployees.value) return;
+      if (!canBlockEmployees.value) return;
 
       const id = idFor(row);
       if (!id) return;
@@ -465,7 +472,7 @@ export const useEmployeesDataTableStore = defineStore(
         id: "actions",
         header: "Действия",
         cell: ({ row }: any) => {
-          if (!canEditEmployees.value && !canDeleteEmployees.value) {
+          if (!canEditEmployees.value && !canDeleteEmployees.value && !canBlockEmployees.value) {
             return h("span", { class: "text-[#8f8f8f]" }, "Недоступно");
           }
 
@@ -499,7 +506,7 @@ export const useEmployeesDataTableStore = defineStore(
             return h("div", { class: "flex gap-2" }, actionButtons);
           }
 
-          if (activeTab === "blocked" && canEditEmployees.value) {
+          if (activeTab === "blocked" && canBlockEmployees.value) {
             actionButtons.push(
               h(
                 "button",
@@ -522,7 +529,7 @@ export const useEmployeesDataTableStore = defineStore(
                 actionIcon("play"),
               ),
             );
-          } else if (canEditEmployees.value) {
+          } else if (canBlockEmployees.value) {
             actionButtons.push(
               h(
                 "button",
@@ -640,6 +647,7 @@ export const useEmployeesDataTableStore = defineStore(
       canCreateEmployees,
       canEditEmployees,
       canDeleteEmployees,
+      canBlockEmployees,
       table,
       fetchData,
       previousPage,

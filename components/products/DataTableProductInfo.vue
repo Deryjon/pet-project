@@ -26,6 +26,7 @@ const footerActions = [
 ];
 
 const selectedProduct = computed(() => store.selectedProduct);
+const canViewSupplyPrice = computed(() => store.canViewSupplyPrice);
 const showProductSidebar = computed({
   get: () => !!store.selectedProduct,
   set: (isOpen: boolean) => {
@@ -185,20 +186,24 @@ const tableSections = computed<TableSection[]>(() => {
   if (!p) return [];
 
   const supplierOrStore = p.suppliers || "-";
-  const purchasePrice = Number(p.purchase_price ?? 0);
-  const salePrice = Number(p.sale_price ?? 0);
-  const markup =
-    purchasePrice > 0
-      ? `${(((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(2)} %`
-      : "-";
 
-  return [
+  const sections: TableSection[] = [
     {
       title: "История продукта",
       columns: ["Дата", "Действие", "Кол-во", "Магазин"],
       rows: productHistoryRows.value,
     },
-    {
+  ];
+
+  if (canViewSupplyPrice.value) {
+    const purchasePrice = Number(p.purchase_price ?? 0);
+    const salePrice = Number(p.sale_price ?? 0);
+    const markup =
+      purchasePrice > 0
+        ? `${(((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(2)} %`
+        : "-";
+
+    sections.push({
       title: "Цены",
       columns: [
         "Источник",
@@ -218,13 +223,29 @@ const tableSections = computed<TableSection[]>(() => {
           formatUZS(p.discount_price),
         ],
       ],
-    },
-    {
-      title: "Остатки",
-      columns: ["Магазин", "Активные", "Неактивные", "Малый остаток"],
-      rows: stockRows.value,
-    },
-  ];
+    });
+  } else {
+    sections.push({
+      title: "Цены",
+      columns: ["Источник", "Цена продажи", "Оптовая", "Скидочная"],
+      rows: [
+        [
+          supplierOrStore,
+          formatUZS(p.sale_price),
+          "-",
+          formatUZS(p.discount_price),
+        ],
+      ],
+    });
+  }
+
+  sections.push({
+    title: "Остатки",
+    columns: ["Магазин", "Активные", "Неактивные", "Малый остаток"],
+    rows: stockRows.value,
+  });
+
+  return sections;
 });
 
 const characteristics = computed(() => [

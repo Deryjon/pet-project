@@ -37,6 +37,7 @@ type CatalogField = {
 };
 
 export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () => {
+  const { can } = useAccessControl();
   const rawData = ref<any[]>([]);
   const globalFilter = ref("");
   const loading = ref(false);
@@ -72,6 +73,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   const freePrice = ref(false);
 
   const locationStore = useLocationStore();
+  const canViewSupplyPrice = computed(() => can("product-supply-price"));
 
   const shopOptions = computed<CatalogFilterOption[]>(() => {
     const fromLocations = locationStore.locations.map((location) => ({
@@ -206,8 +208,8 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         supplierIds: resolveSelectedValues(filters.value.supplier, supplierOptions.value),
         sku: filters.value.article || undefined,
         measurementType: resolveSingleValue(filters.value.unit, unitOptions.value),
-        supplyPriceFrom: parseNumber(prices.value.supply.min),
-        supplyPriceTo: parseNumber(prices.value.supply.max),
+        supplyPriceFrom: canViewSupplyPrice.value ? parseNumber(prices.value.supply.min) : undefined,
+        supplyPriceTo: canViewSupplyPrice.value ? parseNumber(prices.value.supply.max) : undefined,
         retailPriceFrom: parseNumber(prices.value.sale.min),
         retailPriceTo: parseNumber(prices.value.sale.max),
         wholesalePrice: parseNumber(prices.value.wholesale.min),
@@ -417,7 +419,15 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       return filteredData.value;
     },
     get columns() {
-      return [columns.value[0], ...buildCatalogColumns(fields.value, placeholderImgUrl, formatUZS)];
+      return [
+        columns.value[0],
+        ...buildCatalogColumns(
+          fields.value,
+          placeholderImgUrl,
+          formatUZS,
+          canViewSupplyPrice.value,
+        ),
+      ];
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -506,6 +516,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     totalPages,
     statusFilters,
     statsCards,
+    canViewSupplyPrice,
     table,
     selectedProduct,
     showProductSidebar,
@@ -689,13 +700,19 @@ function buildCatalogColumns(
   serverFields: CatalogField[],
   placeholderImgUrl: string,
   formatUZS: (value: unknown) => string,
+  canViewSupplyPrice: boolean,
 ) {
   const activeFields = serverFields
-    .filter((field) => field?.name && field?.is_active !== false)
+    .filter(
+      (field) =>
+        field?.name &&
+        field?.is_active !== false &&
+        (canViewSupplyPrice || !isSupplyPriceFieldName(field.name)),
+    )
     .sort((a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0));
 
   const mapped = activeFields
-    .map((field) => createCatalogColumn(field, placeholderImgUrl, formatUZS))
+    .map((field) => createCatalogColumn(field, placeholderImgUrl, formatUZS, canViewSupplyPrice))
     .filter(Boolean);
 
   if (mapped.length) {
@@ -709,7 +726,9 @@ function buildCatalogColumns(
     createTextColumn("category", "Категория"),
     createTextColumn("brand", "Бренд"),
     createQuantityColumn("quantity", "Кол-во"),
-    createMoneyColumn("purchase_price", "Цена поставки", formatUZS),
+    ...(canViewSupplyPrice
+      ? [createMoneyColumn("purchase_price", "Цена поставки", formatUZS)]
+      : []),
     createMoneyColumn("sale_price", "Цена продажи", formatUZS),
   ].filter(Boolean);
 }
@@ -718,6 +737,7 @@ function createCatalogColumn(
   field: CatalogField,
   placeholderImgUrl: string,
   formatUZS: (value: unknown) => string,
+  canViewSupplyPrice: boolean,
 ) {
   const fieldName = String(field.name ?? "").trim();
 
@@ -735,6 +755,7 @@ function createCatalogColumn(
     case "Оптовая цена":
       return createMoneyColumn("wholesale_price", fieldName, formatUZS);
     case "Цена поставки":
+      if (!canViewSupplyPrice) return null;
       return createMoneyColumn("purchase_price", fieldName, formatUZS);
     case "Цена продажи":
       return createMoneyColumn("sale_price", fieldName, formatUZS);
@@ -884,6 +905,10 @@ function getCatalogColumnStyle(header: string) {
     default:
       return { minWidth: "170px", width: "170px" };
   }
+}
+
+function isSupplyPriceFieldName(value: unknown) {
+  return String(value ?? "").trim() === "Цена поставки";
 }
 
 function getStatusCount(source: Record<string, unknown>, key: string) {

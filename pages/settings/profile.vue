@@ -4,6 +4,7 @@ import { useHead } from "#imports";
 import { storeToRefs } from "pinia";
 import { useUserStore } from "@/store/useUserStore";
 import { useApi } from "~/composables/useApi";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 useHead({ title: "Настройки профиля | Konkurent" });
 
@@ -64,6 +65,10 @@ const profileName = computed(() => {
     user.value.name ||
     "Пользователь"
   );
+});
+
+const displayPhone = computed(() => {
+  return formatUzPhoneDisplay(user.value.phone) || "Телефон не указан";
 });
 
 function clearMessages() {
@@ -267,8 +272,10 @@ onBeforeUnmount(revokePreviewUrl);
 
         <div>
           <p class="text-[20px] font-semibold text-white">{{ profileName }}</p>
-          <p class="text-sm text-[#b7c3d7]">{{ user.phone || "Телефон не указан" }}</p>
-          <p class="text-sm text-[#7ba9d8]">{{ user.role || "Роль не указана" }}</p>
+          <p class="text-sm text-[#b7c3d7]">{{ displayPhone }}</p>
+          <p class="text-sm text-[#7ba9d8]">
+            {{ user.roleName || user.crmRole?.name || user.role || "Роль не указана" }}
+          </p>
         </div>
       </div>
     </div>

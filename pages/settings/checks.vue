@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useHead } from "#imports";
 import { usePrintSettingsStore } from "@/store/printSettings";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 useHead({ title: "Настройки чеков | Konkurent" });
 
@@ -16,6 +17,8 @@ const receiptPreviewLines = computed(() => [
 const previewTotal = computed(() =>
   receiptPreviewLines.value.reduce((sum, line) => sum + line.total, 0),
 );
+
+const displayPhone = computed(() => formatUzPhoneDisplay(settings.phone) || settings.phone);
 
 function save() {
   printStore.saveSettings();
@@ -224,7 +227,7 @@ function save() {
             <div v-if="settings.showShopName && (settings.shopName || settings.address)" class="center muted">
               {{ settings.shopName || settings.address }}
             </div>
-            <div v-if="settings.phone" class="center muted">{{ settings.phone }}</div>
+            <div v-if="settings.phone" class="center muted">{{ displayPhone }}</div>
             <div class="dash"></div>
             <div>Чек: TEST-001</div>
             <div>Дата: {{ new Date().toLocaleString("ru-RU") }}</div>

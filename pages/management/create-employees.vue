@@ -3,15 +3,14 @@ import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useHead, navigateTo } from "#imports";
 import EmployeeCreateForm from "@/components/employees/EmployeeCreateForm.vue";
-import { useUserStore } from "@/store/useUserStore";
 
 useHead({ title: "Создать сотрудника | Konkurent" });
 
 const router = useRouter();
-const userStore = useUserStore();
+const { can } = useAccessControl();
 
 onMounted(async () => {
-  if (!userStore.isAdmin) {
+  if (!can("employee-create")) {
     await navigateTo("/management/employees");
   }
 });
@@ -31,7 +30,7 @@ function handleCreated() {
     </div>
 
     <EmployeeCreateForm
-      v-if="userStore.isAdmin"
+      v-if="can('employee-create')"
       :showCancel="true"
       @cancel="router.push('/management/employees')"
       @created="handleCreated"

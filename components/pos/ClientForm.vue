@@ -44,9 +44,9 @@ const search = ref("");
 const selectedClient = ref<any>(null);
 
 const clients = ref([
-  { id: 1, name: "Иван Иванов", phone: "+99890 123 45 67" },
-  { id: 2, name: "Петр Петров", phone: "+99891 765 43 21" },
-  { id: 3, name: "Саша Сидоров", phone: "+99893 111 22 33" },
+  { id: 1, name: "Иван Иванов", phone: "+998 90 123 45 67" },
+  { id: 2, name: "Петр Петров", phone: "+998 91 765 43 21" },
+  { id: 3, name: "Саша Сидоров", phone: "+998 93 111 22 33" },
 ]);
 
 const filteredClients = computed(() => {

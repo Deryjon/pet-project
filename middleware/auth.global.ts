@@ -1,5 +1,5 @@
 import { useUserStore } from "~/store/useUserStore";
-import { routeCanAccess } from "~/composables/useAccessControl";
+import { firstAllowedRbacRoute, routeCanAccess } from "~/composables/useAccessControl";
 
 function isPlatformRoute(path: string) {
   return path === "/platform" || path.startsWith("/platform/");
@@ -66,6 +66,19 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(getHomeRoute(userStore));
   }
 
+  if (path === "/403" && hasCrmAccess) {
+    if (!userStore.permissionsLoaded) {
+      await userStore.loadPermissionsForCurrentUser();
+    }
+
+    const from = typeof to.query.from === "string" ? to.query.from : "";
+    if (from && routeCanAccess(from, userStore.can)) {
+      return navigateTo(from);
+    }
+
+    return;
+  }
+
   if (platformRoute) {
     if (!hasPlatformAccess) {
       return navigateTo(hasCrmAccess ? "/" : "/platform/login");
@@ -78,7 +91,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(hasPlatformAccess ? "/platform" : "/auth/login");
   }
 
-  if (!authRoute && hasCrmAccess && !routeCanAccess(path, userStore.can)) {
-    return navigateTo("/403");
+  if (!authRoute && hasCrmAccess) {
+    if (!userStore.permissionsLoaded) {
+      await userStore.loadPermissionsForCurrentUser();
+    }
+
+    if (path === "/" && !routeCanAccess(path, userStore.can)) {
+      return navigateTo(firstAllowedRbacRoute(userStore.can));
+    }
+
+    if (!routeCanAccess(path, userStore.can)) {
+      return navigateTo({
+        path: "/403",
+        query: { from: to.fullPath },
+      });
+    }
   }
 });

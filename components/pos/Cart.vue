@@ -235,6 +235,7 @@ import { storeToRefs } from "pinia";
 import { useCartStore } from "@/store/cart";
 import { useApi } from "~/composables/useApi";
 import CartItem from "./CartItem.vue";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 type Seller = {
   id: string | number;
@@ -319,8 +320,8 @@ async function openSellerModal() {
       return {
         id: user?.id ?? user?.phone_number ?? `seller-${index}`,
         name: fullName || "Без имени",
-        role: String(user?.role_name || user?.role || user?.branch_title || ""),
-        phone: String(user?.phone_number || user?.phone || ""),
+        role: String(user?.crm_role?.name || user?.role_name || user?.role || user?.branch_title || ""),
+        phone: formatUzPhoneDisplay(user?.phone_number || user?.phone),
       };
     });
   } catch (_) {
