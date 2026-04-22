@@ -15,13 +15,14 @@ useHead({ title: "Сотрудники компании | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
-const { getCompany, getCompanyShops, getCompanyUsers, getCompanyRoles, createCompanyUser, updateUser, deleteUser } = usePlatformAdminApi();
+const { getCompany, getCompanyShops, getCompanyUsers, getCompanyRoles, updateCompanyRole, createCompanyUser, updateUser, deleteUser } = usePlatformAdminApi();
 const { softInputUi, softSelectUi } = usePlatformFormUi();
 const toast = useToast();
 
 const loading = ref(true);
 const rolesLoading = ref(false);
 const saving = ref(false);
+const savingRoleId = ref("");
 const deletingId = ref("");
 const errorMessage = ref("");
 const successMessage = ref("");
@@ -45,6 +46,7 @@ const form = reactive({
   currentShopId: "",
   allowedShopIds: [] as string[],
   canSwitchShops: false,
+  is_active: true,
 });
 
 function formatRoleLabel(roleValue: string) {
@@ -73,6 +75,10 @@ const companyRoleOptions = computed(() => {
 });
 
 const tableRoleOptions = computed(() => [{ label: "Все роли", value: "all" }, ...companyRoleOptions.value]);
+const companyRolesSorted = computed(() =>
+  [...companyRoles.value].sort((a, b) => a.name.localeCompare(b.name, "ru")),
+);
+
 const statusOptions = [
   { label: "Все статусы", value: "all" },
   { label: "Активные", value: "active" },
@@ -177,9 +183,9 @@ async function loadData() {
   }
 
   try {
-    companyRoles.value = await getCompanyRoles();
+    companyRoles.value = await getCompanyRoles(companyId.value);
     if (!editing.value && !companyRoleOptions.value.some((option) => option.value === form.role)) {
-      form.role = companyRoleOptions.value[0]?.value || form.role;
+      form.role = companyRoleOptions.value[0]?.value || "";
     }
   } catch (error: any) {
     companyRoles.value = [];
@@ -190,16 +196,43 @@ async function loadData() {
   }
 }
 
+async function toggleRoleAdmin(roleItem: PlatformRole, next: boolean) {
+  if (!roleItem?.id || savingRoleId.value) return;
+
+  savingRoleId.value = roleItem.id;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const updatedRole = await updateCompanyRole(companyId.value, roleItem.id, {
+      name: roleItem.name,
+      description: roleItem.description,
+      is_admin: next,
+    });
+
+    companyRoles.value = companyRoles.value.map((item) =>
+      item.id === roleItem.id ? { ...item, isAdmin: updatedRole.isAdmin } : item,
+    );
+    successMessage.value = next ? "Роль получила права администратора" : "Права администратора у роли отключены";
+  } catch (error: any) {
+    errorMessage.value = resolveError(error, "Не удалось изменить флаг администратора роли");
+    toast.add({ title: "Не удалось изменить роль", description: errorMessage.value, color: "error" });
+  } finally {
+    savingRoleId.value = "";
+  }
+}
+
 function resetForm() {
   form.firstName = "";
   form.lastName = "";
   form.phone = "";
   form.password = "";
-  form.role = companyRoleOptions.value[0]?.value || "employee";
+  form.role = companyRoleOptions.value[0]?.value || "";
   form.birthDate = "";
   form.currentShopId = shops.value[0]?.id || "";
   form.allowedShopIds = form.currentShopId ? [form.currentShopId] : [];
   form.canSwitchShops = false;
+  form.is_active = true;
 }
 
 function normalizePhoneForInput(phone: string) {
@@ -223,7 +256,7 @@ function openEdit(user: PlatformUser) {
   form.lastName = user.lastName;
   form.phone = normalizePhoneForInput(user.phone);
   form.password = "";
-  form.role = user.roleId || "employee";
+  form.role = user.crmRoleId || user.roleId || "";
   form.birthDate = user.birthDate || "";
   form.currentShopId = user.currentShopId || shops.value[0]?.id || "";
   form.allowedShopIds = user.allowedShopIds.length
@@ -232,6 +265,7 @@ function openEdit(user: PlatformUser) {
       ? [form.currentShopId]
       : [];
   form.canSwitchShops = user.canSwitchShops;
+  form.is_active = user.is_active;
   if (form.currentShopId && !form.allowedShopIds.includes(form.currentShopId)) {
     form.allowedShopIds.push(form.currentShopId);
   }
@@ -267,11 +301,13 @@ function buildPayload(): PlatformUserPayload {
     first_name: form.firstName.trim(),
     last_name: form.lastName.trim(),
     phone_number: `+998${form.phone.replace(/\D/g, "")}`,
-    role: form.role,
+    role: "employee",
+    crm_role_id: form.role || undefined,
     company_id: companyId.value,
     current_shop_id: form.currentShopId,
     allowed_shop_ids: [...form.allowedShopIds],
     can_switch_shops: form.canSwitchShops,
+    is_active: Boolean(form.is_active),
   };
 
   if (form.password.trim()) {
@@ -291,6 +327,13 @@ async function submit() {
   successMessage.value = "";
 
   const payload = buildPayload();
+
+  if (!payload.crm_role_id) {
+    toast.add({ title: "Выберите CRM-роль сотрудника", color: "warning" });
+    errorMessage.value = "Выберите CRM-роль сотрудника.";
+    saving.value = false;
+    return;
+  }
 
   if (payload.current_shop_id && !payload.allowed_shop_ids?.includes(payload.current_shop_id)) {
     toast.add({ title: "Проверьте филиалы сотрудника", color: "warning" });
@@ -383,6 +426,50 @@ watch(
     <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">
       {{ successMessage }}
     </div>
+
+    <DataPanel title="Роли компании" description="Администратор компании включает админ-доступ для всех сотрудников с этой CRM-ролью. Активность конкретного сотрудника меняется в форме сотрудника.">
+      <div v-if="rolesLoading" class="space-y-3">
+        <div v-for="item in 3" :key="item" class="h-16 animate-pulse rounded-[22px] bg-slate-100" />
+      </div>
+
+      <EmptyState v-else-if="!companyRolesSorted.length" title="Роли не найдены" description="У компании пока нет CRM-ролей." icon="heroicons:shield-check" />
+
+      <div v-else class="overflow-x-auto">
+        <table class="min-w-full border-separate border-spacing-y-3">
+          <thead>
+            <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              <th class="px-4 py-2">Роль</th>
+              <th class="px-4 py-2">Описание</th>
+              <th class="px-4 py-2">Администратор компании</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="roleItem in companyRolesSorted" :key="roleItem.id">
+              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
+                <p class="font-semibold text-slate-950">{{ roleItem.name || roleItem.id }}</p>
+                <p class="mt-1 text-[12px] text-slate-400">{{ roleItem.id }}</p>
+              </td>
+              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ roleItem.description || "—" }}</td>
+              <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
+                <label class="inline-flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-[14px] font-medium text-slate-700 ring-1 ring-slate-200">
+                  <input
+                    :checked="roleItem.isAdmin"
+                    type="checkbox"
+                    class="h-4 w-4 accent-teal-600"
+                    :disabled="savingRoleId === roleItem.id"
+                    @change="toggleRoleAdmin(roleItem, ($event.target as HTMLInputElement).checked)"
+                  />
+                  <span>
+                    <span class="block">{{ savingRoleId === roleItem.id ? "Сохраняем..." : roleItem.isAdmin ? "Включен" : "Выключен" }}</span>
+                    <span class="block text-[12px] font-normal text-slate-500">Для всей роли</span>
+                  </span>
+                </label>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </DataPanel>
 
     <DataPanel title="Сотрудники" description="Фильтруйте список и управляйте доступом по филиалам.">
       <template #toolbar>
@@ -485,6 +572,14 @@ watch(
         <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
           <input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />
           Может переключать филиалы
+        </label>
+
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
+          <input v-model="form.is_active" type="checkbox" class="h-4 w-4 accent-teal-600" />
+          <span>
+            <span class="block font-semibold">Активен</span>
+            <span class="block text-[12px] text-slate-500">Включает или выключает доступ конкретного сотрудника.</span>
+          </span>
         </label>
 
         <div class="space-y-2 md:col-span-2">

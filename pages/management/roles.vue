@@ -1,6 +1,7 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, h, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useHead } from "#imports";
+import { useRoute } from "vue-router";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -13,6 +14,7 @@ import BaseDataTableHeader from "@/components/BaseDataTableHeader.vue";
 import BaseDataTablePagination from "@/components/BaseDataTablePagination.vue";
 import {
   collectActivePermissionIds,
+  type PermissionItem,
   type PermissionSection,
   type RoleSelectItem,
   useRolePermissionsApi,
@@ -25,11 +27,15 @@ type PanelMode = "create" | "edit";
 const {
   createRole,
   updateRole,
+  deleteRole,
   getRolePermissions,
   updateRolePermissions,
   getRolesForSelect,
 } = useRolePermissionsApi();
 const toast = useToast();
+const { can } = useAccessControl();
+const route = useRoute();
+const managedCompanyId = computed(() => String(route.query.company_id || "").trim());
 
 const loadingRoles = ref(false);
 const loadingPermissions = ref(false);
@@ -43,10 +49,11 @@ const searchQuery = ref("");
 const isPanelOpen = ref(false);
 const panelMode = ref<PanelMode>("create");
 const selectedRoleId = ref("");
-const saveMode = ref<"sections" | "permission_ids">("sections");
+const saveMode = ref<"sections" | "permission_ids">("permission_ids");
 
 const roleName = ref("");
 const roleDescription = ref("");
+const roleIsAdmin = ref(false);
 const roles = ref<RoleSelectItem[]>([]);
 const sections = ref<PermissionSection[]>([]);
 const tableSorting = ref<any[]>([]);
@@ -173,6 +180,9 @@ function nextRolesPage() {
 const activePermissionCount = computed(() => collectActivePermissionIds(sections.value).length);
 const hasPermissions = computed(() => sections.value.length > 0);
 const canSubmitRole = computed(() => !!String(roleName.value || "").trim());
+const canCreateRole = computed(() => can("role-create"));
+const canEditRole = computed(() => can("role-edit"));
+const canDeleteRole = computed(() => can("management-role-delete"));
 
 function copySections(input: PermissionSection[]): PermissionSection[] {
   return JSON.parse(JSON.stringify(input || []));
@@ -190,16 +200,17 @@ function clearMessages() {
 function resetForm() {
   roleName.value = "";
   roleDescription.value = "";
+  roleIsAdmin.value = false;
   selectedRoleId.value = "";
   sections.value = [];
-  saveMode.value = "sections";
+  saveMode.value = "permission_ids";
 }
 
 async function loadRoles() {
   loadingRoles.value = true;
 
   try {
-    const data = await getRolesForSelect();
+    const data = await getRolesForSelect({ companyId: managedCompanyId.value });
     roles.value = [...data].sort((a, b) => a.name.localeCompare(b.name, "ru"));
   } catch (error: any) {
     setServerError(error, "Не удалось загрузить список ролей.");
@@ -217,7 +228,7 @@ async function loadPermissions(roleId: string) {
   loadingPermissions.value = true;
 
   try {
-    const response = await getRolePermissions(roleId);
+    const response = await getRolePermissions(roleId, { companyId: managedCompanyId.value });
     sections.value = copySections(response.sections);
   } catch (error: any) {
     sections.value = [];
@@ -228,6 +239,7 @@ async function loadPermissions(roleId: string) {
 }
 
 function openCreatePanel() {
+  if (!canCreateRole.value) return;
   clearMessages();
   resetForm();
   panelMode.value = "create";
@@ -235,12 +247,14 @@ function openCreatePanel() {
 }
 
 async function openEditPanel(role: RoleSelectItem) {
+  if (!canEditRole.value) return;
   clearMessages();
   panelMode.value = "edit";
   isPanelOpen.value = true;
   selectedRoleId.value = role.id;
   roleName.value = role.name || "";
   roleDescription.value = role.description || "";
+  roleIsAdmin.value = Boolean(role.is_admin);
   sections.value = [];
   await loadPermissions(role.id);
 }
@@ -251,6 +265,9 @@ function closePanel() {
 
 async function submitRole() {
   clearMessages();
+
+  if (panelMode.value === "create" && !canCreateRole.value) return;
+  if (panelMode.value === "edit" && !canEditRole.value) return;
 
   const name = String(roleName.value || "").trim();
   const description = String(roleDescription.value || "").trim();
@@ -264,7 +281,7 @@ async function submitRole() {
 
   try {
     if (panelMode.value === "create") {
-      const roleId = await createRole({ name, description });
+      const roleId = await createRole({ name, description, is_admin: roleIsAdmin.value, company_id: managedCompanyId.value });
       await loadRoles();
 
       selectedRoleId.value = roleId;
@@ -278,6 +295,8 @@ async function submitRole() {
       id: selectedRoleId.value,
       name,
       description,
+      is_admin: roleIsAdmin.value,
+      company_id: managedCompanyId.value,
     });
 
     await loadRoles();
@@ -291,6 +310,58 @@ async function submitRole() {
   } finally {
     savingRole.value = false;
   }
+}
+
+async function removeRole(role: RoleSelectItem) {
+  if (!canDeleteRole.value || !role?.id) return;
+  if (typeof window !== "undefined" && !window.confirm("Удалить роль?")) return;
+
+  clearMessages();
+  savingRole.value = true;
+
+  try {
+    await deleteRole(role.id, { companyId: managedCompanyId.value });
+    if (selectedRoleId.value === role.id) {
+      closePanel();
+      resetForm();
+    }
+    await loadRoles();
+    serverOk.value = "Роль удалена.";
+  } catch (error: any) {
+    setServerError(error, "Не удалось удалить роль.");
+  } finally {
+    savingRole.value = false;
+  }
+}
+
+function visiblePermissions(permissions: PermissionItem[]) {
+  return permissions.filter((permission) => !permission.hide_from_ui);
+}
+
+function visibleChildren(permission: PermissionItem) {
+  return (permission.children || []).filter((child) => !child.hide_from_ui);
+}
+
+function areAllChildrenActive(permission: PermissionItem) {
+  const children = visibleChildren(permission);
+  return children.length > 0 && children.every((child) => child.is_active);
+}
+
+function areSomeChildrenActive(permission: PermissionItem) {
+  const children = visibleChildren(permission);
+  return children.some((child) => child.is_active);
+}
+
+function isParentChecked(permission: PermissionItem) {
+  const children = visibleChildren(permission);
+  if (!children.length) return permission.is_active;
+  return areAllChildrenActive(permission);
+}
+
+function isParentIndeterminate(permission: PermissionItem) {
+  const children = visibleChildren(permission);
+  if (!children.length) return false;
+  return areSomeChildrenActive(permission) && !areAllChildrenActive(permission);
 }
 
 function togglePermission(sectionId: string, permissionId: string, next: boolean) {
@@ -314,7 +385,9 @@ function toggleChild(sectionId: string, permissionId: string, childId: string, n
   if (!child) return;
 
   child.is_active = next;
-  permission.is_active = permission.children.some((item) => item.is_active);
+  permission.is_active = permission.children.length
+    ? permission.children.every((item) => item.is_active)
+    : next;
 }
 
 async function savePermissions() {
@@ -333,14 +406,14 @@ async function savePermissions() {
   savingPermissions.value = true;
 
   try {
-    if (saveMode.value === "permission_ids") {
-      await updateRolePermissions(selectedRoleId.value, {
-        permission_ids: collectActivePermissionIds(sections.value),
-      });
-    } else {
+    if (saveMode.value === "sections") {
       await updateRolePermissions(selectedRoleId.value, {
         sections: sections.value,
-      });
+      }, { companyId: managedCompanyId.value });
+    } else {
+      await updateRolePermissions(selectedRoleId.value, {
+        permission_ids: collectActivePermissionIds(sections.value),
+      }, { companyId: managedCompanyId.value });
     }
 
     serverOk.value = "Permissions сохранены.";
@@ -396,7 +469,7 @@ onMounted(loadRoles);
             v-model="searchQuery"
             :showSearch="true"
             searchPlaceholder="Поиск по названию, описанию или ID"
-            :createButton="{ label: 'Создать роль', onClick: openCreatePanel }"
+            :createButton="canCreateRole ? { label: 'Создать роль', onClick: openCreatePanel } : undefined"
           />
         </template>
 
@@ -411,7 +484,7 @@ onMounted(loadRoles);
           :table="rolesTable"
           :store="{ loading: loadingRoles }"
           interactiveColumnId="name"
-          :onRowClick="openEditPanel"
+          :onRowClick="canEditRole ? openEditPanel : undefined"
         />
 
         <template #pagination>
@@ -506,6 +579,14 @@ onMounted(loadRoles);
                       placeholder="Роль для кассовой зоны и оформления продаж"
                     />
                   </div>
+
+                  <label class="flex items-center gap-3 rounded-[18px] bg-[#404040] px-5 py-4 text-[15px] font-semibold text-white">
+                    <input v-model="roleIsAdmin" type="checkbox" class="h-4 w-4 accent-sky-400" />
+                    <span>
+                      <span class="block">Администратор компании</span>
+                      <span class="block text-xs font-normal text-[#bdbdbd]">Включает админ-доступ для всех сотрудников с этой CRM-ролью.</span>
+                    </span>
+                  </label>
                 </div>
               </section>
 
@@ -564,13 +645,14 @@ onMounted(loadRoles);
 
                     <div class="space-y-3">
                       <div
-                        v-for="permission in section.permissions"
+                        v-for="permission in visiblePermissions(section.permissions)"
                         :key="permission.id"
                         class="rounded-[18px] border border-white/8 bg-[#383838] p-4"
                       >
                         <label class="flex cursor-pointer items-start gap-3">
                           <input
-                            :checked="permission.is_active"
+                            :checked="isParentChecked(permission)"
+                            :indeterminate.prop="isParentIndeterminate(permission)"
                             type="checkbox"
                             class="mt-1 h-4 w-4 accent-sky-400"
                             @change="togglePermission(section.id, permission.id, ($event.target as HTMLInputElement).checked)"
@@ -588,9 +670,9 @@ onMounted(loadRoles);
                           </span>
                         </label>
 
-                        <div v-if="permission.children.length" class="mt-4 space-y-2 pl-7">
+                        <div v-if="visibleChildren(permission).length" class="mt-4 space-y-2 pl-7">
                           <label
-                            v-for="child in permission.children"
+                            v-for="child in visibleChildren(permission)"
                             :key="child.id"
                             class="flex cursor-pointer items-start gap-3 rounded-[14px] bg-black/10 px-3 py-2 text-sm"
                           >
@@ -634,7 +716,7 @@ onMounted(loadRoles);
               <button
                 type="button"
                 class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
-                :disabled="savingRole || !canSubmitRole"
+                :disabled="savingRole || !canSubmitRole || (panelMode === 'create' ? !canCreateRole : !canEditRole)"
                 @click="submitRole"
               >
                 {{
@@ -652,10 +734,20 @@ onMounted(loadRoles);
                 v-if="panelMode === 'edit'"
                 type="button"
                 class="flex-1 cursor-pointer rounded-[16px] bg-[#1f9d68] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#22885d] disabled:cursor-not-allowed disabled:bg-[#3e735d] disabled:text-white/70"
-                :disabled="savingPermissions || !selectedRoleId || !hasPermissions"
+                :disabled="savingPermissions || !selectedRoleId || !hasPermissions || !canEditRole"
                 @click="savePermissions"
               >
                 {{ savingPermissions ? "Сохранение permissions..." : "Сохранить permissions" }}
+              </button>
+
+              <button
+                v-if="panelMode === 'edit' && canDeleteRole"
+                type="button"
+                class="flex-1 cursor-pointer rounded-[16px] bg-red-600 px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-900 disabled:text-white/70"
+                :disabled="savingRole || !selectedRoleId"
+                @click="removeRole({ id: selectedRoleId, name: roleName, description: roleDescription, code: selectedRoleId, is_admin: roleIsAdmin, company_id: '', deleted_at: 0 })"
+              >
+                Удалить роль
               </button>
             </div>
           </div>

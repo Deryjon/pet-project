@@ -39,9 +39,11 @@ export interface PlatformUser {
   phone: string;
   email: string;
   roleId: string;
+  crmRoleId: string;
   roleName: string;
   role: string;
   status: PlatformStatus;
+  is_active: boolean;
   createdAt: string;
   updatedAt: string;
   birthDate: string;
@@ -76,11 +78,13 @@ export interface PlatformUserPayload {
   phone_number: string;
   password?: string;
   role: string;
+  crm_role_id?: string;
   birth_date?: string;
   company_id?: string;
   current_shop_id?: string;
   allowed_shop_ids?: string[];
   can_switch_shops?: boolean;
+  is_active?: boolean;
 }
 
 function pickArray<T = any>(input: any, keys: string[]): T[] {
@@ -132,6 +136,18 @@ function toStatus(value: any): PlatformStatus {
   }
 
   return "active";
+}
+
+function toBoolean(value: any, fallback = true): boolean {
+  if (typeof value === "boolean") return value;
+  if (value === undefined || value === null || value === "") return fallback;
+
+  const normalized = String(value).trim().toLowerCase();
+  if (["false", "0", "inactive", "disabled", "blocked", "archived"].includes(normalized)) {
+    return false;
+  }
+
+  return true;
 }
 
 function toDate(value: any): string {
@@ -245,11 +261,13 @@ function normalizeUser(raw: any): PlatformUser {
       "",
   ).trim();
   const resolvedRoleId = String(
-    pickValue(raw, ["role_id", "roleId"]) ??
+    pickValue(raw, ["crm_role_id", "crmRoleId"]) ??
+      pickValue(raw, ["role_id", "roleId"]) ??
       pickValue(primaryRole, ["id", "role_id", "roleId"]) ??
       (typeof primaryRole === "string" ? primaryRole : "") ??
       "",
   ).trim();
+  const crmRoleId = String(pickValue(raw, ["crm_role_id", "crmRoleId"]) ?? "").trim();
   const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
   const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
   const fullName =
@@ -261,6 +279,7 @@ function normalizeUser(raw: any): PlatformUser {
   const allowedShopIds = pickArray(raw, ["allowed_shop_ids", "allowedShopIds"]).map((item) =>
     String(item),
   );
+  const isActive = toBoolean(pickValue(raw, ["is_active", "isActive", "status"]), true);
 
   return {
     id: String(pickValue(raw, ["id", "user_id"]) ?? ""),
@@ -271,9 +290,11 @@ function normalizeUser(raw: any): PlatformUser {
     phone: String(pickValue(raw, ["phone_number", "phone"]) ?? ""),
     email: String(raw?.email ?? ""),
     roleId: resolvedRoleId,
+    crmRoleId,
     roleName: resolvedRoleName,
     role: resolvedRoleName,
-    status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
+    status: toStatus(isActive),
+    is_active: isActive,
     createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
     updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
     birthDate: String(pickValue(raw, ["birth_date", "birthDate"]) ?? ""),
@@ -487,9 +508,35 @@ export function usePlatformAdminApi() {
     return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
   }
 
-  async function getCompanyRoles() {
-    const response = await apiFetch<any>("/company/roles", { method: "GET" });
+  async function getCompanyRoles(companyId?: string) {
+    const safeCompanyId = String(companyId || "").trim();
+    const path = safeCompanyId
+      ? `/v2/role?company_id=${encodeURIComponent(safeCompanyId)}`
+      : "/company/roles";
+    const response = await apiFetch<any>(path, { method: "GET" });
     return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
+  }
+
+  async function updateCompanyRole(
+    companyId: string,
+    roleId: string,
+    payload: Partial<{ name: string; description: string; is_admin: boolean }>,
+  ) {
+    const safeCompanyId = String(companyId || "").trim();
+    const response = await apiFetch<any>(
+      `/v2/role/${encodeURIComponent(roleId)}?company_id=${encodeURIComponent(safeCompanyId)}`,
+      {
+        method: "PUT",
+        body: {
+          company_id: safeCompanyId,
+          ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
+          ...(payload.description !== undefined ? { description: String(payload.description).trim() } : {}),
+          ...(payload.is_admin !== undefined ? { is_admin: Boolean(payload.is_admin) } : {}),
+        },
+      },
+    );
+
+    return normalizeRole(response);
   }
 
   async function createCompanyUser(companyId: string, payload: PlatformUserPayload) {
@@ -550,6 +597,7 @@ export function usePlatformAdminApi() {
     createPlatformUser,
     getCompanyUsers,
     getCompanyRoles,
+    updateCompanyRole,
     createCompanyUser,
     updateUser,
     deleteUser,

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
@@ -6,6 +6,7 @@ import BaseDataTableHeader from "../BaseDataTableHeader.vue";
 
 const store = useCatalogDataTableStore();
 const router = useRouter();
+const { can } = useAccessControl();
 
 const globalFilterInput = ref(store.globalFilter);
 const selectedFilter = computed({
@@ -40,7 +41,7 @@ watch(globalFilterInput, (val) => {
     :showSearch="true"
     searchPlaceholder="Артикул, баркод, наименование"
     :showFilters="true"
-    :createButton="{ label: 'Создать', to: '/products/create?page=1' }"
+    :createButton="can('product-create') ? { label: 'Создать', to: '/products/create?page=1' } : undefined"
     @toggleFilters="showFilters = !showFilters"
     :actionButtons="[{ label: 'Действия', onClick: goToActions }]"
     :statFilters="store.statusFilters"
