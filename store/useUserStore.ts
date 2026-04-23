@@ -128,6 +128,7 @@ export const useUserStore = defineStore("user", {
     lastUserFetchAt: 0 as number,
     permissionsLoaded: false as boolean,
     permissionsLoading: false as boolean,
+    permissionsLoadFailed: false as boolean,
     permissionSections: [] as any[],
     activePermissionSlugs: [] as string[],
   }),
@@ -325,6 +326,7 @@ export const useUserStore = defineStore("user", {
       }
 
       this.permissionsLoading = true;
+      this.permissionsLoadFailed = false;
       const hadPermissions = this.activePermissionSlugs.length > 0;
 
       permissionsLoadPromise = (async () => {
@@ -333,6 +335,7 @@ export const useUserStore = defineStore("user", {
             this.permissionSections = [];
             this.activePermissionSlugs = [];
             this.permissionsLoaded = true;
+            this.permissionsLoadFailed = false;
             return;
           }
 
@@ -341,6 +344,7 @@ export const useUserStore = defineStore("user", {
             this.permissionSections = [];
             this.activePermissionSlugs = [];
             this.permissionsLoaded = true;
+            this.permissionsLoadFailed = false;
             return;
           }
 
@@ -353,12 +357,16 @@ export const useUserStore = defineStore("user", {
           this.permissionSections = sections;
           this.activePermissionSlugs = [...collectActiveSlugs(sections)];
           this.permissionsLoaded = true;
+          this.permissionsLoadFailed = false;
         } catch (_) {
           if (!hadPermissions) {
             this.permissionSections = [];
             this.activePermissionSlugs = [];
+            this.permissionsLoaded = false;
+          } else {
+            this.permissionsLoaded = true;
           }
-          this.permissionsLoaded = true;
+          this.permissionsLoadFailed = true;
         }
       })();
 
@@ -471,6 +479,7 @@ export const useUserStore = defineStore("user", {
       this.lastUserFetchAt = 0;
       this.permissionsLoaded = false;
       this.permissionsLoading = false;
+      this.permissionsLoadFailed = false;
       this.permissionSections = [];
       this.activePermissionSlugs = [];
       useLocationStore().reset();

@@ -92,8 +92,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (!authRoute && hasCrmAccess) {
+    if (import.meta.server) {
+      return;
+    }
+
     if (!userStore.permissionsLoaded) {
       await userStore.loadPermissionsForCurrentUser();
+    }
+
+    if (userStore.permissionsLoadFailed) {
+      return;
     }
 
     if (path === "/" && !routeCanAccess(path, userStore.can)) {

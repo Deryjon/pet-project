@@ -494,6 +494,10 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     fetchData({ page: pagination.value.pageIndex + 2 });
   }
 
+  function setPageSize(pageSize: number) {
+    fetchData({ page: 1, pageSize });
+  }
+
   return {
     rawData,
     globalFilter,
@@ -528,6 +532,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     resetFilters,
     previousPage,
     nextPage,
+    setPageSize,
   };
 });
 

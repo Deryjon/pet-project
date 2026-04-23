@@ -23,6 +23,11 @@ const props = defineProps<{
   filtersOpen?: boolean;
   filtersSlot?: boolean;
   actionButtons?: ActionButton[];
+  exportButton?: {
+    label?: string;
+    loading?: boolean;
+    onClick: () => void;
+  };
   createButton?: {
     label: string;
     to?: string;
@@ -152,6 +157,19 @@ function onCreateClick() {
         >
           <Icon name="mynaui:box-solid" class="h-5 w-5 text-[#4993dd]" />
           {{ btn.label }}
+        </UButton>
+      </div>
+
+      <div v-if="exportButton" class="w-full sm:w-auto">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          class="flex w-full cursor-pointer items-center justify-center gap-[10px] rounded-[15px] border border-[#2f6ed6]/50 bg-[#10294f] px-4 py-4 text-[15px] font-bold text-white shadow-[0_0_0_1px_rgba(73,147,221,0.08)] transition-colors duration-300 hover:bg-[#16355f] active:bg-[#16355f] focus-visible:ring-0 sm:w-auto sm:justify-start sm:p-[17px] sm:text-[17px]"
+          :loading="exportButton.loading"
+          @click="exportButton.onClick"
+        >
+          <Icon name="heroicons:arrow-down-tray-20-solid" class="h-5 w-5 text-[#7fb0ff]" />
+          <span class="truncate">{{ exportButton.label || "Excel" }}</span>
         </UButton>
       </div>
 

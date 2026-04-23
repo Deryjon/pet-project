@@ -299,6 +299,10 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     fetchData({ page: pagination.value.pageIndex + 2, pageSize: pagination.value.pageSize });
   }
 
+  function setPageSize(pageSize: number) {
+    fetchData({ page: 1, pageSize });
+  }
+
   watch(globalFilter, () => {
     pagination.value.pageIndex = 0;
   });
@@ -317,5 +321,6 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     openDraft,
     previousPage,
     nextPage,
+    setPageSize,
   };
 });

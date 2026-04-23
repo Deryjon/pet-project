@@ -620,6 +620,13 @@ export const useEmployeesDataTableStore = defineStore(
       table.nextPage();
     }
 
+    function setPageSize(pageSize: number) {
+      pagination.value = {
+        pageIndex: 0,
+        pageSize,
+      };
+    }
+
     function openProduct(row: any) {
       if (!canEditEmployees.value) return;
       editEmployee(row);
@@ -652,6 +659,7 @@ export const useEmployeesDataTableStore = defineStore(
       fetchData,
       previousPage,
       nextPage,
+      setPageSize,
       editEmployee,
       pauseEmployee,
       startEmployee,
