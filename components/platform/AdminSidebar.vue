@@ -7,9 +7,12 @@ const emit = defineEmits<{ (e: "logout"): void; (e: "close"): void }>();
 const route = useRoute();
 
 const items = computed(() => [
-  { label: "Дашборд", to: "/platform", icon: "heroicons:squares-2x2" },
-  { label: "Компании", to: "/platform/companies", icon: "heroicons:building-office-2" },
-  { label: "Суппорты и админы", to: "/platform/users", icon: "heroicons:users" },
+  { label: "Dashboard", to: "/platform", icon: "heroicons:squares-2x2" },
+  { label: "Companies", to: "/platform/companies", icon: "heroicons:building-office-2" },
+  { label: "Platform Users", to: "/platform/users", icon: "heroicons:users" },
+  { label: "Audit", to: "/platform/audit", icon: "heroicons:document-text" },
+  { label: "Settings", to: "/platform/settings", icon: "heroicons:cog-6-tooth" },
+  { label: "Profile", to: "/platform/profile", icon: "heroicons:user-circle" },
 ]);
 
 function isActive(path: string) {
@@ -25,8 +28,8 @@ function isActive(path: string) {
           KP
         </div>
         <div>
-          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Платформа</p>
-          <h2 class="text-[17px] font-semibold text-slate-950">Панель управления</h2>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Platform</p>
+          <h2 class="text-[17px] font-semibold text-slate-950">Control Panel</h2>
         </div>
       </div>
       <UButton
@@ -55,10 +58,10 @@ function isActive(path: string) {
     </nav>
 
     <div class="mt-6 rounded-[24px] bg-slate-950 p-4 text-white shadow-[0_20px_45px_rgba(15,23,42,0.2)]">
-      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Доступ</p>
-      <p class="mt-2 text-[15px] font-semibold">Отдельная админ-панель для платформы.</p>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Access</p>
+      <p class="mt-2 text-[15px] font-semibold">Dedicated admin panel for the platform.</p>
       <p class="mt-2 text-[13px] leading-6 text-slate-300">
-        Здесь собраны компании, филиалы, сотрудники, суппорты и админы платформы.
+        Здесь собраны компании, филиалы, сотрудники, аудит и системные настройки платформы.
       </p>
       <UButton
         color="neutral"
@@ -66,7 +69,7 @@ function isActive(path: string) {
         class="mt-4 w-full cursor-pointer justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15"
         @click="emit('logout')"
       >
-        Выйти
+        Sign out
       </UButton>
     </div>
   </aside>

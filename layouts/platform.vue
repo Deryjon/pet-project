@@ -3,10 +3,10 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import AdminSidebar from "@/components/platform/AdminSidebar.vue";
 import AdminTopbar from "@/components/platform/AdminTopbar.vue";
-import { usePlatformAdminSession } from "@/composables/usePlatformAdmin";
+import { usePlatformAuth } from "@/composables/usePlatformAuth";
 
 const router = useRouter();
-const { authenticated, restore, signOut } = usePlatformAdminSession();
+const { authenticated, restore, signOut } = usePlatformAuth();
 const mobileSidebarOpen = ref(false);
 const checkingAccess = ref(true);
 

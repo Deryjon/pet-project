@@ -126,6 +126,9 @@ export const useUserStore = defineStore("user", {
     initializing: false as boolean,
     refreshingUser: false as boolean,
     lastUserFetchAt: 0 as number,
+    permissions: [] as string[],
+    roles: [] as string[],
+    currentTenantId: null as string | null,
     permissionsLoaded: false as boolean,
     permissionsLoading: false as boolean,
     permissionsLoadFailed: false as boolean,
@@ -298,6 +301,8 @@ export const useUserStore = defineStore("user", {
         previousUserId !== nextUserId || previousCrmRoleId !== nextCrmRoleId;
 
       this.user = normalized as typeof this.user;
+      this.roles = [...normalizedRoles];
+      this.currentTenantId = normalized.companyId || null;
       if (accessScopeChanged) {
         this.permissionsLoaded = false;
       }
@@ -356,12 +361,14 @@ export const useUserStore = defineStore("user", {
           const sections = Array.isArray(response?.sections) ? response.sections : [];
           this.permissionSections = sections;
           this.activePermissionSlugs = [...collectActiveSlugs(sections)];
+          this.permissions = [...this.activePermissionSlugs];
           this.permissionsLoaded = true;
           this.permissionsLoadFailed = false;
         } catch (_) {
           if (!hadPermissions) {
             this.permissionSections = [];
             this.activePermissionSlugs = [];
+            this.permissions = [];
             this.permissionsLoaded = false;
           } else {
             this.permissionsLoaded = true;
@@ -482,6 +489,9 @@ export const useUserStore = defineStore("user", {
       this.permissionsLoadFailed = false;
       this.permissionSections = [];
       this.activePermissionSlugs = [];
+      this.permissions = [];
+      this.roles = [];
+      this.currentTenantId = null;
       useLocationStore().reset();
       try {
         const tokenCookie = useCookie<string | null>("auth_token");

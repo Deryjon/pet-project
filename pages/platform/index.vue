@@ -4,12 +4,12 @@ import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatsCard from "@/components/platform/StatsCard.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
-import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
+import { usePlatformDashboard } from "@/composables/usePlatformDashboard";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Дашборд платформы | Konkurent" });
+useHead({ title: "Platform Dashboard | Konkurent" });
 
-const { getCompanies, getPlatformUsers, getDashboardStats } = usePlatformAdminApi();
+const { getCompanies, getPlatformUsers, getDashboardStats } = usePlatformDashboard();
 
 const loading = ref(true);
 const errorMessage = ref("");
@@ -19,6 +19,9 @@ const stats = ref({
   totalUsers: 0,
   totalSales: 0,
   activeCompanies: 0,
+  companiesWithoutShops: 0,
+  usersWithoutRoles: 0,
+  inactiveCompanies: 0,
 });
 const companies = ref<any[]>([]);
 const users = ref<any[]>([]);
@@ -37,14 +40,17 @@ async function loadData() {
       getPlatformUsers(),
     ]);
 
-    stats.value = statsResponse;
+    stats.value = {
+      ...statsResponse,
+      companiesWithoutShops: companiesResponse.filter((company: any) => Number(company.shopsCount || 0) === 0).length,
+      usersWithoutRoles: usersResponse.filter((user: any) => !String(user.roleId || user.crmRoleId || "").trim()).length,
+      inactiveCompanies: companiesResponse.filter((company: any) => company.status !== "active").length,
+    };
     companies.value = companiesResponse;
     users.value = usersResponse;
   } catch (error: any) {
     const message = error?.data?.message;
-    errorMessage.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось загрузить данные дашборда";
+    errorMessage.value = Array.isArray(message) ? message.join(", ") : message || error?.message || "Не удалось загрузить данные dashboard";
   } finally {
     loading.value = false;
   }
@@ -56,9 +62,9 @@ onMounted(loadData);
 <template>
   <div class="space-y-8">
     <PageHeader
-      eyebrow="Обзор платформы"
-      title="Управление платформой"
-      description="Следите за компаниями, филиалами и администраторами из единого центра управления."
+      eyebrow="Platform Overview"
+      title="Platform Dashboard"
+      description="Следите за компаниями, филиалами, пользователями и проблемными зонами из единого центра управления."
     >
       <template #actions>
         <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadData">
@@ -68,12 +74,14 @@ onMounted(loadData);
       </template>
     </PageHeader>
 
-    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
-      <StatsCard label="Компании" :value="stats.totalCompanies" helper="Всего в системе" icon="heroicons:building-office-2" />
-      <StatsCard label="Филиалы" :value="stats.totalShops" helper="Во всех компаниях" icon="heroicons:map-pin" />
-      <StatsCard label="Администраторы" :value="stats.totalUsers" helper="Пользователи платформы" icon="heroicons:users" />
-      <StatsCard label="Активные компании" :value="stats.activeCompanies" helper="Со включенным статусом" icon="heroicons:bolt" />
-      <StatsCard label="Продажи" :value="stats.totalSales" helper="Сводный показатель" icon="heroicons:banknotes" />
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+      <StatsCard label="Companies" :value="stats.totalCompanies" helper="Всего в системе" icon="heroicons:building-office-2" />
+      <StatsCard label="Shops" :value="stats.totalShops" helper="Во всех компаниях" icon="heroicons:map-pin" />
+      <StatsCard label="Admins" :value="stats.totalUsers" helper="Пользователи платформы" icon="heroicons:users" />
+      <StatsCard label="Active" :value="stats.activeCompanies" helper="Со включенным статусом" icon="heroicons:bolt" />
+      <StatsCard label="No Shops" :value="stats.companiesWithoutShops" helper="Компании без филиалов" icon="heroicons:building-storefront" />
+      <StatsCard label="No Roles" :value="stats.usersWithoutRoles" helper="Пользователи без роли" icon="heroicons:shield-exclamation" />
+      <StatsCard label="Inactive" :value="stats.inactiveCompanies" helper="Неактивные компании" icon="heroicons:pause-circle" />
     </div>
 
     <div v-if="errorMessage" class="rounded-[28px] border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-[14px] text-rose-700 shadow-[0_18px_40px_rgba(190,24,93,0.08)]">
@@ -81,7 +89,7 @@ onMounted(loadData);
     </div>
 
     <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <DataPanel title="Компании под рукой" description="Быстрый переход к карточкам, филиалам и сотрудникам.">
+      <DataPanel title="Companies at Hand" description="Быстрый переход к карточкам компаний, филиалам и сотрудникам.">
         <div v-if="loading" class="grid gap-4 lg:grid-cols-2">
           <div v-for="item in 4" :key="item" class="h-44 animate-pulse rounded-[28px] bg-slate-100/80" />
         </div>
@@ -103,11 +111,11 @@ onMounted(loadData);
 
             <div class="mt-5 grid grid-cols-2 gap-3">
               <div class="rounded-[20px] bg-slate-950 px-4 py-3 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
-                <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Филиалы</p>
+                <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Shops</p>
                 <p class="mt-2 text-[20px] font-semibold">{{ company.shopsCount ?? 0 }}</p>
               </div>
               <div class="rounded-[20px] bg-white px-4 py-3 text-slate-900 ring-1 ring-slate-200">
-                <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Сотрудники</p>
+                <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Users</p>
                 <p class="mt-2 text-[20px] font-semibold">{{ company.usersCount ?? 0 }}</p>
               </div>
             </div>
@@ -121,17 +129,13 @@ onMounted(loadData);
       </DataPanel>
 
       <div class="space-y-6">
-        <DataPanel title="Администраторы платформы" description="Текущие пользователи с доступом к платформе.">
+        <DataPanel title="Platform Users" description="Текущие пользователи с доступом к платформе.">
           <div v-if="loading" class="space-y-3">
             <div v-for="item in 4" :key="item" class="h-24 animate-pulse rounded-[24px] bg-slate-100/80" />
           </div>
 
           <div v-else class="space-y-3">
-            <article
-              v-for="user in lastUsers"
-              :key="user.id"
-              class="rounded-[24px] border border-slate-200/70 bg-white/88 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.05)]"
-            >
+            <article v-for="user in lastUsers" :key="user.id" class="rounded-[24px] border border-slate-200/70 bg-white/88 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.05)]">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <p class="truncate text-[16px] font-semibold text-slate-950">{{ user.fullName }}</p>
@@ -147,17 +151,17 @@ onMounted(loadData);
         </DataPanel>
 
         <div class="rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,#0f172a_0%,#134e4a_100%)] p-6 text-white shadow-[0_32px_80px_rgba(15,23,42,0.18)]">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal-200">Рабочий фокус</p>
-          <h3 class="mt-3 text-[26px] font-semibold tracking-[-0.04em]">Сначала компании, потом детали</h3>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal-200">Health Focus</p>
+          <h3 class="mt-3 text-[26px] font-semibold tracking-[-0.04em]">Сначала контроль, потом детали</h3>
           <p class="mt-3 text-[14px] leading-7 text-slate-200">
-            Основной поток внутри платформы теперь строится вокруг выбранной компании: из карточки можно сразу перейти к филиалам и сотрудникам.
+            Dashboard теперь показывает не только общие цифры, но и проблемные KPI: компании без филиалов, пользователи без ролей и неактивные компании.
           </p>
           <div class="mt-6 flex flex-wrap gap-3">
             <NuxtLink to="/platform/companies" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-white px-4 py-3 text-[14px] font-semibold text-slate-900 transition hover:bg-slate-100">
               Открыть компании
             </NuxtLink>
-            <NuxtLink to="/platform/users" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-white/15">
-              Открыть сотрудников
+            <NuxtLink to="/platform/audit" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-white/15">
+              Открыть audit
             </NuxtLink>
           </div>
         </div>

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { usePlatformAdminSession } from "@/composables/usePlatformAdmin";
+import { usePlatformAuth } from "@/composables/usePlatformAuth";
 
 definePageMeta({ layout: false });
 
 const router = useRouter();
-const { signIn, restore, authenticated } = usePlatformAdminSession();
+const { signIn, restore, authenticated } = usePlatformAuth();
 
 const form = reactive({
   phone: "",

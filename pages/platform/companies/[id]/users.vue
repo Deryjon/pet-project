@@ -1,29 +1,34 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import CompanyTabs from "@/components/platform/company/CompanyTabs.vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
 import type { PlatformRole, PlatformShop, PlatformUser, PlatformUserPayload } from "@/composables/usePlatformAdmin";
-import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
+import { usePlatformCompanies } from "@/composables/usePlatformCompanies";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
+import { usePlatformRoles } from "@/composables/usePlatformRoles";
+import { usePlatformUsers } from "@/composables/usePlatformUsers";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Сотрудники компании | Konkurent" });
+useHead({ title: "Company Users | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
-const { getCompany, getCompanyShops, getCompanyUsers, getCompanyRoles, updateCompanyRole, createCompanyUser, updateUser, deleteUser } = usePlatformAdminApi();
+const { getCompany, getCompanyShops } = usePlatformCompanies();
+const { getCompanyUsers, createCompanyUser, updateUser, deleteUser } = usePlatformUsers();
+const { getCompanyRoles } = usePlatformRoles();
 const { softInputUi, softSelectUi } = usePlatformFormUi();
 const toast = useToast();
 
 const loading = ref(true);
 const rolesLoading = ref(false);
 const saving = ref(false);
-const savingRoleId = ref("");
 const deletingId = ref("");
+const actionId = ref("");
 const errorMessage = ref("");
 const successMessage = ref("");
 const company = ref<any | null>(null);
@@ -34,14 +39,17 @@ const search = ref("");
 const role = ref("all");
 const status = ref("all");
 const modalOpen = ref(false);
+const resetModalOpen = ref(false);
 const editing = ref<PlatformUser | null>(null);
+const selectedForReset = ref<PlatformUser | null>(null);
+const resetPasswordValue = ref("");
 
 const form = reactive({
   firstName: "",
   lastName: "",
   phone: "",
   password: "",
-  role: "employee",
+  role: "",
   birthDate: "",
   currentShopId: "",
   allowedShopIds: [] as string[],
@@ -49,36 +57,17 @@ const form = reactive({
   is_active: true,
 });
 
-function formatRoleLabel(roleValue: string) {
-  const normalized = String(roleValue || "").trim();
-  if (!normalized) return "";
-  return normalized
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 const companyRoleOptions = computed(() => {
   const options = companyRoles.value
-    .filter((role) => role.id)
-    .map((role) => ({
-      label: role.name || formatRoleLabel(role.id),
-      value: role.id,
-    }));
-
+    .filter((roleItem) => roleItem.id)
+    .map((roleItem) => ({ label: roleItem.name || roleItem.id, value: roleItem.id }));
   if (form.role && !options.some((option) => option.value === form.role)) {
-    options.push({ label: formatRoleLabel(form.role), value: form.role });
+    options.push({ label: form.role, value: form.role });
   }
-
   return options;
 });
 
 const tableRoleOptions = computed(() => [{ label: "Все роли", value: "all" }, ...companyRoleOptions.value]);
-const companyRolesSorted = computed(() =>
-  [...companyRoles.value].sort((a, b) => a.name.localeCompare(b.name, "ru")),
-);
-
 const statusOptions = [
   { label: "Все статусы", value: "all" },
   { label: "Активные", value: "active" },
@@ -86,48 +75,15 @@ const statusOptions = [
 ];
 
 const shopOptions = computed(() =>
-  shops.value.map((shop) => ({
-    label: shop.name,
-    value: shop.id,
-  })),
-);
-
-watch(
-  () => form.phone,
-  (value) => {
-    const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
-    const parts = [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)].filter(Boolean);
-    const formatted = parts.join(" ");
-
-    if (formatted !== value) {
-      form.phone = formatted;
-    }
-  },
-);
-
-watch(
-  () => form.canSwitchShops,
-  (value) => {
-    if (value) return;
-    form.allowedShopIds = form.currentShopId ? [form.currentShopId] : [];
-  },
-);
-
-watch(
-  () => form.currentShopId,
-  (shopId) => {
-    if (!shopId) return;
-    if (!form.allowedShopIds.includes(shopId)) {
-      form.allowedShopIds = form.canSwitchShops ? [...form.allowedShopIds, shopId] : [shopId];
-    }
-  },
+  shops.value.map((shop) => ({ label: shop.name, value: shop.id })),
 );
 
 const filteredUsers = computed(() =>
   users.value.filter((user) => {
     const q = search.value.trim().toLowerCase();
-    const matchesSearch = !q || `${user.fullName} ${user.phone} ${user.roleName} ${user.roleId} ${user.currentShopName}`.toLowerCase().includes(q);
-    const matchesRole = role.value === "all" || user.roleId === role.value;
+    const haystack = `${user.fullName} ${user.phone} ${user.roleName} ${user.roleId} ${user.currentShopName}`.toLowerCase();
+    const matchesSearch = !q || haystack.includes(q);
+    const matchesRole = role.value === "all" || user.roleId === role.value || user.crmRoleId === role.value;
     const matchesStatus = status.value === "all" || user.status === status.value;
     return matchesSearch && matchesRole && matchesStatus;
   }),
@@ -157,71 +113,6 @@ function enrichUsersWithShopNames(items: PlatformUser[]) {
   });
 }
 
-async function loadData() {
-  loading.value = true;
-  rolesLoading.value = true;
-  errorMessage.value = "";
-
-  try {
-    company.value = await getCompany(companyId.value);
-  } catch (error: any) {
-    errorMessage.value = resolveError(error, "Не удалось загрузить компанию");
-  }
-
-  try {
-    shops.value = await getCompanyShops(companyId.value);
-  } catch (error: any) {
-    shops.value = [];
-    errorMessage.value = resolveError(error, "Не удалось загрузить филиалы компании");
-  }
-
-  try {
-    users.value = enrichUsersWithShopNames(await getCompanyUsers(companyId.value));
-  } catch (error: any) {
-    users.value = [];
-    errorMessage.value = resolveError(error, "Не удалось загрузить сотрудников компании");
-  }
-
-  try {
-    companyRoles.value = await getCompanyRoles(companyId.value);
-    if (!editing.value && !companyRoleOptions.value.some((option) => option.value === form.role)) {
-      form.role = companyRoleOptions.value[0]?.value || "";
-    }
-  } catch (error: any) {
-    companyRoles.value = [];
-    errorMessage.value = resolveError(error, "Не удалось загрузить роли компании");
-  } finally {
-    rolesLoading.value = false;
-    loading.value = false;
-  }
-}
-
-async function toggleRoleAdmin(roleItem: PlatformRole, next: boolean) {
-  if (!roleItem?.id || savingRoleId.value) return;
-
-  savingRoleId.value = roleItem.id;
-  errorMessage.value = "";
-  successMessage.value = "";
-
-  try {
-    const updatedRole = await updateCompanyRole(companyId.value, roleItem.id, {
-      name: roleItem.name,
-      description: roleItem.description,
-      is_admin: next,
-    });
-
-    companyRoles.value = companyRoles.value.map((item) =>
-      item.id === roleItem.id ? { ...item, isAdmin: updatedRole.isAdmin } : item,
-    );
-    successMessage.value = next ? "Роль получила права администратора" : "Права администратора у роли отключены";
-  } catch (error: any) {
-    errorMessage.value = resolveError(error, "Не удалось изменить флаг администратора роли");
-    toast.add({ title: "Не удалось изменить роль", description: errorMessage.value, color: "error" });
-  } finally {
-    savingRoleId.value = "";
-  }
-}
-
 function resetForm() {
   form.firstName = "";
   form.lastName = "";
@@ -243,6 +134,53 @@ function normalizePhoneForInput(phone: string) {
   return parts.join(" ");
 }
 
+function buildPayload(overrides: Partial<PlatformUserPayload> = {}): PlatformUserPayload {
+  return {
+    first_name: form.firstName.trim(),
+    last_name: form.lastName.trim(),
+    phone_number: `+998${form.phone.replace(/\D/g, "")}`,
+    role: "employee",
+    crm_role_id: form.role || undefined,
+    company_id: companyId.value,
+    current_shop_id: form.currentShopId,
+    allowed_shop_ids: [...form.allowedShopIds],
+    can_switch_shops: form.canSwitchShops,
+    is_active: Boolean(form.is_active),
+    ...(form.password.trim() ? { password: form.password.trim() } : {}),
+    ...(form.birthDate.trim() ? { birth_date: form.birthDate.trim() } : {}),
+    ...overrides,
+  };
+}
+
+async function loadData() {
+  loading.value = true;
+  rolesLoading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const [companyResponse, shopsResponse, usersResponse, rolesResponse] = await Promise.all([
+      getCompany(companyId.value),
+      getCompanyShops(companyId.value),
+      getCompanyUsers(companyId.value),
+      getCompanyRoles(companyId.value),
+    ]);
+
+    company.value = companyResponse;
+    shops.value = shopsResponse;
+    companyRoles.value = rolesResponse;
+    users.value = enrichUsersWithShopNames(usersResponse);
+    if (!form.role) {
+      form.role = companyRoleOptions.value[0]?.value || "";
+    }
+  } catch (error: any) {
+    errorMessage.value = resolveError(error, "Не удалось загрузить сотрудников компании");
+    users.value = [];
+  } finally {
+    rolesLoading.value = false;
+    loading.value = false;
+  }
+}
+
 function openCreate() {
   editing.value = null;
   resetForm();
@@ -256,14 +194,10 @@ function openEdit(user: PlatformUser) {
   form.lastName = user.lastName;
   form.phone = normalizePhoneForInput(user.phone);
   form.password = "";
-  form.role = user.crmRoleId || user.roleId || "";
+  form.role = user.crmRoleId || user.roleId || companyRoleOptions.value[0]?.value || "";
   form.birthDate = user.birthDate || "";
   form.currentShopId = user.currentShopId || shops.value[0]?.id || "";
-  form.allowedShopIds = user.allowedShopIds.length
-    ? user.allowedShopIds.filter((id) => shops.value.some((shop) => shop.id === id || shop.shopId === id))
-    : form.currentShopId
-      ? [form.currentShopId]
-      : [];
+  form.allowedShopIds = user.allowedShopIds.length ? [...user.allowedShopIds] : form.currentShopId ? [form.currentShopId] : [];
   form.canSwitchShops = user.canSwitchShops;
   form.is_active = user.is_active;
   if (form.currentShopId && !form.allowedShopIds.includes(form.currentShopId)) {
@@ -275,50 +209,22 @@ function openEdit(user: PlatformUser) {
 
 function toggleAllowedShop(shopId: string) {
   const exists = form.allowedShopIds.includes(shopId);
-
   if (exists) {
     if (!form.canSwitchShops || form.allowedShopIds.length === 1) {
       form.allowedShopIds = [shopId];
       form.currentShopId = shopId;
       return;
     }
-
     form.allowedShopIds = form.allowedShopIds.filter((id) => id !== shopId);
     if (form.currentShopId === shopId) {
       form.currentShopId = form.allowedShopIds[0] || "";
     }
     return;
   }
-
   form.allowedShopIds = form.canSwitchShops ? [...form.allowedShopIds, shopId] : [shopId];
   if (!form.currentShopId) {
     form.currentShopId = shopId;
   }
-}
-
-function buildPayload(): PlatformUserPayload {
-  const payload: PlatformUserPayload = {
-    first_name: form.firstName.trim(),
-    last_name: form.lastName.trim(),
-    phone_number: `+998${form.phone.replace(/\D/g, "")}`,
-    role: "employee",
-    crm_role_id: form.role || undefined,
-    company_id: companyId.value,
-    current_shop_id: form.currentShopId,
-    allowed_shop_ids: [...form.allowedShopIds],
-    can_switch_shops: form.canSwitchShops,
-    is_active: Boolean(form.is_active),
-  };
-
-  if (form.password.trim()) {
-    payload.password = form.password.trim();
-  }
-
-  if (form.birthDate.trim()) {
-    payload.birth_date = form.birthDate.trim();
-  }
-
-  return payload;
 }
 
 async function submit() {
@@ -327,16 +233,12 @@ async function submit() {
   successMessage.value = "";
 
   const payload = buildPayload();
-
   if (!payload.crm_role_id) {
-    toast.add({ title: "Выберите CRM-роль сотрудника", color: "warning" });
     errorMessage.value = "Выберите CRM-роль сотрудника.";
     saving.value = false;
     return;
   }
-
   if (payload.current_shop_id && !payload.allowed_shop_ids?.includes(payload.current_shop_id)) {
-    toast.add({ title: "Проверьте филиалы сотрудника", color: "warning" });
     errorMessage.value = "Текущий филиал должен входить в список доступных филиалов.";
     saving.value = false;
     return;
@@ -352,7 +254,6 @@ async function submit() {
       successMessage.value = "Сотрудник создан";
       toast.add({ title: "Сотрудник создан", color: "success" });
     }
-
     modalOpen.value = false;
     await loadData();
   } catch (error: any) {
@@ -367,11 +268,7 @@ async function removeUser(user: PlatformUser) {
   if (typeof window !== "undefined" && !window.confirm(`Удалить пользователя "${user.fullName}"?`)) {
     return;
   }
-
   deletingId.value = user.id;
-  errorMessage.value = "";
-  successMessage.value = "";
-
   try {
     await deleteUser(user.id);
     successMessage.value = "Пользователь удален";
@@ -384,142 +281,136 @@ async function removeUser(user: PlatformUser) {
   }
 }
 
-watch(
-  companyId,
-  () => {
-    if (!companyId.value) {
-      company.value = null;
-      shops.value = [];
-      users.value = [];
-      errorMessage.value = "Не найден идентификатор компании";
-      loading.value = false;
-      return;
-    }
+async function toggleBlocked(user: PlatformUser) {
+  actionId.value = user.id;
+  try {
+    await updateUser(user.id, {
+      first_name: user.firstName,
+      last_name: user.lastName,
+      phone_number: `+998${String(user.phone || "").replace(/\D/g, "")}`,
+      role: "employee",
+      crm_role_id: user.crmRoleId || user.roleId || undefined,
+      company_id: companyId.value,
+      current_shop_id: user.currentShopId,
+      allowed_shop_ids: [...user.allowedShopIds],
+      can_switch_shops: user.canSwitchShops,
+      is_active: !user.is_active,
+      ...(user.birthDate ? { birth_date: user.birthDate } : {}),
+    });
+    successMessage.value = user.is_active ? "Пользователь заблокирован" : "Пользователь разблокирован";
+    toast.add({ title: successMessage.value, color: "success" });
+    await loadData();
+  } catch (error: any) {
+    errorMessage.value = resolveError(error, "Не удалось изменить статус пользователя");
+    toast.add({ title: "Ошибка статуса", description: errorMessage.value, color: "error" });
+  } finally {
+    actionId.value = "";
+  }
+}
 
-    loadData();
-  },
-  { immediate: true },
-);
+function openResetPassword(user: PlatformUser) {
+  selectedForReset.value = user;
+  resetPasswordValue.value = `Temp${Math.random().toString(36).slice(2, 8)}!`;
+  resetModalOpen.value = true;
+}
+
+async function confirmResetPassword() {
+  if (!selectedForReset.value) return;
+  actionId.value = selectedForReset.value.id;
+  try {
+    await updateUser(selectedForReset.value.id, {
+      first_name: selectedForReset.value.firstName,
+      last_name: selectedForReset.value.lastName,
+      phone_number: `+998${String(selectedForReset.value.phone || "").replace(/\D/g, "")}`,
+      role: "employee",
+      crm_role_id: selectedForReset.value.crmRoleId || selectedForReset.value.roleId || undefined,
+      company_id: companyId.value,
+      current_shop_id: selectedForReset.value.currentShopId,
+      allowed_shop_ids: [...selectedForReset.value.allowedShopIds],
+      can_switch_shops: selectedForReset.value.canSwitchShops,
+      is_active: selectedForReset.value.is_active,
+      password: resetPasswordValue.value,
+      ...(selectedForReset.value.birthDate ? { birth_date: selectedForReset.value.birthDate } : {}),
+    });
+    successMessage.value = `Пароль сброшен: ${resetPasswordValue.value}`;
+    toast.add({ title: "Пароль сброшен", description: resetPasswordValue.value, color: "success" });
+    resetModalOpen.value = false;
+  } catch (error: any) {
+    errorMessage.value = resolveError(error, "Не удалось сбросить пароль");
+    toast.add({ title: "Ошибка сброса пароля", description: errorMessage.value, color: "error" });
+  } finally {
+    actionId.value = "";
+  }
+}
+
+function forceLogout(user: PlatformUser) {
+  toast.add({ title: `Force logout for ${user.fullName}`, description: "Mock action", color: "info" });
+}
+
+function viewActivity(user: PlatformUser) {
+  toast.add({ title: `Activity for ${user.fullName}`, description: "Placeholder page will be added in audit/logs.", color: "info" });
+}
+
+watch(() => form.phone, (value) => {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 9);
+  const parts = [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)].filter(Boolean);
+  const formatted = parts.join(" ");
+  if (formatted !== value) form.phone = formatted;
+});
+
+watch(() => form.canSwitchShops, (value) => {
+  if (value) return;
+  form.allowedShopIds = form.currentShopId ? [form.currentShopId] : [];
+});
+
+watch(() => form.currentShopId, (shopId) => {
+  if (!shopId) return;
+  if (!form.allowedShopIds.includes(shopId)) {
+    form.allowedShopIds = form.canSwitchShops ? [...form.allowedShopIds, shopId] : [shopId];
+  }
+});
+
+watch(companyId, () => {
+  if (!companyId.value) return;
+  loadData();
+}, { immediate: true });
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Сотрудники компании" :title="company?.name ? `Сотрудники: ${company.name}` : 'Сотрудники компании'" description="Управление сотрудниками выбранной компании.">
-      <template #actions>
-        <NuxtLink :to="`/platform/companies/${companyId}`" class="inline-flex h-10 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
-          Карточка компании
-        </NuxtLink>
-        <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="inline-flex h-10 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-700 transition hover:bg-slate-100">
-          Филиалы
-        </NuxtLink>
-        <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
-          <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
-          Создать сотрудника
-        </UButton>
-      </template>
-    </PageHeader>
-
-    <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">
-      {{ errorMessage }}
-    </div>
-
-    <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">
-      {{ successMessage }}
-    </div>
-
-    <DataPanel title="Роли компании" description="Администратор компании включает админ-доступ для всех сотрудников с этой CRM-ролью. Активность конкретного сотрудника меняется в форме сотрудника.">
-      <div v-if="rolesLoading" class="space-y-3">
-        <div v-for="item in 3" :key="item" class="h-16 animate-pulse rounded-[22px] bg-slate-100" />
-      </div>
-
-      <EmptyState v-else-if="!companyRolesSorted.length" title="Роли не найдены" description="У компании пока нет CRM-ролей." icon="heroicons:shield-check" />
-
-      <div v-else class="overflow-x-auto">
-        <table class="min-w-full border-separate border-spacing-y-3">
-          <thead>
-            <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              <th class="px-4 py-2">Роль</th>
-              <th class="px-4 py-2">Описание</th>
-              <th class="px-4 py-2">Администратор компании</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="roleItem in companyRolesSorted" :key="roleItem.id">
-              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
-                <p class="font-semibold text-slate-950">{{ roleItem.name || roleItem.id }}</p>
-                <p class="mt-1 text-[12px] text-slate-400">{{ roleItem.id }}</p>
-              </td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ roleItem.description || "—" }}</td>
-              <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
-                <label class="inline-flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-[14px] font-medium text-slate-700 ring-1 ring-slate-200">
-                  <input
-                    :checked="roleItem.isAdmin"
-                    type="checkbox"
-                    class="h-4 w-4 accent-teal-600"
-                    :disabled="savingRoleId === roleItem.id"
-                    @change="toggleRoleAdmin(roleItem, ($event.target as HTMLInputElement).checked)"
-                  />
-                  <span>
-                    <span class="block">{{ savingRoleId === roleItem.id ? "Сохраняем..." : roleItem.isAdmin ? "Включен" : "Выключен" }}</span>
-                    <span class="block text-[12px] font-normal text-slate-500">Для всей роли</span>
-                  </span>
-                </label>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </DataPanel>
-
-    <DataPanel title="Сотрудники" description="Фильтруйте список и управляйте доступом по филиалам.">
+    <PageHeader eyebrow="Users" :title="company?.name ? `Users: ${company.name}` : 'Company Users'" description="Управление сотрудниками, ролями и контролем доступа внутри компании." />
+    <CompanyTabs :company-id="companyId" />
+    <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
+    <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">{{ successMessage }}</div>
+    <DataPanel title="Users" description="Фильтруйте список и управляйте доступом по филиалам.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
-          <div class="min-w-[240px] flex-1">
-            <UInput v-model="search" type="text" placeholder="Поиск по имени, телефону, роли или филиалу" :ui="softInputUi" />
-          </div>
+          <div class="min-w-[240px] flex-1"><UInput v-model="search" type="text" placeholder="Поиск по имени, телефону, роли или филиалу" :ui="softInputUi" /></div>
           <USelect v-model="role" :items="tableRoleOptions" value-key="value" :ui="softSelectUi" class="min-w-[220px]" />
           <USelect v-model="status" :items="statusOptions" value-key="value" :ui="softSelectUi" class="min-w-[220px]" />
+          <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate"><Icon name="heroicons:plus" class="mr-2 h-4 w-4" />Создать сотрудника</UButton>
         </div>
       </template>
-
-      <div v-if="loading" class="space-y-3">
-        <div v-for="item in 6" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" />
-      </div>
-
+      <div v-if="loading" class="space-y-3"><div v-for="item in 6" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100" /></div>
       <EmptyState v-else-if="!filteredUsers.length" title="Сотрудники не найдены" description="Создайте первого сотрудника компании." icon="heroicons:user-plus" />
-
       <div v-else class="overflow-x-auto">
         <table class="min-w-full border-separate border-spacing-y-3">
-          <thead>
-            <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              <th class="px-4 py-2">Пользователь</th>
-              <th class="px-4 py-2">Телефон</th>
-              <th class="px-4 py-2">Роль</th>
-              <th class="px-4 py-2">Текущий филиал</th>
-              <th class="px-4 py-2">Статус</th>
-              <th class="px-4 py-2">Создан</th>
-              <th class="px-4 py-2">Действия</th>
-            </tr>
-          </thead>
+          <thead><tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400"><th class="px-4 py-2">Пользователь</th><th class="px-4 py-2">Телефон</th><th class="px-4 py-2">Роль</th><th class="px-4 py-2">Текущий филиал</th><th class="px-4 py-2">Статус</th><th class="px-4 py-2">Действия</th></tr></thead>
           <tbody>
             <tr v-for="user in filteredUsers" :key="user.id">
-              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4">
-                <p class="font-semibold text-slate-950">{{ user.fullName }}</p>
-                <p class="mt-1 text-[13px] text-slate-500">{{ user.birthDate || "Дата рождения не указана" }}</p>
-              </td>
+              <td class="rounded-l-[22px] bg-slate-50 px-4 py-4"><p class="font-semibold text-slate-950">{{ user.fullName }}</p><p class="mt-1 text-[13px] text-slate-500">{{ user.birthDate || "Дата рождения не указана" }}</p></td>
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.phone || "—" }}</td>
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.roleName || user.roleId || "—" }}</td>
               <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.currentShopName || user.currentShopId || "—" }}</td>
               <td class="bg-slate-50 px-4 py-4"><StatusBadge :status="user.status" /></td>
-              <td class="bg-slate-50 px-4 py-4 text-[14px] text-slate-600">{{ user.createdAt || "—" }}</td>
               <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
                 <div class="flex flex-wrap gap-2">
-                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">
-                    Редактировать
-                  </UButton>
-                  <UButton color="error" variant="soft" class="rounded-2xl" :loading="deletingId === user.id" @click="removeUser(user)">
-                    Удалить
-                  </UButton>
+                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">Edit</UButton>
+                  <UButton color="warning" variant="soft" class="rounded-2xl" :loading="actionId === user.id" @click="toggleBlocked(user)">{{ user.is_active ? "Block" : "Unblock" }}</UButton>
+                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" :loading="actionId === user.id" @click="openResetPassword(user)">Reset</UButton>
+                  <UDropdownMenu :items="[[{ label: 'Force logout', icon: 'heroicons:arrow-right-on-rectangle', onSelect: () => forceLogout(user) }],[{ label: 'View activity', icon: 'heroicons:clock', onSelect: () => viewActivity(user) }],[{ label: 'Delete', icon: 'heroicons:trash', color: 'error', onSelect: () => removeUser(user) }]]">
+                    <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100">More</UButton>
+                  </UDropdownMenu>
                 </div>
               </td>
             </tr>
@@ -527,85 +418,27 @@ watch(
         </table>
       </div>
     </DataPanel>
-
     <ModalForm :open="modalOpen" :title="editing ? 'Редактировать сотрудника' : 'Создать сотрудника'" description="Заполните профиль сотрудника и настройте доступные филиалы." @close="modalOpen = false">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Имя</span>
-          <UInput v-model="form.firstName" type="text" required placeholder="Введите имя" :ui="softInputUi" />
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Фамилия</span>
-          <UInput v-model="form.lastName" type="text" required placeholder="Введите фамилию" :ui="softInputUi" />
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Телефон</span>
-          <div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60">
-            <span class="pr-3 text-[14px] font-medium text-slate-500">+998</span>
-            <UInput
-              v-model="form.phone"
-              type="tel"
-              inputmode="numeric"
-              required
-              placeholder="90 123 45 67"
-              :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }"
-            />
-          </div>
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Пароль</span>
-          <UInput v-model="form.password" type="password" :required="!editing" placeholder="Введите пароль" :ui="softInputUi" />
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Роль</span>
-          <USelect v-model="form.role" :items="companyRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading || loading" />
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Дата рождения</span>
-          <UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" />
-        </label>
-        <label class="space-y-2 md:col-span-2">
-          <span class="text-[13px] font-semibold text-slate-700">Текущий филиал</span>
-          <USelect v-model="form.currentShopId" :items="shopOptions" value-key="value" :ui="softSelectUi" />
-        </label>
-
-        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
-          <input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />
-          Может переключать филиалы
-        </label>
-
-        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
-          <input v-model="form.is_active" type="checkbox" class="h-4 w-4 accent-teal-600" />
-          <span>
-            <span class="block font-semibold">Активен</span>
-            <span class="block text-[12px] text-slate-500">Включает или выключает доступ конкретного сотрудника.</span>
-          </span>
-        </label>
-
-        <div class="space-y-2 md:col-span-2">
-          <span class="text-[13px] font-semibold text-slate-700">Доступные филиалы</span>
-          <div class="grid gap-3 md:grid-cols-2">
-            <button
-              v-for="shop in shops"
-              :key="shop.id"
-              type="button"
-              class="cursor-pointer rounded-2xl border px-4 py-3 text-left transition"
-              :class="form.allowedShopIds.includes(shop.id) ? 'border-teal-300 bg-teal-50' : 'border-slate-200 bg-slate-50 hover:bg-white'"
-              @click="toggleAllowedShop(shop.id)"
-            >
-              <p class="font-medium text-slate-900">{{ shop.name }}</p>
-              <p class="mt-1 text-[13px] text-slate-500">{{ shop.branchCode || "Без branch_code" }}</p>
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-2 flex justify-end gap-3 md:col-span-2">
-          <UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
-          <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
-            {{ saving ? "Сохраняем..." : editing ? "Сохранить" : "Создать" }}
-          </UButton>
-        </div>
+        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Имя</span><UInput v-model="form.firstName" type="text" required placeholder="Введите имя" :ui="softInputUi" /></label>
+        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Фамилия</span><UInput v-model="form.lastName" type="text" required placeholder="Введите фамилию" :ui="softInputUi" /></label>
+        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Телефон</span><div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60"><span class="pr-3 text-[14px] font-medium text-slate-500">+998</span><UInput v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }" /></div></label>
+        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Пароль</span><UInput v-model="form.password" type="password" :required="!editing" placeholder="Введите пароль" :ui="softInputUi" /></label>
+        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Роль</span><USelect v-model="form.role" :items="companyRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading || loading" /></label>
+        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Дата рождения</span><UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" /></label>
+        <label class="space-y-2 md:col-span-2"><span class="text-[13px] font-semibold text-slate-700">Текущий филиал</span><USelect v-model="form.currentShopId" :items="shopOptions" value-key="value" :ui="softSelectUi" /></label>
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />Может переключать филиалы</label>
+        <div class="space-y-3 md:col-span-2"><p class="text-[13px] font-semibold text-slate-700">Доступные филиалы</p><div class="grid gap-2 sm:grid-cols-2"><label v-for="shop in shops" :key="shop.id" class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"><input :checked="form.allowedShopIds.includes(shop.id)" type="checkbox" class="h-4 w-4 accent-teal-600" @change="toggleAllowedShop(shop.id)" /><span>{{ shop.name }}</span></label></div></div>
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.is_active" type="checkbox" class="h-4 w-4 accent-teal-600" />Активный пользователь</label>
+        <div class="mt-2 flex justify-end gap-3 md:col-span-2"><UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton><UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :loading="saving">{{ editing ? "Сохранить" : "Создать" }}</UButton></div>
       </form>
+    </ModalForm>
+    <ModalForm :open="resetModalOpen" title="Сбросить пароль" description="Подтвердите сброс пароля. Новый пароль будет показан один раз." @close="resetModalOpen = false">
+      <div class="space-y-4">
+        <p class="text-[14px] text-slate-600">Пользователь: <span class="font-semibold text-slate-950">{{ selectedForReset?.fullName }}</span></p>
+        <div class="rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">Новый временный пароль: <span class="font-semibold text-slate-950">{{ resetPasswordValue }}</span></div>
+        <div class="flex justify-end gap-3"><UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="resetModalOpen = false">Отмена</UButton><UButton type="button" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :loading="actionId === selectedForReset?.id" @click="confirmResetPassword">Подтвердить</UButton></div>
+      </div>
     </ModalForm>
   </div>
 </template>
