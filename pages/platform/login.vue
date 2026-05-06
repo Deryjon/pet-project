@@ -64,7 +64,7 @@ async function submit() {
 
   try {
     await signIn({
-      phone_number: `+998${digits}`,
+      phone_number: `998${digits}`,
       password: form.password.trim(),
     });
     router.push("/platform");
@@ -90,14 +90,14 @@ async function submit() {
       <div class="max-w-2xl">
         <div class="inline-flex items-center gap-3 rounded-full border border-white/80 bg-white/70 px-4 py-2 shadow-sm backdrop-blur">
           <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">KP</span>
-          <span class="text-[12px] font-semibold uppercase tracking-[0.22em] text-slate-500">Konkurent Platform</span>
+          <span class="text-[12px] font-semibold uppercase tracking-[0.22em] text-slate-500">Платформа Konkurent</span>
         </div>
 
         <h1 class="mt-8 max-w-3xl text-[42px] font-semibold leading-[1.02] tracking-[-0.05em] text-slate-950 sm:text-[56px]">
           Вход в административную панель платформы.
         </h1>
         <p class="mt-6 max-w-2xl text-[17px] leading-8 text-slate-600">
-          Отдельный контур для platform admin и support с доступом к компаниям, филиалам, пользователям и общим показателям.
+          Отдельный контур для администраторов платформы с доступом к компаниям, филиалам, пользователям и общим показателям.
         </p>
 
         <div class="mt-8 grid gap-4 sm:grid-cols-3">
@@ -111,7 +111,7 @@ async function submit() {
           </div>
           <div class="rounded-[28px] border border-white/80 bg-white/75 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur">
             <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Доступы</p>
-            <p class="mt-3 text-[15px] font-semibold text-slate-900">Управление ролями `platform_admin` и `support`.</p>
+            <p class="mt-3 text-[15px] font-semibold text-slate-900">Управление ролями администраторов и поддержки.</p>
           </div>
         </div>
       </div>

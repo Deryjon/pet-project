@@ -29,6 +29,21 @@ function getHomeRoute(userStore: ReturnType<typeof useUserStore>) {
   return "/auth/login";
 }
 
+async function fetchPlatformMe(userStore: ReturnType<typeof useUserStore>) {
+  try {
+    const { apiFetch } = useApi();
+    const response: any = await apiFetch("/platform/auth/me", { method: "GET" });
+    userStore.setUser(response?.user ?? response);
+    return true;
+  } catch (error: any) {
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    if (status === 401 || status === 403) {
+      userStore.logout();
+    }
+    return false;
+  }
+}
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const userStore = useUserStore();
   const path = to.path;
@@ -47,7 +62,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (userStore.token && !userStore.user.id && !userStore.initializing) {
-    await userStore.fetchMe();
+    if (platformRoute) {
+      await fetchPlatformMe(userStore);
+    } else {
+      await userStore.fetchMe();
+    }
   }
 
   const isAuthenticated = userStore.isLoggedIn && !!userStore.user.id;

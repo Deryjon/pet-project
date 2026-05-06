@@ -14,12 +14,12 @@ import { usePlatformRoles } from "@/composables/usePlatformRoles";
 import { usePlatformUsers } from "@/composables/usePlatformUsers";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Company Users | Konkurent" });
+useHead({ title: "Пользователи компании | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
 const { getCompany, getCompanyShops } = usePlatformCompanies();
-const { getCompanyUsers, createCompanyUser, updateUser, deleteUser } = usePlatformUsers();
+const { getCompanyUsers, createCompanyUser, updateCompanyUser, blockCompanyUser, unblockCompanyUser, deleteCompanyUser } = usePlatformUsers();
 const { getCompanyRoles } = usePlatformRoles();
 const { softInputUi, softSelectUi } = usePlatformFormUi();
 const toast = useToast();
@@ -246,7 +246,7 @@ async function submit() {
 
   try {
     if (editing.value?.id) {
-      await updateUser(editing.value.id, payload);
+      await updateCompanyUser(companyId.value, editing.value.id, payload);
       successMessage.value = "Сотрудник обновлен";
       toast.add({ title: "Сотрудник обновлен", color: "success" });
     } else {
@@ -270,7 +270,7 @@ async function removeUser(user: PlatformUser) {
   }
   deletingId.value = user.id;
   try {
-    await deleteUser(user.id);
+    await deleteCompanyUser(companyId.value, user.id);
     successMessage.value = "Пользователь удален";
     await loadData();
   } catch (error: any) {
@@ -284,19 +284,11 @@ async function removeUser(user: PlatformUser) {
 async function toggleBlocked(user: PlatformUser) {
   actionId.value = user.id;
   try {
-    await updateUser(user.id, {
-      first_name: user.firstName,
-      last_name: user.lastName,
-      phone_number: `+998${String(user.phone || "").replace(/\D/g, "")}`,
-      role: "employee",
-      crm_role_id: user.crmRoleId || user.roleId || undefined,
-      company_id: companyId.value,
-      current_shop_id: user.currentShopId,
-      allowed_shop_ids: [...user.allowedShopIds],
-      can_switch_shops: user.canSwitchShops,
-      is_active: !user.is_active,
-      ...(user.birthDate ? { birth_date: user.birthDate } : {}),
-    });
+    if (user.is_active) {
+      await blockCompanyUser(companyId.value, user.id);
+    } else {
+      await unblockCompanyUser(companyId.value, user.id);
+    }
     successMessage.value = user.is_active ? "Пользователь заблокирован" : "Пользователь разблокирован";
     toast.add({ title: successMessage.value, color: "success" });
     await loadData();
@@ -318,7 +310,7 @@ async function confirmResetPassword() {
   if (!selectedForReset.value) return;
   actionId.value = selectedForReset.value.id;
   try {
-    await updateUser(selectedForReset.value.id, {
+    await updateCompanyUser(companyId.value, selectedForReset.value.id, {
       first_name: selectedForReset.value.firstName,
       last_name: selectedForReset.value.lastName,
       phone_number: `+998${String(selectedForReset.value.phone || "").replace(/\D/g, "")}`,
@@ -344,7 +336,7 @@ async function confirmResetPassword() {
 }
 
 function forceLogout(user: PlatformUser) {
-  toast.add({ title: `Force logout for ${user.fullName}`, description: "Mock action", color: "info" });
+  toast.add({ title: `Принудительный выход: ${user.fullName}`, description: "Тестовое действие", color: "info" });
 }
 
 function viewActivity(user: PlatformUser) {
@@ -378,11 +370,11 @@ watch(companyId, () => {
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Users" :title="company?.name ? `Users: ${company.name}` : 'Company Users'" description="Управление сотрудниками, ролями и контролем доступа внутри компании." />
+    <PageHeader eyebrow="Пользователи" :title="company?.name ? `Пользователи: ${company.name}` : 'Пользователи компании'" description="Управление сотрудниками, ролями и контролем доступа внутри компании." />
     <CompanyTabs :company-id="companyId" />
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
     <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">{{ successMessage }}</div>
-    <DataPanel title="Users" description="Фильтруйте список и управляйте доступом по филиалам.">
+    <DataPanel title="Пользователи" description="Фильтруйте список и управляйте доступом по филиалам.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
           <div class="min-w-[240px] flex-1"><UInput v-model="search" type="text" placeholder="Поиск по имени, телефону, роли или филиалу" :ui="softInputUi" /></div>
@@ -405,11 +397,11 @@ watch(companyId, () => {
               <td class="bg-slate-50 px-4 py-4"><StatusBadge :status="user.status" /></td>
               <td class="rounded-r-[22px] bg-slate-50 px-4 py-4">
                 <div class="flex flex-wrap gap-2">
-                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">Edit</UButton>
-                  <UButton color="warning" variant="soft" class="rounded-2xl" :loading="actionId === user.id" @click="toggleBlocked(user)">{{ user.is_active ? "Block" : "Unblock" }}</UButton>
-                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" :loading="actionId === user.id" @click="openResetPassword(user)">Reset</UButton>
-                  <UDropdownMenu :items="[[{ label: 'Force logout', icon: 'heroicons:arrow-right-on-rectangle', onSelect: () => forceLogout(user) }],[{ label: 'View activity', icon: 'heroicons:clock', onSelect: () => viewActivity(user) }],[{ label: 'Delete', icon: 'heroicons:trash', color: 'error', onSelect: () => removeUser(user) }]]">
-                    <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100">More</UButton>
+                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEdit(user)">Изменить</UButton>
+                  <UButton color="warning" variant="soft" class="rounded-2xl" :loading="actionId === user.id" @click="toggleBlocked(user)">{{ user.is_active ? "Заблокировать" : "Разблокировать" }}</UButton>
+                  <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" :loading="actionId === user.id" @click="openResetPassword(user)">Сбросить пароль</UButton>
+                  <UDropdownMenu :items="[[{ label: 'Принудительный выход', icon: 'heroicons:arrow-right-on-rectangle', onSelect: () => forceLogout(user) }],[{ label: 'Посмотреть активность', icon: 'heroicons:clock', onSelect: () => viewActivity(user) }],[{ label: 'Удалить', icon: 'heroicons:trash', color: 'error', onSelect: () => removeUser(user) }]]">
+                    <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100">Еще</UButton>
                   </UDropdownMenu>
                 </div>
               </td>

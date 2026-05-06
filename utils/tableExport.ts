@@ -35,6 +35,6 @@ export async function exportTableToExcel(table: any, filename: string) {
   const XLSX = await import("xlsx");
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Данные");
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }

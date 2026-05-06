@@ -401,7 +401,7 @@ function goBack() {
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p class="mb-2 text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
-              Company User
+              Пользователь компании
             </p>
             <h3 class="text-[28px] font-semibold text-white">
               {{ firstName || "Сотрудник" }} {{ lastName }}

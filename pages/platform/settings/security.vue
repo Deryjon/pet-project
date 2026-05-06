@@ -6,14 +6,14 @@ import SettingsTabs from "@/components/platform/settings/SettingsTabs.vue";
 import { usePlatformSettingsState } from "@/composables/usePlatformSettingsState";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Security Settings | Konkurent" });
+useHead({ title: "Настройки безопасности | Konkurent" });
 
 const { state, load, save } = usePlatformSettingsState();
 const toast = useToast();
 
 function submit() {
   save();
-  toast.add({ title: "Security settings saved", color: "success" });
+  toast.add({ title: "Настройки безопасности сохранены", color: "success" });
 }
 
 onMounted(load);
@@ -21,10 +21,10 @@ onMounted(load);
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Settings" title="Security" description="Базовые настройки безопасности платформы." />
+    <PageHeader eyebrow="Настройки" title="Безопасность" description="Базовые настройки безопасности платформы." />
     <SettingsTabs />
 
-    <DataPanel title="Security Settings" description="Минимальная длина пароля и длительность пользовательской сессии.">
+    <DataPanel title="Настройки безопасности" description="Минимальная длина пароля и длительность пользовательской сессии.">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Min Password Length</span>

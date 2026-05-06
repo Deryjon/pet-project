@@ -8,7 +8,7 @@ import { usePlatformCompanies } from "@/composables/usePlatformCompanies";
 import { usePlatformRoles } from "@/composables/usePlatformRoles";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Company Settings | Konkurent" });
+useHead({ title: "Настройки компании | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
@@ -75,13 +75,13 @@ onMounted(loadData);
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Settings" :title="company?.name ? `Settings: ${company.name}` : 'Company Settings'" description="Локальные настройки компании на уровне платформенной админки." />
+    <PageHeader eyebrow="Настройки" :title="company?.name ? `Настройки: ${company.name}` : 'Настройки компании'" description="Локальные настройки компании на уровне платформенной админки." />
     <CompanyTabs :company-id="companyId" />
 
-    <DataPanel title="Company Defaults" description="Временное хранение в local state без изменений backend-контрактов.">
+    <DataPanel title="Параметры компании" description="Временное хранение в локальном состоянии без изменений backend-контрактов.">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Default Role</span>
+          <span class="text-[13px] font-semibold text-slate-700">Роль по умолчанию</span>
           <USelect v-model="form.defaultRole" :items="roleOptions" value-key="value" />
         </label>
         <label class="space-y-2">
@@ -90,7 +90,7 @@ onMounted(loadData);
         </label>
         <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
           <input v-model="form.notificationsEnabled" type="checkbox" class="h-4 w-4 accent-teal-600" />
-          Notifications enabled
+          Уведомления включены
         </label>
         <div class="md:col-span-2 flex justify-end">
           <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800">Сохранить</UButton>

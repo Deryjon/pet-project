@@ -1,305 +1,210 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import ActionMenu from "@/components/platform/ActionMenu.vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
-import EmptyState from "@/components/platform/EmptyState.vue";
-import ModalForm from "@/components/platform/ModalForm.vue";
+import DataTable from "@/components/platform/DataTable.vue";
+import DateBadge from "@/components/platform/DateBadge.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
-import type { PlatformCompany } from "@/composables/usePlatformAdmin";
-import { usePlatformAdminApi } from "@/composables/usePlatformAdmin";
-import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
+import { daysLeft, usePlatformAdminApi, type PlatformCompany } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Компании | Konkurent" });
 
 const router = useRouter();
-const { getCompanies, createCompany, updateCompany, deleteCompany } = usePlatformAdminApi();
-const { inputUi, selectUi } = usePlatformFormUi();
 const toast = useToast();
-
-const loading = ref(true);
-const saving = ref(false);
-const deletingId = ref("");
-const errorMessage = ref("");
-const successMessage = ref("");
+const api = usePlatformAdminApi();
 const companies = ref<PlatformCompany[]>([]);
+const renewingSubscriptionId = ref("");
+const renewingCompanyId = ref("");
 const search = ref("");
 const status = ref("all");
-const modalOpen = ref(false);
-const editing = ref<PlatformCompany | null>(null);
+const plan = ref("all");
+const subscription = ref("all");
 
 const statusOptions = [
   { label: "Все статусы", value: "all" },
   { label: "Активные", value: "active" },
-  { label: "Отключенные", value: "inactive" },
+  { label: "Заблокированные", value: "blocked" },
 ];
-
-const companyStatusOptions = [
+const planOptions = computed(() => [
+  { label: "Все тарифы", value: "all" },
+  ...Array.from(new Set(companies.value.map((company) => company.subscription?.planName).filter(Boolean))).map((name) => ({ label: String(name), value: String(name) })),
+]);
+const subscriptionOptions = [
+  { label: "Все подписки", value: "all" },
   { label: "Активна", value: "active" },
-  { label: "Отключена", value: "inactive" },
+  { label: "Истекла", value: "expired" },
 ];
-
-const form = reactive({
-  name: "",
-  login: "",
-  subdomain: "",
-  status: "active" as "active" | "inactive",
-});
-
-function getCompanyRouteId(company: PlatformCompany) {
-  return company.id;
-}
-
-function openCompanyCard(company: PlatformCompany) {
-  return router.push(`/platform/companies/${getCompanyRouteId(company)}`);
-}
 
 const filteredCompanies = computed(() =>
   companies.value.filter((company) => {
-    const q = search.value.trim().toLowerCase();
-    const matchesSearch = !q || `${company.name} ${company.login} ${company.subdomain}`.toLowerCase().includes(q);
+    const query = search.value.trim().toLowerCase();
+    const matchesSearch = !query || company.name.toLowerCase().includes(query);
     const matchesStatus = status.value === "all" || company.status === status.value;
-    return matchesSearch && matchesStatus;
+    const companyPlan = company.subscription?.planName || "";
+    const matchesPlan = plan.value === "all" || companyPlan === plan.value;
+    const companySubscription = daysLeft(company.subscription?.endDate || "") < 0 ? "expired" : "active";
+    const matchesSubscription = subscription.value === "all" || subscription.value === companySubscription;
+    return matchesSearch && matchesStatus && matchesPlan && matchesSubscription;
   }),
 );
 
-function resolveError(error: any, fallback: string) {
-  const message = error?.data?.message ?? error?.response?._data?.message;
-  return Array.isArray(message) ? message.join(", ") : message || error?.message || fallback;
-}
-
 async function loadCompanies() {
-  loading.value = true;
-  errorMessage.value = "";
+  companies.value = await api.getCompanies();
+}
 
-  try {
-    companies.value = await getCompanies();
-  } catch (error: any) {
-    errorMessage.value = resolveError(error, "Не удалось загрузить компании");
-  } finally {
-    loading.value = false;
+async function runAction(action: () => Promise<unknown>, title: string, company: string) {
+  await action();
+  toast.add({ title, description: company, color: "success" });
+  await loadCompanies();
+}
+
+function subscriptionAmount(company: PlatformCompany) {
+  return company.subscription?.plan?.priceMonthly ?? 0;
+}
+
+function hasSubscription(company: PlatformCompany) {
+  return Boolean(company.subscription?.id || company.subscriptions?.some((subscriptionItem) => subscriptionItem.id));
+}
+
+function companyIds(company: PlatformCompany) {
+  return [company.id, company.companyId].filter(Boolean).map(String);
+}
+
+function isCompanySubscription(subscriptionItem: any, company: PlatformCompany) {
+  return companyIds(company).includes(String(subscriptionItem?.companyId || ""));
+}
+
+async function resolveSubscriptionForPayment(company: PlatformCompany) {
+  if (company.subscription?.id) {
+    return company.subscription;
   }
-}
 
-function resetForm() {
-  form.name = "";
-  form.login = "";
-  form.subdomain = "";
-  form.status = "active";
-}
-
-function openCreate() {
-  editing.value = null;
-  resetForm();
-  successMessage.value = "";
-  modalOpen.value = true;
-}
-
-function openEdit(company: PlatformCompany) {
-  editing.value = company;
-  form.name = company.name;
-  form.login = company.login;
-  form.subdomain = company.subdomain;
-  form.status = company.status;
-  successMessage.value = "";
-  modalOpen.value = true;
-}
-
-async function submit() {
-  saving.value = true;
-  errorMessage.value = "";
-  successMessage.value = "";
-
-  try {
-    if (editing.value?.id) {
-      await updateCompany(editing.value.id, {
-        name: form.name.trim(),
-        login: form.login.trim(),
-        subdomain: form.subdomain.trim(),
-        is_active: form.status === "active",
-      });
-      successMessage.value = "Компания обновлена";
-      toast.add({ title: "Компания обновлена", color: "success" });
-    } else {
-      await createCompany({
-        name: form.name.trim(),
-        login: form.login.trim(),
-        subdomain: form.subdomain.trim(),
-      });
-      successMessage.value = "Компания создана";
-      toast.add({ title: "Компания создана", color: "success" });
-    }
-
-    modalOpen.value = false;
-    await loadCompanies();
-  } catch (error: any) {
-    errorMessage.value = resolveError(error, "Не удалось сохранить компанию");
-    toast.add({ title: "Не удалось сохранить компанию", description: errorMessage.value, color: "error" });
-  } finally {
-    saving.value = false;
+  const routeCompanyId = company.id || company.companyId;
+  if (routeCompanyId) {
+    try {
+      const detailedCompany = await api.getCompany(routeCompanyId);
+      if (detailedCompany.subscription?.id) {
+        return detailedCompany.subscription;
+      }
+    } catch {}
   }
+
+  const subscriptions = await api.getSubscriptions();
+  return subscriptions.find((subscriptionItem) => isCompanySubscription(subscriptionItem, company)) || null;
 }
 
-async function removeCompany(company: PlatformCompany) {
-  if (typeof window !== "undefined" && !window.confirm(`Удалить компанию "${company.name}"?`)) {
+async function renewWithPayment(company: PlatformCompany) {
+  renewingCompanyId.value = company.id || company.companyId;
+  let resolvedSubscription: Awaited<ReturnType<typeof resolveSubscriptionForPayment>>;
+  try {
+    resolvedSubscription = await resolveSubscriptionForPayment(company);
+  } catch (error: any) {
+    const message = error?.data?.message ?? error?.response?._data?.message ?? error?.message ?? "РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РїРѕРґРїРёСЃРєСѓ РєРѕРјРїР°РЅРёРё";
+    toast.add({ title: "РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРґР»РёС‚СЊ РїРѕРґРїРёСЃРєСѓ", description: Array.isArray(message) ? message.join(", ") : message, color: "error" });
+    renewingCompanyId.value = "";
+    return;
+  }
+  const subscriptionId = resolvedSubscription?.id;
+  if (!subscriptionId) {
+    toast.add({ title: "Не удалось продлить подписку", description: "У компании нет ID подписки.", color: "error" });
+    renewingCompanyId.value = "";
     return;
   }
 
-  deletingId.value = company.id;
-  errorMessage.value = "";
-  successMessage.value = "";
-
+  renewingSubscriptionId.value = subscriptionId;
   try {
-    await deleteCompany(company.id);
-    successMessage.value = "Компания удалена";
+    await api.createPayment({
+      subscription_id: subscriptionId,
+      amount: resolvedSubscription?.plan?.priceMonthly ?? subscriptionAmount(company),
+      method: "cash",
+      comment: "Продление подписки на 1 месяц",
+    });
+    toast.add({ title: "Подписка продлена на 1 месяц", description: company.name, color: "success" });
     await loadCompanies();
   } catch (error: any) {
-    errorMessage.value = resolveError(error, "Не удалось удалить компанию");
-    toast.add({ title: "Не удалось удалить компанию", description: errorMessage.value, color: "error" });
+    const message = error?.data?.message ?? error?.response?._data?.message ?? error?.message ?? "Запрос на продление не выполнен";
+    toast.add({ title: "Не удалось продлить подписку", description: Array.isArray(message) ? message.join(", ") : message, color: "error" });
   } finally {
-    deletingId.value = "";
+    renewingSubscriptionId.value = "";
+    renewingCompanyId.value = "";
   }
 }
 
-watch(
-  () => true,
-  () => {
-    loadCompanies();
-  },
-  { immediate: true, once: true },
-);
+onMounted(loadCompanies);
 </script>
 
 <template>
   <div class="space-y-8">
-    <PageHeader
-      eyebrow="Компании"
-      title="Компании платформы"
-      description="Создавайте компании, следите за их статусом и быстро переходите к филиалам и сотрудникам."
-    >
+    <PageHeader eyebrow="Клиенты" title="Компании" description="Главная страница управления клиентами платформы, статусами и подписками.">
       <template #actions>
-        <UButton color="neutral" variant="soft" class="cursor-pointer rounded-2xl bg-white/80 text-slate-700 hover:bg-white" @click="loadCompanies">
-          <Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
-          Обновить
-        </UButton>
-        <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate">
+        <UButton to="/platform/companies/create" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800">
           <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
-          Новая компания
+          Создать компанию
         </UButton>
       </template>
     </PageHeader>
 
-    <div v-if="errorMessage" class="rounded-[28px] border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-[14px] text-rose-700 shadow-[0_18px_40px_rgba(190,24,93,0.08)]">
-      {{ errorMessage }}
-    </div>
-
-    <div v-if="successMessage" class="rounded-[28px] border border-emerald-200/80 bg-emerald-50/90 px-5 py-4 text-[14px] text-emerald-700 shadow-[0_18px_40px_rgba(5,150,105,0.08)]">
-      {{ successMessage }}
-    </div>
-
-    <DataPanel title="Каталог компаний" description="Фильтруйте список и открывайте нужную компанию в один клик.">
+    <DataPanel title="Список компаний" description="Фильтруйте клиентов по названию, статусу, тарифу и состоянию подписки.">
       <template #toolbar>
-        <div class="flex flex-1 flex-wrap items-center gap-3">
-          <div class="min-w-[240px] flex-1">
-            <UInput v-model="search" type="text" placeholder="Поиск по названию, логину или поддомену" :ui="inputUi" />
-          </div>
-          <USelect v-model="status" :items="statusOptions" value-key="value" :ui="selectUi" class="min-w-[220px]" />
+        <div class="grid w-full gap-3 md:grid-cols-4">
+          <UInput v-model="search" placeholder="Поиск по названию" />
+          <USelect v-model="status" :items="statusOptions" value-key="value" />
+          <USelect v-model="plan" :items="planOptions" value-key="value" />
+          <USelect v-model="subscription" :items="subscriptionOptions" value-key="value" />
         </div>
       </template>
 
-      <div v-if="loading" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <div v-for="item in 6" :key="item" class="h-64 animate-pulse rounded-[30px] bg-slate-100/80" />
-      </div>
-
-      <EmptyState v-else-if="!filteredCompanies.length" title="Компании не найдены" description="Измените фильтры или создайте первую компанию." icon="heroicons:building-office-2" />
-
-      <div v-else class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <article
-          v-for="company in filteredCompanies"
-          :key="company.id"
-          class="cursor-pointer rounded-[30px] border border-slate-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.92))] p-5 shadow-[0_20px_46px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-[0_28px_60px_rgba(13,148,136,0.12)]"
-          role="link"
-          tabindex="0"
-          @click="openCompanyCard(company)"
-          @keydown.enter.prevent="openCompanyCard(company)"
-          @keydown.space.prevent="openCompanyCard(company)"
-        >
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0">
-              <p class="truncate text-[20px] font-semibold tracking-[-0.03em] text-slate-950">{{ company.name }}</p>
-              <p class="mt-2 truncate text-[14px] text-slate-500">
-                {{ company.login || "Логин не указан" }}
-              </p>
-            </div>
-            <StatusBadge :status="company.status" />
-          </div>
-
-          <div class="mt-5 grid grid-cols-2 gap-3">
-            <div class="rounded-[22px] bg-slate-950 px-4 py-3 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
-              <p class="text-[11px] uppercase tracking-[0.16em] text-slate-300">Филиалы</p>
-              <p class="mt-2 text-[22px] font-semibold">{{ company.shopsCount }}</p>
-            </div>
-            <div class="rounded-[22px] bg-white px-4 py-3 text-slate-900 ring-1 ring-slate-200">
-              <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Сотрудники</p>
-              <p class="mt-2 text-[22px] font-semibold">{{ company.usersCount }}</p>
-            </div>
-          </div>
-
-          <div class="mt-4 rounded-[22px] bg-[#f4f8fb] px-4 py-3 ring-1 ring-slate-200/70">
-            <p class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Поддомен</p>
-            <p class="mt-1 truncate text-[14px] font-medium text-slate-700">{{ company.subdomain || "Не указан" }}</p>
-          </div>
-
-          <div class="mt-5 flex flex-wrap gap-2">
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-slate-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800" @click.stop>
-              Карточка
-            </NuxtLink>
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/shops`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50" @click.stop>
-              Филиалы
-            </NuxtLink>
-            <NuxtLink :to="`/platform/companies/${getCompanyRouteId(company)}/users`" class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50" @click.stop>
-              Сотрудники
-            </NuxtLink>
-          </div>
-
-          <div class="mt-5 flex items-center justify-between gap-2 border-t border-slate-200/80 pt-4">
-            <button class="cursor-pointer rounded-2xl px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" @click.stop="openEdit(company)">
-              Редактировать
-            </button>
-            <UButton color="error" variant="soft" class="cursor-pointer rounded-2xl" :loading="deletingId === company.id" @click.stop="removeCompany(company)">
-              Удалить
-            </UButton>
-          </div>
-        </article>
-      </div>
+      <DataTable>
+        <thead class="bg-slate-50">
+          <tr class="text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <th class="px-4 py-3">Название компании</th>
+            <th class="px-4 py-3">Владелец</th>
+            <th class="px-4 py-3">Телефон</th>
+            <th class="px-4 py-3">Статус</th>
+            <th class="px-4 py-3">Тариф</th>
+            <th class="px-4 py-3">Окончание подписки</th>
+            <th class="px-4 py-3">Дата создания</th>
+            <th class="px-4 py-3 text-right">Действия</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr v-for="company in filteredCompanies" :key="company.id" class="text-[14px] text-slate-700">
+            <td class="px-4 py-4 font-semibold text-slate-950">{{ company.name }}</td>
+            <td class="px-4 py-4">{{ company.ownerName }}</td>
+            <td class="px-4 py-4">{{ company.ownerPhone }}</td>
+            <td class="px-4 py-4"><StatusBadge :status="company.status" /></td>
+            <td class="px-4 py-4">{{ company.subscription?.planName || "—" }}</td>
+            <td class="px-4 py-4"><DateBadge :date="company.subscription?.endDate || ''" /></td>
+            <td class="px-4 py-4"><DateBadge :date="company.createdAt" /></td>
+            <td class="px-4 py-4 text-right">
+              <div class="flex items-center justify-end gap-2">
+                <UButton
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  class="rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  :loading="renewingCompanyId === (company.id || company.companyId) || (Boolean(company.subscription?.id) && renewingSubscriptionId === company.subscription?.id)"
+                  :disabled="!hasSubscription(company)"
+                  @click.stop="renewWithPayment(company)"
+                >
+                  <Icon name="heroicons:calendar-days" class="mr-1.5 h-4 w-4" />
+                  Продлить
+                </UButton>
+              <ActionMenu
+                :items="[
+                  { label: 'Открыть', icon: 'heroicons:arrow-top-right-on-square', onSelect: () => router.push(`/platform/companies/${company.id}`) },
+                  { label: 'Редактировать', icon: 'heroicons:pencil-square', onSelect: () => router.push(`/platform/companies/${company.id}`) },
+                  { label: 'Заблокировать', icon: 'heroicons:lock-closed', onSelect: () => runAction(() => api.blockCompany(company.id), 'Компания заблокирована', company.name) },
+                  { label: 'Разблокировать', icon: 'heroicons:lock-open', onSelect: () => runAction(() => api.unblockCompany(company.id), 'Компания разблокирована', company.name) },
+                  { label: 'Удалить', icon: 'heroicons:trash', color: 'error', onSelect: () => runAction(() => api.deleteCompany(company.id), 'Компания удалена', company.name) },
+                ]"
+              />
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </DataTable>
     </DataPanel>
-
-    <ModalForm :open="modalOpen" :title="editing ? 'Редактировать компанию' : 'Создать компанию'" description="Заполните ключевые данные компании." @close="modalOpen = false">
-      <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
-        <label class="space-y-2 md:col-span-2">
-          <span class="text-[13px] font-semibold text-slate-700">Название компании</span>
-          <UInput v-model="form.name" type="text" required placeholder="Введите название компании" :ui="inputUi" />
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Логин</span>
-          <UInput v-model="form.login" type="text" required placeholder="Введите логин" :ui="inputUi" />
-        </label>
-        <label class="space-y-2">
-          <span class="text-[13px] font-semibold text-slate-700">Поддомен</span>
-          <UInput v-model="form.subdomain" type="text" required placeholder="Введите поддомен" :ui="inputUi" />
-        </label>
-        <label v-if="editing" class="space-y-2 md:col-span-2">
-          <span class="text-[13px] font-semibold text-slate-700">Статус</span>
-          <USelect v-model="form.status" :items="companyStatusOptions" value-key="value" :ui="selectUi" />
-        </label>
-        <div class="mt-2 flex justify-end gap-3 md:col-span-2">
-          <UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton>
-          <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :disabled="saving">
-            {{ saving ? "Сохраняем..." : editing ? "Сохранить" : "Создать" }}
-          </UButton>
-        </div>
-      </form>
-    </ModalForm>
   </div>
 </template>

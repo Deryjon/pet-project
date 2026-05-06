@@ -9,7 +9,7 @@ import { usePlatformCompanies } from "@/composables/usePlatformCompanies";
 import { usePlatformUsers } from "@/composables/usePlatformUsers";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Company Logs | Konkurent" });
+useHead({ title: "Журнал компании | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
@@ -48,7 +48,7 @@ async function loadData() {
     company.value = companyResponse;
     logs.value = [
       ...shops.map((shop, index) => ({
-        user: "Platform Admin",
+        user: "Администратор платформы",
         action: index % 2 === 0 ? "UPDATE" : "CREATE",
         entity: `Shop: ${shop.name}`,
         date: shop.updatedAt || shop.createdAt || "—",
@@ -60,9 +60,9 @@ async function loadData() {
         date: user.updatedAt || user.createdAt || "—",
       })),
       {
-        user: "Platform Admin",
+        user: "Администратор платформы",
         action: "UPDATE",
-        entity: `Company: ${companyResponse.name}`,
+        entity: `Компания: ${companyResponse.name}`,
         date: companyResponse.updatedAt || companyResponse.createdAt || "—",
       },
     ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -82,7 +82,7 @@ watch(companyId, () => {
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Logs" :title="company?.name ? `Logs: ${company.name}` : 'Company Logs'" description="История действий по компании, пользователям и филиалам на основе текущих данных интерфейса." />
+    <PageHeader eyebrow="Журнал" :title="company?.name ? `Журнал: ${company.name}` : 'Журнал компании'" description="История действий по компании, пользователям и филиалам на основе текущих данных интерфейса." />
     <CompanyTabs :company-id="companyId" />
 
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
@@ -105,7 +105,7 @@ watch(companyId, () => {
           <thead>
             <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               <th class="px-4 py-2">User</th>
-              <th class="px-4 py-2">Action</th>
+              <th class="px-4 py-2">Действие</th>
               <th class="px-4 py-2">Entity</th>
               <th class="px-4 py-2">Date</th>
             </tr>

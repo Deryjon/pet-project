@@ -12,7 +12,7 @@ import { usePlatformCompanies } from "@/composables/usePlatformCompanies";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Company Shops | Konkurent" });
+useHead({ title: "Филиалы компании | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
@@ -72,7 +72,7 @@ function openEdit(shop: PlatformShop) {
   editing.value = shop;
   form.name = shop.name;
   form.branchCode = shop.branchCode;
-  form.status = shop.status;
+  form.status = shop.status === "active" ? "active" : "inactive";
   modalOpen.value = true;
 }
 
@@ -132,11 +132,11 @@ watch(companyId, () => {
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Shops" :title="company?.name ? `Shops: ${company.name}` : 'Company Shops'" description="Создание, редактирование и контроль филиалов выбранной компании." />
+    <PageHeader eyebrow="Филиалы" :title="company?.name ? `Филиалы: ${company.name}` : 'Филиалы компании'" description="Создание, редактирование и контроль филиалов выбранной компании." />
     <CompanyTabs :company-id="companyId" />
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
     <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">{{ successMessage }}</div>
-    <DataPanel title="Shops" description="Список филиалов компании и управление их статусом.">
+    <DataPanel title="Филиалы" description="Список филиалов компании и управление их статусом.">
       <template #toolbar>
         <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreate"><Icon name="heroicons:plus" class="mr-2 h-4 w-4" />Создать филиал</UButton>
       </template>

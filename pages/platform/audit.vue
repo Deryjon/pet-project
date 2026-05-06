@@ -4,17 +4,17 @@ import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Audit | Konkurent" });
+useHead({ title: "Аудит | Konkurent" });
 
 const search = ref("");
 const userFilter = ref("all");
 const entityFilter = ref("all");
 
 const logs = ref([
-  { user: "Admin", action: "CREATE", entity: "Company", date: "2026-05-05 12:43" },
+  { user: "Администратор", action: "СОЗДАНИЕ", entity: "Компания", date: "2026-05-05 12:43" },
   { user: "Support", action: "UPDATE", entity: "User", date: "2026-05-05 11:20" },
-  { user: "Admin", action: "DELETE", entity: "Shop", date: "2026-05-05 10:02" },
-  { user: "Manager", action: "LOGIN", entity: "Platform", date: "2026-05-04 18:10" },
+  { user: "Администратор", action: "УДАЛЕНИЕ", entity: "Филиал", date: "2026-05-05 10:02" },
+  { user: "Менеджер", action: "ВХОД", entity: "Платформа", date: "2026-05-04 18:10" },
 ]);
 
 const userOptions = computed(() => [
@@ -40,9 +40,9 @@ const filteredLogs = computed(() =>
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Audit" title="Audit Log" description="Временный интерфейс аудита действий внутри платформы с mock-данными." />
+    <PageHeader eyebrow="Аудит" title="Журнал аудита" description="Временный интерфейс аудита действий внутри платформы с mock-данными." />
 
-    <DataPanel title="Audit Events" description="Поиск и фильтрация действий по пользователю и сущности.">
+    <DataPanel title="События аудита" description="Поиск и фильтрация действий по пользователю и сущности.">
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
           <div class="min-w-[240px] flex-1">
@@ -58,7 +58,7 @@ const filteredLogs = computed(() =>
           <thead>
             <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
               <th class="px-4 py-2">User</th>
-              <th class="px-4 py-2">Action</th>
+              <th class="px-4 py-2">Действие</th>
               <th class="px-4 py-2">Entity</th>
               <th class="px-4 py-2">Date</th>
             </tr>

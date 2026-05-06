@@ -313,7 +313,7 @@ onMounted(loadRoles);
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p class="mb-2 text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
-            Company User
+            Пользователь компании
           </p>
           <h3 class="text-[28px] font-semibold text-white">Новый сотрудник</h3>
           <p class="mt-2 max-w-[620px] text-sm leading-6 text-[#bdbdbd]">

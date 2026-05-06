@@ -197,7 +197,7 @@ export function useRolePermissionsApi() {
     }, { companyId: payload.company_id });
     const id = ensureRoleId(response);
     if (!id) {
-      throw new Error("Role id not found in create role response");
+      throw new Error("ID роли не найден в ответе создания роли");
     }
     return id;
   }

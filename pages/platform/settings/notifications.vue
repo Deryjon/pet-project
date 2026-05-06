@@ -6,7 +6,7 @@ import SettingsTabs from "@/components/platform/settings/SettingsTabs.vue";
 import { usePlatformSettingsState } from "@/composables/usePlatformSettingsState";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Notifications Settings | Konkurent" });
+useHead({ title: "Настройки уведомлений | Konkurent" });
 
 const { state, load, save } = usePlatformSettingsState();
 const toast = useToast();
@@ -21,10 +21,10 @@ onMounted(load);
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Settings" title="Notifications" description="Базовое включение и выключение системных уведомлений." />
+    <PageHeader eyebrow="Настройки" title="Уведомления" description="Базовое включение и выключение системных уведомлений." />
     <SettingsTabs />
 
-    <DataPanel title="Notifications" description="Mock-state для системных событий платформы.">
+    <DataPanel title="Уведомления" description="Mock-state для системных событий платформы.">
       <form class="grid gap-4" @submit.prevent="submit">
         <label class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200">
           <input v-model="state.notificationsEnabled" type="checkbox" class="h-4 w-4 accent-teal-600" />

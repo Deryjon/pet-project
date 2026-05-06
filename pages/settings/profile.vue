@@ -252,7 +252,7 @@ onBeforeUnmount(revokePreviewUrl);
   <section class="profile-settings w-full text-white">
     <div class="hero-panel">
       <div>
-        <p class="hero-kicker">Settings</p>
+        <p class="hero-kicker">Настройки</p>
         <h1 class="hero-title">Настройки профиля</h1>
         <p class="hero-copy">
           Управляйте основными данными, безопасностью аккаунта и внешним видом интерфейса.

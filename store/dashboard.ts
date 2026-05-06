@@ -309,7 +309,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
         },
       });
     } catch {
-      // Settings are best-effort only.
+      // Настройки применяются по возможности.
     } finally {
       settingsSaving.value = false;
     }

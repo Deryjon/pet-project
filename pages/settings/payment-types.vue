@@ -510,7 +510,7 @@ onMounted(loadPaymentTypes);
             </label>
 
             <label class="field-group">
-              <span class="field-label">Payment Type ID</span>
+              <span class="field-label">ID способа оплаты</span>
               <input
                 v-model="draft.payment_type_id"
                 type="text"

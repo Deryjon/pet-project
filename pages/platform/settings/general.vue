@@ -6,14 +6,14 @@ import SettingsTabs from "@/components/platform/settings/SettingsTabs.vue";
 import { usePlatformSettingsState } from "@/composables/usePlatformSettingsState";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "General Settings | Konkurent" });
+useHead({ title: "Общие настройки | Konkurent" });
 
 const { state, load, save } = usePlatformSettingsState();
 const toast = useToast();
 
 function submit() {
   save();
-  toast.add({ title: "General settings saved", color: "success" });
+  toast.add({ title: "Общие настройки сохранены", color: "success" });
 }
 
 onMounted(load);
@@ -21,10 +21,10 @@ onMounted(load);
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Settings" title="General" description="Язык и часовой пояс платформы." />
+    <PageHeader eyebrow="Настройки" title="Общие" description="Язык и часовой пояс платформы." />
     <SettingsTabs />
 
-    <DataPanel title="General Settings" description="Локальное хранение без изменения backend-контрактов.">
+    <DataPanel title="Общие настройки" description="Локальное хранение без изменения backend-контрактов.">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Language</span>

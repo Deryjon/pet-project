@@ -18,7 +18,7 @@ const handleLogout = () => {
 };
 
 const openSettings = () => {
-  console.log("Settings opened");
+  console.log("Настройки открыты");
 };
 </script>
 

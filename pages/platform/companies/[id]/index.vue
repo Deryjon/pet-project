@@ -1,5 +1,6 @@
-<script setup lang="ts">
-const route = useRoute();
+﻿<script setup lang="ts">
+definePageMeta({ layout: "platform" });
 
-await navigateTo(`/platform/companies/${String(route.params.id || "").trim()}/overview`, { replace: true });
+const route = useRoute();
+await navigateTo(`/platform/companies/${route.params.id}/overview`, { replace: true });
 </script>

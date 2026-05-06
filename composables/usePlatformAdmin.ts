@@ -3,7 +3,10 @@ import { useApi } from "~/composables/useApi";
 import { useUserStore } from "~/store/useUserStore";
 import { formatUzPhoneDisplay } from "~/utils/phone";
 
-export type PlatformStatus = "active" | "inactive";
+export type PlatformStatus = "active" | "inactive" | "blocked";
+export type PlatformSubscriptionStatus = "active" | "expired" | "cancelled";
+export type PlatformPlanStatus = "active" | "inactive";
+export type PlatformPaymentMethod = "cash" | "card" | "click" | "payme" | "bank" | "other";
 
 export interface PlatformCompany {
   id: string;
@@ -11,12 +14,18 @@ export interface PlatformCompany {
   name: string;
   login: string;
   subdomain: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string;
   status: PlatformStatus;
+  blockReason: string;
   createdAt: string;
   updatedAt: string;
   shopsCount: number;
   usersCount: number;
   shops: PlatformShop[];
+  subscription: PlatformSubscription | null;
+  subscriptions: PlatformSubscription[];
 }
 
 export interface PlatformShop {
@@ -29,6 +38,50 @@ export interface PlatformShop {
   status: PlatformStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PlatformPlan {
+  id: string;
+  name: string;
+  priceMonthly: number;
+  maxShops: number;
+  maxUsers: number;
+  maxProducts: number;
+  status: PlatformPlanStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlatformSubscription {
+  id: string;
+  companyId: string;
+  planId: string;
+  status: PlatformSubscriptionStatus;
+  startDate: string;
+  endDate: string;
+  companyName: string;
+  companyStatus: PlatformStatus;
+  planName: string;
+  plan: PlatformPlan | null;
+  company: Partial<PlatformCompany> | null;
+}
+
+export interface PlatformPayment {
+  id: string;
+  companyId: string;
+  subscriptionId: string;
+  companyName: string;
+  amount: number;
+  method: PlatformPaymentMethod;
+  paidAt: string;
+  periodStart: string;
+  periodEnd: string;
+  period: string;
+  createdById: string;
+  createdByName: string;
+  comment: string;
+  company: Partial<PlatformCompany> | null;
+  subscription: Partial<PlatformSubscription> | null;
 }
 
 export interface PlatformUser {
@@ -67,18 +120,24 @@ export interface PlatformRole {
 
 export interface PlatformDashboardStats {
   totalCompanies: number;
+  activeCompanies: number;
+  blockedCompanies: number;
+  activeSubscriptions: number;
+  expiredSubscriptions: number;
+  expiringSoonSubscriptions: number;
+  monthlyRevenue: number;
   totalShops: number;
   totalUsers: number;
   totalSales: number;
-  activeCompanies: number;
 }
 
 export interface PlatformUserPayload {
-  first_name: string;
-  last_name: string;
-  phone_number: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  email?: string;
   password?: string;
-  role: string;
+  role?: string;
   crm_role_id?: string;
   birth_date?: string;
   company_id?: string;
@@ -88,67 +147,77 @@ export interface PlatformUserPayload {
   is_active?: boolean;
 }
 
+export interface PlatformCompanyCreatePayload {
+  login: string;
+  name: string;
+  subdomain: string;
+  owner_name: string;
+  owner_phone: string;
+  owner_email: string;
+  plan_id: string;
+  subscription_start_date?: string;
+  subscription_end_date?: string;
+}
+
+export interface PlatformCompanyUpdatePayload {
+  name?: string;
+  login?: string;
+  subdomain?: string;
+  is_active?: boolean;
+  owner_name?: string;
+  owner_phone?: string;
+  owner_email?: string;
+  status?: PlatformStatus;
+}
+
+export interface PlatformPlanPayload {
+  name?: string;
+  price_monthly?: number;
+  max_shops?: number;
+  max_users?: number;
+  max_products?: number;
+  status?: PlatformPlanStatus;
+}
+
+export interface PlatformPaymentPayload {
+  subscription_id: string;
+  amount: number;
+  method: PlatformPaymentMethod;
+  paid_at?: string;
+  comment?: string;
+}
+
+export interface PlatformShopPayload {
+  name?: string;
+  branch_code?: string;
+  is_active?: boolean;
+}
+
 function pickArray<T = any>(input: any, keys: string[]): T[] {
   if (Array.isArray(input)) return input;
-
   for (const key of keys) {
-    if (Array.isArray(input?.[key])) {
-      return input[key];
-    }
+    if (Array.isArray(input?.[key])) return input[key];
+    if (Array.isArray(input?.data?.[key])) return input.data[key];
   }
-
+  if (Array.isArray(input?.data)) return input.data;
   return [];
 }
 
 function pickObject<T = any>(input: any, keys: string[]): T | null {
-  if (input && typeof input === "object" && !Array.isArray(input)) {
-    for (const key of keys) {
-      if (input?.[key] && typeof input[key] === "object") {
-        return input[key];
-      }
-    }
-
-    return input as T;
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  for (const key of keys) {
+    if (input?.[key] && typeof input[key] === "object") return input[key];
+    if (input?.data?.[key] && typeof input.data[key] === "object") return input.data[key];
   }
-
-  return null;
+  return (input?.data && typeof input.data === "object" && !Array.isArray(input.data) ? input.data : input) as T;
 }
 
 function pickValue<T = any>(input: any, keys: string[], fallback?: T): T | undefined {
   for (const key of keys) {
-    if (input?.[key] !== undefined && input[key] !== null) {
-      return input[key] as T;
-    }
+    if (input?.[key] !== undefined && input[key] !== null) return input[key] as T;
+    if (input?.data?.[key] !== undefined && input.data[key] !== null) return input.data[key] as T;
   }
-
   return fallback;
-}
-
-function toStatus(value: any): PlatformStatus {
-  if (typeof value === "boolean") {
-    return value ? "active" : "inactive";
-  }
-
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (!normalized) return "active";
-
-  if (["inactive", "disabled", "blocked", "archived", "false", "0"].includes(normalized)) {
-    return "inactive";
-  }
-
-  return "active";
-}
-
-function toBoolean(value: any, fallback = true): boolean {
-  if (typeof value === "boolean") return value;
-  if (value === undefined || value === null || value === "") return fallback;
-
-  const normalized = String(value).trim().toLowerCase();
-  if (["false", "0", "inactive", "disabled", "blocked", "archived"].includes(normalized)) {
-    return false;
-  }
-
-  return true;
 }
 
 function toDate(value: any): string {
@@ -161,6 +230,45 @@ function toNumber(value: any): number {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function toBoolean(value: any, fallback = true): boolean {
+  if (typeof value === "boolean") return value;
+  if (value === undefined || value === null || value === "") return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  return !["false", "0", "inactive", "disabled", "blocked", "archived"].includes(normalized);
+}
+
+function toStatus(value: any): PlatformStatus {
+  if (typeof value === "boolean") return value ? "active" : "blocked";
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["inactive", "disabled"].includes(normalized)) return "inactive";
+  if (["blocked", "archived", "false", "0"].includes(normalized)) return "blocked";
+  return "active";
+}
+
+function toPlanStatus(value: any): PlatformPlanStatus {
+  return toBoolean(value, true) ? "active" : "inactive";
+}
+
+function toSubscriptionStatus(value: any): PlatformSubscriptionStatus {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "cancelled") return "cancelled";
+  if (normalized === "expired") return "expired";
+  return "active";
+}
+
+function roleDisplay(role: any): string {
+  const normalized = String(role ?? "").trim();
+  const labels: Record<string, string> = {
+    platform_admin: "Администратор платформы",
+    superadmin: "Superadmin",
+    company_owner: "Основатель",
+    company_admin: "Управляющий",
+    seller: "Продавец",
+    support: "Поддержка",
+  };
+  return labels[normalized] || normalized;
+}
+
 function normalizeSlug(value: any): string {
   return String(value ?? "")
     .trim()
@@ -170,59 +278,82 @@ function normalizeSlug(value: any): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizePlan(raw: any): PlatformPlan {
+  return {
+    id: String(pickValue(raw, ["id", "_id"]) ?? ""),
+    name: String(pickValue(raw, ["name"]) ?? ""),
+    priceMonthly: toNumber(pickValue(raw, ["priceMonthly", "price_monthly", "price"])),
+    maxShops: toNumber(pickValue(raw, ["maxShops", "max_shops", "shopLimit"])),
+    maxUsers: toNumber(pickValue(raw, ["maxUsers", "max_users", "employeeLimit"])),
+    maxProducts: toNumber(pickValue(raw, ["maxProducts", "max_products", "productLimit"])),
+    status: toPlanStatus(pickValue(raw, ["status", "is_active"])),
+    createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
+    updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
+  };
+}
+
 function normalizeShop(raw: any, company?: Partial<PlatformCompany>): PlatformShop {
   const nestedShop = pickObject(raw?.shop, ["shop", "data"]) ?? raw?.shop ?? null;
   const companyInfo = pickObject(raw?.company, ["company", "data"]) ?? company ?? null;
-
   return {
-    id: String(
-      pickValue(raw, ["id", "shop_id"]) ??
-        pickValue(nestedShop, ["id", "shop_id"]) ??
-        "",
-    ),
-    shopId: String(
-      pickValue(raw, ["shop_id", "id"]) ??
-        pickValue(nestedShop, ["shop_id", "id"]) ??
-        "",
-    ),
-    name: String(
-      pickValue(raw, ["name", "shop_name"]) ??
-        pickValue(nestedShop, ["name", "shop_name"]) ??
-        "",
-    ),
-    companyId: String(
-      pickValue(raw, ["company_id", "companyId"]) ??
-        pickValue(companyInfo, ["company_id", "companyId", "id"]) ??
-        "",
-    ),
-    companyName: String(
-      pickValue(raw, ["company_name"]) ??
-        pickValue(companyInfo, ["name", "company_name"]) ??
-        "",
-    ),
-    branchCode: String(
-      pickValue(raw, ["branch_code", "branchCode", "code"]) ??
-        pickValue(nestedShop, ["branch_code", "branchCode", "code"]) ??
-        "",
-    ),
-    status: toStatus(
-      pickValue(raw, ["is_active", "isActive", "status"]) ??
-        pickValue(nestedShop, ["is_active", "isActive", "status"]),
-    ),
-    createdAt: toDate(
-      pickValue(raw, ["created_at", "createdAt"]) ??
-        pickValue(nestedShop, ["created_at", "createdAt"]),
-    ),
-    updatedAt: toDate(
-      pickValue(raw, ["updated_at", "updatedAt"]) ??
-        pickValue(nestedShop, ["updated_at", "updatedAt"]),
-    ),
+    id: String(pickValue(raw, ["id", "shop_id"]) ?? pickValue(nestedShop, ["id", "shop_id"]) ?? ""),
+    shopId: String(pickValue(raw, ["shop_id", "id"]) ?? pickValue(nestedShop, ["shop_id", "id"]) ?? ""),
+    name: String(pickValue(raw, ["name", "shop_name"]) ?? pickValue(nestedShop, ["name", "shop_name"]) ?? ""),
+    companyId: String(pickValue(raw, ["company_id", "companyId"]) ?? pickValue(companyInfo, ["company_id", "companyId", "id"]) ?? ""),
+    companyName: String(pickValue(raw, ["company_name"]) ?? pickValue(companyInfo, ["name", "company_name"]) ?? ""),
+    branchCode: String(pickValue(raw, ["branch_code", "branchCode", "code"]) ?? pickValue(nestedShop, ["branch_code", "branchCode", "code"]) ?? ""),
+    status: toStatus(pickValue(raw, ["is_active", "isActive", "status"]) ?? pickValue(nestedShop, ["is_active", "isActive", "status"])),
+    createdAt: toDate(pickValue(raw, ["created_at", "createdAt"]) ?? pickValue(nestedShop, ["created_at", "createdAt"])),
+    updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"]) ?? pickValue(nestedShop, ["updated_at", "updatedAt"])),
+  };
+}
+
+function normalizeSubscription(raw: any): PlatformSubscription {
+  const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
+  const plan = pickObject(raw?.plan, ["plan", "data"]) ?? raw?.plan ?? null;
+  return {
+    id: String(pickValue(raw, ["id", "subscription_id", "subscriptionId", "_id"]) ?? ""),
+    companyId: String(pickValue(raw, ["companyId", "company_id"]) ?? pickValue(company, ["id", "company_id"]) ?? ""),
+    planId: String(pickValue(raw, ["planId", "plan_id"]) ?? pickValue(plan, ["id"]) ?? ""),
+    status: toSubscriptionStatus(pickValue(raw, ["status"])),
+    startDate: toDate(pickValue(raw, ["startDate", "start_date"])),
+    endDate: toDate(pickValue(raw, ["endDate", "end_date"])),
+    companyName: String(pickValue(company, ["name"]) ?? pickValue(raw, ["companyName", "company_name"]) ?? ""),
+    companyStatus: toStatus(pickValue(company, ["status", "is_active"])),
+    planName: String(pickValue(plan, ["name"]) ?? pickValue(raw, ["planName", "plan_name"]) ?? ""),
+    plan: plan ? normalizePlan(plan) : null,
+    company: company ? normalizeCompany(company) : null,
+  };
+}
+
+function normalizeCompany(raw: any): PlatformCompany {
+  const shops = pickArray(raw, ["shops", "data", "items"]).map((shop) => normalizeShop(shop, raw));
+  const subscriptions = pickArray(raw, ["subscriptions"]).map(normalizeSubscription);
+  const subscriptionRaw = pickObject(raw?.subscription, ["subscription", "data"]) ?? raw?.subscription ?? subscriptions[0] ?? null;
+  return {
+    id: String(pickValue(raw, ["id", "company_id"]) ?? ""),
+    companyId: String(pickValue(raw, ["company_id", "companyId", "id"]) ?? ""),
+    name: String(pickValue(raw, ["name", "company_name"]) ?? ""),
+    login: String(pickValue(raw, ["login", "company_login"]) ?? ""),
+    subdomain: String(pickValue(raw, ["subdomain"]) ?? ""),
+    ownerName: String(pickValue(raw, ["ownerName", "owner_name"]) ?? ""),
+    ownerPhone: formatUzPhoneDisplay(pickValue(raw, ["ownerPhone", "owner_phone"])) || String(pickValue(raw, ["ownerPhone", "owner_phone"]) ?? ""),
+    ownerEmail: String(pickValue(raw, ["ownerEmail", "owner_email"]) ?? ""),
+    status: toStatus(pickValue(raw, ["status", "is_active", "isActive"])),
+    blockReason: String(pickValue(raw, ["blockReason", "block_reason"]) ?? ""),
+    createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
+    updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
+    shopsCount: toNumber(pickValue(raw, ["shops_count", "shopsCount"], shops.length)),
+    usersCount: toNumber(pickValue(raw, ["users_count", "usersCount"])),
+    shops,
+    subscription: subscriptionRaw ? normalizeSubscription(subscriptionRaw) : null,
+    subscriptions,
   };
 }
 
 function normalizeRole(raw: any): PlatformRole {
   return {
-    id: String(pickValue(raw, ["id"]) ?? "").trim(),
+    id: String(pickValue(raw, ["id", "role_id", "crm_role_id", "code"]) ?? "").trim(),
     name: String(pickValue(raw, ["name"]) ?? "").trim(),
     description: String(pickValue(raw, ["description"]) ?? "").trim(),
     isAdmin: Boolean(pickValue(raw, ["is_admin", "isAdmin"])),
@@ -231,138 +362,112 @@ function normalizeRole(raw: any): PlatformRole {
   };
 }
 
-function normalizeCompany(raw: any): PlatformCompany {
-  const shops = pickArray(raw, ["shops", "data", "items"]).map((shop) =>
-    normalizeShop(shop, raw),
-  );
-
-  return {
-    id: String(pickValue(raw, ["id", "company_id"]) ?? ""),
-    companyId: String(pickValue(raw, ["company_id", "id"]) ?? ""),
-    name: String(pickValue(raw, ["name", "company_name"]) ?? ""),
-    login: String(pickValue(raw, ["login", "company_login"]) ?? ""),
-    subdomain: String(pickValue(raw, ["subdomain"]) ?? ""),
-    status: toStatus(pickValue(raw, ["is_active", "isActive", "status"])),
-    createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
-    updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
-    shopsCount: toNumber(pickValue(raw, ["shops_count", "shopsCount"], shops.length)),
-    usersCount: toNumber(pickValue(raw, ["users_count", "usersCount"])),
-    shops,
-  };
-}
-
 function normalizeUser(raw: any): PlatformUser {
   const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
-  const currentShop = pickObject(raw?.current_shop, ["current_shop", "data"]) ?? raw?.current_shop ?? null;
-  const primaryRole = raw?.role?.role ?? raw?.role ?? raw?.roles?.[0]?.role ?? raw?.roles?.[0] ?? null;
-  const resolvedRoleName = String(
-    pickValue(raw, ["role_name", "roleName"]) ??
-      pickValue(primaryRole, ["name", "role_name", "roleName"]) ??
-      (typeof primaryRole === "string" ? primaryRole : "") ??
-      "",
-  ).trim();
-  const resolvedRoleId = String(
-    pickValue(raw, ["crm_role_id", "crmRoleId"]) ??
-      pickValue(raw, ["role_id", "roleId"]) ??
-      pickValue(primaryRole, ["id", "role_id", "roleId"]) ??
-      (typeof primaryRole === "string" ? primaryRole : "") ??
-      "",
-  ).trim();
-  const crmRoleId = String(pickValue(raw, ["crm_role_id", "crmRoleId"]) ?? "").trim();
   const firstName = String(pickValue(raw, ["first_name", "firstName"]) ?? "").trim();
   const lastName = String(pickValue(raw, ["last_name", "lastName"]) ?? "").trim();
-  const phone = formatUzPhoneDisplay(pickValue(raw, ["phone_number", "phone"])) || "";
-  const fullName =
-    String(pickValue(raw, ["full_name", "fullName"]) ?? "").trim() ||
-    [firstName, lastName].filter(Boolean).join(" ").trim() ||
-    String(pickValue(raw, ["name"]) ?? "").trim() ||
-    phone;
-
-  const allowedShopIds = pickArray(raw, ["allowed_shop_ids", "allowedShopIds"]).map((item) =>
-    String(item),
-  );
+  const phone = formatUzPhoneDisplay(pickValue(raw, ["phone_number", "phone"])) || String(pickValue(raw, ["phone_number", "phone"]) ?? "");
+  const rawRole = pickValue(raw, ["role_name", "roleName", "role"]);
+  const fullName = String(pickValue(raw, ["full_name", "fullName", "name"]) ?? "").trim() || [firstName, lastName].filter(Boolean).join(" ").trim() || phone;
   const isActive = toBoolean(pickValue(raw, ["is_active", "isActive", "status"]), true);
-
   return {
     id: String(pickValue(raw, ["id", "user_id"]) ?? ""),
-    userType: String(pickValue(raw, ["user_type", "userType"]) ?? ""),
+    userType: String(pickValue(raw, ["user_type", "userType"]) ?? "platform"),
     firstName,
     lastName,
     fullName,
     phone,
     email: String(raw?.email ?? ""),
-    roleId: resolvedRoleId,
-    crmRoleId,
-    roleName: resolvedRoleName,
-    role: resolvedRoleName,
-    status: toStatus(isActive),
+    roleId: String(pickValue(raw, ["role_id", "roleId"]) ?? ""),
+    crmRoleId: String(pickValue(raw, ["crm_role_id", "crmRoleId"]) ?? ""),
+    roleName: roleDisplay(rawRole),
+    role: roleDisplay(rawRole),
+    status: isActive ? "active" : "blocked",
     is_active: isActive,
     createdAt: toDate(pickValue(raw, ["created_at", "createdAt"])),
     updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"])),
     birthDate: String(pickValue(raw, ["birth_date", "birthDate"]) ?? ""),
-    companyId: String(
-      pickValue(raw, ["company_id", "companyId"]) ??
-        pickValue(company, ["id", "company_id", "companyId"]) ??
-        "",
-    ),
-    companyName: String(
-      pickValue(raw, ["company_name"]) ??
-        pickValue(company, ["name", "company_name"]) ??
-        "",
-    ),
-    currentShopId: String(
-      pickValue(raw, ["current_shop_id", "currentShopId"]) ??
-        pickValue(currentShop, ["id", "shop_id", "shopId"]) ??
-        "",
-    ),
-    currentShopName: String(
-      pickValue(currentShop, ["name"]) ??
-        pickValue(currentShop?.shop, ["name"]) ??
-        "",
-    ),
-    allowedShopIds,
+    companyId: String(pickValue(raw, ["company_id", "companyId"]) ?? pickValue(company, ["id", "company_id", "companyId"]) ?? ""),
+    companyName: String(pickValue(raw, ["company_name"]) ?? pickValue(company, ["name", "company_name"]) ?? ""),
+    currentShopId: String(pickValue(raw, ["current_shop_id", "currentShopId"]) ?? ""),
+    currentShopName: "",
+    allowedShopIds: pickArray(raw, ["allowed_shop_ids", "allowedShopIds"]).map(String),
     canSwitchShops: Boolean(pickValue(raw, ["can_switch_shops", "canSwitchShops"])),
   };
+}
+
+function normalizePayment(raw: any): PlatformPayment {
+  const company = pickObject(raw?.company, ["company", "data"]) ?? raw?.company ?? null;
+  const subscription = pickObject(raw?.subscription, ["subscription", "data"]) ?? raw?.subscription ?? null;
+  const createdBy = pickObject(raw?.created_by, ["created_by", "data"]) ?? raw?.created_by ?? null;
+  const periodStart = toDate(pickValue(raw, ["period_start", "periodStart"]));
+  const periodEnd = toDate(pickValue(raw, ["period_end", "periodEnd"]));
+  return {
+    id: String(pickValue(raw, ["id"]) ?? ""),
+    companyId: String(pickValue(raw, ["company_id", "companyId"]) ?? pickValue(company, ["id", "company_id"]) ?? ""),
+    subscriptionId: String(pickValue(raw, ["subscription_id", "subscriptionId"]) ?? pickValue(subscription, ["id"]) ?? ""),
+    companyName: String(pickValue(company, ["name"]) ?? pickValue(raw, ["companyName", "company_name"]) ?? ""),
+    amount: toNumber(pickValue(raw, ["amount"])),
+    method: String(pickValue(raw, ["method"]) ?? "cash") as PlatformPaymentMethod,
+    paidAt: toDate(pickValue(raw, ["paid_at", "paidAt"])),
+    periodStart,
+    periodEnd,
+    period: [periodStart, periodEnd].filter(Boolean).join(" - "),
+    createdById: String(pickValue(raw, ["created_by_id", "createdById"]) ?? pickValue(createdBy, ["id"]) ?? ""),
+    createdByName: String(pickValue(createdBy, ["name", "full_name", "phone_number"]) ?? ""),
+    comment: String(pickValue(raw, ["comment"]) ?? ""),
+    company: company ? normalizeCompany(company) : null,
+    subscription: subscription ? normalizeSubscription(subscription) : null,
+  };
+}
+
+export function formatPlatformMoney(value: number) {
+  return new Intl.NumberFormat("ru-RU").format(value) + " сум";
+}
+
+export function daysLeft(date: string) {
+  if (!date) return 0;
+  const end = new Date(date).getTime();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((end - today.getTime()) / 86400000);
 }
 
 export function usePlatformAdminSession() {
   const { apiFetch } = useApi();
   const userStore = useUserStore();
-
   const authenticated = computed(() => userStore.isLoggedIn && userStore.hasPlatformAccess);
 
   async function restore() {
     userStore.loadToken();
     if (!userStore.token) return false;
-
-    if (!userStore.user.id) {
-      await userStore.fetchMe();
+    try {
+      const response: any = await apiFetch("/platform/auth/me", { method: "GET" });
+      userStore.setUser(response?.user ?? response);
+      return authenticated.value;
+    } catch {
+      userStore.logout();
+      return false;
     }
-
-    return authenticated.value;
   }
 
   async function signIn(payload: { phone_number: string; password: string }) {
-    const response: any = await apiFetch("/auth/platform-login", {
-      method: "POST",
-      body: payload,
-    });
-
+    const response: any = await apiFetch("/platform/auth/login", { method: "POST", body: payload });
     const token = response?.access_token ?? response?.token;
-    if (!token) {
-      throw new Error("Токен не найден в ответе сервера");
-    }
-
+    if (!token) throw new Error("Token not found in server response");
     userStore.login(token, response?.user ?? {});
-    await userStore.fetchMe();
-
+    const me: any = await apiFetch("/platform/auth/me", { method: "GET" });
+    userStore.setUser(me?.user ?? me);
     if (!userStore.hasPlatformAccess) {
       userStore.logout();
-      throw new Error("У пользователя нет доступа к панели платформы");
+      throw new Error("Нет доступа к панели администратора платформы");
     }
   }
 
-  function signOut() {
+  async function signOut() {
+    try {
+      await apiFetch("/platform/auth/logout", { method: "POST" });
+    } catch {}
     userStore.logout();
   }
 
@@ -371,240 +476,194 @@ export function usePlatformAdminSession() {
 
 export function usePlatformAdminApi() {
   const { apiFetch } = useApi();
+  const pathId = (value: string) => encodeURIComponent(String(value || "").trim());
 
-  async function getCompanies() {
-    const response = await apiFetch<any>("/platform/companies", { method: "GET" });
-    return pickArray(response, ["companies", "items", "data"]).map(normalizeCompany);
-  }
-
-  async function getCompany(companyId: string) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}`, { method: "GET" });
-    return normalizeCompany(pickObject(response, ["company", "data"]));
-  }
-
-  async function createCompany(payload: { login: string; name: string; subdomain: string }) {
-    const response = await apiFetch<any>("/platform/companies", {
-      method: "POST",
-      body: {
-        login: normalizeSlug(payload.login),
-        name: String(payload.name ?? "").trim(),
-        subdomain: normalizeSlug(payload.subdomain),
-      },
-    });
-
-    return normalizeCompany(pickObject(response, ["company", "data"]));
-  }
-
-  async function updateCompany(
-    companyId: string,
-    payload: Partial<{ login: string; name: string; subdomain: string; is_active: boolean }>,
-  ) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}`, {
-      method: "PUT",
-      body: {
-        ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
-        ...(payload.login !== undefined ? { login: normalizeSlug(payload.login) } : {}),
-        ...(payload.subdomain !== undefined ? { subdomain: normalizeSlug(payload.subdomain) } : {}),
-        ...(payload.is_active !== undefined ? { is_active: Boolean(payload.is_active) } : {}),
-      },
-    });
-
-    return normalizeCompany(pickObject(response, ["company", "data"]));
-  }
-
-  async function updateCompanyStatus(companyId: string, isActive: boolean) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/status`, {
-      method: "PATCH",
-      body: {
-        is_active: Boolean(isActive),
-      },
-    });
-
-    return normalizeCompany(pickObject(response, ["company", "data"]));
-  }
-
-  async function deleteCompany(companyId: string) {
-    return apiFetch<{ message: string; company_id: string }>(`/platform/companies/${companyId}`, {
-      method: "DELETE",
-    });
-  }
-
-  async function getCompanyShops(companyId: string, company?: Partial<PlatformCompany>) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops`, { method: "GET" });
-    return pickArray(response, ["shops", "items", "data"]).map((item) => normalizeShop(item, company));
-  }
-
-  async function createShop(companyId: string, payload: { name: string; branch_code: string }) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops`, {
-      method: "POST",
-      body: {
-        name: String(payload.name ?? "").trim(),
-        branch_code: normalizeSlug(payload.branch_code),
-      },
-    });
-
-    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
-  }
-
-  async function updateShop(
-    companyId: string,
-    shopId: string,
-    payload: Partial<{ name: string; branch_code: string; is_active: boolean }>,
-  ) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops/${shopId}`, {
-      method: "PUT",
-      body: {
-        ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
-        ...(payload.branch_code !== undefined ? { branch_code: normalizeSlug(payload.branch_code) } : {}),
-        ...(payload.is_active !== undefined ? { is_active: Boolean(payload.is_active) } : {}),
-      },
-    });
-
-    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
-  }
-
-  async function updateShopStatus(companyId: string, shopId: string, isActive: boolean) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/shops/${shopId}/status`, {
-      method: "PATCH",
-      body: {
-        is_active: Boolean(isActive),
-      },
-    });
-
-    return normalizeShop(pickObject(response, ["shop", "data"]), { id: companyId, companyId });
-  }
-
-  async function deleteShop(companyId: string, shopId: string) {
-    return apiFetch<{ message: string; shop_id: string; company_id: string }>(
-      `/platform/companies/${companyId}/shops/${shopId}`,
-      { method: "DELETE" },
-    );
-  }
-
-  async function getPlatformUsers() {
-    const response = await apiFetch<any>("/platform/users", { method: "GET" });
-    return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
-  }
-
-  async function getPlatformRoles() {
-    const response = await apiFetch<any>("/platform/roles", { method: "GET" });
-    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
-  }
-
-  async function getPlatformUser(id: string) {
-    const response = await apiFetch<any>(`/platform/users/${id}`, { method: "GET" });
-    return normalizeUser(pickObject(response, ["user", "data"]));
-  }
-
-  async function createPlatformUser(payload: PlatformUserPayload) {
-    const response = await apiFetch<any>("/platform/users", {
-      method: "POST",
-      body: payload,
-    });
-
-    return normalizeUser(pickObject(response, ["user", "data"]));
-  }
-
-  async function getCompanyUsers(companyId: string) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/users`, { method: "GET" });
-    return pickArray(response, ["users", "items", "data"]).map(normalizeUser);
-  }
-
-  async function getCompanyRoles(companyId?: string) {
-    const safeCompanyId = String(companyId || "").trim();
-    const path = safeCompanyId
-      ? `/v2/role?company_id=${encodeURIComponent(safeCompanyId)}`
-      : "/company/roles";
+  const list = async <T>(path: string, normalizer: (raw: any) => T, keys: string[]) => {
     const response = await apiFetch<any>(path, { method: "GET" });
-    return pickArray(response, ["roles", "items", "data"]).map(normalizeRole);
-  }
+    return pickArray(response, keys).map(normalizer);
+  };
 
-  async function updateCompanyRole(
-    companyId: string,
-    roleId: string,
-    payload: Partial<{ name: string; description: string; is_admin: boolean }>,
-  ) {
-    const safeCompanyId = String(companyId || "").trim();
-    const response = await apiFetch<any>(
-      `/v2/role/${encodeURIComponent(roleId)}?company_id=${encodeURIComponent(safeCompanyId)}`,
-      {
-        method: "PUT",
-        body: {
-          company_id: safeCompanyId,
-          ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
-          ...(payload.description !== undefined ? { description: String(payload.description).trim() } : {}),
-          ...(payload.is_admin !== undefined ? { is_admin: Boolean(payload.is_admin) } : {}),
-        },
-      },
-    );
-
-    return normalizeRole(response);
-  }
-
-  async function createCompanyUser(companyId: string, payload: PlatformUserPayload) {
-    const response = await apiFetch<any>(`/platform/companies/${companyId}/users`, {
-      method: "POST",
-      body: {
-        ...payload,
-        company_id: companyId,
-      },
-    });
-
-    return normalizeUser(pickObject(response, ["user", "data"]));
-  }
-
-  async function updateUser(id: string, payload: PlatformUserPayload) {
-    const response = await apiFetch<any>(`/platform/users/${id}`, {
-      method: "PUT",
-      body: payload,
-    });
-
-    return normalizeUser(pickObject(response, ["user", "data"]));
-  }
-
-  async function deleteUser(id: string) {
-    return apiFetch<{ message: string; id?: string; user_id?: string }>(`/platform/users/${id}`, {
-      method: "DELETE",
-    });
-  }
-
-  async function getDashboardStats(): Promise<PlatformDashboardStats> {
-    const [companies, users] = await Promise.all([getCompanies(), getPlatformUsers()]);
-    const totalShops = companies.reduce((sum, company) => sum + company.shopsCount, 0);
-
+  function normalizeCompanyUpdatePayload(payload: PlatformCompanyUpdatePayload) {
+    const { status, ...rest } = payload;
     return {
-      totalCompanies: companies.length,
-      totalShops,
-      totalUsers: users.length,
-      totalSales: 0,
-      activeCompanies: companies.filter((company) => company.status === "active").length,
+      ...rest,
+      ...(status ? { is_active: status === "active" } : {}),
     };
   }
 
+  async function getDashboardStats(): Promise<PlatformDashboardStats> {
+    const response = await apiFetch<any>("/platform/dashboard/stats", { method: "GET" });
+    const stats = pickObject(response, ["stats", "data"]) ?? response;
+    return {
+      totalCompanies: toNumber(pickValue(stats, ["totalCompanies", "total_companies"])),
+      activeCompanies: toNumber(pickValue(stats, ["activeCompanies", "active_companies"])),
+      blockedCompanies: toNumber(pickValue(stats, ["blockedCompanies", "blocked_companies"])),
+      activeSubscriptions: toNumber(pickValue(stats, ["activeSubscriptions", "active_subscriptions"])),
+      expiredSubscriptions: toNumber(pickValue(stats, ["expiredSubscriptions", "expired_subscriptions"])),
+      expiringSoonSubscriptions: toNumber(pickValue(stats, ["expiringSoonSubscriptions", "expiring_soon_subscriptions"])),
+      monthlyRevenue: toNumber(pickValue(stats, ["monthlyRevenue", "monthly_revenue"])),
+      totalShops: toNumber(pickValue(stats, ["totalShops", "total_shops"])),
+      totalUsers: toNumber(pickValue(stats, ["totalUsers", "total_users"])),
+      totalSales: toNumber(pickValue(stats, ["totalSales", "total_sales"])),
+    };
+  }
+
+  const getCompanies = () => list("/platform/companies", normalizeCompany, ["companies", "items", "data"]);
+  async function getCompany(companyId: string) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}`, { method: "GET" });
+    return normalizeCompany(pickObject(response, ["company", "data"]) ?? response);
+  }
+  async function createCompany(payload: PlatformCompanyCreatePayload) {
+    const response = await apiFetch<any>("/platform/companies", { method: "POST", body: payload });
+    return normalizeCompany(pickObject(response, ["company", "data"]) ?? response);
+  }
+  async function updateCompany(companyId: string, payload: PlatformCompanyUpdatePayload) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}`, { method: "PATCH", body: normalizeCompanyUpdatePayload(payload) });
+    return normalizeCompany(pickObject(response, ["company", "data"]) ?? response);
+  }
+  async function updateCompanyStatus(companyId: string, isActive: boolean) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/status`, { method: "PATCH", body: { is_active: isActive } });
+    return normalizeCompany(pickObject(response, ["company", "data"]) ?? response);
+  }
+  async function blockCompany(companyId: string, block_reason = "manual") {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/block`, { method: "POST", body: { block_reason } });
+    return normalizeCompany(pickObject(response, ["company", "data"]) ?? response);
+  }
+  async function unblockCompany(companyId: string) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/unblock`, { method: "POST" });
+    return normalizeCompany(pickObject(response, ["company", "data"]) ?? response);
+  }
+  const deleteCompany = (companyId: string) => apiFetch(`/platform/companies/${pathId(companyId)}`, { method: "DELETE" });
+
+  async function getCompanyShops(companyId: string, company?: PlatformCompany) {
+    if (!companyId && company?.shops) return company.shops;
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/shops`, { method: "GET" });
+    const shops = pickArray(response, ["shops", "items", "data"]).map((shop) => normalizeShop(shop, company));
+    return shops.length || !company?.shops ? shops : company.shops;
+  }
+  async function createShop(companyId: string, payload: PlatformShopPayload) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/shops`, { method: "POST", body: payload });
+    return normalizeShop(pickObject(response, ["shop", "data"]) ?? response, { id: companyId, companyId });
+  }
+  async function updateShop(companyId: string, shopId: string, payload: PlatformShopPayload) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/shops/${pathId(shopId)}`, { method: "PUT", body: payload });
+    return normalizeShop(pickObject(response, ["shop", "data"]) ?? response, { id: companyId, companyId });
+  }
+  async function updateShopStatus(companyId: string, shopId: string, isActive: boolean) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/shops/${pathId(shopId)}/status`, { method: "PATCH", body: { is_active: isActive } });
+    return normalizeShop(pickObject(response, ["shop", "data"]) ?? response, { id: companyId, companyId });
+  }
+  const deleteShop = (companyId: string, shopId: string) => apiFetch(`/platform/companies/${pathId(companyId)}/shops/${pathId(shopId)}`, { method: "DELETE" });
+
+  const getPlans = () => list("/platform/plans", normalizePlan, ["plans", "items", "data"]);
+  async function createPlan(payload: PlatformPlanPayload) {
+    const response = await apiFetch<any>("/platform/plans", { method: "POST", body: payload });
+    return normalizePlan(pickObject(response, ["plan", "data"]) ?? response);
+  }
+  async function updatePlan(id: string, payload: PlatformPlanPayload) {
+    const response = await apiFetch<any>(`/platform/plans/${pathId(id)}`, { method: "PATCH", body: payload });
+    return normalizePlan(pickObject(response, ["plan", "data"]) ?? response);
+  }
+  const deletePlan = (id: string) => apiFetch(`/platform/plans/${pathId(id)}`, { method: "DELETE" });
+
+  const getSubscriptions = () => list("/platform/subscriptions", normalizeSubscription, ["subscriptions", "items", "data"]);
+  const renewSubscription = (id: string) => apiFetch(`/platform/subscriptions/${pathId(id)}/renew`, { method: "POST" });
+  const checkExpiredSubscriptions = () => apiFetch<{ expired_count: number }>("/platform/subscriptions/check-expired", { method: "POST" });
+
+  const getPayments = () => list("/platform/payments", normalizePayment, ["payments", "items", "data"]);
+  async function createPayment(payload: PlatformPaymentPayload) {
+    const response = await apiFetch<any>("/platform/payments", { method: "POST", body: payload });
+    return normalizePayment(pickObject(response, ["payment", "data"]) ?? response);
+  }
+
+  const getPlatformUsers = () => list("/platform/users", normalizeUser, ["users", "items", "data"]);
+  async function getPlatformUser(id: string) {
+    const response = await apiFetch<any>(`/platform/users/${pathId(id)}`, { method: "GET" });
+    return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
+  }
+  async function createPlatformUser(payload: PlatformUserPayload) {
+    const response = await apiFetch<any>("/platform/users", { method: "POST", body: payload });
+    return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
+  }
+  async function updateUser(id: string, payload: PlatformUserPayload) {
+    const response = await apiFetch<any>(`/platform/users/${pathId(id)}`, { method: "PATCH", body: payload });
+    return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
+  }
+  const blockUser = (id: string) => apiFetch(`/platform/users/${pathId(id)}/block`, { method: "POST" });
+  const unblockUser = (id: string) => apiFetch(`/platform/users/${pathId(id)}/unblock`, { method: "POST" });
+  const deleteUser = (id: string) => apiFetch(`/platform/users/${pathId(id)}`, { method: "DELETE" });
+
+  const getPlatformRoles = () => list("/platform/roles", normalizeRole, ["roles", "items", "data"]);
+  async function getCompanyRoles(companyId?: string) {
+    const roles = await getPlatformRoles();
+    const safeCompanyId = String(companyId ?? "").trim();
+    return safeCompanyId ? roles.filter((role) => !role.companyId || role.companyId === safeCompanyId) : roles;
+  }
+
+  const getCompanyUsers = (companyId: string) => list(`/platform/companies/${pathId(companyId)}/users`, normalizeUser, ["users", "items", "data"]);
+  async function getCompanyUser(companyId: string, id: string) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}`, { method: "GET" });
+    return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
+  }
+  async function createCompanyUser(companyId: string, payload: PlatformUserPayload) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/users`, { method: "POST", body: payload });
+    return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
+  }
+  async function updateCompanyUser(companyId: string, id: string, payload: PlatformUserPayload) {
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}`, { method: "PATCH", body: payload });
+    return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
+  }
+  const blockCompanyUser = (companyId: string, id: string) => apiFetch(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}/block`, { method: "POST" });
+  const unblockCompanyUser = (companyId: string, id: string) => apiFetch(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}/unblock`, { method: "POST" });
+  const deleteCompanyUser = (companyId: string, id: string) => apiFetch(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}`, { method: "DELETE" });
+
+  const getSettings = () => apiFetch<Record<string, any>>("/platform/settings", { method: "GET" });
+  const updateSettings = (payload: Record<string, any>) => apiFetch<Record<string, any>>("/platform/settings", { method: "PATCH", body: payload });
+
   return {
+    getDashboardStats,
     getCompanies,
     getCompany,
     createCompany,
     updateCompany,
-    updateCompanyStatus,
+    blockCompany,
+    unblockCompany,
     deleteCompany,
+    updateCompanyStatus,
+    getPlans,
+    createPlan,
+    updatePlan,
+    deletePlan,
+    getSubscriptions,
+    renewSubscription,
+    checkExpiredSubscriptions,
+    getPayments,
+    createPayment,
+    getPlatformUsers,
+    getPlatformUser,
+    updateUser,
+    blockUser,
+    unblockUser,
+    deleteUser,
+    getSettings,
+    updateSettings,
+    getUsers: getPlatformUsers,
+    getPlatformRoles,
+    getCompanyRoles,
+    getCompanyUsers,
+    getCompanyUser,
     getCompanyShops,
     createShop,
     updateShop,
     updateShopStatus,
     deleteShop,
-    getPlatformUsers,
-    getPlatformRoles,
-    getPlatformUser,
     createPlatformUser,
-    getCompanyUsers,
-    getCompanyRoles,
-    updateCompanyRole,
-    createCompanyUser,
-    updateUser,
-    deleteUser,
-    getDashboardStats,
-    getUsers: getPlatformUsers,
     createUser: createPlatformUser,
+    createCompanyUser,
+    updateCompanyUser,
+    blockCompanyUser,
+    unblockCompanyUser,
+    deleteCompanyUser,
+    updateCompanyRole: async (_companyId: string, roleId: string) => ({ id: roleId, name: "", description: "", isAdmin: false, type: 0, companyId: _companyId }),
   };
 }

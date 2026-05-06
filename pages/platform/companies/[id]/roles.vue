@@ -13,7 +13,7 @@ import { usePlatformRoles } from "@/composables/usePlatformRoles";
 import { usePlatformUsers } from "@/composables/usePlatformUsers";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Company Roles | Konkurent" });
+useHead({ title: "Роли компании | Konkurent" });
 
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
@@ -275,14 +275,14 @@ watch(selectedRoleId, () => {
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Roles" :title="company?.name ? `Roles: ${company.name}` : 'Roles'" description="Управление ролями компании и визуальный редактор permissions." />
+    <PageHeader eyebrow="Роли" :title="company?.name ? `Роли: ${company.name}` : 'Роли'" description="Управление ролями компании и визуальный редактор прав доступа." />
     <CompanyTabs :company-id="companyId" />
 
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
     <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">{{ successMessage }}</div>
 
     <div class="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-      <DataPanel title="Roles" description="Список ролей компании, их админ-флаг и количество пользователей.">
+      <DataPanel title="Роли" description="Список ролей компании, их админ-флаг и количество пользователей.">
         <template #toolbar>
           <UButton color="neutral" class="cursor-pointer rounded-2xl bg-slate-950 text-white hover:bg-slate-800" @click="openCreateRole">
             <Icon name="heroicons:plus" class="mr-2 h-4 w-4" />
@@ -309,18 +309,18 @@ watch(selectedRoleId, () => {
                 <p class="mt-1 text-[13px] text-slate-500">{{ role.description || "Описание не указано" }}</p>
               </button>
               <span class="rounded-full px-3 py-1 text-[12px] font-semibold" :class="role.isAdmin ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700'">
-                {{ role.isAdmin ? "Admin" : "Standard" }}
+                {{ role.isAdmin ? "Администратор" : "Стандартная" }}
               </span>
             </div>
 
             <div class="mt-4 flex items-center justify-between gap-3 text-[13px] text-slate-500">
-              <span>Users: {{ role.usersCount }}</span>
+              <span>Пользователи: {{ role.usersCount }}</span>
               <span>ID: {{ role.id }}</span>
             </div>
 
             <div class="mt-4 flex flex-wrap gap-2">
-              <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEditRole(role)">Edit</UButton>
-              <UButton color="error" variant="soft" class="rounded-2xl" @click="removeRole(role)">Delete</UButton>
+              <UButton color="neutral" variant="soft" class="rounded-2xl bg-white text-slate-700 hover:bg-slate-100" @click="openEditRole(role)">Изменить</UButton>
+              <UButton color="error" variant="soft" class="rounded-2xl" @click="removeRole(role)">Удалить</UButton>
             </div>
           </article>
         </div>
@@ -391,7 +391,7 @@ watch(selectedRoleId, () => {
       <form class="grid gap-4" @submit.prevent="submitRole">
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Название</span>
-          <UInput v-model="roleForm.name" type="text" required placeholder="Manager" :ui="softInputUi" />
+          <UInput v-model="roleForm.name" type="text" required placeholder="Менеджер" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Описание</span>

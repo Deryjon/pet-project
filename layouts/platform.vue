@@ -11,7 +11,7 @@ const mobileSidebarOpen = ref(false);
 const checkingAccess = ref(true);
 
 onMounted(async () => {
-  const hasAccess = await restore();
+  const hasAccess = authenticated.value || await restore();
   checkingAccess.value = false;
 
   if (!hasAccess) {

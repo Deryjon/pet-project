@@ -12,7 +12,7 @@ import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 import { usePlatformUsers } from "@/composables/usePlatformUsers";
 
 definePageMeta({ layout: "platform" });
-useHead({ title: "Company Overview | Konkurent" });
+useHead({ title: "Обзор компании | Konkurent" });
 
 const route = useRoute();
 const router = useRouter();
@@ -134,21 +134,21 @@ watch(companyId, () => {
 
 <template>
   <div class="space-y-8">
-    <PageHeader eyebrow="Companies" :title="company?.name || 'Company Overview'" description="Основная информация по компании, быстрые показатели и переходы в рабочие разделы." />
+    <PageHeader eyebrow="Компании" :title="company?.name || 'Обзор компании'" description="Основная информация по компании, быстрые показатели и переходы в рабочие разделы." />
     <CompanyTabs :company-id="companyId" />
 
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
     <div v-if="successMessage" class="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-[14px] text-emerald-700">{{ successMessage }}</div>
 
     <div v-if="company" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatsCard label="Company ID" :value="company.id || '—'" helper="Идентификатор записи" icon="heroicons:identification" />
-      <StatsCard label="Shops" :value="company.shopsCount ?? shops.length" helper="Всего филиалов" icon="heroicons:map-pin" />
-      <StatsCard label="Active Shops" :value="activeShopsCount" helper="Со статусом active" icon="heroicons:bolt" />
-      <StatsCard label="Active Users" :value="activeUsersCount" helper="Активные сотрудники" icon="heroicons:users" />
+      <StatsCard label="ID компании" :value="company.id || '—'" helper="Идентификатор записи" icon="heroicons:identification" />
+      <StatsCard label="Филиалы" :value="company.shopsCount ?? shops.length" helper="Всего филиалов" icon="heroicons:map-pin" />
+      <StatsCard label="Активные филиалы" :value="activeShopsCount" helper="С активным статусом" icon="heroicons:bolt" />
+      <StatsCard label="Активные пользователи" :value="activeUsersCount" helper="Активные сотрудники" icon="heroicons:users" />
     </div>
 
     <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <DataPanel title="Company Details" description="Редактирование названия, логина, поддомена и статуса компании.">
+      <DataPanel title="Данные компании" description="Редактирование названия, логина, поддомена и статуса компании.">
         <div v-if="loading" class="space-y-4">
           <div class="h-14 animate-pulse rounded-2xl bg-slate-100/80" />
           <div class="h-14 animate-pulse rounded-2xl bg-slate-100/80" />
@@ -188,12 +188,12 @@ watch(companyId, () => {
       </DataPanel>
 
       <div class="space-y-6">
-        <DataPanel title="Latest Users" description="Последние сотрудники компании для быстрого контроля доступа.">
+        <DataPanel title="Последние пользователи" description="Последние сотрудники компании для быстрого контроля доступа.">
           <div v-if="loading" class="space-y-3">
             <div v-for="item in 4" :key="item" class="h-20 animate-pulse rounded-[24px] bg-slate-100/80" />
           </div>
 
-          <EmptyState v-else-if="!latestUsers.length" title="Сотрудников пока нет" description="Создайте первого сотрудника в разделе Users." icon="heroicons:user-plus" />
+          <EmptyState v-else-if="!latestUsers.length" title="Сотрудников пока нет" description="Создайте первого сотрудника в разделе «Пользователи»." icon="heroicons:user-plus" />
 
           <div v-else class="space-y-3">
             <article v-for="user in latestUsers" :key="user.id" class="rounded-[24px] border border-slate-200/70 bg-white/88 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.05)]">
@@ -209,12 +209,12 @@ watch(companyId, () => {
           </div>
         </DataPanel>
 
-        <DataPanel title="Quick Actions" description="Навигация по модулям компании без возврата к общему списку.">
+        <DataPanel title="Быстрые действия" description="Навигация по модулям компании без возврата к общему списку.">
           <div class="grid gap-3 sm:grid-cols-2">
-            <NuxtLink :to="`/platform/companies/${companyId}/users`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Users</NuxtLink>
-            <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Shops</NuxtLink>
-            <NuxtLink :to="`/platform/companies/${companyId}/roles`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Roles</NuxtLink>
-            <NuxtLink :to="`/platform/companies/${companyId}/logs`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Logs</NuxtLink>
+            <NuxtLink :to="`/platform/companies/${companyId}/users`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Пользователи</NuxtLink>
+            <NuxtLink :to="`/platform/companies/${companyId}/shops`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Филиалы</NuxtLink>
+            <NuxtLink :to="`/platform/companies/${companyId}/roles`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Роли</NuxtLink>
+            <NuxtLink :to="`/platform/companies/${companyId}/logs`" class="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-[15px] font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-[0_18px_40px_rgba(13,148,136,0.12)]">Журнал</NuxtLink>
           </div>
         </DataPanel>
       </div>

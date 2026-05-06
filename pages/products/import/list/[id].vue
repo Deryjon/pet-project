@@ -180,7 +180,7 @@
               <th class="px-4 py-3">№</th>
               <th class="px-4 py-3">Название</th>
               <th class="px-4 py-3">SKU</th>
-              <th class="px-4 py-3">Barcode</th>
+              <th class="px-4 py-3">Штрихкод</th>
               <th class="px-4 py-3">Кол-во</th>
               <th class="px-4 py-3">Действие</th>
               <th class="px-4 py-3">Различие</th>
@@ -390,7 +390,7 @@ const sessionMeta = computed(() => {
   return [
     { label: "Статус", value: statusLabel(session.value.status) },
     { label: "Режим", value: modeLabel.value },
-    { label: "Company ID", value: session.value.company_id || "—" },
+    { label: "ID компании", value: session.value.company_id || "—" },
     { label: "Branch code", value: session.value.branch_code || "—" },
     { label: "Строк", value: String(session.value.rows_count || 0) },
     { label: "Создал", value: session.value.created_by || "—" },
