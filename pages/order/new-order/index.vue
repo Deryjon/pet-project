@@ -61,8 +61,10 @@ const { apiFetch } = useApi();
 const cartStore = useCartStore();
 const locationStore = useLocationStore();
 const { selectedLocation } = storeToRefs(locationStore);
+const route = useRoute();
+const router = useRouter();
 
-const page = ref(1);
+const page = ref(Math.max(1, Number(route.query.page || 1) || 1));
 const limit = ref(10);
 const initialPageLoading = ref(true);
 const search = computed(() => cartStore.searchQuery);
@@ -77,6 +79,32 @@ const operationStatuses = computed(() => {
 
   return statuses;
 });
+const routeSaleId = computed(() => normalizeRouteValue(route.params.id) || normalizeRouteValue(route.query.sale_id));
+
+function normalizeRouteValue(value: unknown) {
+  const normalized = Array.isArray(value) ? value[0] : value;
+  return String(normalized ?? "").trim();
+}
+
+function currentOrderPath(id: string | number) {
+  return `/order/new-order/${encodeURIComponent(String(id))}`;
+}
+
+async function syncOrderRoute() {
+  if (!cartStore.saleId) return;
+
+  const nextQuery: Record<string, string> = {};
+
+  if (cartStore.saleNumber) {
+    nextQuery.order_number = String(cartStore.saleNumber);
+  }
+  nextQuery.page = String(page.value);
+
+  const nextPath = currentOrderPath(cartStore.saleId);
+  if (route.path !== nextPath || JSON.stringify(route.query) !== JSON.stringify(nextQuery)) {
+    await router.replace({ path: nextPath, query: nextQuery });
+  }
+}
 
 async function prepareDraftSale() {
   if (!currentShopId.value) return;
@@ -89,6 +117,7 @@ async function prepareDraftSale() {
 
   if (cartStore.saleId) {
     await cartStore.loadSale(cartStore.saleId);
+    await syncOrderRoute();
   }
 }
 
@@ -179,6 +208,21 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => route.query.page,
+  (next) => {
+    const nextPage = Math.max(1, Number(next || 1) || 1);
+    if (page.value !== nextPage) page.value = nextPage;
+  },
+);
+
+watch(
+  [page, () => cartStore.saleId, () => cartStore.saleNumber],
+  () => {
+    void syncOrderRoute();
+  },
+);
+
 watch(currentShopId, (next, prev) => {
   if (!next) return;
 
@@ -196,8 +240,14 @@ watch(currentShopId, (next, prev) => {
 onMounted(async () => {
   try {
     await cartStore.loadSaleReferenceData();
+    const initialSaleId = routeSaleId.value;
 
-    if (cartStore.hasSaleShopMismatch(currentShopId.value)) {
+    if (initialSaleId) {
+      cartStore.saleId = initialSaleId;
+      cartStore.saleShopId = "";
+    }
+
+    if (!initialSaleId && cartStore.hasSaleShopMismatch(currentShopId.value)) {
       cartStore.resetSaleState({ keepReceipt: true });
       cartStore.lastCartError = "Найдена сохранённая продажа из другого филиала. Корзина очищена.";
     }
@@ -205,6 +255,7 @@ onMounted(async () => {
     if (cartStore.saleId) {
       try {
         await cartStore.loadSale(cartStore.saleId);
+        await syncOrderRoute();
       } catch {
         cartStore.resetSaleState({ keepReceipt: true });
         cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
@@ -213,6 +264,7 @@ onMounted(async () => {
       await cartStore.initSale();
       if (cartStore.saleId) {
         await cartStore.loadSale(cartStore.saleId);
+        await syncOrderRoute();
       }
     }
   } finally {
