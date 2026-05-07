@@ -18,18 +18,22 @@ export function useApi() {
   ) {
     const { pageLoading = false, ...fetchOptions } = opts;
 
+    const tokenlessAuth = ["/auth/login", "/auth/company-login", "/auth/platform-login", "/platform/auth/login"];
+    const isPublic =
+      typeof path === "string" &&
+      tokenlessAuth.some((p) => path === p || path.startsWith(p + "/"));
+
     if (!user.token && typeof window !== "undefined") {
       try {
         user.loadToken();
       } catch {}
     }
 
-    const tokenlessAuth = ["/auth/login", "/auth/company-login", "/auth/platform-login", "/platform/auth/login"];
-    const needsToken =
-      !!user.token &&
-      !tokenlessAuth.some(
-        (p) => typeof path === "string" && (path === p || (path as string).startsWith(p + "/"))
-      );
+    if (!isPublic && !user.token) {
+      throw new Error("Auth token is missing");
+    }
+
+    const needsToken = !!user.token && !isPublic;
 
     const isFormData =
       typeof FormData !== "undefined" &&

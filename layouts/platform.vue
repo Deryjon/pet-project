@@ -1,23 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import AdminSidebar from "@/components/platform/AdminSidebar.vue";
 import AdminTopbar from "@/components/platform/AdminTopbar.vue";
 import { usePlatformAuth } from "@/composables/usePlatformAuth";
 
 const router = useRouter();
-const { authenticated, restore, signOut } = usePlatformAuth();
+const { authenticated, signOut } = usePlatformAuth();
 const mobileSidebarOpen = ref(false);
-const checkingAccess = ref(true);
-
-onMounted(async () => {
-  const hasAccess = authenticated.value || await restore();
-  checkingAccess.value = false;
-
-  if (!hasAccess) {
-    router.replace("/platform/login");
-  }
-});
 
 function logout() {
   signOut();
@@ -30,19 +20,7 @@ function logout() {
     <div class="platform-bg"></div>
     <div class="platform-grid"></div>
 
-    <div v-if="checkingAccess" class="relative z-10 flex min-h-screen items-center justify-center px-4">
-      <div class="platform-loading-card">
-        <div class="platform-loading-icon">
-          <Icon name="heroicons:shield-check" class="h-6 w-6" />
-        </div>
-        <div>
-          <p class="platform-loading-title">Проверка доступа</p>
-          <p class="platform-loading-text">Подготавливаем рабочее пространство платформы.</p>
-        </div>
-      </div>
-    </div>
-
-    <div v-else-if="authenticated" class="relative z-10 flex min-h-screen">
+    <div v-if="authenticated" class="relative z-10 flex min-h-screen">
       <transition name="fade-sidebar">
         <div v-if="mobileSidebarOpen" class="fixed inset-0 z-30 bg-[#06111f]/45 backdrop-blur-sm lg:hidden" @click="mobileSidebarOpen = false" />
       </transition>
@@ -93,43 +71,6 @@ function logout() {
     linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.75), transparent 95%);
-}
-
-.platform-loading-card {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  width: min(100%, 420px);
-  padding: 24px;
-  border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(16px);
-}
-
-.platform-loading-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  color: #f8fafc;
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
-}
-
-.platform-loading-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.platform-loading-text {
-  margin-top: 6px;
-  font-size: 0.92rem;
-  color: #475569;
 }
 
 .platform-main table {

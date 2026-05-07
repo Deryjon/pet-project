@@ -134,6 +134,19 @@ function normalizePhoneForInput(phone: string) {
   return parts.join(" ");
 }
 
+function normalizeBirthDateForPayload(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+
+  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) {
+    return trimmed;
+  }
+
+  const [, day, month, year] = match;
+  return `${day.padStart(2, "0")}.${month.padStart(2, "0")}.${year}`;
+}
+
 function buildPayload(overrides: Partial<PlatformUserPayload> = {}): PlatformUserPayload {
   return {
     first_name: form.firstName.trim(),
@@ -147,7 +160,7 @@ function buildPayload(overrides: Partial<PlatformUserPayload> = {}): PlatformUse
     can_switch_shops: form.canSwitchShops,
     is_active: Boolean(form.is_active),
     ...(form.password.trim() ? { password: form.password.trim() } : {}),
-    ...(form.birthDate.trim() ? { birth_date: form.birthDate.trim() } : {}),
+    ...(form.birthDate.trim() ? { birth_date: normalizeBirthDateForPayload(form.birthDate) } : {}),
     ...overrides,
   };
 }
@@ -322,7 +335,7 @@ async function confirmResetPassword() {
       can_switch_shops: selectedForReset.value.canSwitchShops,
       is_active: selectedForReset.value.is_active,
       password: resetPasswordValue.value,
-      ...(selectedForReset.value.birthDate ? { birth_date: selectedForReset.value.birthDate } : {}),
+      ...(selectedForReset.value.birthDate ? { birth_date: normalizeBirthDateForPayload(selectedForReset.value.birthDate) } : {}),
     });
     successMessage.value = `Пароль сброшен: ${resetPasswordValue.value}`;
     toast.add({ title: "Пароль сброшен", description: resetPasswordValue.value, color: "success" });
@@ -411,18 +424,18 @@ watch(companyId, () => {
       </div>
     </DataPanel>
     <ModalForm :open="modalOpen" :title="editing ? 'Редактировать сотрудника' : 'Создать сотрудника'" description="Заполните профиль сотрудника и настройте доступные филиалы." @close="modalOpen = false">
-      <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
-        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Имя</span><UInput v-model="form.firstName" type="text" required placeholder="Введите имя" :ui="softInputUi" /></label>
-        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Фамилия</span><UInput v-model="form.lastName" type="text" required placeholder="Введите фамилию" :ui="softInputUi" /></label>
-        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Телефон</span><div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60"><span class="pr-3 text-[14px] font-medium text-slate-500">+998</span><UInput v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-3 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }" /></div></label>
-        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Пароль</span><UInput v-model="form.password" type="password" :required="!editing" placeholder="Введите пароль" :ui="softInputUi" /></label>
-        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Роль</span><USelect v-model="form.role" :items="companyRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading || loading" /></label>
-        <label class="space-y-2"><span class="text-[13px] font-semibold text-slate-700">Дата рождения</span><UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" /></label>
-        <label class="space-y-2 md:col-span-2"><span class="text-[13px] font-semibold text-slate-700">Текущий филиал</span><USelect v-model="form.currentShopId" :items="shopOptions" value-key="value" :ui="softSelectUi" /></label>
-        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />Может переключать филиалы</label>
-        <div class="space-y-3 md:col-span-2"><p class="text-[13px] font-semibold text-slate-700">Доступные филиалы</p><div class="grid gap-2 sm:grid-cols-2"><label v-for="shop in shops" :key="shop.id" class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"><input :checked="form.allowedShopIds.includes(shop.id)" type="checkbox" class="h-4 w-4 accent-teal-600" @change="toggleAllowedShop(shop.id)" /><span>{{ shop.name }}</span></label></div></div>
-        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.is_active" type="checkbox" class="h-4 w-4 accent-teal-600" />Активный пользователь</label>
-        <div class="mt-2 flex justify-end gap-3 md:col-span-2"><UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton><UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :loading="saving">{{ editing ? "Сохранить" : "Создать" }}</UButton></div>
+      <form class="grid gap-3 md:grid-cols-2" @submit.prevent="submit">
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Имя</span><UInput v-model="form.firstName" type="text" required placeholder="Введите имя" :ui="softInputUi" /></label>
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Фамилия</span><UInput v-model="form.lastName" type="text" required placeholder="Введите фамилию" :ui="softInputUi" /></label>
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Телефон</span><div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60"><span class="pr-3 text-[14px] font-medium text-slate-500">+998</span><UInput v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-2.5 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }" /></div></label>
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Пароль</span><UInput v-model="form.password" type="password" :required="!editing" placeholder="Введите пароль" :ui="softInputUi" /></label>
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Роль</span><USelect v-model="form.role" :items="companyRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading || loading" /></label>
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Дата рождения</span><UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" /></label>
+        <label class="space-y-1.5 md:col-span-2"><span class="text-[13px] font-semibold text-slate-700">Текущий филиал</span><USelect v-model="form.currentShopId" :items="shopOptions" value-key="value" :ui="softSelectUi" /></label>
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-2.5 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />Может переключать филиалы</label>
+        <div class="space-y-2.5 md:col-span-2"><p class="text-[13px] font-semibold text-slate-700">Доступные филиалы</p><div class="grid gap-2 sm:grid-cols-2"><label v-for="shop in shops" :key="shop.id" class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-2.5 text-[14px] text-slate-700 ring-1 ring-slate-200"><input :checked="form.allowedShopIds.includes(shop.id)" type="checkbox" class="h-4 w-4 accent-teal-600" @change="toggleAllowedShop(shop.id)" /><span>{{ shop.name }}</span></label></div></div>
+        <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-2.5 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.is_active" type="checkbox" class="h-4 w-4 accent-teal-600" />Активный пользователь</label>
+        <div class="mt-1 flex justify-end gap-3 md:col-span-2"><UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200" @click="modalOpen = false">Отмена</UButton><UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800" :loading="saving">{{ editing ? "Сохранить" : "Создать" }}</UButton></div>
       </form>
     </ModalForm>
     <ModalForm :open="resetModalOpen" title="Сбросить пароль" description="Подтвердите сброс пароля. Новый пароль будет показан один раз." @close="resetModalOpen = false">

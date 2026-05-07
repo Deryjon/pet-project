@@ -586,7 +586,7 @@ export function usePlatformAdminApi() {
     return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
   }
   async function updateUser(id: string, payload: PlatformUserPayload) {
-    const response = await apiFetch<any>(`/platform/users/${pathId(id)}`, { method: "PATCH", body: payload });
+    const response = await apiFetch<any>(`/platform/users/${pathId(id)}`, { method: "PUT", body: payload });
     return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
   }
   const blockUser = (id: string) => apiFetch(`/platform/users/${pathId(id)}/block`, { method: "POST" });
@@ -610,7 +610,7 @@ export function usePlatformAdminApi() {
     return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
   }
   async function updateCompanyUser(companyId: string, id: string, payload: PlatformUserPayload) {
-    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}`, { method: "PATCH", body: payload });
+    const response = await apiFetch<any>(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}`, { method: "PUT", body: payload });
     return normalizeUser(pickObject(response, ["user", "data"]) ?? response);
   }
   const blockCompanyUser = (companyId: string, id: string) => apiFetch(`/platform/companies/${pathId(companyId)}/users/${pathId(id)}/block`, { method: "POST" });
