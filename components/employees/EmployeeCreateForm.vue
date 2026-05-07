@@ -36,6 +36,7 @@ const crm_role_id = ref("");
 const current_shop_id = ref("");
 const allowed_shop_ids = ref<string[]>([]);
 const can_switch_shops = ref(false);
+const is_active = ref(true);
 const roleOptions = ref<RoleSelectItem[]>([]);
 const companyRoleOptions = ref<RoleSelectItem[]>([]);
 const rolesLoading = ref(false);
@@ -45,7 +46,7 @@ const errorMessage = ref("");
 const successMessage = ref("");
 
 const shopOptions = computed(() =>
-  (userStore.user.shops || []).map((shop) => ({
+  (userStore.userState.shops || []).map((shop) => ({
     label: shop.name,
     value: shop.id,
     branchCode: shop.branchCode || "",
@@ -65,7 +66,7 @@ watch(
     allowed_shop_ids.value = allowed_shop_ids.value.filter((id) => availableIds.has(id));
 
     if (!allowed_shop_ids.value.length && options.length) {
-      const fallbackId = userStore.user.currentShopId || options[0]?.value || "";
+      const fallbackId = userStore.userState.currentShopId || options[0]?.value || "";
       allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
     }
 
@@ -145,6 +146,12 @@ function normalizeLookup(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "_");
 }
 
+function systemRoleCode(value: string) {
+  const normalized = normalizeLookup(value);
+  const allowed = new Set(["admin", "employee", "cashier", "owner", "store_manager"]);
+  return allowed.has(normalized) ? normalized : "";
+}
+
 function roleCodeFromName(name: string) {
   const normalized = normalizeLookup(name);
   const known: Record<string, string> = {
@@ -180,10 +187,11 @@ function selectedRoleCode() {
   });
 
   return (
-    matchedCompanyRole?.code ||
-    matchedCompanyRole?.id ||
+    systemRoleCode(selectedCode) ||
+    systemRoleCode(matchedCompanyRole?.code || "") ||
+    systemRoleCode(matchedCompanyRole?.id || "") ||
     roleCodeFromName(selectedName) ||
-    selectedCode
+    "employee"
   );
 }
 
@@ -213,7 +221,7 @@ const preparedData = computed(() => {
 
   return {
     user_type: "company",
-    company_id: userStore.user.companyId || undefined,
+    company_id: userStore.userState.companyId || undefined,
     first_name: first_name.value.trim(),
     last_name: last_name.value.trim(),
     birth_date: birth_date.value.trim() || undefined,
@@ -224,6 +232,7 @@ const preparedData = computed(() => {
     current_shop_id: current_shop_id.value,
     allowed_shop_ids: [...allowed_shop_ids.value],
     can_switch_shops: can_switch_shops.value,
+    is_active: Boolean(is_active.value),
   };
 });
 
@@ -235,7 +244,8 @@ function resetForm() {
   password.value = "";
   crm_role_id.value = roleOptions.value[0]?.id || "";
   can_switch_shops.value = false;
-  const fallbackId = userStore.user.currentShopId || shopOptions.value[0]?.value || "";
+  is_active.value = true;
+  const fallbackId = userStore.userState.currentShopId || shopOptions.value[0]?.value || "";
   current_shop_id.value = fallbackId;
   allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
 }
@@ -303,7 +313,7 @@ onMounted(loadRoles);
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p class="mb-2 text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
-            Company User
+            Пользователь компании
           </p>
           <h3 class="text-[28px] font-semibold text-white">Новый сотрудник</h3>
           <p class="mt-2 max-w-[620px] text-sm leading-6 text-[#bdbdbd]">
@@ -381,6 +391,14 @@ onMounted(loadRoles);
             <label class="text-sm font-medium text-[#d6d6d6]">Пароль</label>
             <input v-model="password" type="password" placeholder="Минимум 6 символов" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
           </div>
+
+          <label class="mt-4 flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm text-white">
+            <input v-model="is_active" type="checkbox" class="h-4 w-4 accent-[#1f78ff]" />
+            <span>
+              <span class="block font-semibold">Активен</span>
+              <span class="block text-xs text-[#bdbdbd]">Включает или выключает доступ конкретного сотрудника.</span>
+            </span>
+          </label>
         </section>
 
         <section class="rounded-[24px] border border-white/8 bg-[#2d2d2d] p-5">

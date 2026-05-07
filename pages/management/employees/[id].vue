@@ -5,6 +5,7 @@ import { navigateTo, useHead } from "#imports";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
 import { type RoleSelectItem, useRolePermissionsApi } from "@/composables/useRolePermissions";
+import { formatUzPhoneInput } from "~/utils/phone";
 
 useHead({ title: "Редактирование сотрудника | Konkurent" });
 
@@ -33,6 +34,7 @@ const { apiFetch } = useApi();
 const { getCompanyRolesForSelect, getRolesForSelect } = useRolePermissionsApi();
 const userStore = useUserStore();
 const toast = useToast();
+const { can } = useAccessControl();
 
 const id = computed(() => route.params.id as string);
 
@@ -54,8 +56,13 @@ const roleOptions = ref<RoleSelectItem[]>([]);
 const companyRoleOptions = ref<RoleSelectItem[]>([]);
 const rolesLoading = ref(false);
 
+watch(phone, (value) => {
+  const formatted = formatUzPhoneInput(value);
+  if (formatted !== value) phone.value = formatted;
+});
+
 const shopOptions = computed(() =>
-  (userStore.user.shops || []).map((shop) => ({
+  (userStore.userState.shops || []).map((shop) => ({
     label: shop.name,
     value: shop.id,
   })),
@@ -74,7 +81,7 @@ watch(
     allowed_shop_ids.value = allowed_shop_ids.value.filter((shopId) => availableIds.has(shopId));
 
     if (!allowed_shop_ids.value.length && options.length) {
-      const fallbackId = current_shop_id.value || userStore.user.currentShopId || options[0]?.value || "";
+      const fallbackId = current_shop_id.value || userStore.userState.currentShopId || options[0]?.value || "";
       allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
     }
 
@@ -134,6 +141,12 @@ function toggleAllowedShop(shopId: string) {
 
 function normalizeLookup(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function systemRoleCode(value: string) {
+  const normalized = normalizeLookup(value);
+  const allowed = new Set(["admin", "employee", "cashier", "owner", "store_manager"]);
+  return allowed.has(normalized) ? normalized : "";
 }
 
 function roleCodeFromName(name: string) {
@@ -198,10 +211,11 @@ function selectedRoleCode() {
   });
 
   return (
-    matchedCompanyRole?.code ||
-    matchedCompanyRole?.id ||
+    systemRoleCode(selectedCode) ||
+    systemRoleCode(matchedCompanyRole?.code || "") ||
+    systemRoleCode(matchedCompanyRole?.id || "") ||
     roleCodeFromName(selectedName) ||
-    selectedCode
+    "employee"
   );
 }
 
@@ -249,7 +263,7 @@ function normalizeAllowedShops(user: User) {
 }
 
 async function ensureAdminAccess() {
-  if (!userStore.isAdmin) {
+  if (!can("employee-edit")) {
     await navigateTo("/management/employees");
     return false;
   }
@@ -271,7 +285,7 @@ async function fetchUser() {
 
     firstName.value = user?.first_name || "";
     lastName.value = user?.last_name || "";
-    phone.value = String(user?.phone_number || "");
+    phone.value = formatUzPhoneInput(user?.phone_number);
     role.value = normalizeBaseRole(user);
     crm_role_id.value = normalizeRoleId(user) || roleOptions.value[0]?.id || "";
     current_shop_id.value = String(
@@ -297,7 +311,7 @@ onMounted(async () => {
 watch(id, fetchUser);
 
 async function saveMainData() {
-  if (!id.value || !userStore.isAdmin) return;
+  if (!id.value || !can("employee-edit")) return;
   if (!crm_role_id.value) {
     serverError.value = "Выберите роль сотрудника.";
     return;
@@ -327,6 +341,9 @@ async function saveMainData() {
     });
     serverOk.value = "Данные сотрудника сохранены";
     await fetchUser();
+    if (String(id.value) === String(userStore.userState.id ?? "")) {
+      await userStore.fetchMe({ force: true });
+    }
   } catch (e: any) {
     serverError.value = e?.data?.message || e?.message || "Ошибка сохранения";
   } finally {
@@ -335,7 +352,7 @@ async function saveMainData() {
 }
 
 async function savePhonePassword() {
-  if (!id.value || !userStore.isAdmin) return;
+  if (!id.value || !can("employee-edit")) return;
   if (!phone.value && !password.value) return;
 
   saving.value = true;
@@ -344,7 +361,10 @@ async function savePhonePassword() {
 
   try {
     const payload: any = {};
-    if (phone.value) payload.phone_number = String(phone.value).replace(/\D/g, "");
+    if (phone.value) {
+      const digits = String(phone.value).replace(/\D/g, "");
+      payload.phone_number = digits.length === 9 ? `998${digits}` : digits;
+    }
     if (password.value) payload.password = String(password.value);
 
     await apiFetch(`/users/${encodeURIComponent(String(id.value))}`, {
@@ -381,7 +401,7 @@ function goBack() {
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p class="mb-2 text-[12px] font-semibold uppercase tracking-[0.28em] text-[#7fb0ff]">
-              Company User
+              Пользователь компании
             </p>
             <h3 class="text-[28px] font-semibold text-white">
               {{ firstName || "Сотрудник" }} {{ lastName }}
@@ -516,7 +536,7 @@ function goBack() {
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium text-[#d6d6d6]">Телефон</label>
-                <input v-model="phone" type="tel" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" placeholder="998901112233" />
+                <input v-model="phone" type="tel" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" placeholder="94 612 08 44" />
               </div>
 
               <div class="flex flex-col gap-2">

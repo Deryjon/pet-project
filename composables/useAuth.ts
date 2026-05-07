@@ -35,7 +35,8 @@ export function useAuth() {
     }
 
     user.login(token, response?.user ?? {});
-    return { token, user: response?.user ?? {} };
+    await user.fetchMe({ force: true });
+    return { token, user: user.user };
   }
 
   async function register(payload: RegisterPayload) {

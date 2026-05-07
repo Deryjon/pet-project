@@ -236,7 +236,7 @@
               {{ printStore.settings.shopName || printStore.settings.address }}
             </div>
             <div v-if="printStore.settings.phone" class="text-center text-[#555]">
-              {{ printStore.settings.phone }}
+              {{ receiptPhone }}
             </div>
             <div class="my-2 border-t border-dashed border-black"></div>
             <div>Чек: {{ printStore.latestReceipt.saleNumber || printStore.latestReceipt.saleId || "-" }}</div>
@@ -299,6 +299,7 @@ import { storeToRefs } from "pinia";
 import { useCartStore } from "@/store/cart";
 import { usePrintSettingsStore, type SaleReceiptSnapshot } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 const cartStore = useCartStore();
 const printStore = usePrintSettingsStore();
@@ -327,6 +328,7 @@ const singlePaymentMethods = computed(() =>
 
 const payableAmount = computed(() => Number(cartStore.payableTotal || total.value || 0));
 const canPay = computed(() => payableAmount.value > 0 && !cartStore.payLoading && !paymentMethodsLoading.value);
+const receiptPhone = computed(() => formatUzPhoneDisplay(printStore.settings.phone) || printStore.settings.phone);
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0),
 );

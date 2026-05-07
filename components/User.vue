@@ -8,8 +8,8 @@ const userStore = useUserStore();
 const locationStore = useLocationStore();
 
 const user = computed(() => ({
-  name: userStore.user.name,
-  avatarUrl: userStore.user.avatarUrl,
+  name: userStore.userState.name,
+  avatarUrl: userStore.userState.avatarUrl,
   location: locationStore.selectedLocation?.name,
 }));
 
@@ -18,7 +18,7 @@ const handleLogout = () => {
 };
 
 const openSettings = () => {
-  console.log("Settings opened");
+  console.log("Настройки открыты");
 };
 </script>
 

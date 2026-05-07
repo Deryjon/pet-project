@@ -111,9 +111,9 @@
         <table class="min-w-[920px] w-full border-separate border-spacing-y-2 text-left">
           <thead>
             <tr class="text-[13px] uppercase tracking-[0.12em] text-[#8f8f8f]">
-              <th class="px-4 py-3">Name</th>
+              <th class="px-4 py-3">Название</th>
               <th class="px-4 py-3">SKU</th>
-              <th class="px-4 py-3">Barcode</th>
+              <th class="px-4 py-3">Штрихкод</th>
               <th class="px-4 py-3">Qty</th>
               <th class="px-4 py-3">Supply</th>
               <th class="px-4 py-3">Retail</th>

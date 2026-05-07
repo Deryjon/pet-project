@@ -1,5 +1,5 @@
 import { useUserStore } from "~/store/useUserStore";
-import { canAccessPath, firstAllowedCompanyRoute } from "~/composables/useAccessControl";
+import { firstAllowedRbacRoute, routeCanAccess } from "~/composables/useAccessControl";
 
 function isPlatformRoute(path: string) {
   return path === "/platform" || path.startsWith("/platform/");
@@ -38,19 +38,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const authRoute = isAuthRoute(path);
   const publicRoute = platformLoginRoute || crmLoginRoute;
 
-  if (!userStore.token) {
-    userStore.loadToken();
-  }
+  await userStore.initAuth({ platform: platformRoute });
 
-  if (!userStore.token && import.meta.server && !publicRoute) {
-    return;
-  }
-
-  if (userStore.token && !userStore.user.id && !userStore.initializing) {
-    await userStore.fetchMe();
-  }
-
-  const isAuthenticated = userStore.isLoggedIn && !!userStore.user.id;
+  const isAuthenticated = userStore.isAuthenticated;
   const hasPlatformAccess = userStore.isPlatformUser && userStore.hasPlatformAccess;
   const hasCrmAccess = userStore.isCompanyUser;
 
@@ -66,6 +56,19 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(getHomeRoute(userStore));
   }
 
+  if (path === "/403" && hasCrmAccess) {
+    if (!userStore.permissionsLoaded) {
+      await userStore.loadPermissionsForCurrentUser();
+    }
+
+    const from = typeof to.query.from === "string" ? to.query.from : "";
+    if (from && routeCanAccess(from, userStore.can)) {
+      return navigateTo(from);
+    }
+
+    return;
+  }
+
   if (platformRoute) {
     if (!hasPlatformAccess) {
       return navigateTo(hasCrmAccess ? "/" : "/platform/login");
@@ -78,7 +81,28 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(hasPlatformAccess ? "/platform" : "/auth/login");
   }
 
-  if (!authRoute && hasCrmAccess && !canAccessPath(path, userStore.normalizedRoles)) {
-    return navigateTo(firstAllowedCompanyRoute(userStore.normalizedRoles));
+  if (!authRoute && hasCrmAccess) {
+    if (import.meta.server) {
+      return;
+    }
+
+    if (!userStore.permissionsLoaded) {
+      await userStore.loadPermissionsForCurrentUser();
+    }
+
+    if (userStore.permissionsLoadFailed) {
+      return;
+    }
+
+    if (path === "/" && !routeCanAccess(path, userStore.can)) {
+      return navigateTo(firstAllowedRbacRoute(userStore.can));
+    }
+
+    if (!routeCanAccess(path, userStore.can)) {
+      return navigateTo({
+        path: "/403",
+        query: { from: to.fullPath },
+      });
+    }
   }
 });

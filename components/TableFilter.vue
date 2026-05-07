@@ -126,9 +126,9 @@ const selectFields = computed<Array<{
   },
 ]);
 
-const priceFields: Array<{ key: PriceFieldKey; label: string }> = [
-  { key: "supply", label: "Цена поставки" },
+const priceFields = computed<Array<{ key: PriceFieldKey; label: string }>>(() => [
+  ...(store.canViewSupplyPrice ? [{ key: "supply" as const, label: "Цена поставки" }] : []),
   { key: "sale", label: "Цена продажи" },
   { key: "wholesale", label: "Оптовая цена" },
-];
+]);
 </script>
