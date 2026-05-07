@@ -126,29 +126,33 @@ async function fetchProducts() {
     cartStore.productsLoading = true as any;
     cartStore.lastCartError = "";
     const pageSize = Math.min(Math.max(limit.value, 1), 100);
-    const response: any = await apiFetch("/new-sale/products", {
+    const response: any = await apiFetch("/products/search", {
       method: "GET",
       query: {
-        page: page.value,
-        limit: pageSize,
-        search: search.value || undefined,
-        shop_id: currentShopId.value || undefined,
+        q: search.value || undefined,
+        shopId: currentShopId.value || undefined,
       },
     });
 
-    const items = Array.isArray(response?.products)
-      ? response.products
-      : Array.isArray(response?.items)
-        ? response.items
-        : Array.isArray(response)
-          ? response
-          : [];
+    const items = Array.isArray(response)
+      ? response
+      : Array.isArray(response?.products)
+        ? response.products
+        : Array.isArray(response?.items)
+          ? response.items
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
 
     const mapped = items.map((p: any) => ({
-      id: p.id,
+      id: p.publicId ?? p.public_id ?? p.id,
+      productId: p.id,
+      publicId: p.publicId ?? p.public_id,
       name: String(p.name ?? p.base_name ?? p.product?.name ?? ""),
       price: Number(
-        p.retail_price ??
+        p.sellPrice ??
+          p.sell_price ??
+          p.retail_price ??
           p.sale_price ??
           p.shop_prices?.[0]?.retail_price ??
           p.price ??
@@ -162,6 +166,7 @@ async function fetchProducts() {
           p?.measurement_values?.total_measurement_value ??
           p?.product_stock?.quantity ??
           p?.stock?.quantity ??
+          p?.stock ??
           p?.quantity ??
           p?.active_measurement_value ??
           0,
@@ -190,6 +195,11 @@ async function fetchProducts() {
       (cartStore.products as any).splice(0, (cartStore.products as any).length);
     } catch {
       // ignore
+    }
+    const status = Number(error?.statusCode ?? error?.response?.status ?? error?.data?.statusCode ?? 0);
+    if (status === 403) {
+      cartStore.lastCartError = "Нет прав доступа.";
+      return;
     }
     cartStore.lastCartError =
       error?.data?.message || error?.message || "Не удалось загрузить товары для текущего филиала.";

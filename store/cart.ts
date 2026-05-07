@@ -7,6 +7,7 @@ import { useUserStore } from "./useUserStore";
 
 type CartProduct = {
   id: number | string;
+  publicId?: string;
   name: string;
   price: number;
   barcode: string;
@@ -14,6 +15,7 @@ type CartProduct = {
   availableQuantity?: number;
   shopId?: string;
   quantity?: number;
+  productId?: string | number;
 };
 
 type CompanyPaymentMethod = {
@@ -30,6 +32,24 @@ type SalePaymentPayload = {
   client_name?: string;
 };
 
+type PosOrderStatus = "DRAFT" | "COMPLETED" | "CANCELLED" | "PARKED" | "RETURNED";
+
+type PosOrder = {
+  id: string;
+  orderNumber: string;
+  status: PosOrderStatus;
+  shopId: string;
+  cashboxId?: string | null;
+  items: any[];
+  payments: any[];
+  totalPrice: number;
+  discountAmount: number;
+  paidAmount: number;
+  comment?: string | null;
+  customerId?: string | null;
+  versionNumber: number;
+};
+
 export const useCartStore = defineStore("cart", () => {
   const STORAGE_KEY = "pos-cart-state";
 
@@ -38,6 +58,7 @@ export const useCartStore = defineStore("cart", () => {
   const saleNumber = ref<string | null>(null);
   const receipt = ref<any | null>(null);
   const saleShopId = ref<string>("");
+  const currentOrder = ref<PosOrder | null>(null);
 
   const productsLoading = ref(false);
   const creatingSale = ref(false);
@@ -123,6 +144,7 @@ export const useCartStore = defineStore("cart", () => {
     saleId.value = null;
     saleShopId.value = "";
     saleNumber.value = null;
+    currentOrder.value = null;
     orderRaw.value = null;
     orderDraftDebt.value = null;
     discountValue.value = 0;
@@ -189,6 +211,73 @@ export const useCartStore = defineStore("cart", () => {
     return Boolean(itemBusyMap.value[String(productId)]);
   }
 
+  function apiErrorMessage(error: any, fallback: string) {
+    const status = Number(error?.statusCode ?? error?.response?.status ?? error?.data?.statusCode ?? 0);
+    if (status === 403) return "Нет прав доступа.";
+    return error?.data?.message || error?.message || fallback;
+  }
+
+  function pickOrder(raw: any) {
+    return raw?.order ?? raw?.data?.order ?? raw?.data ?? raw;
+  }
+
+  function normalizeOrder(raw: any): PosOrder | null {
+    const source = pickOrder(raw);
+    if (!source?.id) return null;
+
+    return {
+      id: String(source.id),
+      orderNumber: String(source.orderNumber ?? source.order_number ?? source.number ?? ""),
+      status: String(source.status ?? "DRAFT").toUpperCase() as PosOrderStatus,
+      shopId: String(source.shopId ?? source.shop_id ?? ""),
+      cashboxId: source.cashboxId ?? source.cashbox_id ?? null,
+      items: Array.isArray(source.items) ? source.items : [],
+      payments: Array.isArray(source.payments) ? source.payments : [],
+      totalPrice: Number(source.totalPrice ?? source.total_price ?? source.payableTotal ?? source.payable_total ?? 0),
+      discountAmount: Number(source.discountAmount ?? source.discount_amount ?? 0),
+      paidAmount: Number(source.paidAmount ?? source.paid_amount ?? 0),
+      comment: source.comment ?? null,
+      customerId: source.customerId ?? source.customer_id ?? null,
+      versionNumber: Number(source.versionNumber ?? source.version_number ?? 1),
+    };
+  }
+
+  function applyOrderState(raw: any) {
+    const order = normalizeOrder(raw);
+    if (!order) return null;
+
+    currentOrder.value = order;
+    saleId.value = order.id;
+    saleNumber.value = order.orderNumber || saleNumber.value;
+    saleShopId.value = order.shopId || saleShopId.value;
+    orderRaw.value = pickOrder(raw);
+    discountAmount.value = order.discountAmount;
+    discountPercent.value = 0;
+    payableTotal.value = order.totalPrice;
+
+    cart.value = order.items.map((item: any, index: number) => {
+      const product = item?.product ?? {};
+      const productId = item?.productId ?? item?.product_id ?? product?.id ?? product?.publicId ?? product?.public_id ?? item?.id;
+      const itemId = item?.id ?? item?.itemId ?? item?.item_id ?? `${productId}-${index}`;
+
+      return {
+        id: itemId,
+        itemId,
+        productId,
+        publicId: product?.publicId ?? product?.public_id,
+        name: String(item?.name ?? product?.name ?? "Товар"),
+        price: Number(item?.price ?? item?.sellPrice ?? item?.sell_price ?? item?.unitPrice ?? item?.unit_price ?? product?.sellPrice ?? product?.sell_price ?? product?.price ?? 0),
+        barcode: String(item?.barcode ?? product?.barcode ?? ""),
+        article: String(item?.sku ?? item?.article ?? product?.sku ?? product?.article ?? ""),
+        quantity: Number(item?.quantity ?? item?.qty ?? 1),
+        availableQuantity: Number(item?.stock ?? product?.stock ?? product?.quantity ?? 0),
+        shopId: order.shopId,
+      };
+    });
+
+    return order;
+  }
+
   function hasSaleShopMismatch(shopId?: string | number | null) {
     const currentShopId = String(shopId ?? resolveCurrentShopId() ?? "");
     return Boolean(
@@ -199,74 +288,94 @@ export const useCartStore = defineStore("cart", () => {
     );
   }
 
-  async function loadPaymentMethods(inputCompanyId?: string) {
-    const companyId = resolveCompanyId(inputCompanyId);
-
+  async function loadPaymentMethods(_inputCompanyId?: string) {
     paymentMethodsLoading.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch("/company-payment-type", {
-        method: "GET",
-        query: companyId ? { company_id: companyId, limit: 1000 } : { limit: 1000 },
-      });
+      const res: any = await apiFetch("/payment-types", { method: "GET" });
 
       const items = Array.isArray(res)
         ? res
-        : Array.isArray(res?.company_payment_types)
-          ? res.company_payment_types
+        : Array.isArray(res?.paymentTypes)
+          ? res.paymentTypes
+          : Array.isArray(res?.payment_types)
+            ? res.payment_types
           : Array.isArray(res?.data)
             ? res.data
-            : Array.isArray(res?.data?.company_payment_types)
-              ? res.data.company_payment_types
-              : [];
+            : [];
 
       paymentMethods.value = items
         .map((item: any) => ({
           id: String(item?.id ?? ""),
-          name: String(item?.name ?? item?.payment_type_name ?? item?.payment_type?.name ?? ""),
-          paymentTypeId: item?.payment_type_id
-            ? String(item.payment_type_id)
-            : item?.payment_type?.id
-              ? String(item.payment_type.id)
-              : undefined,
-          paymentTypeName: item?.payment_type_name
-            ? String(item.payment_type_name)
-            : item?.payment_type?.name
-              ? String(item.payment_type.name)
-              : undefined,
-          isCash: Boolean(item?.is_cash_payment_type),
-          dontShowInMakePayment: Boolean(item?.dont_show_in_make_payment),
+          name: String(item?.name ?? ""),
+          paymentTypeId: String(item?.id ?? ""),
+          paymentTypeName: Boolean(item?.isCash ?? item?.is_cash) ? "Cash" : "",
+          isCash: Boolean(item?.isCash ?? item?.is_cash),
+          dontShowInMakePayment: Boolean(item?.dontShowInMakePayment ?? item?.dont_show_in_make_payment),
         }))
         .filter((item: CompanyPaymentMethod) => Boolean(item.id && item.name));
-    } catch {
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось загрузить способы оплаты.");
       paymentMethods.value = [];
     } finally {
       paymentMethodsLoading.value = false;
     }
   }
 
+  async function createPaymentType(payload: { name: string; isCash: boolean }) {
+    const { apiFetch } = useApi();
+    try {
+      const res = await apiFetch("/payment-types", {
+        method: "POST",
+        body: payload,
+      });
+      await loadPaymentMethods();
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось создать тип оплаты.");
+      return null;
+    }
+  }
+
   async function loadCashBoxes() {
     const { apiFetch } = useApi();
-    const res: any = await apiFetch("/v1/cash-box", {
-      method: "GET",
-      query: { limit: 100 },
-    });
-    const items = Array.isArray(res?.cash_boxes)
-      ? res.cash_boxes
-      : Array.isArray(res?.data?.cash_boxes)
-        ? res.data.cash_boxes
-        : Array.isArray(res)
-          ? res
-          : [];
     const shopId = String(resolveCurrentShopId() || "");
+    const res: any = await apiFetch("/cashboxes", {
+      method: "GET",
+      query: shopId ? { shopId } : undefined,
+    });
+    const items = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.cashboxes)
+        ? res.cashboxes
+        : Array.isArray(res?.cashBoxes)
+          ? res.cashBoxes
+          : Array.isArray(res?.data)
+            ? res.data
+            : [];
 
     cashBoxes.value = items;
     selectedCashBox.value =
-      items.find((cashBox: any) => String(cashBox?.shop_id ?? cashBox?.shop?.id ?? "") === shopId) ??
+      items.find((cashBox: any) => String(cashBox?.shopId ?? cashBox?.shop_id ?? cashBox?.shop?.id ?? "") === shopId) ??
       items[0] ??
       null;
 
     return selectedCashBox.value;
+  }
+
+  async function createCashbox(payload: { shopId: string; name: string }) {
+    const { apiFetch } = useApi();
+    try {
+      const res = await apiFetch("/cashboxes", {
+        method: "POST",
+        body: payload,
+      });
+      await loadCashBoxes();
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось создать кассу.");
+      return null;
+    }
   }
 
   async function loadShopInfo(shopId = resolveCurrentShopId()) {
@@ -416,6 +525,7 @@ export const useCartStore = defineStore("cart", () => {
         saleId: saleId.value,
         saleShopId: saleShopId.value,
         saleNumber: saleNumber.value,
+        currentOrder: currentOrder.value,
         orderRaw: orderRaw.value,
         discountValue: discountValue.value,
         discountType: discountType.value,
@@ -444,6 +554,7 @@ export const useCartStore = defineStore("cart", () => {
       saleId.value = parsed?.saleId ?? null;
       saleShopId.value = String(parsed?.saleShopId ?? "");
       saleNumber.value = parsed?.saleNumber ?? null;
+      currentOrder.value = normalizeOrder(parsed?.currentOrder);
       orderRaw.value = parsed?.orderRaw ?? null;
       discountValue.value = Number(parsed?.discountValue ?? 0);
       discountType.value = parsed?.discountType === "uzs" ? "uzs" : "%";
@@ -465,37 +576,17 @@ export const useCartStore = defineStore("cart", () => {
     creatingSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const shopId = resolveCurrentShopId();
-      const res: any = await apiFetch("/new-sale", {
+      const shopId = String(resolveCurrentShopId() || "");
+      const cashboxId = selectedCashBox.value?.id ? String(selectedCashBox.value.id) : undefined;
+      const res: any = await apiFetch("/orders", {
         method: "POST",
+        body: { shopId, cashboxId },
       });
-      const orderId = res?.data?.id ?? res?.id ?? res?.order?.id ?? null;
-      saleId.value = orderId != null ? String(orderId) : null;
-      saleShopId.value = String(
-        res?.shop_id ??
-          res?.data?.shop_id ??
-          res?.order?.shop_id ??
-          shopId ??
-          "",
-      );
-      saleNumber.value = String(
-        res?.order_number ??
-          res?.number ??
-          res?.data?.order_number ??
-          res?.data?.number ??
-          saleNumber.value ??
-          "",
-      ) || saleNumber.value;
-      orderRaw.value = res;
-      discountPercent.value = Number(res?.discount_percent ?? 0);
-      discountAmount.value = Number(res?.discount_amount ?? 0);
-      payableTotal.value = Number(res?.payable_total ?? 0);
-      if (saleId.value) {
-        await loadOrderDraftDebt(saleId.value).catch(() => {
-          orderDraftDebt.value = null;
-        });
-      }
+      applyOrderState(res);
       return saleId.value;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось создать заказ.");
+      return null;
     } finally {
       creatingSale.value = false;
     }
@@ -509,7 +600,9 @@ export const useCartStore = defineStore("cart", () => {
     restoringSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
+      const res: any = await apiFetch(`/orders/${encodeURIComponent(String(id))}`, { method: "GET" });
+      applyOrderState(res);
+      return res;
       const items = extractOrderItems(res);
 
       cart.value = items.map((it: any) => ({
@@ -616,14 +709,14 @@ export const useCartStore = defineStore("cart", () => {
       if (!sid) throw new Error("sale not created");
 
       const { apiFetch } = useApi();
-      await apiFetch(`/new-sale/${sid}/items`, {
+      const res: any = await apiFetch(`/orders/${encodeURIComponent(String(sid))}/items`, {
         method: "POST",
-        body: { product_id: product.id, quantity: 1, sale_price: product.price },
+        body: { productId: product.productId || product.publicId || product.id, quantity: 1 },
       });
-      await loadSale(sid);
+      applyOrderState(res);
+      lastCartError.value = "";
     } catch (error: any) {
-      lastCartError.value =
-        error?.data?.message || error?.message || "Не удалось добавить товар в продажу.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось добавить товар в заказ.");
       if (saleId.value) {
         await loadSale(saleId.value);
       }
@@ -664,35 +757,21 @@ export const useCartStore = defineStore("cart", () => {
 
     try {
       setItemBusy(productId, true);
-      await runSaleItemMutation([
-        () =>
-          useApi().apiFetch(
-            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
-            {
-              method: "PUT",
-              body: { quantity: normalizedQuantity },
-            },
-          ),
-        () =>
-          useApi().apiFetch(
-            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
-            {
-              method: "PATCH",
-              body: { quantity: normalizedQuantity },
-            },
-          ),
-        () =>
-          useApi().apiFetch(`/new-sale/${saleId.value}/items`, {
-            method: "PUT",
-            body: { product_id: productId, quantity: normalizedQuantity },
-          }),
-      ]);
-      await loadSale(saleId.value);
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch(
+        `/orders/${encodeURIComponent(String(saleId.value))}/items/${encodeURIComponent(String(productId))}`,
+        {
+          method: "PATCH",
+          body: { quantity: normalizedQuantity },
+        },
+      );
+      applyOrderState(res);
       lastCartError.value = "";
-    } catch {
+      return;
+    } catch (error: any) {
       item.quantity = normalizedQuantity;
       await loadSale(saleId.value);
-      lastCartError.value = "Не удалось обновить количество товара. Корзина синхронизирована заново.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось обновить количество товара. Корзина синхронизирована заново.");
     } finally {
       setItemBusy(productId, false);
     }
@@ -708,25 +787,17 @@ export const useCartStore = defineStore("cart", () => {
 
     try {
       setItemBusy(productId, true);
-      await runSaleItemMutation([
-        () =>
-          useApi().apiFetch(
-            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
-            {
-              method: "DELETE",
-            },
-          ),
-        () =>
-          useApi().apiFetch(`/new-sale/${saleId.value}/items`, {
-            method: "DELETE",
-            body: { product_id: productId },
-          }),
-      ]);
-      await loadSale(saleId.value);
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch(
+        `/orders/${encodeURIComponent(String(saleId.value))}/items/${encodeURIComponent(String(productId))}`,
+        { method: "DELETE" },
+      );
+      applyOrderState(res);
       lastCartError.value = "";
-    } catch {
+      return;
+    } catch (error: any) {
       await loadSale(saleId.value);
-      lastCartError.value = "Не удалось удалить товар из продажи. Корзина синхронизирована заново.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось удалить товар из заказа. Корзина синхронизирована заново.");
     } finally {
       setItemBusy(productId, false);
     }
@@ -739,22 +810,34 @@ export const useCartStore = defineStore("cart", () => {
     payLoading.value = true;
     try {
       const paidSaleId = saleId.value;
-      const res: any = await apiFetch(`/new-sale/${paidSaleId}/pay`, {
-        method: "POST",
-        body: payload,
-      });
-      let paidOrder: any = null;
-      try {
-        paidOrder = await apiFetch(`/new-sale/${paidSaleId}`, { method: "GET" });
-      } catch {
-        paidOrder = null;
+      const order = currentOrder.value ?? applyOrderState(await apiFetch(`/orders/${encodeURIComponent(String(paidSaleId))}`, { method: "GET" }));
+      if (!order || order.items.length === 0) {
+        lastCartError.value = "Order must contain at least one item";
+        return null;
       }
-      receipt.value = { payment: res, order: paidOrder };
+
+      const amountDue = Math.max(0, Number(order.totalPrice || 0) - Number(order.paidAmount || 0));
+      if (amountDue > 0) {
+        const paymentRes: any = await apiFetch(`/orders/${encodeURIComponent(String(paidSaleId))}/payments`, {
+          method: "POST",
+          body: { paymentTypeId: payload.payment_method, amount: amountDue },
+        });
+        applyOrderState(paymentRes);
+      }
+
+      const latestOrder = currentOrder.value;
+      if (!latestOrder || Number(latestOrder.paidAmount || 0) < Number(latestOrder.totalPrice || 0)) {
+        lastCartError.value = "Order is not fully paid";
+        return null;
+      }
+
+      const completeRes: any = await apiFetch(`/orders/${encodeURIComponent(String(paidSaleId))}/complete`, { method: "POST" });
+      const completedOrder = applyOrderState(completeRes);
+      receipt.value = { payment: completeRes, order: completedOrder ?? pickOrder(completeRes) };
       resetSaleState({ keepReceipt: true });
-      return res;
+      return completeRes;
     } catch (error: any) {
-      lastCartError.value =
-        error?.data?.message || error?.message || "Не удалось провести оплату.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось провести оплату.");
       return null;
     } finally {
       payLoading.value = false;
@@ -767,8 +850,11 @@ export const useCartStore = defineStore("cart", () => {
     try {
       if (saleId.value) {
         try {
-          await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
-        } catch {}
+          const res: any = await apiFetch(`/orders/${encodeURIComponent(String(saleId.value))}/cancel`, { method: "POST" });
+          applyOrderState(res);
+        } catch (error: any) {
+          lastCartError.value = apiErrorMessage(error, "Не удалось отменить заказ.");
+        }
       }
       resetSaleState();
     } finally {
@@ -794,24 +880,13 @@ export const useCartStore = defineStore("cart", () => {
     discountLoading.value = true;
     try {
       const { apiFetch } = useApi();
-      const body: any = {};
-
-      if (discountType.value === "%") {
-        body.discount_percent = Number(discountValue.value || 0);
-      } else {
-        body.discount_amount = Number(discountValue.value || 0);
-      }
-
-      const res: any = await apiFetch(`/new-sale/${sid}/discount`, {
-        method: "PUT",
-        body,
+      const res: any = await apiFetch(`/orders/${encodeURIComponent(String(sid))}/discount`, {
+        method: "PATCH",
+        body: { discountAmount: globalDiscountAmount() },
       });
-
-      discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
-      discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
-      payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
-    } catch {
-      // ignore in local POS mode
+      applyOrderState(res);
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось применить скидку.");
     } finally {
       discountLoading.value = false;
     }
@@ -822,10 +897,12 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   const subtotal = computed(() =>
-    cart.value.reduce(
-      (sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)),
-      0
-    )
+    currentOrder.value
+      ? Number(currentOrder.value.totalPrice || 0) + Number(currentOrder.value.discountAmount || 0)
+      : cart.value.reduce(
+          (sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)),
+          0
+        )
   );
 
   const itemDiscounts = computed(() => 0);
@@ -841,11 +918,12 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   const total = computed(() => {
+    if (currentOrder.value) return Number(currentOrder.value.totalPrice || 0);
     const afterItemDiscounts = subtotal.value - itemDiscounts.value;
     return Math.max(0, afterItemDiscounts - globalDiscountAmount());
   });
 
-  const totalDiscount = computed(() => itemDiscounts.value + globalDiscountAmount());
+  const totalDiscount = computed(() => currentOrder.value ? Number(currentOrder.value.discountAmount || 0) : itemDiscounts.value + globalDiscountAmount());
 
   function itemGlobalDiscountShare(item: any) {
     const totalGlobalDiscount = globalDiscountAmount();
@@ -900,6 +978,7 @@ export const useCartStore = defineStore("cart", () => {
       saleId,
       saleShopId,
       saleNumber,
+      currentOrder,
       discountValue,
       discountType,
       discountPercent,
@@ -917,6 +996,7 @@ export const useCartStore = defineStore("cart", () => {
     saleId,
     saleShopId,
     saleNumber,
+    currentOrder,
     receipt,
     orderRaw,
     lastCartError,
@@ -957,7 +1037,9 @@ export const useCartStore = defineStore("cart", () => {
     applySaleDiscount,
     paySale,
     loadPaymentMethods,
+    createPaymentType,
     loadCashBoxes,
+    createCashbox,
     loadShopInfo,
     loadLoyaltyProgram,
     loadCompanyCurrency,
