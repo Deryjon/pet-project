@@ -148,24 +148,26 @@ export const useCartStore = defineStore("cart", () => {
   function resolveCurrentShopId() {
     const locationStore = useLocationStore();
     const userStore = useUserStore();
+    const user = userStore.userState;
 
     return (
       locationStore.selectedLocation?.id ||
       userStore.location?.id ||
-      userStore.user.currentShopId ||
-      userStore.user.branchCode ||
+      user.currentShopId ||
+      user.branchCode ||
       ""
     );
   }
 
   function resolveCompanyId(inputCompanyId?: string) {
     const userStore = useUserStore();
+    const user = userStore.userState;
 
     return String(
       inputCompanyId ||
-        userStore.user.companyId ||
-        userStore.user.company?.companyId ||
-        userStore.user.company?.id ||
+        user.companyId ||
+        user.company?.companyId ||
+        user.company?.id ||
         "",
     ).trim();
   }

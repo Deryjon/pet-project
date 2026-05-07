@@ -22,7 +22,7 @@ export const useLocationStore = defineStore("location", {
       const { useUserStore } = await import("./useUserStore");
       const userStore = useUserStore();
 
-      const canSwitchShops = userStore.user.canSwitchShops || this.locations.length > 1;
+      const canSwitchShops = userStore.userState.canSwitchShops || this.locations.length > 1;
       if (!canSwitchShops) {
         return;
       }

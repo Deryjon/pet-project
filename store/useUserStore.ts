@@ -10,6 +10,8 @@ type NormalizedShop = {
   companyId?: string;
 };
 
+export type NormalizedUser = ReturnType<typeof createEmptyUser>;
+
 function createEmptyUser() {
   return {
     id: null as number | null,
@@ -19,7 +21,14 @@ function createEmptyUser() {
     phone: "" as string,
     userType: "" as string,
     role: "" as string,
+    roleName: "" as string,
     roles: [] as string[],
+    crmRoleId: "" as string,
+    crmRole: null as null | {
+      id: string;
+      name: string;
+      isAdmin: boolean;
+    },
     companyId: "" as string,
     company: null as null | {
       id: string;
@@ -82,51 +91,118 @@ function normalizeShop(shop: any): NormalizedShop | null {
   };
 }
 
+function roleValue(value: any) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return "";
+}
+
+function collectActiveSlugs(sections: any[]) {
+  const slugs = new Set<string>();
+
+  const walk = (node: any) => {
+    if (node?.is_active && node?.slug) {
+      slugs.add(String(node.slug));
+    }
+    if (Array.isArray(node?.children)) {
+      node.children.forEach(walk);
+    }
+  };
+
+  sections.forEach((section) => {
+    if (Array.isArray(section?.permissions)) {
+      section.permissions.forEach(walk);
+    }
+  });
+
+  return slugs;
+}
+
+let permissionsLoadPromise: Promise<void> | null = null;
+
 export const useUserStore = defineStore("user", {
   state: () => ({
-    user: createEmptyUser(),
+    user: null as NormalizedUser | null,
     token: null as string | null,
     location: null as null | { id: string; name: string },
     initializing: false as boolean,
+    authLoading: true as boolean,
+    authChecked: false as boolean,
+    authScope: null as "crm" | "platform" | null,
     refreshingUser: false as boolean,
     lastUserFetchAt: 0 as number,
+    permissions: [] as string[],
+    roles: [] as string[],
+    currentTenantId: null as string | null,
+    permissionsLoaded: false as boolean,
+    permissionsLoading: false as boolean,
+    permissionsLoadFailed: false as boolean,
+    permissionSections: [] as any[],
+    activePermissionSlugs: [] as string[],
   }),
   getters: {
+    userState: (state) => state.user ?? createEmptyUser(),
     isLoggedIn: (state) => !!state.token,
-    isCompanyUser: (state) => state.user.userType === "company",
-    isPlatformUser: (state) => state.user.userType === "platform",
+    isAuthenticated: (state) => !!state.user?.id,
+    isCompanyUser: (state) => state.user?.userType === "company",
+    isPlatformUser: (state) => state.user?.userType === "platform",
     normalizedRoles: (state) =>
-      [state.user.role, ...(state.user.roles || [])]
+      [state.user?.role, ...(state.user?.roles || [])]
         .map((role) => String(role || "").trim().toLowerCase())
         .filter(Boolean),
     hasPlatformAccess(): boolean {
-      return ["platform_admin", "support"].some((role) => this.normalizedRoles.includes(role));
+      return (
+        this.user?.userType === "platform" ||
+        ["platform_admin", "support", "superadmin"].some((role) => this.normalizedRoles.includes(role))
+      );
     },
     fullName: (state) =>
-      state.user.firstName || state.user.lastName
-        ? `${state.user.firstName} ${state.user.lastName}`.trim()
-        : state.user.name,
+      state.user?.firstName || state.user?.lastName
+        ? `${state.user?.firstName ?? ""} ${state.user?.lastName ?? ""}`.trim()
+        : state.user?.name ?? "",
     isAdmin(): boolean {
-      return this.normalizedRoles.includes("admin") || this.normalizedRoles.includes("админ");
+      return (
+        this.user?.userType === "platform" ||
+        Boolean(this.user?.crmRole?.isAdmin)
+      );
+    },
+    activeSlugs: (state) => new Set(state.activePermissionSlugs),
+    visiblePermissionSections: (state) =>
+      state.permissionSections.map((section: any) => ({
+        ...section,
+        permissions: Array.isArray(section?.permissions)
+          ? section.permissions.filter(
+              (permission: any) => permission?.is_active && !permission?.hide_from_ui,
+            )
+          : [],
+      })),
+    can(): (slug: string) => boolean {
+      return (slug: string) => this.user?.userType === "platform" || this.activeSlugs.has(slug);
     },
   },
 
   actions: {
     setUser(user: any) {
+      const crmRole = user?.crm_role
+        ? {
+            id: String(user.crm_role.id ?? ""),
+            name: String(user.crm_role.name ?? ""),
+            isAdmin: Boolean(user.crm_role.is_admin ?? user.crm_role.isAdmin),
+          }
+        : null;
+      const displayRoleName = String(crmRole?.name ?? user?.role_name ?? "").trim();
       const roleCandidates = [
-        user?.role?.code,
-        user?.role?.role,
-        user?.role?.name,
-        user?.role?.role_id,
-        user?.role?.id,
-        user?.role_name,
-        user?.crm_role_id,
-        user?.role,
-        user?.roles?.[0]?.role?.code,
-        user?.roles?.[0]?.role?.role,
-        user?.roles?.[0]?.role?.name,
-        user?.roles?.[0]?.role_id,
-        user?.roles?.[0]?.role?.id,
+        roleValue(user?.role?.code),
+        roleValue(user?.role?.role),
+        roleValue(user?.role_code),
+        roleValue(user?.role?.role_id),
+        roleValue(user?.role?.id),
+        roleValue(user?.crm_role_id),
+        roleValue(user?.role),
+        roleValue(user?.roles?.[0]?.role?.code),
+        roleValue(user?.roles?.[0]?.role?.role),
+        roleValue(user?.roles?.[0]?.role_id),
+        roleValue(user?.roles?.[0]?.role?.id),
       ];
       const normalizedRole = roleCandidates.find(Boolean) ?? "";
       const normalizedRoles = Array.from(
@@ -134,14 +210,15 @@ export const useUserStore = defineStore("user", {
           ...roleCandidates,
           ...(Array.isArray(user?.roles)
             ? user.roles.flatMap((item: any) => [
-                item?.role_id,
-                item?.role?.id,
-                item?.role?.code,
-                item?.role?.role,
-                item?.role?.name,
-                item?.name,
-                item?.code,
-                item?.role,
+                roleValue(item?.role_id),
+                roleValue(item?.role_code),
+                roleValue(item?.role?.id),
+                roleValue(item?.role?.code),
+                roleValue(item?.role?.role),
+                roleValue(item?.role?.name),
+                roleValue(item?.name),
+                roleValue(item?.code),
+                roleValue(item?.role),
               ])
             : []),
         ].filter(Boolean).map((role: any) => String(role))),
@@ -178,6 +255,9 @@ export const useUserStore = defineStore("user", {
           }
         : null;
 
+      const previousUserId = String(this.user?.id ?? "");
+      const previousCrmRoleId = String(this.user?.crmRoleId ?? "");
+
       const normalized = {
         id: user?.id ?? null,
         firstName: user?.first_name ?? user?.firstName ?? "",
@@ -186,7 +266,10 @@ export const useUserStore = defineStore("user", {
         phone: user?.phone ?? user?.phone_number ?? "",
         userType: String(user?.user_type ?? ""),
         role: normalizedRole,
+        roleName: displayRoleName,
         roles: normalizedRoles,
+        crmRoleId: String(user?.crm_role_id ?? crmRole?.id ?? user?.role_code ?? ""),
+        crmRole,
         companyId:
           String(user?.company_id ?? normalizedCompany?.companyId ?? normalizedCompany?.id ?? ""),
         company: normalizedCompany,
@@ -216,14 +299,115 @@ export const useUserStore = defineStore("user", {
           user?.phone ??
           user?.phone_number ??
           "",
-        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user.avatarUrl,
+        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user?.avatarUrl ?? createEmptyUser().avatarUrl,
       };
 
+      const nextUserId = String(normalized.id ?? "");
+      const nextCrmRoleId = String(normalized.crmRoleId ?? "");
+      const accessScopeChanged =
+        previousUserId !== nextUserId || previousCrmRoleId !== nextCrmRoleId;
+
       this.user = normalized as typeof this.user;
+      this.roles = [...normalizedRoles];
+      this.currentTenantId = normalized.companyId || null;
+      if (accessScopeChanged) {
+        this.permissionsLoaded = false;
+      }
+
+      if (previousUserId && previousUserId !== nextUserId) {
+        this.permissionSections = [];
+        this.activePermissionSlugs = [];
+      }
       this.location =
         normalized.currentShopId && normalized.currentShopName
           ? { id: normalized.currentShopId, name: normalized.currentShopName }
           : null;
+      this.authChecked = true;
+    },
+    async fetchPlatformMe() {
+      try {
+        const { apiFetch } = useApi();
+        const response: any = await apiFetch("/platform/auth/me", { method: "GET" });
+        this.setUser(response?.user ?? response);
+        this.authScope = "platform";
+        this.lastUserFetchAt = Date.now();
+        return this.isAuthenticated;
+      } catch (error: any) {
+        const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+        if (status === 401 || status === 403) {
+          this.logout();
+        }
+        this.authChecked = true;
+        return false;
+      }
+    },
+    async loadPermissionsForCurrentUser(options?: { force?: boolean }) {
+      if (this.permissionsLoading && permissionsLoadPromise) {
+        await permissionsLoadPromise;
+        return;
+      }
+
+      if (this.permissionsLoaded && !options?.force) {
+        return;
+      }
+
+      if (!this.user?.id || this.permissionsLoading) {
+        return;
+      }
+
+      this.permissionsLoading = true;
+      this.permissionsLoadFailed = false;
+      const hadPermissions = this.activePermissionSlugs.length > 0;
+
+      permissionsLoadPromise = (async () => {
+        try {
+          if (this.user?.userType === "platform") {
+            this.permissionSections = [];
+            this.activePermissionSlugs = [];
+            this.permissionsLoaded = true;
+            this.permissionsLoadFailed = false;
+            return;
+          }
+
+          const userId = String(this.user?.id ?? "");
+          if (!userId) {
+            this.permissionSections = [];
+            this.activePermissionSlugs = [];
+            this.permissionsLoaded = true;
+            this.permissionsLoadFailed = false;
+            return;
+          }
+
+          const { apiFetch } = useApi();
+          const response = await apiFetch<any>(`/v2/user/${encodeURIComponent(userId)}/permissions`, {
+            method: "GET",
+          });
+
+          const sections = Array.isArray(response?.sections) ? response.sections : [];
+          this.permissionSections = sections;
+          this.activePermissionSlugs = [...collectActiveSlugs(sections)];
+          this.permissions = [...this.activePermissionSlugs];
+          this.permissionsLoaded = true;
+          this.permissionsLoadFailed = false;
+        } catch (_) {
+          if (!hadPermissions) {
+            this.permissionSections = [];
+            this.activePermissionSlugs = [];
+            this.permissions = [];
+            this.permissionsLoaded = false;
+          } else {
+            this.permissionsLoaded = true;
+          }
+          this.permissionsLoadFailed = true;
+        }
+      })();
+
+      try {
+        await permissionsLoadPromise;
+      } finally {
+        this.permissionsLoading = false;
+        permissionsLoadPromise = null;
+      }
     },
     async fetchMe(options?: { force?: boolean }) {
       const now = Date.now();
@@ -234,7 +418,7 @@ export const useUserStore = defineStore("user", {
       }
 
       if (!force && this.lastUserFetchAt && now - this.lastUserFetchAt < 1500) {
-        return Boolean(this.user.id);
+        return this.isAuthenticated;
       }
 
       this.refreshingUser = true;
@@ -242,17 +426,55 @@ export const useUserStore = defineStore("user", {
         const { apiFetch } = useApi();
         const me = await apiFetch<any>("/auth/me", { method: "GET" });
         this.setUser(me);
+        this.authScope = "crm";
         useLocationStore().syncFromUser(me);
+        await this.loadPermissionsForCurrentUser({ force });
         this.lastUserFetchAt = Date.now();
-        return Boolean(this.user.id);
+        return this.isAuthenticated;
       } catch (error: any) {
         const status = error?.statusCode ?? error?.status ?? error?.response?.status;
         if (status === 401 || status === 403) {
           this.logout();
         }
+        this.authChecked = true;
         return false;
       } finally {
         this.refreshingUser = false;
+      }
+    },
+    async initAuth(options?: { force?: boolean; platform?: boolean }) {
+      const force = Boolean(options?.force);
+      const platform = Boolean(options?.platform);
+      const scope = platform ? "platform" : "crm";
+
+      if (this.authChecked && this.authScope === scope && !force) {
+        return this.isAuthenticated;
+      }
+
+      this.initializing = true;
+      this.authLoading = true;
+      this.authScope = scope;
+
+      try {
+        this.loadToken();
+        this.loadLocation();
+
+        if (!this.token) {
+          this.user = null;
+          this.authScope = scope;
+          this.authChecked = true;
+          return false;
+        }
+
+        if (platform) {
+          return await this.fetchPlatformMe();
+        }
+
+        return await this.fetchMe({ force: true });
+      } finally {
+        this.authLoading = false;
+        this.initializing = false;
+        this.authChecked = true;
       }
     },
     login(token: string, userData: any) {
@@ -307,23 +529,26 @@ export const useUserStore = defineStore("user", {
       }
     },
     async init() {
-      this.initializing = true;
-      try {
-        this.loadToken();
-        this.loadLocation();
-        if (this.token) {
-          await this.fetchMe({ force: true });
-        }
-      } finally {
-        this.initializing = false;
-      }
+      return this.initAuth({ force: true });
     },
     logout() {
-      this.user = createEmptyUser() as typeof this.user;
+      this.user = null;
       this.token = null;
       this.location = null;
+      this.initializing = false;
+      this.authLoading = false;
+      this.authChecked = true;
+      this.authScope = null;
       this.refreshingUser = false;
       this.lastUserFetchAt = 0;
+      this.permissionsLoaded = false;
+      this.permissionsLoading = false;
+      this.permissionsLoadFailed = false;
+      this.permissionSections = [];
+      this.activePermissionSlugs = [];
+      this.permissions = [];
+      this.roles = [];
+      this.currentTenantId = null;
       useLocationStore().reset();
       try {
         const tokenCookie = useCookie<string | null>("auth_token");

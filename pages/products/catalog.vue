@@ -4,6 +4,7 @@
       <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div
+          v-if="can('catalog-statistics')"
           class="flex cursor-pointer items-center gap-[10px] text-[#b5b4b4]"
           @click="toggleStats"
         >
@@ -68,6 +69,7 @@ import { useLocationStore } from "@/store/useLocationStore";
 const store = useCatalogDataTableStore();
 const route = useRoute();
 const locationStore = useLocationStore();
+const { can } = useAccessControl();
 const { selectedLocation } = storeToRefs(locationStore);
 const showStats = ref(false);
 const statsItems = computed(() => store.statsCards);

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, reactive, ref } from "vue";
+import { formatUzPhoneDisplay } from "~/utils/phone";
 
 type PaperWidth = "58" | "80";
 type PriceTagSize = "small" | "medium" | "a4";
@@ -171,7 +172,7 @@ export const usePrintSettingsStore = defineStore("printSettings", () => {
                 ? `<div class="center muted">${escapeHtml(settings.shopName || settings.address)}</div>`
                 : ""
             }
-            ${settings.phone ? `<div class="center muted">${escapeHtml(settings.phone)}</div>` : ""}
+            ${settings.phone ? `<div class="center muted">${escapeHtml(formatUzPhoneDisplay(settings.phone) || settings.phone)}</div>` : ""}
             <div class="line"></div>
             <div>Чек: ${escapeHtml(snapshot.saleNumber || snapshot.saleId || "-")}</div>
             <div>Дата: ${escapeHtml(paidAt.toLocaleString("ru-RU"))}</div>

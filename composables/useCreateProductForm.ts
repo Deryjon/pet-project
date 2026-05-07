@@ -148,7 +148,7 @@ export function validateCreateProductForm(form: CreateProductFormState): FormVal
   }
 
   if (!form.barcode.trim() && form.productType !== "Комплект") {
-    issues.push({ path: "barcode", message: "Barcode обязателен." });
+    issues.push({ path: "barcode", message: "Штрихкод обязателен." });
   }
 
   if (nonNegative(form.prices.purchasePrice) !== form.prices.purchasePrice) {

@@ -141,9 +141,13 @@ function moveItem(item: ChequeItem, direction: -1 | 1) {
 
   if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
 
-  const currentSequence = ordered[index].sequence_number ?? index + 1;
-  ordered[index].sequence_number = ordered[nextIndex].sequence_number ?? nextIndex + 1;
-  ordered[nextIndex].sequence_number = currentSequence;
+  const current = ordered[index];
+  const next = ordered[nextIndex];
+  if (!current || !next) return;
+
+  const currentSequence = current.sequence_number ?? index + 1;
+  current.sequence_number = next.sequence_number ?? nextIndex + 1;
+  next.sequence_number = currentSequence;
 }
 
 function buildPayload() {
@@ -283,7 +287,7 @@ fetchDefaultCheque();
               <input v-model="form.has_logo" type="checkbox" />
             </label>
             <label class="switch-row">
-              <span>Barcode</span>
+              <span>Штрихкод</span>
               <input v-model="form.has_bar_code" type="checkbox" />
             </label>
             <label class="switch-row">

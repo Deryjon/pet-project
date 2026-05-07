@@ -363,7 +363,7 @@ function normalizeImportStatus(raw: any, fallback: ImportStatus = "draft"): Impo
 function ensureImportId(value: unknown) {
   const id = String(value ?? "").trim();
   if (!id) {
-    throw new Error("Import ID is required");
+    throw new Error("ID импорта обязателен");
   }
 
   return id;
@@ -957,7 +957,7 @@ export function useProductImport() {
       await new Promise((resolve) => setTimeout(resolve, 1200));
     }
 
-    throw new Error("Import validation timeout");
+    throw new Error("Истекло время проверки импорта");
   }
 
   async function getImportPreview(importId: string, options?: { difference?: boolean; page?: number; limit?: number }) {

@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: import.meta.env.NUXT_DEVTOOLS === 'true' },
   css: ['~/assets/css/tailwind.css'],
   modules: [
     '@pinia/nuxt',
@@ -33,11 +33,14 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
-    apiProxyTarget: import.meta.env.NUXT_API_PROXY_TARGET || '',
+    apiProxyTarget: import.meta.env.NUXT_API_PROXY_TARGET || 'https://api.konkurent-group.uz/api',
     public: {
-      // Use same-origin path for API to enable cookies/CSRF on localhost and prod.
-      // Can be overridden by NUXT_PUBLIC_API_BASE
-      apiBase: import.meta.env.NUXT_PUBLIC_API_BASE || 'https://api.konkurent-group.uz/api',
+      // Prefer direct backend requests unless explicitly overridden.
+      // Can still be set to '/api' via NUXT_PUBLIC_API_BASE to use the Nuxt proxy.
+      apiBase:
+        import.meta.env.NUXT_PUBLIC_API_BASE ||
+        import.meta.env.NUXT_API_PROXY_TARGET ||
+        'https://api.konkurent-group.uz/api',
       posPaymentTypeIds: {
         cash: import.meta.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CASH || '41839fa3-4121-4572-ab19-394e3a7319fe',
         card: import.meta.env.NUXT_PUBLIC_POS_PAYMENT_TYPE_CARD || '41839fa3-4121-4572-ab19-394e3a7319fe',
