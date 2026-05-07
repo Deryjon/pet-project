@@ -48,9 +48,9 @@ async function fetchProfile() {
 
   try {
     const profile = await apiFetch<ProfileResponse>("/user/profile", { method: "GET" });
-    firstName.value = profile?.first_name || userStore.user.firstName || "";
-    lastName.value = profile?.last_name || userStore.user.lastName || "";
-    phone.value = profile?.phone_number || userStore.user.phone || "";
+    firstName.value = profile?.first_name || userStore.userState.firstName || "";
+    lastName.value = profile?.last_name || userStore.userState.lastName || "";
+    phone.value = profile?.phone_number || userStore.userState.phone || "";
   } catch (error: any) {
     errorMessage.value = error?.data?.message || error?.message || "Не удалось загрузить профиль";
   } finally {

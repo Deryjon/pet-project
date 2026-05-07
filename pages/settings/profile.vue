@@ -20,7 +20,7 @@ type ProfileResponse = {
 };
 
 const userStore = useUserStore();
-const { user, fullName } = storeToRefs(userStore);
+const { userState, fullName } = storeToRefs(userStore);
 const { apiFetch } = useApi();
 const toast = useToast();
 
@@ -62,13 +62,13 @@ const profileName = computed(() => {
   return (
     [firstName.value, lastName.value].filter(Boolean).join(" ") ||
     fullName.value ||
-    user.value.name ||
+    userState.value.name ||
     "Пользователь"
   );
 });
 
 const displayPhone = computed(() => {
-  return formatUzPhoneDisplay(user.value.phone) || "Телефон не указан";
+  return formatUzPhoneDisplay(userState.value.phone) || "Телефон не указан";
 });
 
 function clearMessages() {
@@ -93,7 +93,7 @@ async function fetchProfile() {
     lastName.value = profile?.last_name || "";
     language.value = profile?.language || "ru";
     theme.value = profile?.theme || "auto";
-    avatarPreview.value = profile?.avatar_url || user.value.avatarUrl || "";
+    avatarPreview.value = profile?.avatar_url || userState.value.avatarUrl || "";
     avatarFileName.value = profile?.avatar_url ? "Current avatar" : "Avatar is not choosen";
   } catch (error: any) {
     errorMessage.value =
@@ -274,7 +274,7 @@ onBeforeUnmount(revokePreviewUrl);
           <p class="text-[20px] font-semibold text-white">{{ profileName }}</p>
           <p class="text-sm text-[#b7c3d7]">{{ displayPhone }}</p>
           <p class="text-sm text-[#7ba9d8]">
-            {{ user.roleName || user.crmRole?.name || user.role || "Роль не указана" }}
+            {{ userState.roleName || userState.crmRole?.name || userState.role || "Роль не указана" }}
           </p>
         </div>
       </div>

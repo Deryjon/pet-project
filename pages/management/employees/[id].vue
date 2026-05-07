@@ -62,7 +62,7 @@ watch(phone, (value) => {
 });
 
 const shopOptions = computed(() =>
-  (userStore.user.shops || []).map((shop) => ({
+  (userStore.userState.shops || []).map((shop) => ({
     label: shop.name,
     value: shop.id,
   })),
@@ -81,7 +81,7 @@ watch(
     allowed_shop_ids.value = allowed_shop_ids.value.filter((shopId) => availableIds.has(shopId));
 
     if (!allowed_shop_ids.value.length && options.length) {
-      const fallbackId = current_shop_id.value || userStore.user.currentShopId || options[0]?.value || "";
+      const fallbackId = current_shop_id.value || userStore.userState.currentShopId || options[0]?.value || "";
       allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
     }
 
@@ -341,7 +341,7 @@ async function saveMainData() {
     });
     serverOk.value = "Данные сотрудника сохранены";
     await fetchUser();
-    if (String(id.value) === String(userStore.user.id ?? "")) {
+    if (String(id.value) === String(userStore.userState.id ?? "")) {
       await userStore.fetchMe({ force: true });
     }
   } catch (e: any) {

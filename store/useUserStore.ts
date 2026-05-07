@@ -10,6 +10,8 @@ type NormalizedShop = {
   companyId?: string;
 };
 
+export type NormalizedUser = ReturnType<typeof createEmptyUser>;
+
 function createEmptyUser() {
   return {
     id: null as number | null,
@@ -120,10 +122,13 @@ let permissionsLoadPromise: Promise<void> | null = null;
 
 export const useUserStore = defineStore("user", {
   state: () => ({
-    user: createEmptyUser(),
+    user: null as NormalizedUser | null,
     token: null as string | null,
     location: null as null | { id: string; name: string },
     initializing: false as boolean,
+    authLoading: true as boolean,
+    authChecked: false as boolean,
+    authScope: null as "crm" | "platform" | null,
     refreshingUser: false as boolean,
     lastUserFetchAt: 0 as number,
     permissions: [] as string[],
@@ -136,27 +141,29 @@ export const useUserStore = defineStore("user", {
     activePermissionSlugs: [] as string[],
   }),
   getters: {
+    userState: (state) => state.user ?? createEmptyUser(),
     isLoggedIn: (state) => !!state.token,
-    isCompanyUser: (state) => state.user.userType === "company",
-    isPlatformUser: (state) => state.user.userType === "platform",
+    isAuthenticated: (state) => !!state.user?.id,
+    isCompanyUser: (state) => state.user?.userType === "company",
+    isPlatformUser: (state) => state.user?.userType === "platform",
     normalizedRoles: (state) =>
-      [state.user.role, ...(state.user.roles || [])]
+      [state.user?.role, ...(state.user?.roles || [])]
         .map((role) => String(role || "").trim().toLowerCase())
         .filter(Boolean),
     hasPlatformAccess(): boolean {
       return (
-        this.user.userType === "platform" ||
+        this.user?.userType === "platform" ||
         ["platform_admin", "support", "superadmin"].some((role) => this.normalizedRoles.includes(role))
       );
     },
     fullName: (state) =>
-      state.user.firstName || state.user.lastName
-        ? `${state.user.firstName} ${state.user.lastName}`.trim()
-        : state.user.name,
+      state.user?.firstName || state.user?.lastName
+        ? `${state.user?.firstName ?? ""} ${state.user?.lastName ?? ""}`.trim()
+        : state.user?.name ?? "",
     isAdmin(): boolean {
       return (
-        this.user.userType === "platform" ||
-        Boolean(this.user.crmRole?.isAdmin)
+        this.user?.userType === "platform" ||
+        Boolean(this.user?.crmRole?.isAdmin)
       );
     },
     activeSlugs: (state) => new Set(state.activePermissionSlugs),
@@ -170,7 +177,7 @@ export const useUserStore = defineStore("user", {
           : [],
       })),
     can(): (slug: string) => boolean {
-      return (slug: string) => this.user.userType === "platform" || this.activeSlugs.has(slug);
+      return (slug: string) => this.user?.userType === "platform" || this.activeSlugs.has(slug);
     },
   },
 
@@ -248,8 +255,8 @@ export const useUserStore = defineStore("user", {
           }
         : null;
 
-      const previousUserId = String(this.user.id ?? "");
-      const previousCrmRoleId = String(this.user.crmRoleId ?? "");
+      const previousUserId = String(this.user?.id ?? "");
+      const previousCrmRoleId = String(this.user?.crmRoleId ?? "");
 
       const normalized = {
         id: user?.id ?? null,
@@ -292,7 +299,7 @@ export const useUserStore = defineStore("user", {
           user?.phone ??
           user?.phone_number ??
           "",
-        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user.avatarUrl,
+        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user?.avatarUrl ?? createEmptyUser().avatarUrl,
       };
 
       const nextUserId = String(normalized.id ?? "");
@@ -315,6 +322,24 @@ export const useUserStore = defineStore("user", {
         normalized.currentShopId && normalized.currentShopName
           ? { id: normalized.currentShopId, name: normalized.currentShopName }
           : null;
+      this.authChecked = true;
+    },
+    async fetchPlatformMe() {
+      try {
+        const { apiFetch } = useApi();
+        const response: any = await apiFetch("/platform/auth/me", { method: "GET" });
+        this.setUser(response?.user ?? response);
+        this.authScope = "platform";
+        this.lastUserFetchAt = Date.now();
+        return this.isAuthenticated;
+      } catch (error: any) {
+        const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+        if (status === 401 || status === 403) {
+          this.logout();
+        }
+        this.authChecked = true;
+        return false;
+      }
     },
     async loadPermissionsForCurrentUser(options?: { force?: boolean }) {
       if (this.permissionsLoading && permissionsLoadPromise) {
@@ -326,7 +351,7 @@ export const useUserStore = defineStore("user", {
         return;
       }
 
-      if (!this.user.id || this.permissionsLoading) {
+      if (!this.user?.id || this.permissionsLoading) {
         return;
       }
 
@@ -336,7 +361,7 @@ export const useUserStore = defineStore("user", {
 
       permissionsLoadPromise = (async () => {
         try {
-          if (this.user.userType === "platform") {
+          if (this.user?.userType === "platform") {
             this.permissionSections = [];
             this.activePermissionSlugs = [];
             this.permissionsLoaded = true;
@@ -344,7 +369,7 @@ export const useUserStore = defineStore("user", {
             return;
           }
 
-          const userId = String(this.user.id ?? "");
+          const userId = String(this.user?.id ?? "");
           if (!userId) {
             this.permissionSections = [];
             this.activePermissionSlugs = [];
@@ -393,7 +418,7 @@ export const useUserStore = defineStore("user", {
       }
 
       if (!force && this.lastUserFetchAt && now - this.lastUserFetchAt < 1500) {
-        return Boolean(this.user.id);
+        return this.isAuthenticated;
       }
 
       this.refreshingUser = true;
@@ -401,18 +426,55 @@ export const useUserStore = defineStore("user", {
         const { apiFetch } = useApi();
         const me = await apiFetch<any>("/auth/me", { method: "GET" });
         this.setUser(me);
+        this.authScope = "crm";
         useLocationStore().syncFromUser(me);
         await this.loadPermissionsForCurrentUser({ force });
         this.lastUserFetchAt = Date.now();
-        return Boolean(this.user.id);
+        return this.isAuthenticated;
       } catch (error: any) {
         const status = error?.statusCode ?? error?.status ?? error?.response?.status;
         if (status === 401 || status === 403) {
           this.logout();
         }
+        this.authChecked = true;
         return false;
       } finally {
         this.refreshingUser = false;
+      }
+    },
+    async initAuth(options?: { force?: boolean; platform?: boolean }) {
+      const force = Boolean(options?.force);
+      const platform = Boolean(options?.platform);
+      const scope = platform ? "platform" : "crm";
+
+      if (this.authChecked && this.authScope === scope && !force) {
+        return this.isAuthenticated;
+      }
+
+      this.initializing = true;
+      this.authLoading = true;
+      this.authScope = scope;
+
+      try {
+        this.loadToken();
+        this.loadLocation();
+
+        if (!this.token) {
+          this.user = null;
+          this.authScope = scope;
+          this.authChecked = true;
+          return false;
+        }
+
+        if (platform) {
+          return await this.fetchPlatformMe();
+        }
+
+        return await this.fetchMe({ force: true });
+      } finally {
+        this.authLoading = false;
+        this.initializing = false;
+        this.authChecked = true;
       }
     },
     login(token: string, userData: any) {
@@ -467,21 +529,16 @@ export const useUserStore = defineStore("user", {
       }
     },
     async init() {
-      this.initializing = true;
-      try {
-        this.loadToken();
-        this.loadLocation();
-        if (this.token) {
-          await this.fetchMe({ force: true });
-        }
-      } finally {
-        this.initializing = false;
-      }
+      return this.initAuth({ force: true });
     },
     logout() {
-      this.user = createEmptyUser() as typeof this.user;
+      this.user = null;
       this.token = null;
       this.location = null;
+      this.initializing = false;
+      this.authLoading = false;
+      this.authChecked = true;
+      this.authScope = null;
       this.refreshingUser = false;
       this.lastUserFetchAt = 0;
       this.permissionsLoaded = false;

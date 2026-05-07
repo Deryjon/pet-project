@@ -144,8 +144,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const error = ref("");
 
   const shops = computed<DashboardShop[]>(() => {
-    const fromUser = Array.isArray(userStore.user.shops)
-      ? userStore.user.shops
+    const fromUser = Array.isArray(userStore.userState.shops)
+      ? userStore.userState.shops
           .map((shop: any) => ({
             id: String(shop?.id ?? ""),
             name: String(shop?.name ?? ""),

@@ -55,9 +55,9 @@ const draft = reactive({
 
 const companyId = computed(() =>
   String(
-    userStore.user.companyId ||
-      userStore.user.company?.companyId ||
-      userStore.user.company?.id ||
+    userStore.userState.companyId ||
+      userStore.userState.company?.companyId ||
+      userStore.userState.company?.id ||
       "",
   ).trim(),
 );

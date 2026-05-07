@@ -46,7 +46,7 @@ const errorMessage = ref("");
 const successMessage = ref("");
 
 const shopOptions = computed(() =>
-  (userStore.user.shops || []).map((shop) => ({
+  (userStore.userState.shops || []).map((shop) => ({
     label: shop.name,
     value: shop.id,
     branchCode: shop.branchCode || "",
@@ -66,7 +66,7 @@ watch(
     allowed_shop_ids.value = allowed_shop_ids.value.filter((id) => availableIds.has(id));
 
     if (!allowed_shop_ids.value.length && options.length) {
-      const fallbackId = userStore.user.currentShopId || options[0]?.value || "";
+      const fallbackId = userStore.userState.currentShopId || options[0]?.value || "";
       allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
     }
 
@@ -221,7 +221,7 @@ const preparedData = computed(() => {
 
   return {
     user_type: "company",
-    company_id: userStore.user.companyId || undefined,
+    company_id: userStore.userState.companyId || undefined,
     first_name: first_name.value.trim(),
     last_name: last_name.value.trim(),
     birth_date: birth_date.value.trim() || undefined,
@@ -245,7 +245,7 @@ function resetForm() {
   crm_role_id.value = roleOptions.value[0]?.id || "";
   can_switch_shops.value = false;
   is_active.value = true;
-  const fallbackId = userStore.user.currentShopId || shopOptions.value[0]?.value || "";
+  const fallbackId = userStore.userState.currentShopId || shopOptions.value[0]?.value || "";
   current_shop_id.value = fallbackId;
   allowed_shop_ids.value = fallbackId ? [fallbackId] : [];
 }

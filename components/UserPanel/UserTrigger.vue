@@ -7,27 +7,27 @@ import { useSidebarStore } from "../../store/useSidebar";
 import { formatUzPhoneDisplay } from "~/utils/phone";
 
 const { selectedLocation } = storeToRefs(useLocationStore());
-const { user, fullName } = storeToRefs(useUserStore());
+const { userState, fullName } = storeToRefs(useUserStore());
 const { collapsed } = storeToRefs(useSidebarStore());
 
 defineEmits(["toggle"]);
 
 const displayName = computed(() => {
-  return fullName.value || user.value.name || formatUzPhoneDisplay(user.value.phone) || "Пользователь";
+  return fullName.value || userState.value.name || formatUzPhoneDisplay(userState.value.phone) || "Пользователь";
 });
 
 const displayLocation = computed(() => {
   return (
     selectedLocation.value?.name ||
-    user.value.currentShopName ||
-    user.value.branchTitle ||
-    user.value.branchCode ||
+    userState.value.currentShopName ||
+    userState.value.branchTitle ||
+    userState.value.branchCode ||
     "Филиал не указан"
   );
 });
 
 const displayCompany = computed(() => {
-  return user.value.company?.name || "Компания не указана";
+  return userState.value.company?.name || "Компания не указана";
 });
 </script>
 
@@ -39,7 +39,7 @@ const displayCompany = computed(() => {
     @click.stop="$emit('toggle')"
   >
     <img
-      :src="user.avatarUrl || '../../assets/images/placeholder_img.svg'"
+      :src="userState.avatarUrl || '../../assets/images/placeholder_img.svg'"
       alt="Avatar"
       class="h-[40px] w-[40px] rounded-full object-cover"
     />

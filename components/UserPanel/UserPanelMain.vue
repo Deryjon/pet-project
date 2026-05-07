@@ -14,37 +14,37 @@ defineProps<{
 }>();
 
 const panel = usePanelStore();
-const { user, fullName } = storeToRefs(useUserStore());
+const { userState, fullName } = storeToRefs(useUserStore());
 const { selectedLocation, locations } = storeToRefs(useLocationStore());
 
 const displayName = computed(() => {
-  return fullName.value || user.value.name || formatUzPhoneDisplay(user.value.phone) || "Пользователь";
+  return fullName.value || userState.value.name || formatUzPhoneDisplay(userState.value.phone) || "Пользователь";
 });
 
 const displayLocation = computed(() => {
   return (
     selectedLocation.value?.name ||
-    user.value.currentShopName ||
-    user.value.branchTitle ||
-    user.value.branchCode ||
+    userState.value.currentShopName ||
+    userState.value.branchTitle ||
+    userState.value.branchCode ||
     "Филиал не указан"
   );
 });
 
 const displayPhone = computed(() => {
-  return formatUzPhoneDisplay(user.value.phone) || "Телефон не указан";
+  return formatUzPhoneDisplay(userState.value.phone) || "Телефон не указан";
 });
 
 const displayRole = computed(() => {
-  return user.value.roleName || user.value.crmRole?.name || user.value.role || "Роль не указана";
+  return userState.value.roleName || userState.value.crmRole?.name || userState.value.role || "Роль не указана";
 });
 
 const displayCompany = computed(() => {
-  return user.value.company?.name || "Компания не указана";
+  return userState.value.company?.name || "Компания не указана";
 });
 
 const canChangeShop = computed(() => {
-  return Boolean((user.value.canSwitchShops || locations.value.length > 1) && locations.value.length);
+  return Boolean((userState.value.canSwitchShops || locations.value.length > 1) && locations.value.length);
 });
 </script>
 
@@ -76,7 +76,7 @@ const canChangeShop = computed(() => {
 
         <div class="mt-[20px] flex items-center gap-3 p-[5px]">
           <img
-            :src="user.avatarUrl || '../../assets/images/placeholder_img.svg'"
+            :src="userState.avatarUrl || '../../assets/images/placeholder_img.svg'"
             class="h-[40px] w-[40px] rounded-full object-cover"
           />
           <div>

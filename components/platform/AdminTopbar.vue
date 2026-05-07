@@ -22,7 +22,7 @@ const pageTitle = computed(() => {
 });
 
 const roleLabel = computed(() => {
-  const role = String(userStore.normalizedRoles?.[0] || userStore.user.role || "").trim();
+  const role = String(userStore.normalizedRoles?.[0] || userStore.userState.role || "").trim();
   const labels: Record<string, string> = {
     platform_admin: "Администратор платформы",
     superadmin: "Суперадминистратор",

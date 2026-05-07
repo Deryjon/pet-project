@@ -12,6 +12,8 @@ const route = useRoute();
 const { isPageLoading } = usePageLoader();
 const mobileSidebarOpen = ref(false);
 const isMobileViewport = ref(false);
+const showAuthLoader = computed(() => userStore.authLoading || !userStore.authChecked);
+const canRenderDashboard = computed(() => userStore.authChecked && userStore.isAuthenticated);
 const pageContentLoading = computed(
   () => userStore.initializing || (userStore.permissionsLoading && !userStore.permissionsLoaded) || isPageLoading.value,
 );
@@ -56,9 +58,6 @@ watch([isMobileViewport, mobileSidebarOpen], ([mobile, open]) => {
 });
 
 onMounted(() => {
-  if (!userStore.user.id && !userStore.initializing) {
-    userStore.init();
-  }
   syncViewport();
   window.addEventListener("resize", syncViewport);
 });
@@ -70,7 +69,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class=" relative flex min-h-screen bg-[#1f1f1f]">
+  <section
+    v-if="showAuthLoader || !canRenderDashboard"
+    class="relative flex min-h-screen items-center justify-center bg-[#1f1f1f] px-4"
+  >
+    <div
+      class="inline-flex min-w-[168px] items-center justify-center gap-2.5 rounded-[18px] border border-white/10 bg-[#262626]/95 px-5 py-3.5 text-[15px] font-bold text-white shadow-2xl"
+      role="status"
+      aria-live="polite"
+      aria-label="Загрузка"
+    >
+      <Icon name="heroicons:arrow-path" class="h-5 w-5 animate-spin text-[#4993dd]" />
+      <span>Загрузка...</span>
+    </div>
+  </section>
+
+  <section v-else class=" relative flex min-h-screen bg-[#1f1f1f]">
     <transition name="fade-overlay">
       <div
         v-if="isMobileViewport && mobileSidebarOpen"
