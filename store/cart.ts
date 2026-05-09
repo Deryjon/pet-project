@@ -7,6 +7,7 @@ import { useUserStore } from "./useUserStore";
 
 type CartProduct = {
   id: number | string;
+  publicId?: string;
   name: string;
   price: number;
   barcode: string;
@@ -14,6 +15,7 @@ type CartProduct = {
   availableQuantity?: number;
   shopId?: string;
   quantity?: number;
+  productId?: string | number;
 };
 
 type CompanyPaymentMethod = {
@@ -26,8 +28,48 @@ type CompanyPaymentMethod = {
 };
 
 type SalePaymentPayload = {
-  payment_method: string;
+  paymentMethodId: string;
   client_name?: string;
+};
+
+type PosOrderStatus =
+  | "draft"
+  | "paid"
+  | "cancelled"
+  | "parked"
+  | "returned"
+  | "partially_returned"
+  | "exchanged"
+  | "partially_exchanged";
+
+type PosOrder = {
+  id: string;
+  orderNumber: string;
+  status: PosOrderStatus;
+  shopId: string;
+  cashboxId?: string | null;
+  items: any[];
+  payments: any[];
+  totalPrice: number;
+  discountAmount: number;
+  paidAmount: number;
+  comment?: string | null;
+  customerId?: string | null;
+  versionNumber: number;
+};
+
+type SaleFlowMode = "sale" | "return";
+
+type ReturnSourceSale = {
+  id: string;
+  number: string;
+  paymentMethodId?: string;
+  paymentMethodName?: string;
+  sellerId?: string;
+  sellerName?: string;
+  cashierName?: string;
+  branchName?: string;
+  createdAt?: string;
 };
 
 export const useCartStore = defineStore("cart", () => {
@@ -38,6 +80,11 @@ export const useCartStore = defineStore("cart", () => {
   const saleNumber = ref<string | null>(null);
   const receipt = ref<any | null>(null);
   const saleShopId = ref<string>("");
+  const currentOrder = ref<PosOrder | null>(null);
+  const saleFlowMode = ref<SaleFlowMode>("sale");
+  const sourceSale = ref<ReturnSourceSale | null>(null);
+  const selectedSellerId = ref<string>("");
+  const selectedSellerName = ref<string>("");
 
   const productsLoading = ref(false);
   const creatingSale = ref(false);
@@ -45,7 +92,9 @@ export const useCartStore = defineStore("cart", () => {
   const addingItem = ref(false);
   const payLoading = ref(false);
   const cancelLoading = ref(false);
+  const parkingLoading = ref(false);
   const discountLoading = ref(false);
+  const saleMetaLoading = ref(false);
   const paymentMethodsLoading = ref(false);
   const referenceDataLoading = ref(false);
   const restoringSale = ref(false);
@@ -123,6 +172,11 @@ export const useCartStore = defineStore("cart", () => {
     saleId.value = null;
     saleShopId.value = "";
     saleNumber.value = null;
+    currentOrder.value = null;
+    saleFlowMode.value = "sale";
+    sourceSale.value = null;
+    selectedSellerId.value = "";
+    selectedSellerName.value = "";
     orderRaw.value = null;
     orderDraftDebt.value = null;
     discountValue.value = 0;
@@ -172,6 +226,36 @@ export const useCartStore = defineStore("cart", () => {
     ).trim();
   }
 
+  function resolveBranchCode() {
+    const locationStore = useLocationStore();
+    const userStore = useUserStore();
+    const user = userStore.userState;
+
+    return String(
+      locationStore.selectedLocation?.branchCode ||
+        user.currentShop?.branchCode ||
+        user.branchCode ||
+        "",
+    ).trim();
+  }
+
+  function isReturnFlow() {
+    return saleFlowMode.value === "return";
+  }
+
+  function isReturnEntry(item: any) {
+    return String(item?.entryType ?? "") === "return";
+  }
+
+  function isExchangeEntry(item: any) {
+    return String(item?.entryType ?? "sale") === "sale";
+  }
+
+  function setSelectedSeller(payload?: { id?: string | number | null; name?: string | null }) {
+    selectedSellerId.value = String(payload?.id ?? "").trim();
+    selectedSellerName.value = String(payload?.name ?? "").trim();
+  }
+
   function setItemBusy(productId: number | string, busy: boolean) {
     const key = String(productId);
 
@@ -189,6 +273,112 @@ export const useCartStore = defineStore("cart", () => {
     return Boolean(itemBusyMap.value[String(productId)]);
   }
 
+  function apiErrorMessage(error: any, fallback: string) {
+    const status = Number(error?.statusCode ?? error?.response?.status ?? error?.data?.statusCode ?? 0);
+    if (status === 403) return "Нет прав доступа.";
+    return error?.data?.message || error?.message || fallback;
+  }
+
+  function pickOrder(raw: any) {
+    return raw?.order ?? raw?.data?.order ?? raw?.data ?? raw;
+  }
+
+  function normalizeOrder(raw: any): PosOrder | null {
+    const source = pickOrder(raw);
+    if (!source?.id) return null;
+
+    const items = Array.isArray(source.items)
+      ? source.items
+      : Array.isArray(source?.order_detail?.order_items)
+        ? source.order_detail.order_items
+        : [];
+    const payments = Array.isArray(source.payments)
+      ? source.payments
+      : Array.isArray(source?.order_detail?.order_payments)
+        ? source.order_detail.order_payments
+        : source?.payment
+          ? [source.payment]
+          : [];
+    const totalPrice = Number(
+      source.totalPrice ??
+      source.total_price ??
+      source.payableTotal ??
+      source.payable_total ??
+      source.total ??
+      source?.order_detail?.total_price ??
+      source?.amount ??
+      source?.grand_total ??
+      0,
+    );
+    const paidAmount = Number(
+      source.paidAmount ??
+      source.paid_amount ??
+      source.amount ??
+      (String(source.status ?? "").toLowerCase() === "paid" ? totalPrice : 0),
+    );
+
+    return {
+      id: String(source.id),
+      orderNumber: String(source.sid ?? source.sale_number ?? source.orderNumber ?? source.order_number ?? source.number ?? ""),
+      status: String(source.status ?? source.order_status ?? "draft").toLowerCase() as PosOrderStatus,
+      shopId: String(source.shopId ?? source.shop_id ?? source?.order_detail?.shop?.id ?? ""),
+      cashboxId: source.cashboxId ?? source.cashbox_id ?? null,
+      items,
+      payments,
+      totalPrice,
+      discountAmount: Number(source.discountAmount ?? source.discount_amount ?? 0),
+      paidAmount,
+      comment: source.comment ?? null,
+      customerId: source.customerId ?? source.customer_id ?? null,
+      versionNumber: Number(source.versionNumber ?? source.version_number ?? 1),
+    };
+  }
+
+  function applyOrderState(raw: any) {
+    const order = normalizeOrder(raw);
+    if (!order) return null;
+    const source = pickOrder(raw);
+
+    currentOrder.value = order;
+    saleId.value = order.id;
+    saleNumber.value = order.orderNumber || saleNumber.value;
+    saleShopId.value = order.shopId || saleShopId.value;
+    orderRaw.value = pickOrder(raw);
+    discountAmount.value = order.discountAmount;
+    discountPercent.value = Number(source?.discount_percent ?? source?.discountPercent ?? discountPercent.value ?? 0);
+    payableTotal.value = order.totalPrice;
+
+    cart.value = order.items.map((item: any, index: number) => {
+      const product = item?.product ?? {};
+      const productId = item?.productId ?? item?.product_id ?? product?.id ?? product?.publicId ?? product?.public_id ?? item?.id;
+      const itemId = item?.id ?? item?.itemId ?? item?.item_id ?? `${productId}-${index}`;
+
+      return {
+        id: itemId,
+        itemId,
+        productId,
+        publicId: product?.publicId ?? product?.public_id,
+        name: String(item?.name ?? product?.name ?? "Товар"),
+        price: Number(item?.sale_price ?? item?.price ?? item?.sellPrice ?? item?.sell_price ?? item?.unitPrice ?? item?.unit_price ?? product?.retail_price ?? product?.sellPrice ?? product?.sell_price ?? product?.price ?? 0),
+        barcode: String(item?.barcode ?? product?.barcode ?? ""),
+        article: String(item?.sku ?? item?.article ?? product?.sku ?? product?.article ?? ""),
+        quantity: Number(item?.quantity ?? item?.qty ?? 1),
+        availableQuantity: Number(
+          item?.available_quantity ??
+          item?.stock ??
+          product?.stock ??
+          product?.quantity ??
+          product?.measurement_values?.total_active_measurement_value ??
+          product?.measurement_values?.total_measurement_value ??
+          0,
+        ),
+        shopId: order.shopId,
+      };
+    });
+
+    return order;
+  }
+
   function hasSaleShopMismatch(shopId?: string | number | null) {
     const currentShopId = String(shopId ?? resolveCurrentShopId() ?? "");
     return Boolean(
@@ -199,74 +389,99 @@ export const useCartStore = defineStore("cart", () => {
     );
   }
 
-  async function loadPaymentMethods(inputCompanyId?: string) {
-    const companyId = resolveCompanyId(inputCompanyId);
-
+  async function loadPaymentMethods(_inputCompanyId?: string) {
     paymentMethodsLoading.value = true;
     try {
+      const companyId = resolveCompanyId(_inputCompanyId);
       const { apiFetch } = useApi();
-      const res: any = await apiFetch("/company-payment-type", {
-        method: "GET",
-        query: companyId ? { company_id: companyId, limit: 1000 } : { limit: 1000 },
-      });
+      const query = companyId ? { company_id: companyId } : undefined;
+      const res: any = await runSaleItemMutation([
+        () => apiFetch("/company-payment-type", { method: "GET", query }),
+        () => apiFetch("/v1/company-payment-type", { method: "GET", query }),
+      ]);
 
       const items = Array.isArray(res)
         ? res
         : Array.isArray(res?.company_payment_types)
           ? res.company_payment_types
+          : Array.isArray(res?.data?.company_payment_types)
+            ? res.data.company_payment_types
           : Array.isArray(res?.data)
             ? res.data
-            : Array.isArray(res?.data?.company_payment_types)
-              ? res.data.company_payment_types
-              : [];
+            : [];
 
       paymentMethods.value = items
         .map((item: any) => ({
           id: String(item?.id ?? ""),
-          name: String(item?.name ?? item?.payment_type_name ?? item?.payment_type?.name ?? ""),
-          paymentTypeId: item?.payment_type_id
-            ? String(item.payment_type_id)
-            : item?.payment_type?.id
-              ? String(item.payment_type.id)
-              : undefined,
-          paymentTypeName: item?.payment_type_name
-            ? String(item.payment_type_name)
-            : item?.payment_type?.name
-              ? String(item.payment_type.name)
-              : undefined,
-          isCash: Boolean(item?.is_cash_payment_type),
-          dontShowInMakePayment: Boolean(item?.dont_show_in_make_payment),
+          name: String(item?.name ?? ""),
+          paymentTypeId: String(item?.payment_type_id ?? item?.payment_type?.id ?? ""),
+          paymentTypeName: String(item?.payment_type_name ?? item?.payment_type?.name ?? ""),
+          isCash: Boolean(item?.isCash ?? item?.is_cash ?? item?.is_cash_payment_type),
+          dontShowInMakePayment: Boolean(item?.dontShowInMakePayment ?? item?.dont_show_in_make_payment),
         }))
         .filter((item: CompanyPaymentMethod) => Boolean(item.id && item.name));
-    } catch {
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось загрузить способы оплаты.");
       paymentMethods.value = [];
     } finally {
       paymentMethodsLoading.value = false;
     }
   }
 
+  async function createPaymentType(payload: { name: string; isCash: boolean }) {
+    const { apiFetch } = useApi();
+    try {
+      const res = await apiFetch("/payment-types", {
+        method: "POST",
+        body: payload,
+      });
+      await loadPaymentMethods();
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось создать тип оплаты.");
+      return null;
+    }
+  }
+
   async function loadCashBoxes() {
     const { apiFetch } = useApi();
-    const res: any = await apiFetch("/v1/cash-box", {
-      method: "GET",
-      query: { limit: 100 },
-    });
-    const items = Array.isArray(res?.cash_boxes)
-      ? res.cash_boxes
-      : Array.isArray(res?.data?.cash_boxes)
-        ? res.data.cash_boxes
-        : Array.isArray(res)
-          ? res
-          : [];
     const shopId = String(resolveCurrentShopId() || "");
+    const res: any = await apiFetch("/cashboxes", {
+      method: "GET",
+      query: shopId ? { shopId } : undefined,
+    });
+    const items = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.cashboxes)
+        ? res.cashboxes
+        : Array.isArray(res?.cashBoxes)
+          ? res.cashBoxes
+          : Array.isArray(res?.data)
+            ? res.data
+            : [];
 
     cashBoxes.value = items;
     selectedCashBox.value =
-      items.find((cashBox: any) => String(cashBox?.shop_id ?? cashBox?.shop?.id ?? "") === shopId) ??
+      items.find((cashBox: any) => String(cashBox?.shopId ?? cashBox?.shop_id ?? cashBox?.shop?.id ?? "") === shopId) ??
       items[0] ??
       null;
 
     return selectedCashBox.value;
+  }
+
+  async function createCashbox(payload: { shopId: string; name: string }) {
+    const { apiFetch } = useApi();
+    try {
+      const res = await apiFetch("/cashboxes", {
+        method: "POST",
+        body: payload,
+      });
+      await loadCashBoxes();
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось создать кассу.");
+      return null;
+    }
   }
 
   async function loadShopInfo(shopId = resolveCurrentShopId()) {
@@ -416,6 +631,7 @@ export const useCartStore = defineStore("cart", () => {
         saleId: saleId.value,
         saleShopId: saleShopId.value,
         saleNumber: saleNumber.value,
+        currentOrder: currentOrder.value,
         orderRaw: orderRaw.value,
         discountValue: discountValue.value,
         discountType: discountType.value,
@@ -444,6 +660,7 @@ export const useCartStore = defineStore("cart", () => {
       saleId.value = parsed?.saleId ?? null;
       saleShopId.value = String(parsed?.saleShopId ?? "");
       saleNumber.value = parsed?.saleNumber ?? null;
+      currentOrder.value = normalizeOrder(parsed?.currentOrder);
       orderRaw.value = parsed?.orderRaw ?? null;
       discountValue.value = Number(parsed?.discountValue ?? 0);
       discountType.value = parsed?.discountType === "uzs" ? "uzs" : "%";
@@ -465,40 +682,31 @@ export const useCartStore = defineStore("cart", () => {
     creatingSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const shopId = resolveCurrentShopId();
       const res: any = await apiFetch("/new-sale", {
         method: "POST",
       });
-      const orderId = res?.data?.id ?? res?.id ?? res?.order?.id ?? null;
-      saleId.value = orderId != null ? String(orderId) : null;
-      saleShopId.value = String(
-        res?.shop_id ??
-          res?.data?.shop_id ??
-          res?.order?.shop_id ??
-          shopId ??
-          "",
-      );
-      saleNumber.value = String(
-        res?.order_number ??
-          res?.number ??
-          res?.data?.order_number ??
-          res?.data?.number ??
-          saleNumber.value ??
-          "",
-      ) || saleNumber.value;
-      orderRaw.value = res;
-      discountPercent.value = Number(res?.discount_percent ?? 0);
-      discountAmount.value = Number(res?.discount_amount ?? 0);
-      payableTotal.value = Number(res?.payable_total ?? 0);
-      if (saleId.value) {
-        await loadOrderDraftDebt(saleId.value).catch(() => {
-          orderDraftDebt.value = null;
-        });
-      }
+      applyOrderState(res);
       return saleId.value;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось создать заказ.");
+      return null;
     } finally {
       creatingSale.value = false;
     }
+  }
+
+  async function openFreshSale(options?: { keepReceipt?: boolean; keepSearchQuery?: boolean }) {
+    resetSaleState({
+      keepReceipt: options?.keepReceipt,
+      keepSearchQuery: options?.keepSearchQuery,
+    });
+
+    const nextId = await initSale();
+    if (nextId) {
+      await loadSale(nextId);
+    }
+
+    return nextId;
   }
 
   async function loadSale(sid?: string | number | null) {
@@ -509,7 +717,9 @@ export const useCartStore = defineStore("cart", () => {
     restoringSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch(`/new-sale/${id}`, { method: "GET" });
+      const res: any = await apiFetch(`/new-sale/${encodeURIComponent(String(id))}`, { method: "GET" });
+      applyOrderState(res);
+      return res;
       const items = extractOrderItems(res);
 
       cart.value = items.map((it: any) => ({
@@ -596,6 +806,39 @@ export const useCartStore = defineStore("cart", () => {
     if (!productId || addingItem.value || isItemBusy(productId)) return;
 
     try {
+      if (isReturnFlow()) {
+        const existing = cart.value.find(
+          (entry) => isExchangeEntry(entry) && String(entry.productId ?? entry.id) === String(product.productId || product.publicId || product.id),
+        );
+
+        if (existing) {
+          const nextQuantity = Math.min(
+            Math.max(1, Number(existing.quantity || 1) + 1),
+            Math.max(1, Number(existing.availableQuantity ?? 1)),
+          );
+          existing.quantity = nextQuantity;
+        } else {
+          cart.value.push({
+            id: `sale-${product.productId || product.publicId || product.id}`,
+            itemId: `sale-${product.productId || product.publicId || product.id}`,
+            productId: product.productId || product.publicId || product.id,
+            publicId: product.publicId,
+            name: String(product.name || "Товар"),
+            price: Number(product.price || 0),
+            barcode: String(product.barcode || ""),
+            article: String(product.article || ""),
+            quantity: 1,
+            availableQuantity: Math.max(1, Number(product.availableQuantity ?? 1)),
+            shopId: String(product.shopId ?? resolveCurrentShopId() ?? ""),
+            entryType: "sale",
+          });
+        }
+
+        lastCartError.value = "";
+        searchQuery.value = "";
+        return;
+      }
+
       setItemBusy(productId, true);
       addingItem.value = true;
       lastCartError.value = "";
@@ -616,14 +859,18 @@ export const useCartStore = defineStore("cart", () => {
       if (!sid) throw new Error("sale not created");
 
       const { apiFetch } = useApi();
-      await apiFetch(`/new-sale/${sid}/items`, {
+      const res: any = await apiFetch(`/new-sale/${encodeURIComponent(String(sid))}/items`, {
         method: "POST",
-        body: { product_id: product.id, quantity: 1, sale_price: product.price },
+        body: {
+          product_id: product.productId || product.publicId || product.id,
+          quantity: currentQuantity + 1,
+          sale_price: Number(product.price || 0),
+        },
       });
-      await loadSale(sid);
+      applyOrderState(res);
+      lastCartError.value = "";
     } catch (error: any) {
-      lastCartError.value =
-        error?.data?.message || error?.message || "Не удалось добавить товар в продажу.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось добавить товар в заказ.");
       if (saleId.value) {
         await loadSale(saleId.value);
       }
@@ -662,37 +909,29 @@ export const useCartStore = defineStore("cart", () => {
       return;
     }
 
+    if (isReturnFlow()) {
+      item.quantity = normalizedQuantity;
+      return;
+    }
+
     try {
       setItemBusy(productId, true);
-      await runSaleItemMutation([
-        () =>
-          useApi().apiFetch(
-            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
-            {
-              method: "PUT",
-              body: { quantity: normalizedQuantity },
-            },
-          ),
-        () =>
-          useApi().apiFetch(
-            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
-            {
-              method: "PATCH",
-              body: { quantity: normalizedQuantity },
-            },
-          ),
-        () =>
-          useApi().apiFetch(`/new-sale/${saleId.value}/items`, {
-            method: "PUT",
-            body: { product_id: productId, quantity: normalizedQuantity },
-          }),
-      ]);
-      await loadSale(saleId.value);
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch(`/new-sale/${encodeURIComponent(String(saleId.value))}/items`, {
+        method: "POST",
+        body: {
+          product_id: item.productId ?? item.publicId ?? item.id,
+          quantity: normalizedQuantity,
+          sale_price: Number(item.price || 0),
+        },
+      });
+      applyOrderState(res);
       lastCartError.value = "";
-    } catch {
+      return;
+    } catch (error: any) {
       item.quantity = normalizedQuantity;
       await loadSale(saleId.value);
-      lastCartError.value = "Не удалось обновить количество товара. Корзина синхронизирована заново.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось обновить количество товара. Корзина синхронизирована заново.");
     } finally {
       setItemBusy(productId, false);
     }
@@ -700,33 +939,26 @@ export const useCartStore = defineStore("cart", () => {
 
   async function removeFromCartServer(productId: number | string) {
     if (isItemBusy(productId)) return;
+    const item = cart.value.find((entry) => String(entry.id) === String(productId));
 
-    if (!saleId.value) {
+    if (!saleId.value || isReturnFlow()) {
       removeFromCart(productId);
       return;
     }
 
     try {
       setItemBusy(productId, true);
-      await runSaleItemMutation([
-        () =>
-          useApi().apiFetch(
-            `/new-sale/${saleId.value}/items/${encodeURIComponent(String(productId))}`,
-            {
-              method: "DELETE",
-            },
-          ),
-        () =>
-          useApi().apiFetch(`/new-sale/${saleId.value}/items`, {
-            method: "DELETE",
-            body: { product_id: productId },
-          }),
-      ]);
-      await loadSale(saleId.value);
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch(
+        `/new-sale/${encodeURIComponent(String(saleId.value))}/items/${encodeURIComponent(String(item?.itemId ?? productId))}`,
+        { method: "DELETE" },
+      );
+      applyOrderState(res);
       lastCartError.value = "";
-    } catch {
+      return;
+    } catch (error: any) {
       await loadSale(saleId.value);
-      lastCartError.value = "Не удалось удалить товар из продажи. Корзина синхронизирована заново.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось удалить товар из заказа. Корзина синхронизирована заново.");
     } finally {
       setItemBusy(productId, false);
     }
@@ -739,38 +971,275 @@ export const useCartStore = defineStore("cart", () => {
     payLoading.value = true;
     try {
       const paidSaleId = saleId.value;
-      const res: any = await apiFetch(`/new-sale/${paidSaleId}/pay`, {
-        method: "POST",
-        body: payload,
-      });
-      let paidOrder: any = null;
-      try {
-        paidOrder = await apiFetch(`/new-sale/${paidSaleId}`, { method: "GET" });
-      } catch {
-        paidOrder = null;
+      const order = currentOrder.value ?? applyOrderState(await apiFetch(`/new-sale/${encodeURIComponent(String(paidSaleId))}`, { method: "GET" }));
+      if (!order || order.items.length === 0) {
+        lastCartError.value = "Order must contain at least one item";
+        return null;
       }
-      receipt.value = { payment: res, order: paidOrder };
-      resetSaleState({ keepReceipt: true });
-      return res;
+
+      const paymentRes: any = await apiFetch(`/new-sale/${encodeURIComponent(String(paidSaleId))}/pay`, {
+        method: "POST",
+        body: {
+          payment_method: payload.paymentMethodId,
+          client_name: payload.client_name?.trim() || undefined,
+          branch_code: resolveBranchCode() || undefined,
+        },
+      });
+      receipt.value = { payment: paymentRes, order: pickOrder(paymentRes) };
+      await openFreshSale({ keepReceipt: true });
+      return paymentRes;
     } catch (error: any) {
-      lastCartError.value =
-        error?.data?.message || error?.message || "Не удалось провести оплату.";
+      lastCartError.value = apiErrorMessage(error, "Не удалось провести оплату.");
       return null;
     } finally {
       payLoading.value = false;
     }
   }
 
-  async function cancelSale() {
+  function startReturnSession(payload: {
+    sale: ReturnSourceSale;
+    items: Array<{
+      productId: string | number;
+      name: string;
+      barcode?: string;
+      article?: string;
+      quantity: number;
+      price: number;
+    }>;
+  }) {
+    resetSaleState({ keepReceipt: true, keepSearchQuery: true });
+
+    saleFlowMode.value = "return";
+    sourceSale.value = payload.sale;
+    saleId.value = payload.sale.id;
+    saleNumber.value = payload.sale.number;
+    payableTotal.value = 0;
+    discountAmount.value = 0;
+    discountPercent.value = 0;
+
+    if (payload.sale.sellerId || payload.sale.sellerName) {
+      setSelectedSeller({ id: payload.sale.sellerId, name: payload.sale.sellerName });
+    }
+
+    cart.value = payload.items.map((item, index) => ({
+      id: `return-${item.productId}-${index}`,
+      itemId: `return-${item.productId}-${index}`,
+      productId: item.productId,
+      name: item.name,
+      price: Math.max(0, Number(item.price || 0)),
+      barcode: String(item.barcode ?? ""),
+      article: String(item.article ?? ""),
+      quantity: Math.max(1, Number(item.quantity || 1)),
+      availableQuantity: Math.max(1, Number(item.quantity || 1)),
+      shopId: saleShopId.value,
+      entryType: "return",
+    }));
+  }
+
+  async function updateSaleMeta(payload: { paymentMethodId?: string; userId?: string | number }) {
+    if (!saleId.value) return null;
+
+    const paymentMethodId = String(payload.paymentMethodId ?? "").trim();
+    const userId = String(payload.userId ?? "").trim();
+
+    if (!paymentMethodId && !userId) {
+      lastCartError.value = "Не переданы данные для обновления продажи.";
+      return null;
+    }
+
+    const { apiFetch } = useApi();
+    saleMetaLoading.value = true;
+    try {
+      const body: Record<string, string> = {};
+
+      if (paymentMethodId) {
+        body.payment_method = paymentMethodId;
+      }
+
+      if (userId) {
+        body.user_id = userId;
+      }
+
+      const res = await apiFetch(`/v2/order/${encodeURIComponent(String(saleId.value))}/payment-method`, {
+        method: "PATCH",
+        body,
+      });
+
+      await loadSale(saleId.value).catch(() => null);
+      lastCartError.value = "";
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось обновить способ оплаты или продавца.");
+      return null;
+    } finally {
+      saleMetaLoading.value = false;
+    }
+  }
+
+  async function submitReturnOrExchange(payload?: { paymentMethodId?: string }) {
+    if (!isReturnFlow() || !sourceSale.value?.id) return null;
+
+    const returnItems = cart.value
+      .filter((item) => isReturnEntry(item))
+      .map((item) => ({
+        product_id: item.productId,
+        quantity: Math.max(1, Number(item.quantity || 1)),
+      }));
+    const newItems = cart.value
+      .filter((item) => isExchangeEntry(item))
+      .map((item) => ({
+        product_id: item.productId,
+        quantity: Math.max(1, Number(item.quantity || 1)),
+        sale_price: Math.max(0, Number(item.price || 0)),
+      }));
+
+    if (returnItems.length === 0) {
+      lastCartError.value = "Выберите товары для возврата.";
+      return null;
+    }
+
+    const paymentMethodId = String(payload?.paymentMethodId || sourceSale.value.paymentMethodId || "").trim();
+    const userId = String(selectedSellerId.value || sourceSale.value.sellerId || "").trim();
+    const isExchange = newItems.length > 0;
+
+    const body: Record<string, unknown> = isExchange
+      ? { return_items: returnItems, new_items: newItems }
+      : { items: returnItems };
+
+    if (paymentMethodId) {
+      body.payment_method = paymentMethodId;
+    }
+
+    if (userId) {
+      body.user_id = userId;
+    }
+
+    const { apiFetch } = useApi();
+    payLoading.value = true;
+    try {
+      const endpoint = isExchange ? "exchange" : "return";
+      const res = await apiFetch(`/v2/order/${encodeURIComponent(sourceSale.value.id)}/${endpoint}`, {
+        method: "POST",
+        body,
+      });
+      receipt.value = { payment: res, order: res };
+      await openFreshSale({ keepReceipt: true });
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, isExchange ? "Не удалось оформить обмен." : "Не удалось оформить возврат.");
+      return null;
+    } finally {
+      payLoading.value = false;
+    }
+  }
+
+  async function parkSale(payload?: { parkNote?: string; createNewDraft?: boolean }) {
+    if (!saleId.value || isReturnFlow()) return null;
+
+    const shouldCreateNewDraft = payload?.createNewDraft ?? true;
+    const { apiFetch } = useApi();
+    parkingLoading.value = true;
+    try {
+      const res: any = await apiFetch(`/new-sale/${encodeURIComponent(String(saleId.value))}/park`, {
+        method: "POST",
+        body: {
+          park_note: payload?.parkNote?.trim() || undefined,
+          create_new_draft: shouldCreateNewDraft,
+        },
+      });
+
+      lastCartError.value = "";
+
+      if (!shouldCreateNewDraft) {
+        resetSaleState({ keepReceipt: true });
+        return res;
+      }
+
+      resetSaleState({ keepReceipt: true, keepSearchQuery: true });
+      const nextDraftId = String(
+        res?.new_sale?.id ??
+        res?.draft_sale?.id ??
+        res?.data?.new_sale?.id ??
+        res?.data?.draft_sale?.id ??
+        "",
+      ).trim();
+
+      const nextId = nextDraftId || String(await initSale() || "").trim();
+      if (nextId) {
+        await loadSale(nextId);
+      }
+
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось отложить продажу.");
+      return null;
+    } finally {
+      parkingLoading.value = false;
+    }
+  }
+
+  async function deleteDraftSale() {
+    const currentId = String(saleId.value ?? "").trim();
+    if (!currentId || isReturnFlow()) {
+      resetSaleState({ keepReceipt: true });
+      const nextId = await initSale();
+      if (nextId) {
+        await loadSale(nextId);
+      }
+      return true;
+    }
+
     const { apiFetch } = useApi();
     cancelLoading.value = true;
     try {
-      if (saleId.value) {
-        try {
-          await apiFetch(`/new-sale/${saleId.value}`, { method: "DELETE" });
-        } catch {}
+      await apiFetch(`/new-sale/${encodeURIComponent(currentId)}`, {
+        method: "DELETE",
+      });
+
+      resetSaleState({ keepReceipt: true, keepSearchQuery: true });
+      const nextId = await initSale();
+      if (nextId) {
+        await loadSale(nextId);
       }
-      resetSaleState();
+
+      lastCartError.value = "";
+      return true;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось удалить черновик.");
+      return false;
+    } finally {
+      cancelLoading.value = false;
+    }
+  }
+
+  async function resumeParkedSale(id: string | number) {
+    const parkedId = String(id ?? "").trim();
+    if (!parkedId) return null;
+
+    const { apiFetch } = useApi();
+    parkingLoading.value = true;
+    try {
+      const res = await runSaleItemMutation([
+        () => apiFetch(`/v2/parked-sales/${encodeURIComponent(parkedId)}/resume`, { method: "POST" }),
+        () => apiFetch(`/parked-sales/${encodeURIComponent(parkedId)}/resume`, { method: "POST" }),
+      ]);
+
+      resetSaleState({ keepReceipt: true, keepSearchQuery: true });
+      await loadSale(parkedId);
+      lastCartError.value = "";
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось вернуть отложку в работу.");
+      return null;
+    } finally {
+      parkingLoading.value = false;
+    }
+  }
+
+  async function cancelSale() {
+    cancelLoading.value = true;
+    try {
+      await openFreshSale({ keepReceipt: true });
     } finally {
       cancelLoading.value = false;
     }
@@ -794,24 +1263,16 @@ export const useCartStore = defineStore("cart", () => {
     discountLoading.value = true;
     try {
       const { apiFetch } = useApi();
-      const body: any = {};
-
-      if (discountType.value === "%") {
-        body.discount_percent = Number(discountValue.value || 0);
-      } else {
-        body.discount_amount = Number(discountValue.value || 0);
-      }
-
-      const res: any = await apiFetch(`/new-sale/${sid}/discount`, {
+      const res: any = await apiFetch(`/new-sale/${encodeURIComponent(String(sid))}/discount`, {
         method: "PUT",
-        body,
+        body: {
+          discount_percent: discountType.value === "%" ? Math.max(0, Number(discountValue.value || 0)) : 0,
+          discount_amount: discountType.value === "uzs" ? globalDiscountAmount() : 0,
+        },
       });
-
-      discountPercent.value = Number(res?.discount_percent ?? discountPercent.value ?? 0);
-      discountAmount.value = Number(res?.discount_amount ?? discountAmount.value ?? 0);
-      payableTotal.value = Number(res?.payable_total ?? payableTotal.value ?? 0);
-    } catch {
-      // ignore in local POS mode
+      applyOrderState(res);
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось применить скидку.");
     } finally {
       discountLoading.value = false;
     }
@@ -821,11 +1282,27 @@ export const useCartStore = defineStore("cart", () => {
     return Math.max(0, Math.round(Number(item.price || 0)));
   }
 
+  const returnItemsTotal = computed(() =>
+    cart.value
+      .filter((item) => isReturnEntry(item))
+      .reduce((sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)), 0),
+  );
+
+  const exchangeItemsTotal = computed(() =>
+    cart.value
+      .filter((item) => isExchangeEntry(item))
+      .reduce((sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)), 0),
+  );
+
   const subtotal = computed(() =>
-    cart.value.reduce(
-      (sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)),
-      0
-    )
+    isReturnFlow()
+      ? exchangeItemsTotal.value
+      : currentOrder.value
+      ? Number(currentOrder.value.totalPrice || 0) + Number(currentOrder.value.discountAmount || 0)
+      : cart.value.reduce(
+          (sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)),
+          0
+        )
   );
 
   const itemDiscounts = computed(() => 0);
@@ -841,14 +1318,25 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   const total = computed(() => {
+    if (isReturnFlow()) return Number(exchangeItemsTotal.value - returnItemsTotal.value);
+    if (currentOrder.value) return Number(currentOrder.value.totalPrice || 0);
     const afterItemDiscounts = subtotal.value - itemDiscounts.value;
     return Math.max(0, afterItemDiscounts - globalDiscountAmount());
   });
 
-  const totalDiscount = computed(() => itemDiscounts.value + globalDiscountAmount());
+  const totalDiscount = computed(() =>
+    isReturnFlow()
+      ? 0
+      : currentOrder.value
+        ? Number(currentOrder.value.discountAmount || 0)
+        : itemDiscounts.value + globalDiscountAmount(),
+  );
 
   function itemGlobalDiscountShare(item: any) {
-    const totalGlobalDiscount = globalDiscountAmount();
+    if (isReturnFlow()) return 0;
+    const totalGlobalDiscount = currentOrder.value
+      ? Math.max(0, Number(currentOrder.value.discountAmount || 0))
+      : globalDiscountAmount();
     const lineBases = cart.value.map((cartItem) => ({
       id: cartItem.id,
       quantity: Math.max(1, Number(cartItem.quantity || 1)),
@@ -900,6 +1388,7 @@ export const useCartStore = defineStore("cart", () => {
       saleId,
       saleShopId,
       saleNumber,
+      currentOrder,
       discountValue,
       discountType,
       discountPercent,
@@ -917,6 +1406,11 @@ export const useCartStore = defineStore("cart", () => {
     saleId,
     saleShopId,
     saleNumber,
+    currentOrder,
+    saleFlowMode,
+    sourceSale,
+    selectedSellerId,
+    selectedSellerName,
     receipt,
     orderRaw,
     lastCartError,
@@ -926,6 +1420,8 @@ export const useCartStore = defineStore("cart", () => {
     addingItem,
     payLoading,
     cancelLoading,
+    parkingLoading,
+    saleMetaLoading,
     paymentMethods,
     paymentMethodsLoading,
     referenceDataLoading,
@@ -943,10 +1439,13 @@ export const useCartStore = defineStore("cart", () => {
     filteredProducts,
     totalDiscount,
     payableTotal,
+    returnItemsTotal,
+    exchangeItemsTotal,
     discountPercent,
     discountAmount,
     discountLoading,
     initSale,
+    openFreshSale,
     loadSale,
     addToCartServer,
     addToCart,
@@ -956,8 +1455,17 @@ export const useCartStore = defineStore("cart", () => {
     removeFromCartServer,
     applySaleDiscount,
     paySale,
+    parkSale,
+    deleteDraftSale,
+    resumeParkedSale,
+    submitReturnOrExchange,
+    startReturnSession,
+    setSelectedSeller,
+    updateSaleMeta,
     loadPaymentMethods,
+    createPaymentType,
     loadCashBoxes,
+    createCashbox,
     loadShopInfo,
     loadLoyaltyProgram,
     loadCompanyCurrency,

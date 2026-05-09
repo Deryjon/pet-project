@@ -5,6 +5,9 @@ import { navigateTo, useHead } from "#imports";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "@/store/useUserStore";
 import { type RoleSelectItem, useRolePermissionsApi } from "@/composables/useRolePermissions";
+import SellerSalaryCard from "~/components/reports/SellerSalaryCard.vue";
+import SellerSalaryBreakdown from "~/components/reports/SellerSalaryBreakdown.vue";
+import { useSalarySettingsApi, type SellerSalarySettings } from "~/composables/useSalarySettingsApi";
 import { formatUzPhoneInput } from "~/utils/phone";
 
 useHead({ title: "Редактирование сотрудника | Konkurent" });
@@ -32,6 +35,7 @@ const route = useRoute();
 const router = useRouter();
 const { apiFetch } = useApi();
 const { getCompanyRolesForSelect, getRolesForSelect } = useRolePermissionsApi();
+const salaryApi = useSalarySettingsApi();
 const userStore = useUserStore();
 const toast = useToast();
 const { can } = useAccessControl();
@@ -55,6 +59,23 @@ const can_switch_shops = ref(false);
 const roleOptions = ref<RoleSelectItem[]>([]);
 const companyRoleOptions = ref<RoleSelectItem[]>([]);
 const rolesLoading = ref(false);
+const salaryLoading = ref(false);
+const salarySaving = ref(false);
+const salaryReport = ref<any | null>(null);
+const salarySettings = ref<SellerSalarySettings>({
+  fixedSalary: 0,
+  salaryPercent: 0,
+  calculationType: "FIXED_PLUS_PROFIT",
+  bonusEnabled: true,
+  isActive: true,
+});
+const salaryPeriod = reactive({
+  from: "",
+  to: "",
+});
+
+const canViewSalary = computed(() => can("salary.view") || can("salary.manage"));
+const canManageSalary = computed(() => can("salary.manage"));
 
 watch(phone, (value) => {
   const formatted = formatUzPhoneInput(value);
@@ -304,11 +325,41 @@ async function fetchUser() {
   }
 }
 
+async function loadSalaryData() {
+  if (!id.value || !canViewSalary.value) return;
+
+  salaryLoading.value = true;
+  try {
+    const today = new Date();
+    if (!salaryPeriod.from || !salaryPeriod.to) {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      salaryPeriod.from = start.toISOString().slice(0, 10);
+      salaryPeriod.to = today.toISOString().slice(0, 10);
+    }
+
+    const [settings, report] = await Promise.all([
+      salaryApi.getSalarySettings(id.value),
+      salaryApi.getSalaryReport(id.value, { from: salaryPeriod.from, to: salaryPeriod.to }),
+    ]);
+
+    salarySettings.value = settings;
+    salaryReport.value = report;
+  } catch (error: any) {
+    serverError.value = error?.data?.message || error?.message || "Не удалось загрузить настройки зарплаты";
+  } finally {
+    salaryLoading.value = false;
+  }
+}
+
 onMounted(async () => {
   await loadRoles();
   await fetchUser();
+  await loadSalaryData();
 });
-watch(id, fetchUser);
+watch(id, async () => {
+  await fetchUser();
+  await loadSalaryData();
+});
 
 async function saveMainData() {
   if (!id.value || !can("employee-edit")) return;
@@ -384,6 +435,26 @@ async function savePhonePassword() {
 
 function goBack() {
   router.push("/management/employees");
+}
+
+async function saveSalaryData() {
+  if (!id.value || !canManageSalary.value) return;
+
+  salarySaving.value = true;
+  serverError.value = null;
+  serverOk.value = null;
+
+  try {
+    salarySettings.value = await salaryApi.updateSalarySettings(id.value, salarySettings.value);
+    serverOk.value = "Настройки зарплаты сохранены";
+    toast.add({ title: "Настройки зарплаты сохранены", color: "success" });
+    await loadSalaryData();
+  } catch (error: any) {
+    serverError.value = error?.data?.message || error?.message || "Не удалось сохранить настройки зарплаты";
+    toast.add({ title: "Не удалось сохранить настройки зарплаты", description: serverError.value || undefined, color: "error" });
+  } finally {
+    salarySaving.value = false;
+  }
 }
 </script>
 
@@ -549,6 +620,34 @@ function goBack() {
               <button :disabled="saving" class="rounded-2xl border border-white/10 bg-white/5 px-6 py-3.5 font-semibold text-white transition hover:bg-white/10 disabled:opacity-60" @click="savePhonePassword">
                 Обновить телефон и пароль
               </button>
+            </div>
+          </section>
+
+          <section v-if="canViewSalary" class="rounded-[24px] border border-white/8 bg-[#2d2d2d] p-5">
+            <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h4 class="text-lg font-semibold text-white">Зарплата продавца</h4>
+                <p class="mt-1 text-sm text-[#9b9b9b]">Фикс, процент, тип начисления и прозрачная расшифровка бонуса.</p>
+              </div>
+
+              <div class="flex flex-wrap gap-3">
+                <label class="space-y-1">
+                  <span class="text-xs font-medium text-[#bdbdbd]">Период от</span>
+                  <input v-model="salaryPeriod.from" type="date" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-xs font-medium text-[#bdbdbd]">Период до</span>
+                  <input v-model="salaryPeriod.to" type="date" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+                </label>
+                <button class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10" @click="loadSalaryData">
+                  Обновить отчет
+                </button>
+              </div>
+            </div>
+
+            <div class="grid gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
+              <SellerSalaryCard v-model="salarySettings" :can-manage="canManageSalary" :saving="salarySaving" :loading="salaryLoading" @save="saveSalaryData" />
+              <SellerSalaryBreakdown :report="salaryReport" />
             </div>
           </section>
         </div>

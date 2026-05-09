@@ -166,10 +166,18 @@ async function loadPaymentTypes() {
 
   loading.value = true;
   try {
-    const res: any = await apiFetch(COMPANY_PAYMENT_TYPE_PATH, {
-      method: "GET",
-      query: { limit: 1000, company_id: companyId.value },
-    });
+    let res: any;
+    try {
+      res = await apiFetch(COMPANY_PAYMENT_TYPE_PATH, {
+        method: "GET",
+        query: { limit: 1000, company_id: companyId.value },
+      });
+    } catch {
+      res = await apiFetch(`/v1${COMPANY_PAYMENT_TYPE_PATH}`, {
+        method: "GET",
+        query: { limit: 1000, company_id: companyId.value },
+      });
+    }
 
     const rawItems = Array.isArray(res)
       ? res

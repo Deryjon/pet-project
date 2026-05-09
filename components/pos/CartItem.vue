@@ -55,15 +55,14 @@
 
       <div class="flex shrink-0 items-center gap-3">
         <div class="flex flex-col items-end">
-          <span class="px-2 py-0.5 text-[17px] font-bold text-[#4993dd]">
-            {{ formatPrice(finalPrice) }} UZS
-          </span>
           <span
-            v-if="itemBusy"
-            class="inline-flex items-center gap-1 px-2 text-[12px] font-semibold text-[#8fbfff]"
+            v-if="hasDiscount"
+            class="px-2 text-[13px] font-semibold text-[#8f8f8f] line-through"
           >
-            <Icon name="heroicons:arrow-path" class="h-3.5 w-3.5 animate-spin" />
-            Загрузка...
+            {{ formatPrice(originalLineTotal) }} UZS
+          </span>
+          <span class="px-2 py-0.5 text-[17px] font-bold text-[#4993dd]">
+            {{ formatPrice(discountedLineTotal) }} UZS
           </span>
         </div>
 
@@ -94,8 +93,20 @@ defineEmits<{
 const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 
-const finalPrice = computed(() => store.itemFinalPriceWithGlobal(props.item));
-const itemBusy = computed(() => store.isItemBusy(props.item.id));
+const quantity = computed(() => Math.max(1, Number(props.item.quantity || 1)));
+const originalLineTotal = computed(() => Math.max(0, Math.round(Number(props.item.price || 0) * quantity.value)));
+const discountedLineTotal = computed(() => Math.max(0, store.itemFinalPriceWithGlobal(props.item) * quantity.value));
+const hasDiscount = computed(() => discountedLineTotal.value < originalLineTotal.value);
+const itemBusy = computed(() =>
+  store.isItemBusy(props.item.id) ||
+  store.addingItem ||
+  store.loadingSale ||
+  store.restoringSale ||
+  store.saleMetaLoading ||
+  store.discountLoading ||
+  store.payLoading ||
+  store.cancelLoading,
+);
 
 function decreaseQuantity() {
   void store.syncCartItemQuantity(
