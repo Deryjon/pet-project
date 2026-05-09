@@ -1,5 +1,18 @@
 <template>
-  <section class="flex h-full flex-col bg-[#262626] text-white xl:flex-row">
+  <section class="relative flex h-full flex-col bg-[#262626] text-white xl:flex-row">
+    <div
+      v-if="globalSaleLoading"
+      class="absolute inset-0 z-30 flex items-center justify-center bg-[#262626]/72 px-4 backdrop-blur-sm"
+    >
+      <div class="flex min-w-[260px] max-w-[420px] items-center gap-4 rounded-[24px] border border-white/10 bg-[#2b2b2b] px-5 py-4 shadow-2xl">
+        <Icon name="heroicons:arrow-path" class="h-6 w-6 shrink-0 animate-spin text-[#78b3ff]" />
+        <div>
+          <div class="text-[15px] font-semibold text-white">{{ currentOperationLabel }}</div>
+          <div class="mt-1 text-sm text-[#bdbdbd]">Подождите, операция обновляет текущую продажу.</div>
+        </div>
+      </div>
+    </div>
+
     <div class="relative flex h-full w-full flex-col overflow-y-auto xl:pr-6">
       <div class="pointer-events-none absolute right-0 top-8 hidden h-[calc(100%-64px)] w-px bg-[#404040] xl:block" />
       <SearchBar />
@@ -61,8 +74,10 @@ const { apiFetch } = useApi();
 const cartStore = useCartStore();
 const locationStore = useLocationStore();
 const { selectedLocation } = storeToRefs(locationStore);
+const route = useRoute();
+const router = useRouter();
 
-const page = ref(1);
+const page = ref(Math.max(1, Number(route.query.page || 1) || 1));
 const limit = ref(10);
 const initialPageLoading = ref(true);
 const search = computed(() => cartStore.searchQuery);
@@ -74,9 +89,52 @@ const operationStatuses = computed(() => {
   if (cartStore.loadingSale || cartStore.restoringSale) statuses.push("#ORDER");
   if (cartStore.productsLoading) statuses.push("#PRODUCTS");
   if (cartStore.addingItem) statuses.push("#ITEM");
+  if (cartStore.saleMetaLoading) statuses.push("#META");
+  if (cartStore.discountLoading) statuses.push("#DISCOUNT");
+  if (cartStore.parkingLoading) statuses.push("#PARK");
+  if (cartStore.payLoading) statuses.push("#PAY");
+  if (cartStore.cancelLoading) statuses.push("#CANCEL");
 
   return statuses;
 });
+const globalSaleLoading = computed(() => !initialPageLoading.value && operationStatuses.value.length > 0);
+const currentOperationLabel = computed(() => {
+  if (cartStore.payLoading) return "Проводим оплату";
+  if (cartStore.saleMetaLoading) return "Обновляем параметры продажи";
+  if (cartStore.discountLoading) return "Пересчитываем скидку";
+  if (cartStore.addingItem) return "Обновляем корзину";
+  if (cartStore.cancelLoading) return "Сбрасываем продажу";
+  if (cartStore.loadingSale || cartStore.restoringSale) return "Загружаем черновик продажи";
+  if (cartStore.creatingSale) return "Создаем новую продажу";
+  if (cartStore.productsLoading) return "Загружаем товары";
+  return "Обновляем продажу";
+});
+const routeSaleId = computed(() => normalizeRouteValue(route.params.id) || normalizeRouteValue(route.query.sale_id));
+
+function normalizeRouteValue(value: unknown) {
+  const normalized = Array.isArray(value) ? value[0] : value;
+  return String(normalized ?? "").trim();
+}
+
+function currentOrderPath(id: string | number) {
+  return `/order/new-order/${encodeURIComponent(String(id))}`;
+}
+
+async function syncOrderRoute() {
+  if (!cartStore.saleId) return;
+
+  const nextQuery: Record<string, string> = {};
+
+  if (cartStore.saleNumber) {
+    nextQuery.order_number = String(cartStore.saleNumber);
+  }
+  nextQuery.page = String(page.value);
+
+  const nextPath = currentOrderPath(cartStore.saleId);
+  if (route.path !== nextPath || JSON.stringify(route.query) !== JSON.stringify(nextQuery)) {
+    await router.replace({ path: nextPath, query: nextQuery });
+  }
+}
 
 async function prepareDraftSale() {
   if (!currentShopId.value) return;
@@ -89,6 +147,7 @@ async function prepareDraftSale() {
 
   if (cartStore.saleId) {
     await cartStore.loadSale(cartStore.saleId);
+    await syncOrderRoute();
   }
 }
 
@@ -97,29 +156,44 @@ async function fetchProducts() {
     cartStore.productsLoading = true as any;
     cartStore.lastCartError = "";
     const pageSize = Math.min(Math.max(limit.value, 1), 100);
-    const response: any = await apiFetch("/new-sale/products", {
-      method: "GET",
-      query: {
-        page: page.value,
-        limit: pageSize,
-        search: search.value || undefined,
-        shop_id: currentShopId.value || undefined,
-      },
-    });
+    const query = {
+      page: page.value,
+      limit: pageSize,
+      search: search.value || undefined,
+      shop_id: currentShopId.value || undefined,
+    };
+    let response: any;
+    try {
+      response = await apiFetch("/new-sale/products", {
+        method: "GET",
+        query,
+      });
+    } catch {
+      response = await apiFetch("/v2/new-sale/products", {
+        method: "GET",
+        query,
+      });
+    }
 
-    const items = Array.isArray(response?.products)
-      ? response.products
-      : Array.isArray(response?.items)
-        ? response.items
-        : Array.isArray(response)
-          ? response
-          : [];
+    const items = Array.isArray(response)
+      ? response
+      : Array.isArray(response?.products)
+        ? response.products
+        : Array.isArray(response?.items)
+          ? response.items
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
 
     const mapped = items.map((p: any) => ({
-      id: p.id,
+      id: p.publicId ?? p.public_id ?? p.id,
+      productId: p.id,
+      publicId: p.publicId ?? p.public_id,
       name: String(p.name ?? p.base_name ?? p.product?.name ?? ""),
       price: Number(
         p.retail_price ??
+        p.sellPrice ??
+          p.sell_price ??
           p.sale_price ??
           p.shop_prices?.[0]?.retail_price ??
           p.price ??
@@ -128,18 +202,19 @@ async function fetchProducts() {
       barcode: String(p.barcode ?? p.product?.barcode ?? ""),
       article: String(p.sku ?? p.article ?? p.product?.sku ?? ""),
       availableQuantity: Number(
-        p?.shop_measurement_values?.[0]?.total_active_measurement_value ??
-          p?.measurement_values?.total_active_measurement_value ??
+        p?.measurement_values?.total_active_measurement_value ??
           p?.measurement_values?.total_measurement_value ??
+          p?.shop_measurement_values?.[0]?.total_active_measurement_value ??
           p?.product_stock?.quantity ??
           p?.stock?.quantity ??
+          p?.stock ??
           p?.quantity ??
           p?.active_measurement_value ??
           0,
       ),
       shopId: String(
+        p?.shop_prices?.[0]?.shop_id ??
         p?.shop_measurement_values?.[0]?.shop_id ??
-          p?.shop_prices?.[0]?.shop_id ??
           p?.shop_id ??
           p?.product_stock?.shop_id ??
           p?.stock?.shop_id ??
@@ -162,6 +237,11 @@ async function fetchProducts() {
     } catch {
       // ignore
     }
+    const status = Number(error?.statusCode ?? error?.response?.status ?? error?.data?.statusCode ?? 0);
+    if (status === 403) {
+      cartStore.lastCartError = "Нет прав доступа.";
+      return;
+    }
     cartStore.lastCartError =
       error?.data?.message || error?.message || "Не удалось загрузить товары для текущего филиала.";
   } finally {
@@ -177,6 +257,21 @@ watch(
     t = setTimeout(fetchProducts, 250);
   },
   { immediate: true },
+);
+
+watch(
+  () => route.query.page,
+  (next) => {
+    const nextPage = Math.max(1, Number(next || 1) || 1);
+    if (page.value !== nextPage) page.value = nextPage;
+  },
+);
+
+watch(
+  [page, () => cartStore.saleId, () => cartStore.saleNumber],
+  () => {
+    void syncOrderRoute();
+  },
 );
 
 watch(currentShopId, (next, prev) => {
@@ -196,8 +291,14 @@ watch(currentShopId, (next, prev) => {
 onMounted(async () => {
   try {
     await cartStore.loadSaleReferenceData();
+    const initialSaleId = routeSaleId.value;
 
-    if (cartStore.hasSaleShopMismatch(currentShopId.value)) {
+    if (initialSaleId) {
+      cartStore.saleId = initialSaleId;
+      cartStore.saleShopId = "";
+    }
+
+    if (!initialSaleId && cartStore.hasSaleShopMismatch(currentShopId.value)) {
       cartStore.resetSaleState({ keepReceipt: true });
       cartStore.lastCartError = "Найдена сохранённая продажа из другого филиала. Корзина очищена.";
     }
@@ -205,6 +306,7 @@ onMounted(async () => {
     if (cartStore.saleId) {
       try {
         await cartStore.loadSale(cartStore.saleId);
+        await syncOrderRoute();
       } catch {
         cartStore.resetSaleState({ keepReceipt: true });
         cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
@@ -213,6 +315,7 @@ onMounted(async () => {
       await cartStore.initSale();
       if (cartStore.saleId) {
         await cartStore.loadSale(cartStore.saleId);
+        await syncOrderRoute();
       }
     }
   } finally {

@@ -721,7 +721,7 @@ function printSale(_sale: SaleView) {
 
 function editSale(sale: SaleView) {
   detailsOpen.value = false;
-  void router.push({ path: "/order/new-order", query: { sale_id: sale.id } });
+  void router.push({ path: `/order/new-order/${encodeURIComponent(sale.id)}`, query: { order_number: saleNumberValue(sale), page: String(page.value) } });
 }
 
 function requestDeleteSale(_sale: SaleView) {

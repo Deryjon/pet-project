@@ -8,10 +8,22 @@ import { usePlatformAuth } from "@/composables/usePlatformAuth";
 const router = useRouter();
 const { authenticated, signOut } = usePlatformAuth();
 const mobileSidebarOpen = ref(false);
+const loggingOut = ref(false);
 
-function logout() {
-  signOut();
-  router.push("/platform/login");
+async function logout() {
+  if (loggingOut.value) {
+    return;
+  }
+
+  loggingOut.value = true;
+
+  try {
+    mobileSidebarOpen.value = false;
+    await signOut();
+    await router.replace("/platform/login");
+  } finally {
+    loggingOut.value = false;
+  }
 }
 </script>
 
