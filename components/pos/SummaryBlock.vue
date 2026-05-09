@@ -12,13 +12,13 @@
 
     <button
       class="flex w-full items-center justify-between rounded-[15px] px-4 py-5 sm:px-5 sm:py-6"
-      :class="canPay ? 'bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
-      :disabled="!canPay"
+      :class="canStartCheckout ? 'bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
+      :disabled="!canStartCheckout"
       @click="openPaymentPanel"
     >
       <span class="flex items-center gap-2 text-[13px] uppercase sm:text-base">
         <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-        Оплатить
+        {{ primaryActionLabel }}
       </span>
       <span class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(payableAmount) }} UZS</span>
     </button>
@@ -37,6 +37,21 @@
       Отмена продажи
     </button>
 
+    <button
+      v-if="canParkSale"
+      class="flex w-full items-center justify-center p-5 text-gray-300"
+      :class="cartStore.parkingLoading ? 'cursor-not-allowed opacity-60' : ''"
+      :disabled="cartStore.parkingLoading"
+      @click="onPark"
+    >
+      <Icon
+        v-if="cartStore.parkingLoading"
+        name="heroicons:arrow-path"
+        class="mr-2 h-4 w-4 animate-spin"
+      />
+      Отложить чек
+    </button>
+
     <USlideover
       v-model:open="paymentPanelOpen"
       side="right"
@@ -50,9 +65,9 @@
         <div class="flex h-full flex-col">
           <div class="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h3 class="text-[22px] font-semibold sm:text-[28px]">Оплата продажи</h3>
+              <h3 class="text-[22px] font-semibold sm:text-[28px]">{{ panelTitle }}</h3>
               <p class="mt-1 text-sm text-[#a3a3a3]">
-                Выберите способ оплаты для полного закрытия суммы.
+                Выберите способ оплаты для текущей операции.
               </p>
             </div>
 
@@ -69,9 +84,7 @@
           <div class="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
             <div class="rounded-[26px] border border-white/8 bg-[#2a2a2a] p-5">
               <div class="mb-4 flex items-center justify-between">
-                <span class="text-sm font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">
-                  Чек
-                </span>
+                <span class="text-sm font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">Чек</span>
                 <span class="rounded-full bg-[#1f78ff]/15 px-3 py-1 text-xs font-semibold uppercase text-[#78b3ff]">
                   {{ paymentModeLabel }}
                 </span>
@@ -96,7 +109,7 @@
 
               <div class="rounded-[18px] bg-[#1f78ff] px-4 py-4">
                 <div class="text-xs font-semibold uppercase tracking-[0.12em] text-white/70">
-                  Общая сумма
+                  {{ totalCardLabel }}
                 </div>
                 <div class="mt-2 text-[28px] font-bold leading-none">
                   {{ formatPrice(payableAmount) }} UZS
@@ -108,7 +121,7 @@
               <div class="mb-4">
                 <h4 class="text-[20px] font-semibold">Способ оплаты</h4>
                 <p class="mt-1 text-sm text-[#8f8f8f]">
-                  Всегда используется один способ оплаты.
+                  Для возврата и обмена можно использовать способ оплаты исходной продажи или выбрать другой.
                 </p>
               </div>
 
@@ -131,13 +144,14 @@
                   v-for="method in singlePaymentMethods"
                   :key="method.value"
                   type="button"
-                  class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
+                  :disabled="cartStore.saleMetaLoading"
+                  class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
                   :class="
                     selectedPaymentMethod === method.value
                       ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
                       : 'border-white/8 bg-[#303030] text-white hover:border-white/15 hover:bg-[#353535]'
                   "
-                  @click="selectedPaymentMethod = method.value"
+                  @click="selectPaymentMethod(method.value)"
                 >
                   <div class="flex items-center gap-3">
                     <div
@@ -187,7 +201,7 @@
               @click="confirmPay"
             >
               <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-              Оплатить
+              {{ primaryActionLabel }}
             </UButton>
           </div>
         </div>
@@ -261,10 +275,6 @@
               <span>Итого</span>
               <span>{{ printStore.formatMoney(printStore.latestReceipt.total) }}</span>
             </div>
-            <template v-if="printStore.settings.showFooter && printStore.settings.footerText">
-              <div class="my-2 border-t border-dashed border-black"></div>
-              <div class="text-center">{{ printStore.settings.footerText }}</div>
-            </template>
           </div>
 
           <div class="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -303,12 +313,23 @@ import { formatUzPhoneDisplay } from "~/utils/phone";
 
 const cartStore = useCartStore();
 const printStore = usePrintSettingsStore();
-const { subtotal, totalDiscount, total, cart, paymentMethods, paymentMethodsLoading } = storeToRefs(cartStore);
+const { subtotal, totalDiscount, total, cart, paymentMethods, paymentMethodsLoading, saleFlowMode, exchangeItemsTotal, sourceSale } = storeToRefs(cartStore);
 const { formatPrice } = useFormatPrice();
 const toast = useToast();
 
 const paymentPanelOpen = ref(false);
 const selectedPaymentMethod = ref<string>("");
+
+const isReturnFlow = computed(() => saleFlowMode.value === "return");
+const isExchangeFlow = computed(() => isReturnFlow.value && Number(exchangeItemsTotal.value || 0) > 0);
+const currentPaymentMethodId = computed(() =>
+  String(
+    sourceSale.value?.paymentMethodId ??
+    cartStore.orderRaw?.payment_method ??
+    cartStore.orderRaw?.payment?.id ??
+    "",
+  ).trim(),
+);
 
 function paymentMethodIcon(method: { isCash?: boolean }) {
   return method.isCash ? "heroicons:banknotes" : "heroicons:credit-card";
@@ -326,8 +347,44 @@ const singlePaymentMethods = computed(() =>
     })),
 );
 
-const payableAmount = computed(() => Number(cartStore.payableTotal || total.value || 0));
+const payableAmount = computed(() =>
+  isReturnFlow.value
+    ? Number(total.value || 0)
+    : Number(cartStore.payableTotal || total.value || 0),
+);
+const primaryActionLabel = computed(() => {
+  if (isExchangeFlow.value) return "Обмен";
+  if (isReturnFlow.value) return "Возврат";
+  return "Оплатить";
+});
+const panelTitle = computed(() => {
+  if (isExchangeFlow.value) return "Обмен";
+  if (isReturnFlow.value) return "Возврат продажи";
+  return "Оплата продажи";
+});
+const totalCardLabel = computed(() => {
+  if (isExchangeFlow.value) return "Разница к оплате";
+  if (isReturnFlow.value) return "Сумма возврата";
+  return "Общая сумма";
+});
 const canPay = computed(() => payableAmount.value > 0 && !cartStore.payLoading && !paymentMethodsLoading.value);
+const canStartCheckout = computed(() => {
+  if (isReturnFlow.value) {
+    return cart.value.length > 0 && !cartStore.payLoading && !paymentMethodsLoading.value;
+  }
+  return canPay.value;
+});
+const canParkSale = computed(() =>
+  !isReturnFlow.value &&
+  cart.value.length > 0 &&
+  !cartStore.payLoading &&
+  !cartStore.parkingLoading,
+);
+const secondaryActionLabel = computed(() => {
+  if (isReturnFlow.value) return "Отменить возврат";
+  if (cart.value.length > 0) return "Удалить черновик";
+  return "Сбросить чек";
+});
 const receiptPhone = computed(() => formatUzPhoneDisplay(printStore.settings.phone) || printStore.settings.phone);
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0),
@@ -336,21 +393,46 @@ const paymentModeLabel = computed(
   () => singlePaymentMethods.value.find((item) => item.value === selectedPaymentMethod.value)?.label || "Не выбрано",
 );
 const canConfirmPayment = computed(() => {
-  if (!canPay.value || paymentMethodsLoading.value || singlePaymentMethods.value.length === 0) {
+  if (!canStartCheckout.value || paymentMethodsLoading.value || singlePaymentMethods.value.length === 0) {
     return false;
   }
-
+  if (isExchangeFlow.value && Number(exchangeItemsTotal.value || 0) <= 0) {
+    return false;
+  }
   return Boolean(selectedPaymentMethod.value);
 });
 
 async function openPaymentPanel() {
-  if (!canPay.value) return;
+  if (!canStartCheckout.value) return;
   await cartStore.loadPaymentMethods();
+  if (currentPaymentMethodId.value) {
+    selectedPaymentMethod.value = currentPaymentMethodId.value;
+  }
   paymentPanelOpen.value = true;
 }
 
 function closePaymentPanel() {
   paymentPanelOpen.value = false;
+}
+
+async function selectPaymentMethod(value: string) {
+  const nextValue = String(value || "").trim();
+  if (!nextValue || selectedPaymentMethod.value === nextValue) return;
+
+  const previousValue = selectedPaymentMethod.value;
+  selectedPaymentMethod.value = nextValue;
+
+  if (!cartStore.saleId || isReturnFlow.value) return;
+
+  const result = await cartStore.updateSaleMeta({ paymentMethodId: nextValue });
+  if (result) return;
+
+  selectedPaymentMethod.value = previousValue;
+  toast.add({
+    title: "Не удалось изменить способ оплаты",
+    description: cartStore.lastCartError || undefined,
+    color: "error",
+  });
 }
 
 async function confirmPay() {
@@ -380,13 +462,13 @@ async function confirmPay() {
     }),
   };
 
-  const result = await cartStore.paySale({
-    payment_method: companyPaymentTypeId,
-  });
+  const result = isReturnFlow.value
+    ? await cartStore.submitReturnOrExchange({ paymentMethodId: companyPaymentTypeId })
+    : await cartStore.paySale({ paymentMethodId: companyPaymentTypeId });
 
   if (!result) {
     toast.add({
-      title: "Не удалось провести оплату",
+      title: isReturnFlow.value ? "Не удалось завершить операцию" : "Не удалось провести оплату",
       description: cartStore.lastCartError || undefined,
       color: "error",
     });
@@ -399,17 +481,47 @@ async function confirmPay() {
   });
   closePaymentPanel();
   toast.add({
-    title: "Оплата проведена",
+    title: isExchangeFlow.value ? "Обмен оформлен" : isReturnFlow.value ? "Возврат оформлен" : "Оплата проведена",
     color: "success",
   });
 }
 
 async function onCancel() {
-  await cartStore.cancelSale();
+  const result = isReturnFlow.value
+    ? await cartStore.cancelSale()
+    : await cartStore.deleteDraftSale();
+
+  if (result === false) {
+    toast.add({
+      title: "Не удалось удалить черновик",
+      description: cartStore.lastCartError || undefined,
+      color: "error",
+    });
+  }
+}
+
+async function onPark() {
+  const result = await cartStore.parkSale({ createNewDraft: true });
+  if (!result) {
+    toast.add({
+      title: "Не удалось отложить чек",
+      description: cartStore.lastCartError || undefined,
+      color: "error",
+    });
+    return;
+  }
+
+  toast.add({
+    title: "Чек отложен",
+    color: "success",
+  });
 }
 
 watch(singlePaymentMethods, (methods) => {
-  const defaultPaymentType = methods.find((method) => method.isCash) ?? methods[0];
+  const defaultPaymentType =
+    methods.find((method) => method.value === currentPaymentMethodId.value) ??
+    methods.find((method) => method.isCash) ??
+    methods[0];
   const first = defaultPaymentType?.value || "";
   const available = new Set(methods.map((method) => method.value));
 

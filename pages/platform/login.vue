@@ -67,7 +67,7 @@ async function submit() {
       phone_number: `998${digits}`,
       password: form.password.trim(),
     });
-    router.push("/platform");
+    await router.replace("/platform");
   } catch (error: any) {
     const message = error?.data?.message;
     serverError.value = Array.isArray(message)

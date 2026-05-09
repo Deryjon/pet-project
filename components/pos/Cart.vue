@@ -230,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useCartStore } from "@/store/cart";
 import { useApi } from "~/composables/useApi";
@@ -246,7 +246,8 @@ type Seller = {
 
 const store = useCartStore();
 const { apiFetch } = useApi();
-const { cart } = storeToRefs(store);
+const { cart, selectedSellerId, selectedSellerName, saleFlowMode } = storeToRefs(store);
+const toast = useToast();
 
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + item.quantity, 0),
@@ -333,11 +334,52 @@ async function openSellerModal() {
 
 function selectSeller(seller: Seller) {
   selectedSeller.value = seller;
+  store.setSelectedSeller({ id: seller.id, name: seller.name });
+  void applySellerSelection(seller);
+}
+
+async function applySellerSelection(seller: Seller) {
+  if (!store.saleId || saleFlowMode.value === "return") {
+    sellerModalOpen.value = false;
+    return;
+  }
+
+  const result = await store.updateSaleMeta({ userId: seller.id });
+  if (result) {
+    sellerModalOpen.value = false;
+    return;
+  }
+
+  toast.add({
+    title: "Не удалось изменить продавца",
+    description: store.lastCartError || undefined,
+    color: "error",
+  });
 }
 
 function clearSeller() {
   selectedSeller.value = null;
+  store.setSelectedSeller();
   sellerSearch.value = "";
   sellerModalOpen.value = false;
 }
+
+watch(
+  [selectedSellerId, selectedSellerName],
+  ([id, name]) => {
+    if (!id && !name) {
+      selectedSeller.value = null;
+      return;
+    }
+
+    const current = sellers.value.find((seller) => String(seller.id) === String(id));
+    selectedSeller.value = current ?? {
+      id: id || `seller-${name}`,
+      name: name || "Без имени",
+      role: "",
+      phone: "",
+    };
+  },
+  { immediate: true },
+);
 </script>

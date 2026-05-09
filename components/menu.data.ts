@@ -43,12 +43,13 @@ export const MENU_DATA: IMenuItem[] = [
   {
     name: "Отчеты",
     icon: "flowbite:chart-pie-solid",
-    url: "/analytics",
+    url: "/reports",
     items: [
-      { title: "Магазин", url: "/analytics/shop" },
-      { title: "Товары", url: "/analytics/products" },
-      { title: "Продавцы", url: "/analytics/sellers" },
-      { title: "Клиенты", url: "/analytics/clients" },
+      { title: "Избранные", url: "/reports/favorites" },
+      { title: "Магазины", url: "/reports/shops" },
+      { title: "Товары", url: "/reports/products" },
+      { title: "Продавцы", url: "/reports/sellers" },
+      { title: "Клиенты", url: "/reports/customers" },
     ],
   },
   {

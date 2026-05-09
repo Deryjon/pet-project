@@ -1,5 +1,18 @@
 <template>
-  <section class="flex h-full flex-col bg-[#262626] text-white xl:flex-row">
+  <section class="relative flex h-full flex-col bg-[#262626] text-white xl:flex-row">
+    <div
+      v-if="globalSaleLoading"
+      class="absolute inset-0 z-30 flex items-center justify-center bg-[#262626]/72 px-4 backdrop-blur-sm"
+    >
+      <div class="flex min-w-[260px] max-w-[420px] items-center gap-4 rounded-[24px] border border-white/10 bg-[#2b2b2b] px-5 py-4 shadow-2xl">
+        <Icon name="heroicons:arrow-path" class="h-6 w-6 shrink-0 animate-spin text-[#78b3ff]" />
+        <div>
+          <div class="text-[15px] font-semibold text-white">{{ currentOperationLabel }}</div>
+          <div class="mt-1 text-sm text-[#bdbdbd]">Подождите, операция обновляет текущую продажу.</div>
+        </div>
+      </div>
+    </div>
+
     <div class="relative flex h-full w-full flex-col overflow-y-auto xl:pr-6">
       <div class="pointer-events-none absolute right-0 top-8 hidden h-[calc(100%-64px)] w-px bg-[#404040] xl:block" />
       <SearchBar />
@@ -76,8 +89,25 @@ const operationStatuses = computed(() => {
   if (cartStore.loadingSale || cartStore.restoringSale) statuses.push("#ORDER");
   if (cartStore.productsLoading) statuses.push("#PRODUCTS");
   if (cartStore.addingItem) statuses.push("#ITEM");
+  if (cartStore.saleMetaLoading) statuses.push("#META");
+  if (cartStore.discountLoading) statuses.push("#DISCOUNT");
+  if (cartStore.parkingLoading) statuses.push("#PARK");
+  if (cartStore.payLoading) statuses.push("#PAY");
+  if (cartStore.cancelLoading) statuses.push("#CANCEL");
 
   return statuses;
+});
+const globalSaleLoading = computed(() => !initialPageLoading.value && operationStatuses.value.length > 0);
+const currentOperationLabel = computed(() => {
+  if (cartStore.payLoading) return "Проводим оплату";
+  if (cartStore.saleMetaLoading) return "Обновляем параметры продажи";
+  if (cartStore.discountLoading) return "Пересчитываем скидку";
+  if (cartStore.addingItem) return "Обновляем корзину";
+  if (cartStore.cancelLoading) return "Сбрасываем продажу";
+  if (cartStore.loadingSale || cartStore.restoringSale) return "Загружаем черновик продажи";
+  if (cartStore.creatingSale) return "Создаем новую продажу";
+  if (cartStore.productsLoading) return "Загружаем товары";
+  return "Обновляем продажу";
 });
 const routeSaleId = computed(() => normalizeRouteValue(route.params.id) || normalizeRouteValue(route.query.sale_id));
 
@@ -126,13 +156,24 @@ async function fetchProducts() {
     cartStore.productsLoading = true as any;
     cartStore.lastCartError = "";
     const pageSize = Math.min(Math.max(limit.value, 1), 100);
-    const response: any = await apiFetch("/products/search", {
-      method: "GET",
-      query: {
-        q: search.value || undefined,
-        shopId: currentShopId.value || undefined,
-      },
-    });
+    const query = {
+      page: page.value,
+      limit: pageSize,
+      search: search.value || undefined,
+      shop_id: currentShopId.value || undefined,
+    };
+    let response: any;
+    try {
+      response = await apiFetch("/new-sale/products", {
+        method: "GET",
+        query,
+      });
+    } catch {
+      response = await apiFetch("/v2/new-sale/products", {
+        method: "GET",
+        query,
+      });
+    }
 
     const items = Array.isArray(response)
       ? response
@@ -150,9 +191,9 @@ async function fetchProducts() {
       publicId: p.publicId ?? p.public_id,
       name: String(p.name ?? p.base_name ?? p.product?.name ?? ""),
       price: Number(
+        p.retail_price ??
         p.sellPrice ??
           p.sell_price ??
-          p.retail_price ??
           p.sale_price ??
           p.shop_prices?.[0]?.retail_price ??
           p.price ??
@@ -161,9 +202,9 @@ async function fetchProducts() {
       barcode: String(p.barcode ?? p.product?.barcode ?? ""),
       article: String(p.sku ?? p.article ?? p.product?.sku ?? ""),
       availableQuantity: Number(
-        p?.shop_measurement_values?.[0]?.total_active_measurement_value ??
-          p?.measurement_values?.total_active_measurement_value ??
+        p?.measurement_values?.total_active_measurement_value ??
           p?.measurement_values?.total_measurement_value ??
+          p?.shop_measurement_values?.[0]?.total_active_measurement_value ??
           p?.product_stock?.quantity ??
           p?.stock?.quantity ??
           p?.stock ??
@@ -172,8 +213,8 @@ async function fetchProducts() {
           0,
       ),
       shopId: String(
+        p?.shop_prices?.[0]?.shop_id ??
         p?.shop_measurement_values?.[0]?.shop_id ??
-          p?.shop_prices?.[0]?.shop_id ??
           p?.shop_id ??
           p?.product_stock?.shop_id ??
           p?.stock?.shop_id ??

@@ -442,9 +442,7 @@ export function usePlatformAdminSession() {
     userStore.loadToken();
     if (!userStore.token) return false;
     try {
-      const response: any = await apiFetch("/platform/auth/me", { method: "GET" });
-      userStore.setUser(response?.user ?? response);
-      return authenticated.value;
+      return await userStore.fetchPlatformMe();
     } catch {
       userStore.logout();
       return false;
@@ -455,13 +453,13 @@ export function usePlatformAdminSession() {
     const response: any = await apiFetch("/platform/auth/login", { method: "POST", body: payload });
     const token = response?.access_token ?? response?.token;
     if (!token) throw new Error("Token not found in server response");
-    userStore.login(token, response?.user ?? {});
-    const me: any = await apiFetch("/platform/auth/me", { method: "GET" });
-    userStore.setUser(me?.user ?? me);
-    if (!userStore.hasPlatformAccess) {
+    userStore.setToken(String(token));
+    const authenticated = await userStore.fetchPlatformMe();
+    if (!authenticated || !userStore.hasPlatformAccess) {
       userStore.logout();
       throw new Error("Нет доступа к панели администратора платформы");
     }
+    return response;
   }
 
   async function signOut() {
