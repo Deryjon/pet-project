@@ -21,7 +21,7 @@
       </UInput>
     </div>
 
-    <div class="relative z-30 flex gap-2 h-full">
+    <div class="relative z-30 flex gap-2 h-full`">
       <UButton
         color="primary"
         variant="solid"
