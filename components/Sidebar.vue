@@ -39,7 +39,7 @@ const handleSidebarAction = () => {
 <template>
   <div
     class="sidebar-scroll flex h-full min-h-0 flex-col overflow-y-auto transition-[padding] duration-300 ease-in-out"
-    :class="props.collapsed ? 'px-[10px]' : 'px-[20px] py-2'"
+    :class="props.collapsed ? 'px-[10px]' : 'px-[20px] pt-y-2'"
   >
     <div class="flex flex-1 flex-col gap-[30px]">
       <div
@@ -89,7 +89,7 @@ const handleSidebarAction = () => {
     <div
       :class="[
         'mt-auto flex flex-col gap-5 transition-all duration-300 ease-in-out',
-        props.collapsed ? 'mb-3 items-center' : 'pb-4',
+        props.collapsed ? 'mb-3 items-center' : 'mb-0',
       ]"
     >
       <User />
