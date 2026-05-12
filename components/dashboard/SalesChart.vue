@@ -26,15 +26,15 @@ ChartJS.register(
 const store = useDashboardStore();
 const granularityOpen = ref(false);
 
-const granularityOptions: Array<{ label: string; value: "hour" | "day" }> = [
-  { label: "по часам", value: "hour" },
-  { label: "по дням", value: "day" },
-];
+const granularityLabels: Record<string, string> = {
+  hour: "по часам",
+  day: "по дням",
+  week: "по неделям",
+  month: "по месяцам",
+};
 
 const selectedGranularityLabel = computed(
-  () =>
-    granularityOptions.find((item) => item.value === store.selectedGranularity)?.label ??
-    "по часам",
+  () => granularityLabels[store.selectedGranularity] || store.selectedGranularity,
 );
 
 const chartOptions = {
@@ -90,15 +90,15 @@ const chartOptions = {
           <template #content>
             <ul class="m-0 p-0">
               <li
-                v-for="item in granularityOptions"
-                :key="item.value"
-                @click="store.setGranularity(item.value); granularityOpen = false"
+                v-for="val in store.availableGranularities"
+                :key="val"
+                @click="store.setGranularity(val); granularityOpen = false"
                 :class="[
-                  'w-full cursor-pointer px-3 py-2 text-[14px] text-white',
-                  store.selectedGranularity === item.value ? 'bg-[#404040]' : 'bg-[#202020]',
+                  'w-full cursor-pointer px-3 py-2 text-[14px] text-white transition-colors hover:bg-[#505050]',
+                  store.selectedGranularity === val ? 'bg-[#505050]' : 'bg-[#404040] hover:bg-[#4A4A4A]',
                 ]"
               >
-                {{ item.label }}
+                {{ granularityLabels[val] || val }}
               </li>
             </ul>
           </template>
