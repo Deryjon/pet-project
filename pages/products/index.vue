@@ -4,7 +4,7 @@ import { useHead } from "#imports";
 useHead({ title: "Товары | Konkurent" });
 
 const sections = [
-  { title: "Каталог", description: "Просмотр всех товаров и быстрая работа с ассортиментом.", to: "/products/catalog" },
+  { title: "Каталог", description: "Просмотр всех товаров и быстрая работа с ассортиментом.", to: "/products/catalog?limit=10&page=1" },
   { title: "Импорт", description: "Массовая загрузка товаров и редактирование импортов.", to: "/products/import" },
   { title: "Заказы", description: "Контроль заказов поставщикам и связанных операций.", to: "/products/orders" },
   { title: "Инвентаризация", description: "Проверка фактических остатков по товарам.", to: "/products/inventory" },

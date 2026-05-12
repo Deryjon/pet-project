@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useHead } from "#imports";
 import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
@@ -68,6 +68,7 @@ import { useLocationStore } from "@/store/useLocationStore";
 
 const store = useCatalogDataTableStore();
 const route = useRoute();
+const router = useRouter();
 const locationStore = useLocationStore();
 const { can } = useAccessControl();
 const { selectedLocation } = storeToRefs(locationStore);
@@ -99,20 +100,21 @@ function toggleStats() {
 }
 
 async function refreshCatalog() {
+  const page = Number(route.query.page) || 1;
+  const limit = Number(route.query.limit) || 10;
+
   await store.fetchData({
-    page: 1,
+    page,
+    pageSize: limit,
     search: store.globalFilter || undefined,
     status: store.activeStatusFilter,
   });
 }
 
 watch(
-  () => route.path,
-  async (path) => {
-    if (path === "/products/catalog") {
-      await refreshCatalog();
-    }
-  },
+  () => route.query,
+  () => refreshCatalog(),
+  { deep: true }
 );
 
 watch(
@@ -124,7 +126,19 @@ watch(
   },
 );
 
-onMounted(refreshCatalog);
+onMounted(() => {
+  // Если параметров нет, устанавливаем их (это вызовет срабатывание watch или повторный маунт)
+  if (!route.query.page || !route.query.limit) {
+    router.replace({
+      query: {
+        ...route.query,
+        page: route.query.page || "1",
+        limit: route.query.limit || "10",
+      },
+    });
+  }
+  refreshCatalog();
+});
 
 useHead({
   title: "Каталог | Konkurent",
