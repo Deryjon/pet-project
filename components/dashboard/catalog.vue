@@ -294,6 +294,7 @@ onMounted(() => {
             :totalPages="totalPages"
             :loading="loadingProducts"
             :pageSize="tablePagination.pageSize"
+            :pageSizeOptions="[10, 20, 30, 40, 50]"
             @previous="previousPage"
             @next="nextPage"
             @update:pageSize="updatePageSize"

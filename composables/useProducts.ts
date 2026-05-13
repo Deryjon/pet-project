@@ -48,6 +48,37 @@ export interface ProductDTO {
   _original?: any;
 }
 
+export function resolveProductImageUrl(value: unknown, apiBase?: string) {
+  const src = String(value ?? "").trim();
+  if (!src) {
+    return "";
+  }
+
+  if (/^(https?:)?\/\//i.test(src) || src.startsWith("blob:") || src.startsWith("data:")) {
+    return src;
+  }
+
+  const resolvedApiBase = String(
+    apiBase ??
+      import.meta.env.NUXT_PUBLIC_API_BASE ??
+      import.meta.env.NUXT_API_PROXY_TARGET ??
+      "",
+  ).trim();
+
+  if (!resolvedApiBase) {
+    return src.startsWith("/") ? src : `/${src}`;
+  }
+
+  const backendOrigin = resolvedApiBase.replace(/\/api\/?$/i, "");
+  const normalizedPath = src.startsWith("/") ? src : `/${src}`;
+
+  try {
+    return new URL(normalizedPath, `${backendOrigin}/`).toString();
+  } catch {
+    return normalizedPath;
+  }
+}
+
 export function normalizeApiError(error: any) {
   const message = error?.data?.message ?? error?.response?.data?.message;
 
@@ -85,6 +116,8 @@ export interface ProductSearchPayload {
   supply_price_to?: number;
   retail_price_from?: number;
   retail_price_to?: number;
+  wholesale_price_from?: number;
+  wholesale_price_to?: number;
   wholesale_price?: number;
   free_price?: boolean;
 }
@@ -101,7 +134,7 @@ export interface ProductListResult {
 export function useProducts() {
   const products = useState<ProductDTO[]>("products-cache", () => []);
   const lastListParams = useState<Record<string, any> | null>("products-last-list-params", () => null);
-  const { apiFetch } = useApi();
+  const { apiBase, apiFetch } = useApi();
 
   async function createProduct(payload: CreateProductApiPayload) {
     try {
@@ -272,6 +305,7 @@ export function useProducts() {
       pageSize?: number;
       statistics?: boolean;
       status?: string;
+      archivedList?: boolean;
       brandIds?: Array<number | string>;
       supplierIds?: Array<number | string>;
       shopIds?: Array<number | string>;
@@ -282,6 +316,8 @@ export function useProducts() {
       supplyPriceTo?: number;
       retailPriceFrom?: number;
       retailPriceTo?: number;
+      wholesalePriceFrom?: number;
+      wholesalePriceTo?: number;
       wholesalePrice?: number;
       freePrice?: boolean;
       order?: string[];
@@ -299,6 +335,7 @@ export function useProducts() {
       field_search_key: search,
       statistics,
       status: params?.status || undefined,
+      archived_list: params?.archivedList || undefined,
       order: params?.order ?? undefined,
       brand_ids: params?.brandIds ?? [],
       supplier_ids: params?.supplierIds ?? [],
@@ -310,6 +347,8 @@ export function useProducts() {
       supply_price_to: params?.supplyPriceTo,
       retail_price_from: params?.retailPriceFrom,
       retail_price_to: params?.retailPriceTo,
+      wholesale_price_from: params?.wholesalePriceFrom,
+      wholesale_price_to: params?.wholesalePriceTo,
       wholesale_price: params?.wholesalePrice,
       free_price: params?.freePrice,
     };
@@ -337,7 +376,7 @@ export function useProducts() {
           ]);
 
       const items = Array.isArray(productsResponse?.products) ? productsResponse.products : [];
-      const normalized = items.map(normalizeCatalogProduct);
+      const normalized = items.map((item) => normalizeCatalogProduct(item, apiBase));
       products.value = normalized;
       return {
         products: normalized,
@@ -362,7 +401,7 @@ export function useProducts() {
         : null;
 
       const items = Array.isArray(res?.products) ? res.products : [];
-      const normalized = items.map(normalizeCatalogProduct);
+      const normalized = items.map((item) => normalizeCatalogProduct(item, apiBase));
       products.value = normalized;
       return {
         products: normalized,
@@ -424,12 +463,15 @@ function buildCatalogGetPath(basePath: string, payload: ProductSearchPayload) {
   appendQueryValue(params, "field_search_key", payload.field_search_key);
   appendQueryValue(params, "statistics", payload.statistics);
   appendQueryValue(params, "status", payload.status);
+  appendQueryValue(params, "archived_list", payload.archived_list);
   appendQueryValue(params, "sku", payload.sku);
   appendQueryValue(params, "measurement_type", payload.measurement_type);
   appendQueryValue(params, "supply_price_from", payload.supply_price_from);
   appendQueryValue(params, "supply_price_to", payload.supply_price_to);
   appendQueryValue(params, "retail_price_from", payload.retail_price_from);
   appendQueryValue(params, "retail_price_to", payload.retail_price_to);
+  appendQueryValue(params, "wholesale_price_from", payload.wholesale_price_from);
+  appendQueryValue(params, "wholesale_price_to", payload.wholesale_price_to);
   appendQueryValue(params, "wholesale_price", payload.wholesale_price);
   appendQueryValue(params, "free_price", payload.free_price);
   appendArrayQueryValue(params, "brand_ids", payload.brand_ids);
@@ -521,13 +563,13 @@ function extractStatisticsByStatus(
   return null;
 }
 
-function normalizeProduct(raw: any): ProductDTO {
+function normalizeProduct(raw: any, apiBase?: string): ProductDTO {
   return {
     id: Number(raw?.id ?? 0),
     name: String(raw?.name ?? raw?.title ?? ""),
     sku: String(raw?.sku ?? raw?.article ?? ""),
     barcode: String(raw?.barcode ?? ""),
-    photo: raw?.photo ?? raw?.image ?? null,
+    photo: resolveProductImageUrl(raw?.photo ?? raw?.image, apiBase) || null,
     product_type: String(raw?.product_type ?? "goods"),
     variant_type: String(raw?.variant_type ?? "simple"),
     unit: String(raw?.unit ?? "piece"),
@@ -548,7 +590,7 @@ function normalizeProduct(raw: any): ProductDTO {
   };
 }
 
-function normalizeBillzProduct(raw: any): ProductDTO {
+function normalizeBillzProduct(raw: any, apiBase?: string): ProductDTO {
   const primaryShopPrice = Array.isArray(raw?.shop_prices) ? raw.shop_prices[0] : null;
   const primarySupplier = Array.isArray(raw?.suppliers) ? raw.suppliers[0] : null;
   const productSupplyStock = Array.isArray(raw?.product_supply_stock) ? raw.product_supply_stock : [];
@@ -565,7 +607,7 @@ function normalizeBillzProduct(raw: any): ProductDTO {
     name: String(raw?.name ?? raw?.base_name ?? ""),
     sku: String(raw?.sku ?? ""),
     barcode: String(raw?.barcode ?? ""),
-    photo: raw?.photo ?? null,
+    photo: resolveProductImageUrl(raw?.photo, apiBase) || null,
     product_type: String(raw?.product_type_id ?? "goods"),
     variant_type: "simple",
     unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "piece"),
@@ -582,9 +624,9 @@ function normalizeBillzProduct(raw: any): ProductDTO {
   };
 }
 
-function normalizeCatalogProduct(raw: any): ProductDTO {
+function normalizeCatalogProduct(raw: any, apiBase?: string): ProductDTO {
   if (raw && (raw.shop_prices || raw.product_supply_stock || raw.measurement_values)) {
-    return normalizeBillzProduct(raw);
+    return normalizeBillzProduct(raw, apiBase);
   }
 
   const supplierList = Array.isArray(raw?.suppliers)
@@ -602,7 +644,7 @@ function normalizeCatalogProduct(raw: any): ProductDTO {
     name: String(raw?.name ?? raw?.base_name ?? raw?.title ?? ""),
     sku: String(raw?.sku ?? raw?.article ?? raw?.vendor_code ?? ""),
     barcode: String(raw?.barcode ?? raw?.plu_code ?? ""),
-    photo: raw?.photo ?? raw?.main_image_url ?? raw?.image ?? null,
+    photo: resolveProductImageUrl(raw?.photo ?? raw?.main_image_url ?? raw?.image, apiBase) || null,
     product_type: String(raw?.product_type ?? raw?.product_type_id ?? "goods"),
     variant_type: String(raw?.variant_type ?? "simple"),
     unit: String(

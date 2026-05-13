@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { useProductStore } from "@/store/productStore";
+import { resolveProductImageUrl } from "~/composables/useProducts";
 
 type TableSection = {
   title: string;
@@ -288,7 +289,7 @@ async function handleFooterAction(actionLabel: string) {
 }
 
 function getProductImage(photo?: string | null) {
-  const src = typeof photo === "string" ? photo.trim() : "";
+  const src = resolveProductImageUrl(photo);
   return src.length > 0 ? src : placeholderImgUrl;
 }
 
@@ -395,17 +396,14 @@ function formatHistoryAction(item: any) {
 </script>
 
 <template>
-  <USlideover
-    v-model:open="showProductSidebar"
-    side="right"
-    :ui="{
-      overlay: 'bg-black/45 backdrop-blur-[1px]',
-      content:
-        'z-[9999] h-full w-full max-w-[950px] overflow-y-auto rounded-none border-0 ring-0 bg-[#2b2b2b] px-4 pt-6 pb-0 text-white shadow-lg sm:rounded-l-[40px] sm:px-8 sm:pt-10 lg:rounded-l-[60px] lg:px-16 lg:pt-14',
-    }"
-    :close="false"
+  <AppSlideover
+    :open="showProductSidebar"
+    @update:open="showProductSidebar = $event"
+    maxWidthClass="max-w-[950px]"
+    roundedClass="rounded-none sm:rounded-l-[40px] lg:rounded-l-[60px]"
+    overlayClass="bg-black/45 backdrop-blur-[1px]"
+    panelClass="overflow-y-auto bg-[#2b2b2b] px-4 pt-6 pb-0 text-white sm:px-8 sm:pt-10 lg:px-16 lg:pt-14"
   >
-    <template #content>
       <div class="flex min-h-full flex-col">
         <div class="flex-1 pb-24">
           <div class="relative mb-6 flex items-start justify-between gap-4">
@@ -633,6 +631,5 @@ function formatHistoryAction(item: any) {
           </div>
         </div>
       </div>
-    </template>
-  </USlideover>
+  </AppSlideover>
 </template>

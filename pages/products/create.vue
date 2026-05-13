@@ -30,7 +30,16 @@ const { can } = useAccessControl();
 
 const submitting = ref(false);
 const validationMessages = ref<string[]>([]);
+const confirmCancelOpen = ref(false);
 const isEditMode = computed(() => route.query.mode === "edit");
+const cancelModalOpen = computed({
+  get: () => confirmCancelOpen.value,
+  set: (open: boolean) => {
+    if (!open) {
+      confirmCancelOpen.value = false;
+    }
+  },
+});
 
 useHead({
   title: computed(() =>
@@ -195,6 +204,18 @@ async function submitForm(mode: "save" | "save-and-new") {
     submitting.value = false;
   }
 }
+
+function requestCancel() {
+  confirmCancelOpen.value = true;
+}
+
+async function confirmCancel() {
+  confirmCancelOpen.value = false;
+  if (isEditMode.value) {
+    store.stopEditingProduct();
+  }
+  await router.push("/products/catalog");
+}
 </script>
 
 <template>
@@ -202,50 +223,105 @@ async function submitForm(mode: "save" | "save-and-new") {
     <CreateProductHeader
       :submitting="submitting"
       :mode="isEditMode ? 'edit' : 'create'"
+      @back="requestCancel"
       @create="submitForm('save')"
     />
 
-    <div class="mt-8 flex items-start gap-10 pb-12">
-      <CreateProductSidebar
-        :active-section="activeSection"
-        :show-stocks="showStocks"
-        @scrollTo="scrollTo"
-      />
+    <div class="mx-auto mt-8 w-full max-w-[1680px] px-4 pb-12 sm:px-6">
+      <div class="rounded-[34px] bg-[radial-gradient(circle_at_top_left,rgba(73,147,221,0.12),transparent_22%),linear-gradient(180deg,#262626,#212121)] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.28)] sm:p-6">
+        <div class="flex items-start gap-10">
+          <CreateProductSidebar
+            :active-section="activeSection"
+            :show-stocks="showStocks"
+            @scrollTo="scrollTo"
+          />
 
-      <div class="right flex-1 px-6">
-        <UAlert
-          v-if="validationMessages.length"
-          color="error"
-          variant="soft"
-          title="Проверьте форму"
-          class="mb-6"
-        >
-          <template #description>
-            <ul class="list-disc space-y-1 pl-5 text-[15px]">
-              <li v-for="(message, index) in validationMessages" :key="`${message}-${index}`">
-                {{ message }}
-              </li>
-            </ul>
-          </template>
-        </UAlert>
+          <div class="right flex-1 px-2 sm:px-4">
+            <UAlert
+              v-if="validationMessages.length"
+              color="error"
+              variant="soft"
+              title="Проверьте форму"
+              class="mb-6"
+            >
+              <template #description>
+                <ul class="list-disc space-y-1 pl-5 text-[15px]">
+                  <li v-for="(message, index) in validationMessages" :key="`${message}-${index}`">
+                    {{ message }}
+                  </li>
+                </ul>
+              </template>
+            </UAlert>
 
-        <div ref="mainRef">
-          <CreateProductMainForm />
-        </div>
+            <div ref="mainRef">
+              <CreateProductMainForm />
+            </div>
 
-        <div ref="pricesRef" class="mt-12">
-          <CreateProductPrices />
-        </div>
+            <div ref="pricesRef" class="mt-12">
+              <CreateProductPrices />
+            </div>
 
-        <div v-if="showStocks" ref="stocksRef" class="mt-12">
-          <CreateProductStocks />
-        </div>
+            <div v-if="showStocks" ref="stocksRef" class="mt-12">
+              <CreateProductStocks />
+            </div>
 
-        <div ref="featuresRef" class="mt-12">
-          <CreateProductFeatures />
+            <div ref="featuresRef" class="mt-12">
+              <CreateProductFeatures />
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <UModal
+      v-model:open="cancelModalOpen"
+      :dismissible="false"
+      :ui="{
+        overlay: 'bg-black/50 backdrop-blur-sm',
+        content: 'mx-4 max-w-[520px] rounded-[28px] border border-white/10 bg-[#262626] p-0 text-white shadow-2xl ring-0 sm:mx-0',
+      }"
+    >
+      <template #content>
+        <div class="p-6 sm:p-8">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-[24px] font-bold text-white">Отменить создание продукта?</h3>
+              <p class="mt-3 text-[15px] leading-6 text-[#b3b3b3]">
+                Вы уверены что хотите выйти и отменить создание продукта? Все внесенные данные не сохранятся
+              </p>
+            </div>
+
+            <UButton
+              color="neutral"
+              variant="ghost"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#404040] p-0 text-white hover:bg-[#505050]"
+              @click="confirmCancelOpen = false"
+            >
+              <Icon name="heroicons:x-mark" class="h-5 w-5" />
+            </UButton>
+          </div>
+
+          <div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <UButton
+              color="neutral"
+              variant="soft"
+              class="justify-center rounded-[16px] bg-[#3a3a3a] px-5 py-4 text-white hover:bg-[#454545]"
+              @click="confirmCancelOpen = false"
+            >
+              Остаться
+            </UButton>
+            <UButton
+              color="error"
+              variant="solid"
+              class="justify-center rounded-[16px] bg-[#c14343] px-5 py-4 text-white hover:bg-[#d04d4d]"
+              @click="confirmCancel"
+            >
+              Отменить создание
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </section>
 </template>
 

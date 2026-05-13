@@ -52,16 +52,13 @@
       Отложить чек
     </button>
 
-    <USlideover
-      v-model:open="paymentPanelOpen"
-      side="right"
-      :close="false"
-      :ui="{
-        overlay: 'bg-black/50 backdrop-blur-sm',
-        content: 'w-full max-w-[980px] border-0 bg-[#1f1f1f] p-4 text-white shadow-2xl ring-0 sm:p-6',
-      }"
+    <AppSlideover
+      :open="paymentPanelOpen"
+      @update:open="paymentPanelOpen = $event"
+      maxWidthClass="max-w-[980px]"
+      panelClass="bg-[#1f1f1f] p-4 text-white sm:p-6"
+      overlayClass="bg-black/50 backdrop-blur-sm"
     >
-      <template #content>
         <div class="flex h-full flex-col">
           <div class="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -205,8 +202,7 @@
             </UButton>
           </div>
         </div>
-      </template>
-    </USlideover>
+    </AppSlideover>
 
     <UModal
       v-model:open="printStore.receiptPreviewOpen"

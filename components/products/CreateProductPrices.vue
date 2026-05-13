@@ -15,6 +15,36 @@ const isVariantGoods = computed(
     store.form.variationType === "Вариативный",
 );
 
+function formatPrice(value: number) {
+  const normalized = Math.round(nonNegative(value));
+  return new Intl.NumberFormat("ru-RU").format(normalized);
+}
+
+function parsePriceInput(value: string) {
+  const digitsOnly = String(value ?? "").replace(/[^\d]/g, "");
+  return digitsOnly ? Number(digitsOnly) : 0;
+}
+
+function setSimplePurchasePrice(value: string | number) {
+  store.form.prices.purchasePrice = nonNegative(parsePriceInput(String(value)));
+}
+
+function setSimpleSalePrice(value: string | number) {
+  store.form.prices.salePrice = nonNegative(parsePriceInput(String(value)));
+}
+
+function setVariationPurchasePrice(variationId: string, value: string | number) {
+  const variation = store.form.variations.find((item) => item.id === variationId);
+  if (!variation) return;
+  variation.prices.purchasePrice = nonNegative(parsePriceInput(String(value)));
+}
+
+function setVariationSalePrice(variationId: string, value: string | number) {
+  const variation = store.form.variations.find((item) => item.id === variationId);
+  if (!variation) return;
+  variation.prices.salePrice = nonNegative(parsePriceInput(String(value)));
+}
+
 function updateSimpleSale() {
   store.form.prices.purchasePrice = nonNegative(store.form.prices.purchasePrice);
   store.form.prices.markupPercent = nonNegative(store.form.prices.markupPercent);
@@ -72,12 +102,13 @@ function updateVariationMarkup(variationId: string) {
         <label class="font-medium">Цена прихода</label>
         <div class="mt-2 flex items-center gap-2">
           <UInput
-            v-model.number="store.form.prices.purchasePrice"
-            type="number"
-            min="0"
+            :model-value="formatPrice(store.form.prices.purchasePrice)"
+            type="text"
+            inputmode="numeric"
             class="w-full"
             placeholder="0"
             :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+            @update:model-value="setSimplePurchasePrice"
             @blur="updateSimpleSale"
           />
           <span class="text-sm text-gray-300">UZS</span>
@@ -102,12 +133,13 @@ function updateVariationMarkup(variationId: string) {
         <label class="font-medium">Цена продажи</label>
         <div class="mt-2 flex items-center gap-2">
           <UInput
-            v-model.number="store.form.prices.salePrice"
-            type="number"
-            min="0"
+            :model-value="formatPrice(store.form.prices.salePrice)"
+            type="text"
+            inputmode="numeric"
             class="w-full"
             placeholder="0"
             :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+            @update:model-value="setSimpleSalePrice"
             @blur="updateSimpleMarkup"
           />
           <span class="text-sm text-gray-300">UZS</span>
@@ -134,11 +166,12 @@ function updateVariationMarkup(variationId: string) {
             <td class="p-3">{{ variation.value || "Без названия" }}</td>
             <td class="p-3">
               <UInput
-                v-model.number="variation.prices.purchasePrice"
-                type="number"
-                min="0"
+                :model-value="formatPrice(variation.prices.purchasePrice)"
+                type="text"
+                inputmode="numeric"
                 class="w-44"
                 :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                @update:model-value="setVariationPurchasePrice(variation.id, String($event))"
                 @blur="updateVariationSale(variation.id)"
               />
             </td>
@@ -154,11 +187,12 @@ function updateVariationMarkup(variationId: string) {
             </td>
             <td class="p-3">
               <UInput
-                v-model.number="variation.prices.salePrice"
-                type="number"
-                min="0"
+                :model-value="formatPrice(variation.prices.salePrice)"
+                type="text"
+                inputmode="numeric"
                 class="w-44"
                 :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                @update:model-value="setVariationSalePrice(variation.id, String($event))"
                 @blur="updateVariationMarkup(variation.id)"
               />
             </td>

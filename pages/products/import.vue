@@ -6,22 +6,13 @@
 
     <DataTable class="mt-[40px]" @create="openImportModal" />
 
-    <Teleport to="body">
-      <transition name="fade">
-        <div
-          v-if="isImportModalOpen"
-          class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-          @click="closeImportModal"
-        />
-      </transition>
-
-      <transition name="slide-panel">
-        <aside
-          v-if="isImportModalOpen"
-          class="fixed right-0 top-0 z-[60] flex h-full w-full max-w-[640px] flex-col overflow-hidden rounded-none bg-[#2b2b2b] text-white shadow-2xl sm:rounded-l-[40px]"
-          @click.stop
-        >
-          <div class="flex items-start justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-8 sm:py-6">
+    <AppSlideover
+      :open="isImportModalOpen"
+      @update:open="isImportModalOpen = $event"
+      maxWidthClass="max-w-[640px]"
+      panelClass="bg-[#2b2b2b] text-white"
+    >
+      <div class="flex items-start justify-between gap-4 px-4 py-4 sm:px-8 sm:py-6">
             <div>
               <p class="text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]">
                 Шаг {{ modalStep }} из 2
@@ -45,10 +36,10 @@
             >
               <Icon name="heroicons:x-mark-20-solid" class="h-6 w-6" />
             </button>
-          </div>
+      </div>
 
-          <div class="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
-            <div v-if="modalStep === 1" class="space-y-6">
+      <div class="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
+        <div v-if="modalStep === 1" class="space-y-6">
               <div class="space-y-2">
                 <label class="text-[16px] font-bold text-white">Наименование</label>
                 <input
@@ -280,7 +271,7 @@
             </div>
           </div>
 
-          <div class="border-t border-white/10 px-4 py-4 sm:px-8 sm:py-6">
+      <div class="px-4 py-4 sm:px-8 sm:py-6">
             <div class="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -298,10 +289,8 @@
                 {{ modalStep === 1 ? "Дальше" : creatingImport ? "Создаем..." : "Создать импорт" }}
               </button>
             </div>
-          </div>
-        </aside>
-      </transition>
-    </Teleport>
+      </div>
+    </AppSlideover>
   </section>
 
   <NuxtPage v-else />
@@ -791,10 +780,6 @@ async function submitImport() {
   }
 }
 
-watch(isImportModalOpen, (isOpen) => {
-  document.body.classList.toggle("overflow-hidden", isOpen);
-});
-
 onMounted(async () => {
   await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
   resetForm();
@@ -804,26 +789,3 @@ useHead({
   title: "Импорт | Konkurent",
 });
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.slide-panel-enter-active,
-.slide-panel-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.slide-panel-enter-from,
-.slide-panel-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
-</style>

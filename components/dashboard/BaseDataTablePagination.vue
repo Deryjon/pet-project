@@ -3,39 +3,27 @@ import { computed } from "vue";
 
 const props = withDefaults(
   defineProps<{
-    currentPage: number;
-    totalPages: number;
+    pageSize?: number;
+    pageSizeOptions?: number[];
     loading?: boolean;
-    pageSize?: number; // New prop for page size
-    totalRecords?: number; // New prop for total records
-    pageSizeOptions?: number[]; // Используем pageSizeOptions вместо availablePageSizes
   }>(),
   {
-    loading: false,
     pageSize: 10,
     pageSizeOptions: () => [10, 20, 30, 40, 50],
-  },
+    loading: false,
+  }
 );
 
 const emit = defineEmits<{
-  (e: "previous"): void;
-  (e: "next"): void;
   (e: "update:pageSize", value: number): void;
 }>();
 
-const isPreviousDisabled = computed(
-  () => props.loading || props.currentPage <= 1,
-);
-const isNextDisabled = computed(
-  () => props.loading || props.currentPage >= props.totalPages,
-);
-const formattedOptions = computed(() =>
-  props.pageSizeOptions.map((opt) => ({
-    label: `${opt}`,
-    value: opt,
-  })),
-);
+const selectedPageSize = computed({
+  get: () => props.pageSize,
+  set: (value) => emit("update:pageSize", Number(value)),
+});
 </script>
+
 <template>
   <div class="mt-[20px] flex flex-row items-center justify-between gap-4">
     <div class="flex items-center gap-4">
@@ -48,10 +36,13 @@ const formattedOptions = computed(() =>
           :ui="{ icon: { base: 'text-[#1f78ff] h-6 w-6' } }"
           @click="emit('previous')"
         />
+
         <span class="text-[14px] font-medium text-white/70">
-          {{ currentPage }} <span class="mx-1 opacity-40">/</span>
+          {{ currentPage }}
+          <span class="mx-1 opacity-40">/</span>
           {{ totalPages }}
         </span>
+
         <UButton
           icon="i-heroicons-chevron-right-20-solid"
           color="neutral"
@@ -62,25 +53,29 @@ const formattedOptions = computed(() =>
         />
       </div>
     </div>
+
     <div class="flex items-center gap-2">
-      <span class="text-[14px] font-semibold text-[#1f78ff]"
-        >Показывать по:</span
-      >
-      <USelect
-        :model-value="pageSize"
-        :options="formattedOptions"
-        option-attribute="label"
-        value-attribute="value"
-        @update:model-value="emit('update:pageSize', Number($event))"
-        :disabled="loading"
-        size="sm"
-        color="neutral"
-        variant="outline"
-        class="w-[80px]"
-        :ui="{
-          base: 'rounded-[10px] bg-[#363636] border-white/10 text-white',
-        }"
-      />
+      <span class="text-[14px] font-semibold text-[#1f78ff]">
+        Показывать по:
+      </span>
+
+     <select
+  v-model="selectedPageSize"
+  :disabled="loading"
+  class="w-[80px] cursor-pointer appearance-none rounded-[10px] border border-white/10 bg-[#363636] px-3 py-2 text-sm text-white transition-colors hover:bg-[#404040] focus:border-[#1f78ff] focus:outline-none focus:ring-1 focus:ring-[#1f78ff] disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <option
+    v-for="option in pageSizeOptions"
+    :key="option"
+    :value="option"
+    :style="{
+      backgroundColor: '#262626',
+      color: '#ffffff'
+    }"
+  >
+    {{ option }}
+  </option>
+</select>
     </div>
   </div>
 </template>
