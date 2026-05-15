@@ -229,9 +229,13 @@
         </section>
       </aside>
 
-      <Transition name="drawer-fade">
-        <div v-if="detailsOpen && selectedSale" class="drawer-overlay" @click="detailsOpen = false">
-          <aside class="sale-drawer" @click.stop>
+      <AppSlideover
+        :open="detailsOpen && !!selectedSale"
+        @update:open="detailsOpen = $event"
+        maxWidthClass="max-w-[480px]"
+        panelClass="sale-drawer"
+        roundedClass="rounded-none"
+      >
             <header class="drawer-header">
               <div>
                 <h2>Продажа #{{ saleNumberValue(selectedSale) }}</h2>
@@ -307,9 +311,7 @@
                 Удалить
               </button>
             </footer>
-          </aside>
-        </div>
-      </Transition>
+      </AppSlideover>
     </div>
   </section>
 </template>
@@ -848,14 +850,13 @@ async function fetchSales() {
 .total-panel { border-color: rgba(31,120,255,.25); background: #1f78ff; }
 .total-panel span { color: rgba(255,255,255,.78); }
 .total-panel strong { display: block; margin-top: 8px; font-size: 24px; }
-.drawer-overlay { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(0,0,0,.56); backdrop-filter: blur(4px); }
-.sale-drawer { width: min(100%, 480px); height: 100%; overflow-y: auto; border-left: 1px solid rgba(255,255,255,.1); background: #262626; padding: 26px; color: #fff; box-shadow: -24px 0 60px rgba(0,0,0,.38); }
-.drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid #404040; padding-bottom: 22px; }
+.sale-drawer { height: 100%; overflow-y: auto; background: #262626; padding: 26px; color: #fff; box-shadow: -24px 0 60px rgba(0,0,0,.38); }
+.drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-bottom: 22px; }
 .drawer-header h2 { color: #f6f8fc; font-size: 22px; font-weight: 800; line-height: 1.25; }
 .drawer-header strong { display: block; margin-top: 14px; color: #78b3ff; font-size: 22px; font-weight: 800; }
 .drawer-close { display: inline-flex; width: 40px; height: 40px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 14px; background: #404040; color: #fff; }
 .drawer-close:hover { background: #505050; }
-.drawer-section { border-bottom: 1px solid #404040; padding: 22px 0; }
+.drawer-section { padding: 22px 0; }
 .drawer-section h3 { margin-bottom: 16px; color: #f6f8fc; font-size: 17px; font-weight: 800; }
 .drawer-row, .drawer-price-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .drawer-row span, .cashier-line span, .detail-list span, .drawer-item-code, .drawer-item-discount, .drawer-item-seller, .drawer-price-row span { color: #bdbdbd; }
@@ -863,22 +864,18 @@ async function fetchSales() {
 .cashier-line { display: grid; gap: 5px; margin-bottom: 16px; }
 .cashier-line strong { color: #f6f8fc; font-weight: 800; }
 .drawer-cart { display: grid; gap: 12px; }
-.drawer-item { display: grid; gap: 9px; border: 1px solid rgba(255,255,255,.06); border-radius: 16px; background: #303030; padding: 16px; }
+.drawer-item { display: grid; gap: 9px; border-radius: 16px; background: #303030; padding: 16px; }
 .drawer-item-title { color: #f6f8fc; font-size: 15px; font-weight: 800; line-height: 1.35; }
 .drawer-item-code, .drawer-item-discount, .drawer-item-seller { font-size: 13px; }
 .detail-list { display: grid; gap: 16px; }
 .detail-list div { display: grid; gap: 6px; }
-.drawer-actions { position: sticky; bottom: -26px; display: grid; grid-template-columns: 1fr; gap: 12px; margin: 0 -26px -26px; border-top: 1px solid #404040; background: rgba(38,38,38,.96); padding: 18px 26px 26px; backdrop-filter: blur(8px); }
-.drawer-action { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 15px; background: #1f78ff; color: #fff; font-size: 14px; font-weight: 800; transition: background .2s ease, border-color .2s ease, transform .2s ease; }
+.drawer-actions { position: sticky; bottom: -26px; display: grid; grid-template-columns: 1fr; gap: 12px; margin: 0 -26px -26px; background: rgba(38,38,38,.96); padding: 18px 26px 26px; backdrop-filter: blur(8px); }
+.drawer-action { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: 10px; border-radius: 15px; background: #1f78ff; color: #fff; font-size: 14px; font-weight: 800; transition: background .2s ease, transform .2s ease; }
 .drawer-action:hover { background: #4993dd; transform: translateY(-1px); }
 .drawer-action--secondary { background: #404040; color: #f6f8fc; }
-.drawer-action--secondary:hover { background: #505050; border-color: rgba(255,255,255,.14); }
-.drawer-action--danger { background: transparent; border-color: rgba(239,68,68,.36); color: #ff9a9a; }
-.drawer-action--danger:hover { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.48); }
-.drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity .18s ease; }
-.drawer-fade-enter-active .sale-drawer, .drawer-fade-leave-active .sale-drawer { transition: transform .22s ease; }
-.drawer-fade-enter-from, .drawer-fade-leave-to { opacity: 0; }
-.drawer-fade-enter-from .sale-drawer, .drawer-fade-leave-to .sale-drawer { transform: translateX(100%); }
+.drawer-action--secondary:hover { background: #505050; }
+.drawer-action--danger { background: transparent; color: #ff9a9a; }
+.drawer-action--danger:hover { background: rgba(239,68,68,.16); }
 @media (max-width: 1180px) { .filters-panel { grid-template-columns: repeat(2,minmax(0,1fr)); } .filter-actions { grid-column: span 2; } }
 @media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel { padding: 16px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-meta, .header-controls, .filters-panel, .filter-actions { grid-template-columns: 1fr; } .header-meta { align-items: stretch; } .scope-select { width: 100%; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
 </style>

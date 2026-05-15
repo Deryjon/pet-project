@@ -1,9 +1,11 @@
 ﻿<script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { getLocalTimeZone, today } from "@internationalized/date";
+import { getLocalTimeZone } from "@internationalized/date";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { useProductStore } from "@/store/productStore";
+import { resolveProductImageUrl, useProducts } from "~/composables/useProducts";
+import type { ProductMovementResponse } from "~/types/product-detail";
 
 type TableSection = {
   title: string;
@@ -11,9 +13,29 @@ type TableSection = {
   rows: string[][];
 };
 
+type ProductHistoryRow = {
+  dateCell: string;
+  actionLabel: string;
+  actionType: string;
+  quantityCell: string;
+  shopCell: string;
+  dateKey: string | null;
+};
+
+type HistoryActionOption = {
+  value: string;
+  label: string;
+};
+
+type HistoryShopOption = {
+  shopId: string;
+  shopName: string;
+};
+
 const store = useCatalogDataTableStore();
 const router = useRouter();
 const productStore = useProductStore();
+const { fetchProductMovements } = useProducts();
 const placeholderImgUrl = new URL(
   "../../assets/images/placeholder_img.svg",
   import.meta.url,
@@ -38,25 +60,26 @@ const filtersOpen = ref(false);
 const datePopoverOpen = ref(false);
 const actionPopoverOpen = ref(false);
 const shopPopoverOpen = ref(false);
+const productHistoryLoading = ref(false);
+const productHistoryLoaded = ref(false);
+const productHistoryRowsFromApi = ref<ProductHistoryRow[]>([]);
+const historyActionOptions = ref<HistoryActionOption[]>([]);
+const historyShopOptions = ref<HistoryShopOption[]>([]);
 
 const tz = getLocalTimeZone();
-const selectedDate = ref<any>(today(tz));
-const selectedAction = ref("Все действия");
-const selectedShop = ref("Все магазины");
+const selectedDate = ref<any>(null);
+const selectedActionType = ref("");
+const selectedShopId = ref("");
 
-const actionOptions = [
-  "Все действия",
-  "Инвентаризация",
-  "Импорт",
-  "Трансфер",
-  "Списание",
-  "Оценка",
-  "Возврат",
-  "Отложка",
-  "Заказ",
-  "Продажа",
-];
-const shopOptions = computed(() => ["Все магазины", ...store.filterOptions.store]);
+const actionOptions = computed(() => [
+  { value: "", label: "Все действия" },
+  ...historyActionOptions.value,
+]);
+
+const shopOptions = computed(() => [
+  { shopId: "", shopName: "Все магазины" },
+  ...historyShopOptions.value,
+]);
 
 const formatUZS = (value: unknown) => {
   const num = Number(value);
@@ -64,7 +87,7 @@ const formatUZS = (value: unknown) => {
   return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
 };
 
-const productHistoryRows = computed<string[][]>(() => {
+const fallbackProductHistoryRows = computed<ProductHistoryRow[]>(() => {
   const p = selectedProduct.value;
   if (!p) return [];
 
@@ -83,23 +106,16 @@ const productHistoryRows = computed<string[][]>(() => {
 
   if (historySource.length) {
     return historySource.map((item: any) => {
-      const dateCell = formatDateTimeCell(
+      const rawDate =
         item?.created_at ??
           item?.createdAt ??
           item?.date_time ??
           item?.dateTime ??
           item?.date ??
-          item?.time,
-      );
-      const actionCell = formatHistoryAction(item);
+          item?.time;
+      const actionMeta = resolveHistoryActionMeta(item);
       const quantityCell = String(
-        Number(
-          item?.quantity ??
-            item?.measurement_value ??
-            item?.active_measurement_value ??
-            item?.count ??
-            0,
-        ),
+        Number(item?.quantity ?? item?.measurement_value ?? item?.active_measurement_value ?? item?.count ?? 0),
       );
       const shopCell =
         String(
@@ -113,15 +129,19 @@ const productHistoryRows = computed<string[][]>(() => {
             "-",
         ).trim() || "-";
 
-      return [dateCell, actionCell, quantityCell, shopCell];
+      return {
+        dateCell: formatDateTimeCell(rawDate),
+        actionLabel: actionMeta.label,
+        actionType: actionMeta.type,
+        quantityCell,
+        shopCell,
+        dateKey: normalizeDateKey(rawDate),
+      };
     });
   }
 
-  const fallbackDate = formatDateTimeCell(
-    original?.created_at ?? original?.createdAt ?? original?.date ?? null,
-  );
-  const fallbackAction = formatHistoryAction(original);
-  const fallbackQuantity = String(Number(p.quantity ?? 0));
+  const fallbackDateValue = original?.created_at ?? original?.createdAt ?? original?.date ?? null;
+  const fallbackAction = resolveHistoryActionMeta(original);
   const fallbackShop =
     String(
       original?.current_shop?.shop?.name ??
@@ -131,7 +151,55 @@ const productHistoryRows = computed<string[][]>(() => {
         "-",
     ).trim() || "-";
 
-  return [[fallbackDate, fallbackAction, fallbackQuantity, fallbackShop]];
+  return [{
+    dateCell: formatDateTimeCell(fallbackDateValue),
+    actionLabel: fallbackAction.label,
+    actionType: fallbackAction.type,
+    quantityCell: String(Number(p.quantity ?? 0)),
+    shopCell: fallbackShop,
+    dateKey: normalizeDateKey(fallbackDateValue),
+  }];
+});
+
+const rawProductHistoryRows = computed<ProductHistoryRow[]>(() =>
+  productHistoryLoaded.value ? productHistoryRowsFromApi.value : fallbackProductHistoryRows.value,
+);
+
+const selectedActionLabel = computed(() =>
+  actionOptions.value.find((option) => option.value === selectedActionType.value)?.label ?? "Все действия",
+);
+
+const selectedShopLabel = computed(() =>
+  shopOptions.value.find((option) => option.shopId === selectedShopId.value)?.shopName ?? "Все магазины",
+);
+
+const filteredProductHistoryRows = computed<string[][]>(() => {
+  if (productHistoryLoading.value) {
+    return [["Загрузка...", "-", "-", "-"]];
+  }
+
+  const selectedDateKey = normalizeCalendarDateKey(selectedDate.value);
+  const rows = rawProductHistoryRows.value.filter((row) => {
+    if (selectedDateKey && row.dateKey !== selectedDateKey) {
+      return false;
+    }
+
+    if (selectedActionType.value && row.actionType !== selectedActionType.value) {
+      return false;
+    }
+
+    if (selectedShopId.value && row.shopCell !== selectedShopLabel.value) {
+      return false;
+    }
+
+    return true;
+  });
+
+  if (!rows.length) {
+    return [["Нет данных", "-", "-", "-"]];
+  }
+
+  return rows.map((row) => [row.dateCell, row.actionLabel, row.quantityCell, row.shopCell]);
 });
 
 const stockRows = computed<string[][]>(() => {
@@ -191,7 +259,7 @@ const tableSections = computed<TableSection[]>(() => {
     {
       title: "История продукта",
       columns: ["Дата", "Действие", "Кол-во", "Магазин"],
-      rows: productHistoryRows.value,
+      rows: filteredProductHistoryRows.value,
     },
   ];
 
@@ -270,11 +338,45 @@ function closeSidebar() {
 }
 
 async function handleFooterAction(actionLabel: string) {
-  if (actionLabel !== "Изменить" || !selectedProduct.value) {
+  if (!selectedProduct.value) {
     return;
   }
 
   const product = selectedProduct.value;
+
+  if (actionLabel === "Печать ценников") {
+    closeSidebar();
+    await router.push({
+      path: "/products/settings/print-tag",
+      query: {
+        productId: String(product.id ?? ""),
+        productName: String(product.name ?? ""),
+        sku: String(product.sku ?? ""),
+        shop: String(product.shop_name ?? ""),
+        count: "1",
+      },
+    });
+    return;
+  }
+
+  if (actionLabel === "Добавить остатки") {
+    productStore.startEditingProduct(product);
+    closeSidebar();
+    await router.push({
+      path: "/products/create",
+      query: {
+        mode: "edit",
+        id: String(product.id ?? ""),
+        focus: "stocks",
+        intent: "add-receipt",
+      },
+    });
+    return;
+  }
+
+  if (actionLabel !== "Изменить") {
+    return;
+  }
 
   productStore.startEditingProduct(product);
   closeSidebar();
@@ -288,7 +390,7 @@ async function handleFooterAction(actionLabel: string) {
 }
 
 function getProductImage(photo?: string | null) {
-  const src = typeof photo === "string" ? photo.trim() : "";
+  const src = resolveProductImageUrl(photo);
   return src.length > 0 ? src : placeholderImgUrl;
 }
 
@@ -301,7 +403,7 @@ function onProductImageError(event: Event) {
 }
 
 function formatSingleDate(value: any) {
-  if (!value || typeof value.toDate !== "function") return "Выберите дату";
+  if (!value || typeof value.toDate !== "function") return "Все даты";
   return value.toDate(tz).toLocaleDateString("ru-RU");
 }
 
@@ -324,7 +426,29 @@ function formatDateTimeCell(value: unknown) {
   return `${date.toLocaleDateString("ru-RU")}\n\n${date.toLocaleTimeString("ru-RU")}`;
 }
 
-function formatHistoryAction(item: any) {
+function mapMovementTypeLabel(value: string, fallbackLabel?: string) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+
+  if (normalized === "SALE") return "Продажа";
+  if (normalized === "RETURN") return "Возврат";
+  if (normalized === "WRITE_OFF") return "Списание";
+  if (normalized === "PURCHASE") return "Поступление";
+  if (normalized === "TRANSFER") return "Трансфер";
+
+  return String(fallbackLabel ?? value ?? "Операция").trim() || "Операция";
+}
+
+function resolveHistoryActionMeta(item: any) {
+  const explicitType = String(item?.action_type ?? "").trim().toUpperCase();
+  const explicitLabel = String(item?.action_label ?? "").trim();
+
+  if (explicitType) {
+    return {
+      type: explicitType,
+      label: explicitLabel || mapMovementTypeLabel(explicitType),
+    };
+  }
+
   const type = String(
     item?.action_name ??
       item?.action ??
@@ -348,64 +472,185 @@ function formatHistoryAction(item: any) {
   ).trim();
 
   if (type.includes("import")) {
-    return documentNumber ? `Импорт #${documentNumber}` : "Импорт";
+    return { type: "Импорт", label: documentNumber ? `Импорт #${documentNumber}` : "Импорт" };
   }
 
   if (type.includes("sale") || type.includes("sell") || type.includes("прод")) {
-    return documentNumber ? `Продажа #${documentNumber}` : "Продажа";
+    return { type: "Продажа", label: documentNumber ? `Продажа #${documentNumber}` : "Продажа" };
   }
 
   if (type.includes("transfer") || type.includes("транс")) {
-    return documentNumber ? `Трансфер #${documentNumber}` : "Трансфер";
+    return { type: "Трансфер", label: documentNumber ? `Трансфер #${documentNumber}` : "Трансфер" };
   }
 
   if (type.includes("writeoff") || type.includes("write_off") || type.includes("спис")) {
-    return documentNumber ? `Списание #${documentNumber}` : "Списание";
+    return { type: "Списание", label: documentNumber ? `Списание #${documentNumber}` : "Списание" };
   }
 
   if (type.includes("inventory") || type.includes("инвент")) {
-    return documentNumber ? `Инвентаризация #${documentNumber}` : "Инвентаризация";
+    return {
+      type: "Инвентаризация",
+      label: documentNumber ? `Инвентаризация #${documentNumber}` : "Инвентаризация",
+    };
   }
 
   if (type.includes("return") || type.includes("возв")) {
-    return documentNumber ? `Возврат #${documentNumber}` : "Возврат";
+    return { type: "Возврат", label: documentNumber ? `Возврат #${documentNumber}` : "Возврат" };
   }
 
   if (type.includes("order") || type.includes("заказ")) {
-    return documentNumber ? `Заказ #${documentNumber}` : "Заказ";
+    return { type: "Заказ", label: documentNumber ? `Заказ #${documentNumber}` : "Заказ" };
   }
 
   if (type.includes("receive") || type.includes("приход")) {
-    return documentNumber ? `Приход #${documentNumber}` : "Приход";
+    return {
+      type: "Поступление",
+      label: documentNumber ? `Поступление #${documentNumber}` : "Поступление",
+    };
   }
 
-  const explicitLabel = String(
+  if (type.includes("price") || type.includes("оцен")) {
+    return { type: "Оценка", label: documentNumber ? `Оценка #${documentNumber}` : "Оценка" };
+  }
+
+  if (type.includes("reserve") || type.includes("hold") || type.includes("отлож")) {
+    return { type: "Отложка", label: documentNumber ? `Отложка #${documentNumber}` : "Отложка" };
+  }
+
+  const fallbackLabel = String(
     item?.title ?? item?.name ?? item?.label ?? item?.description ?? "",
   ).trim();
-  if (explicitLabel) {
-    return explicitLabel;
+  if (fallbackLabel) {
+    return { type: fallbackLabel, label: fallbackLabel };
   }
 
   if (documentNumber) {
-    return `Документ #${documentNumber}`;
+    return { type: "Операция", label: `Документ #${documentNumber}` };
   }
 
-  return "Операция";
+  return { type: "Операция", label: "Операция" };
 }
+
+function normalizeDateKey(value: unknown) {
+  const date = value ? new Date(String(value)) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeCalendarDateKey(value: any) {
+  if (!value || typeof value.toDate !== "function") {
+    return null;
+  }
+
+  return value.toDate(tz).toISOString().slice(0, 10);
+}
+
+async function loadProductHistory() {
+  const productId = String(
+    selectedProduct.value?.id ??
+      selectedProduct.value?._original?.public_id ??
+      selectedProduct.value?._original?.id ??
+      "",
+  ).trim();
+
+  if (!productId) {
+    productHistoryLoaded.value = false;
+    productHistoryRowsFromApi.value = [];
+    historyActionOptions.value = [];
+    historyShopOptions.value = [];
+    return;
+  }
+
+  productHistoryLoading.value = true;
+
+  try {
+    const selectedDateKey = normalizeCalendarDateKey(selectedDate.value);
+    const movementRes: ProductMovementResponse = await fetchProductMovements(productId, {
+      page: 1,
+      limit: 100,
+      from_created_at: selectedDateKey ?? undefined,
+      to_created_at: selectedDateKey ?? undefined,
+      movement_type: selectedActionType.value || undefined,
+      shop_id: selectedShopId.value || undefined,
+    });
+
+    const movements = Array.isArray(movementRes?.movements) ? movementRes.movements : [];
+    productHistoryLoaded.value = true;
+    productHistoryRowsFromApi.value = movements.map((item: any) => {
+      const actionMeta = resolveHistoryActionMeta(item);
+      const rawDate = item?.created_at ?? item?.date ?? null;
+      const primaryShop = String(item?.shop_name ?? item?.to_shop ?? item?.shop?.name ?? "").trim();
+      const fallbackShop = String(item?.from_shop ?? item?.store_name ?? "").trim();
+      const quantityValue = Number(item?.quantity ?? item?.measurement_value ?? item?.loaded_measurement_value ?? 0);
+
+      return {
+        dateCell: formatDateTimeCell(rawDate),
+        actionLabel: actionMeta.label,
+        actionType: actionMeta.type,
+        quantityCell: String(quantityValue),
+        shopCell: primaryShop || fallbackShop || "-",
+        dateKey: normalizeDateKey(rawDate),
+      };
+    });
+
+    historyActionOptions.value = Array.isArray(movementRes?.available_movement_types)
+      ? movementRes.available_movement_types
+          .map((item) => ({
+            value: String(item?.value ?? "").trim().toUpperCase(),
+            label: mapMovementTypeLabel(String(item?.value ?? ""), String(item?.label ?? "")),
+          }))
+          .filter((item) => item.value)
+      : [];
+
+    historyShopOptions.value = Array.isArray(movementRes?.available_shops)
+      ? movementRes.available_shops
+          .map((shop) => ({
+            shopId: String(shop?.shop_id ?? "").trim(),
+            shopName: String(shop?.shop_name ?? "").trim(),
+          }))
+          .filter((shop) => shop.shopId && shop.shopName)
+      : [];
+  } catch {
+    productHistoryLoaded.value = false;
+    productHistoryRowsFromApi.value = [];
+  } finally {
+    productHistoryLoading.value = false;
+  }
+}
+
+watch(
+  () => [
+    showProductSidebar.value,
+    selectedProduct.value?.id,
+    selectedActionType.value,
+    selectedShopId.value,
+    normalizeCalendarDateKey(selectedDate.value),
+  ],
+  async ([isOpen]) => {
+    if (!isOpen) {
+      productHistoryLoaded.value = false;
+      productHistoryRowsFromApi.value = [];
+      return;
+    }
+
+    await loadProductHistory();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
-  <USlideover
-    v-model:open="showProductSidebar"
-    side="right"
-    :ui="{
-      overlay: 'bg-black/45 backdrop-blur-[1px]',
-      content:
-        'z-[9999] h-full w-full max-w-[950px] overflow-y-auto rounded-none border-0 ring-0 bg-[#2b2b2b] px-4 pt-6 pb-0 text-white shadow-lg sm:rounded-l-[40px] sm:px-8 sm:pt-10 lg:rounded-l-[60px] lg:px-16 lg:pt-14',
-    }"
-    :close="false"
+  <AppSlideover
+    :open="showProductSidebar"
+    @update:open="showProductSidebar = $event"
+    maxWidthClass="max-w-[1120px]"
+    roundedClass="rounded-none sm:rounded-l-[40px] lg:rounded-l-[60px]"
+    overlayClass="bg-black/45 backdrop-blur-[1px]"
+    panelClass="overflow-y-auto bg-[#2b2b2b] px-4 pt-6 pb-0 text-white sm:px-8 sm:pt-10 lg:px-16 lg:pt-14"
   >
-    <template #content>
       <div class="flex min-h-full flex-col">
         <div class="flex-1 pb-24">
           <div class="relative mb-6 flex items-start justify-between gap-4">
@@ -477,17 +722,27 @@ function formatHistoryAction(item: any) {
                   <Icon name="ph:calendar" class="h-4 w-4 text-[#3b82f6]" />
                 </UButton>
                 <template #content>
-                  <UCalendar
-                    v-model="selectedDate"
-                    color="neutral"
-                    class="w-full rounded-[10px] bg-[#262626] text-white"
-                    :ui="{
-                      root: 'bg-[#262626] text-white',
-                      header: 'text-white',
-                      heading: 'text-white',
-                      gridWeekDaysRow: 'text-[#bdbdbd]',
-                    }"
-                  />
+                  <div class="space-y-3">
+                    <UCalendar
+                      v-model="selectedDate"
+                      color="neutral"
+                      class="w-full rounded-[10px] bg-[#262626] text-white"
+                      :ui="{
+                        root: 'bg-[#262626] text-white',
+                        header: 'text-white',
+                        heading: 'text-white',
+                        gridWeekDaysRow: 'text-[#bdbdbd]',
+                      }"
+                    />
+                    <UButton
+                      color="neutral"
+                      variant="soft"
+                      class="w-full justify-center rounded-[10px] bg-[#363636] text-white hover:bg-[#404040]"
+                      @click="selectedDate = null"
+                    >
+                      Сбросить дату
+                    </UButton>
+                  </div>
                 </template>
               </UPopover>
 
@@ -504,7 +759,7 @@ function formatHistoryAction(item: any) {
                   variant="ghost"
                   class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-sm text-white hover:bg-[#a7a6a6] sm:text-base"
                 >
-                  <span>{{ selectedAction }}</span>
+                  <span>{{ selectedActionLabel }}</span>
                   <Icon name="heroicons:chevron-down" class="h-4 w-4" />
                 </UButton>
 
@@ -512,14 +767,14 @@ function formatHistoryAction(item: any) {
                   <ul>
                     <li
                       v-for="option in actionOptions"
-                      :key="option"
+                      :key="option.value || 'all'"
                       class="cursor-pointer rounded-[8px] px-3 py-2 text-white hover:bg-[#a7a6a6]"
                       @click="
-                        selectedAction = option;
+                        selectedActionType = option.value;
                         actionPopoverOpen = false;
                       "
                     >
-                      {{ option }}
+                      {{ option.label }}
                     </li>
                   </ul>
                 </template>
@@ -538,7 +793,7 @@ function formatHistoryAction(item: any) {
                   variant="ghost"
                   class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-sm text-white hover:bg-[#a7a6a6] sm:text-base"
                 >
-                  <span>{{ selectedShop }}</span>
+                  <span>{{ selectedShopLabel }}</span>
                   <Icon name="heroicons:chevron-down" class="h-5 w-5" />
                 </UButton>
 
@@ -546,14 +801,14 @@ function formatHistoryAction(item: any) {
                   <ul>
                     <li
                       v-for="option in shopOptions"
-                      :key="option"
+                      :key="option.shopId || 'all'"
                       class="cursor-pointer rounded-[8px] px-3 py-2 text-white hover:bg-[#404040]"
                       @click="
-                        selectedShop = option;
+                        selectedShopId = option.shopId;
                         shopPopoverOpen = false;
                       "
                     >
-                      {{ option }}
+                      {{ option.shopName }}
                     </li>
                   </ul>
                 </template>
@@ -633,6 +888,5 @@ function formatHistoryAction(item: any) {
           </div>
         </div>
       </div>
-    </template>
-  </USlideover>
+  </AppSlideover>
 </template>

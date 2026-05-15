@@ -48,6 +48,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   const statistics = ref<Record<string, unknown> | null>(null);
   const statisticsByStatus = ref<Record<string, unknown> | null>(null);
   const activeStatusFilter = ref("all");
+  const archivedOnly = ref(false);
 
   const pagination = ref({ pageSize: 10, pageIndex: 0 });
   const sorting = ref<any[]>([]);
@@ -76,11 +77,6 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   const canViewSupplyPrice = computed(() => can("product-supply-price"));
 
   const shopOptions = computed<CatalogFilterOption[]>(() => {
-    const fromLocations = locationStore.locations.map((location) => ({
-      label: location.name,
-      value: location.id,
-    }));
-
     const fromProducts = getUniqueOptions(
       rawData.value.flatMap((item) => {
         const original = item?._original;
@@ -101,7 +97,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       }),
     );
 
-    return getUniqueOptions([...fromLocations, ...fromProducts]);
+    return fromProducts;
   });
 
   const categoryOptions = computed<CatalogFilterOption[]>(() =>
@@ -179,12 +175,12 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   );
 
   const filterOptions = computed(() => ({
-    store: shopOptions.value.map((option: CatalogFilterOption) => option.label),
-    category: categoryOptions.value.map((option: CatalogFilterOption) => option.label),
-    article: articleOptions.value.map((option: CatalogFilterOption) => option.label),
-    brand: brandOptions.value.map((option: CatalogFilterOption) => option.label),
-    supplier: supplierOptions.value.map((option: CatalogFilterOption) => option.label),
-    unit: unitOptions.value.map((option: CatalogFilterOption) => option.label),
+    store: shopOptions.value,
+    category: categoryOptions.value,
+    article: articleOptions.value,
+    brand: brandOptions.value,
+    supplier: supplierOptions.value,
+    unit: unitOptions.value,
   }));
 
   async function fetchData(params?: {
@@ -192,16 +188,23 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     page?: number;
     pageSize?: number;
     status?: string;
+    archivedList?: boolean;
   }) {
     loading.value = true;
     try {
       const { listProducts } = useProducts();
+      const normalizedStatus = normalizeCatalogStatus(
+        params?.status ?? activeStatusFilter.value,
+      );
+      const resolvedArchivedList = params?.archivedList ?? archivedOnly.value;
+
       const result = await listProducts({
         search: params?.search ?? (globalFilter.value || undefined),
         page: params?.page ?? pagination.value.pageIndex + 1,
         pageSize: params?.pageSize ?? pagination.value.pageSize,
         statistics: true,
-        status: params?.status ?? activeStatusFilter.value,
+        status: normalizedStatus,
+        archivedList: normalizedStatus ? undefined : resolvedArchivedList || undefined,
         shopIds: resolveSelectedValues(filters.value.store, shopOptions.value),
         categoryIds: resolveSelectedValues(filters.value.category, categoryOptions.value),
         brandIds: resolveSelectedValues(filters.value.brand, brandOptions.value),
@@ -212,7 +215,8 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         supplyPriceTo: canViewSupplyPrice.value ? parseNumber(prices.value.supply.max) : undefined,
         retailPriceFrom: parseNumber(prices.value.sale.min),
         retailPriceTo: parseNumber(prices.value.sale.max),
-        wholesalePrice: parseNumber(prices.value.wholesale.min),
+        wholesalePriceFrom: parseNumber(prices.value.wholesale.min),
+        wholesalePriceTo: parseNumber(prices.value.wholesale.max),
         freePrice: freePrice.value || undefined,
       });
 
@@ -299,8 +303,18 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   });
 
   watch(activeStatusFilter, async (status) => {
+    if (status !== "all" && archivedOnly.value) {
+      archivedOnly.value = false;
+      return;
+    }
+
     pagination.value.pageIndex = 0;
     await fetchData({ status, page: 1 });
+  });
+
+  watch(archivedOnly, async (archivedList) => {
+    pagination.value.pageIndex = 0;
+    await fetchData({ archivedList, page: 1 });
   });
 
   watch(
@@ -326,8 +340,8 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       { key: "all", label: "Все", count: totalItems.value || count.value || rawData.value.length },
       { key: "active", label: "Активные", count: getStatusCount(source, "active") },
       { key: "inactive", label: "Неактивные", count: getStatusCount(source, "inactive") },
-      { key: "low", label: "Малый остаток", count: getStatusCount(source, "low") },
-      { key: "zero", label: "Нулевой остаток", count: getStatusCount(source, "zero") },
+      { key: "small_left", label: "Малый остаток", count: getStatusCount(source, "small_left") },
+      { key: "zero_left", label: "Нулевой остаток", count: getStatusCount(source, "zero_left") },
     ];
   });
 
@@ -509,6 +523,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     statistics,
     statisticsByStatus,
     activeStatusFilter,
+    archivedOnly,
     pagination,
     sorting,
     filters,
@@ -567,23 +582,23 @@ function getUniqueOptions(options: CatalogFilterOption[]) {
   return unique.sort((a, b) => a.label.localeCompare(b.label, "ru"));
 }
 
-function resolveSelectedValues(selectedLabel: string, options: CatalogFilterOption[]) {
-  const label = String(selectedLabel || "").trim();
-  if (!label) {
+function resolveSelectedValues(selectedValue: string, options: CatalogFilterOption[]) {
+  const value = String(selectedValue || "").trim();
+  if (!value) {
     return undefined;
   }
 
-  const matched = options.find((option) => option.label === label);
-  return [matched?.value ?? label];
+  const matched = options.find((option) => option.value === value || option.label === value);
+  return [matched?.value ?? value];
 }
 
-function resolveSingleValue(selectedLabel: string, options: CatalogFilterOption[]) {
-  const label = String(selectedLabel || "").trim();
-  if (!label) {
+function resolveSingleValue(selectedValue: string, options: CatalogFilterOption[]) {
+  const value = String(selectedValue || "").trim();
+  if (!value) {
     return undefined;
   }
 
-  return options.find((option) => option.label === label)?.value ?? label;
+  return options.find((option) => option.value === value || option.label === value)?.value ?? value;
 }
 
 function parseNumber(value: string) {
@@ -595,6 +610,24 @@ function parseNumber(value: string) {
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
+
+function normalizeCatalogStatus(value: string) {
+  switch (String(value || "").trim()) {
+    case "all":
+      return undefined;
+    case "low":
+    case "low_stock":
+    case "small_left":
+      return "small_left";
+    case "zero":
+    case "zero_stock":
+    case "zero_left":
+      return "zero_left";
+    default:
+      return String(value || "").trim() || undefined;
+  }
+}
+
 
 function normalizeDetailedProduct(productCard: ProductCardData) {
   const { product, measurementUnit, movement, shops, priceTags } = productCard;
@@ -917,6 +950,38 @@ function isSupplyPriceFieldName(value: unknown) {
 }
 
 function getStatusCount(source: Record<string, unknown>, key: string) {
+  if (key === "small_left" && source["low_stock"] != null) {
+    return getStatusCount(source, "low_stock");
+  }
+
+  if (key === "small_left" && source["low"] != null) {
+    return getStatusCount(source, "low");
+  }
+
+  if (key === "low" && source["low_stock"] != null) {
+    return getStatusCount(source, "low_stock");
+  }
+
+  if (key === "low_stock" && source["low"] != null) {
+    return getStatusCount(source, "low");
+  }
+
+  if (key === "zero_left" && source["zero_stock"] != null) {
+    return getStatusCount(source, "zero_stock");
+  }
+
+  if (key === "zero_left" && source["zero"] != null) {
+    return getStatusCount(source, "zero");
+  }
+
+  if (key === "zero" && source["zero_stock"] != null) {
+    return getStatusCount(source, "zero_stock");
+  }
+
+  if (key === "zero_stock" && source["zero"] != null) {
+    return getStatusCount(source, "zero");
+  }
+
   const value = source[key];
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number(value) || 0;

@@ -3,8 +3,29 @@ import { computed, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "~/store/useUserStore";
 
-type DashboardPeriod = "yesterday" | "today" | "week" | "month" | "year";
-type DashboardGranularity = "hour" | "day";
+type DashboardPeriod =
+  | "yesterday"
+  | "today"
+  | "week"
+  | "month"
+  | "year";
+
+type DashboardGranularity =
+  | "hour"
+  | "day"
+  | "week"
+  | "month";
+
+  const granularityOptions: Record<
+  DashboardPeriod,
+  DashboardGranularity[]
+> = {
+  today: ["hour"],
+  yesterday: ["hour"],
+  week: ["day", "hour"], // По дням или по часам
+  month: ["day", "week"], // По дням или по неделям
+  year: ["day", "week", "month"], // По дням, неделям или месяцам
+};
 
 type DashboardShop = {
   id: string;
@@ -87,6 +108,21 @@ function startDateForPeriod(period: DashboardPeriod) {
   }
 }
 
+function endDateForPeriod(period: DashboardPeriod) {
+  const now = new Date();
+
+  switch (period) {
+    case "yesterday":
+      // Для вчерашнего дня дата окончания — тоже вчера
+      return formatDate(shiftDate(now, -1));
+    case "today":
+      return formatDate(now);
+    default:
+      // Для недели, месяца и года обычно это сегодняшний день
+      return formatDate(now);
+  }
+}
+
 function labelForPoint(value: string, granularity: DashboardGranularity) {
   if (!value) return "";
 
@@ -138,6 +174,23 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const selectedPeriod = ref<DashboardPeriod>("today");
   const selectedGranularity = ref<DashboardGranularity>("hour");
   const selectedShopId = ref<string | null>(null);
+
+  // Вычисляем доступные варианты детализации для текущего периода
+  const availableGranularities = computed(() => {
+    return granularityOptions[selectedPeriod.value];
+  });
+
+  // Автоматически корректируем выбранную детализацию, если она недоступна в новом периоде
+  watch(
+    () => selectedPeriod.value,
+    (period) => {
+      const allowed = granularityOptions[period];
+      if (!allowed.includes(selectedGranularity.value)) {
+        selectedGranularity.value = allowed[0];
+      }
+    },
+  );
+
   const report = ref<DashboardReport | null>(null);
   const loading = ref(false);
   const settingsSaving = ref(false);
@@ -324,6 +377,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
         method: "GET",
         query: {
           start_date: startDateForPeriod(selectedPeriod.value),
+          end_date: endDateForPeriod(selectedPeriod.value),
           detalization: selectedGranularity.value,
           seller_field: "sales_sum",
           currency: reportCurrency.value || "UZS",
@@ -384,5 +438,6 @@ export const useDashboardStore = defineStore("dashboard", () => {
     setGranularity,
     saveSettings,
     fetchDashboardReport,
+    availableGranularities,
   };
 });

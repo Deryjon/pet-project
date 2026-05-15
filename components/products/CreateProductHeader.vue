@@ -1,6 +1,4 @@
-﻿<script setup lang="ts">
-import { useRouter } from "vue-router";
-
+<script setup lang="ts">
 withDefaults(
   defineProps<{
     submitting?: boolean;
@@ -14,14 +12,13 @@ withDefaults(
 
 const emit = defineEmits<{
   (e: "create"): void;
+  (e: "back"): void;
 }>();
-
-const router = useRouter();
 </script>
 
 <template>
   <div class="sticky top-0 z-50 border-b bg-[#262626]">
-    <div class="w-full">
+    <div class="mx-auto w-full max-w-[1680px] px-4 sm:px-6">
       <div class="flex items-center justify-between py-[32px]">
         <div class="flex items-center gap-4">
           <UButton
@@ -29,7 +26,7 @@ const router = useRouter();
             variant="soft"
             square
             class="h-[50px] w-[50px] justify-center rounded-full bg-[#404040]"
-            @click="router.back()"
+            @click="emit('back')"
           >
             <Icon name="tabler:chevron-left" class="h-6 w-6 text-[#1f78ff]" />
           </UButton>
