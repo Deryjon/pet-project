@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useHead } from "#imports";
 import {
@@ -133,6 +133,12 @@ onMounted(() => {
 
   window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
   updateActiveSectionByScroll();
+
+  if (route.query.focus === "stocks") {
+    nextTick(() => {
+      scrollTo("stocks");
+    });
+  }
 });
 
 watch(

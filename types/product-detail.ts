@@ -168,26 +168,58 @@ export interface ProductDetailResponse {
 }
 
 export interface ProductMovementItem {
-  internal_id: number;
+  internal_id?: number;
   id: string;
-  type: string;
+  type?: string;
+  action_type?: string;
+  action_label?: string;
+  direction?: "in" | "out" | string;
   created_at: string;
-  external_id: string;
-  measurement_value: number;
-  loaded_measurement_value: number;
-  from_shop: string;
-  to_shop: string;
-  supply_price: number;
-  retail_price: number;
-  new_retail_price: number;
-  from_retail_price: number;
-  from_supply_price: number;
+  external_id?: string;
+  measurement_value?: number;
+  loaded_measurement_value?: number;
+  quantity?: number;
+  before_quantity?: number;
+  after_quantity?: number;
+  from_shop?: string;
+  to_shop?: string;
+  shop_id?: string;
+  shop_name?: string;
+  branch_code?: string;
+  supply_price?: number;
+  retail_price?: number;
+  new_retail_price?: number;
+  from_retail_price?: number;
+  from_supply_price?: number;
+  user?: {
+    id: string;
+    name: string;
+  } | null;
+  document?: {
+    id: string;
+    number: string;
+    type: string;
+    status: string;
+    created_at: string;
+  } | null;
+}
+
+export interface ProductMovementTypeOption {
+  value: string;
+  label: string;
+}
+
+export interface ProductMovementShopOption {
+  shop_id: string;
+  shop_name: string;
+  branch_code: string;
 }
 
 export interface ProductMovementResponse {
   total_measurement_value: number;
   imported: number;
   sold: number;
+  returned?: number;
   transfer_arrived: number;
   transfer_returned: number;
   transfered: number;
@@ -195,7 +227,15 @@ export interface ProductMovementResponse {
   count: number;
   movements: ProductMovementItem[];
   supply_price_history: null;
-  accepted_order: number;
+  accepted_order?: number;
+  available_movement_types?: ProductMovementTypeOption[];
+  available_shops?: ProductMovementShopOption[];
+  filters?: {
+    from_created_at?: string | null;
+    to_created_at?: string | null;
+    movement_type?: string | null;
+    shop_id?: string | null;
+  };
 }
 
 export interface PriceTag {

@@ -231,15 +231,30 @@ export function useProducts() {
       page?: number;
       from_created_at?: string;
       to_created_at?: string;
+      movement_type?: string;
+      shop_id?: string;
     },
   ) {
     try {
-      const query = new URLSearchParams({
-        limit: String(params?.limit ?? 10),
-        page: String(params?.page ?? 1),
-        from_created_at: params?.from_created_at ?? "",
-        to_created_at: params?.to_created_at ?? "",
-      });
+      const query = new URLSearchParams();
+      query.set("limit", String(params?.limit ?? 10));
+      query.set("page", String(params?.page ?? 1));
+
+      if (params?.from_created_at) {
+        query.set("from_created_at", params.from_created_at);
+      }
+
+      if (params?.to_created_at) {
+        query.set("to_created_at", params.to_created_at);
+      }
+
+      if (params?.movement_type) {
+        query.set("movement_type", params.movement_type);
+      }
+
+      if (params?.shop_id) {
+        query.set("shop_id", params.shop_id);
+      }
 
       const res = await apiFetch<ProductMovementResponse>(
         `/v2/product-movement/${encodeURIComponent(String(publicId))}?${query.toString()}`,
