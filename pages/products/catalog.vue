@@ -27,9 +27,10 @@
             <UButton
               color="neutral"
               variant="ghost"
-              :class="actionButtonClass"
+              :class="[actionButtonClass, action.buttonClass]"
               :aria-label="action.tooltip"
               :title="action.tooltip"
+              @click="action.onClick"
             >
               <Icon :name="action.icon" :class="action.iconClass" />
             </UButton>
@@ -59,33 +60,41 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useHead } from "#imports";
 import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { useLocationStore } from "@/store/useLocationStore";
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 10;
+
 const store = useCatalogDataTableStore();
 const route = useRoute();
+const router = useRouter();
 const locationStore = useLocationStore();
 const { can } = useAccessControl();
 const { selectedLocation } = storeToRefs(locationStore);
 const showStats = ref(false);
 const statsItems = computed(() => store.statsCards);
 
-const actions = [
+const actions = computed(() => [
   {
-    tooltip: "Архивированные продукты",
+    tooltip: store.archivedOnly ? "Скрыть архивированные продукты" : "Архивированные продукты",
     icon: "bi:archive-fill",
-    iconClass: "h-4 w-4 text-[#3b82f6]",
+    iconClass: store.archivedOnly ? "h-4 w-4 text-white" : "h-4 w-4 text-[#3b82f6]",
+    buttonClass: store.archivedOnly ? "bg-[#1f78ff] hover:bg-[#2a6ed9]" : "",
+    onClick: toggleArchivedProducts,
   },
   {
     tooltip: "Управление каталогом",
     icon: "oui:nav-manage",
     iconClass: "h-5 w-5 text-[#3b82f6]",
+    buttonClass: "",
+    onClick: openCatalogManagement,
   },
-];
+]);
 
 const actionButtonClass =
   "flex h-[56px] w-[56px] cursor-pointer items-center justify-center rounded-[15px] bg-[#404040] hover:bg-[#505050] active:bg-[#505050] focus-visible:ring-0";
@@ -98,20 +107,98 @@ function toggleStats() {
   showStats.value = !showStats.value;
 }
 
+function readSingleQueryValue(value: unknown) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function readPositiveQueryNumber(value: unknown, fallback: number) {
+  const parsed = Number(readSingleQueryValue(value));
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readBooleanQuery(value: unknown) {
+  const normalized = String(readSingleQueryValue(value) || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true";
+}
+
+function syncStoreFromRoute() {
+  const nextPage = readPositiveQueryNumber(route.query.page, DEFAULT_PAGE);
+  const nextLimit = readPositiveQueryNumber(route.query.limit, DEFAULT_PAGE_SIZE);
+  const nextArchived = readBooleanQuery(route.query.archived);
+
+  if (
+    store.pagination.pageIndex !== nextPage - 1 ||
+    store.pagination.pageSize !== nextLimit
+  ) {
+    store.pagination = {
+      pageIndex: nextPage - 1,
+      pageSize: nextLimit,
+    };
+  }
+
+  if (store.archivedOnly !== nextArchived) {
+    store.archivedOnly = nextArchived;
+  }
+}
+
+function syncRouteFromStore() {
+  const nextQuery = {
+    ...route.query,
+    page: String(store.pagination.pageIndex + 1),
+    limit: String(store.pagination.pageSize),
+    ...(store.archivedOnly ? { archived: "1" } : {}),
+  } as Record<string, string>;
+
+  if (!store.archivedOnly) {
+    delete nextQuery.archived;
+  }
+
+  const currentPage = String(readSingleQueryValue(route.query.page) || "");
+  const currentLimit = String(readSingleQueryValue(route.query.limit) || "");
+  const currentArchived = String(readSingleQueryValue(route.query.archived) || "");
+  const nextArchived = nextQuery.archived || "";
+
+  if (
+    currentPage === nextQuery.page &&
+    currentLimit === nextQuery.limit &&
+    currentArchived === nextArchived
+  ) {
+    return;
+  }
+
+  void router.replace({ query: nextQuery });
+}
+
+function toggleArchivedProducts() {
+  store.archivedOnly = !store.archivedOnly;
+}
+
+function openCatalogManagement() {
+  void router.push("/products/settings");
+}
+
 async function refreshCatalog() {
   await store.fetchData({
-    page: 1,
+    page: store.pagination.pageIndex + 1,
+    pageSize: store.pagination.pageSize,
     search: store.globalFilter || undefined,
     status: store.activeStatusFilter,
+    archivedList: store.archivedOnly,
   });
 }
 
 watch(
-  () => route.path,
-  async (path) => {
-    if (path === "/products/catalog") {
-      await refreshCatalog();
-    }
+  () => [route.query.page, route.query.limit, route.query.archived],
+  () => {
+    syncStoreFromRoute();
+    refreshCatalog();
+  },
+);
+
+watch(
+  () => [store.pagination.pageIndex, store.pagination.pageSize, store.archivedOnly],
+  () => {
+    syncRouteFromStore();
   },
 );
 
@@ -124,7 +211,11 @@ watch(
   },
 );
 
-onMounted(refreshCatalog);
+onMounted(() => {
+  syncStoreFromRoute();
+  syncRouteFromStore();
+  refreshCatalog();
+});
 
 useHead({
   title: "Каталог | Konkurent",

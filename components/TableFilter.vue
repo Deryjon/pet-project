@@ -1,67 +1,65 @@
 <template>
-  <div
-    class="flex w-full flex-wrap gap-x-[15px] gap-y-[20px] rounded-[20px] border-2 bg-[#262626] p-[20px] text-white"
-  >
-    <div
-      v-for="field in selectFields"
-      :key="field.key"
-      class="w-full sm:w-[370px]"
-    >
-      <CustomSelect
-        v-model="store.filters[field.key]"
-        :label="field.label"
-        :options="field.options"
-        :placeholder="field.placeholder"
-      />
-    </div>
+  <section class="overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_top_left,rgba(73,147,221,0.14),transparent_24%),linear-gradient(180deg,#262626,#202020)] shadow-[0_24px_70px_rgba(0,0,0,0.28)]">
+    <div class="flex flex-col gap-5 border-b border-white/6 px-5 py-5 sm:px-6">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="space-y-1">
+          <p class="text-[20px] font-bold text-white">Фильтры каталога</p>
+          <p class="max-w-[760px] text-[14px] leading-6 text-[#9f9f9f]">
+            Фильтрация по магазину, категории, бренду, поставщику, единице измерения и диапазону цен.
+          </p>
+        </div>
 
-    <PriceRange
-      v-for="field in priceFields"
-      :key="field.key"
-      v-model:min="store.prices[field.key].min"
-      v-model:max="store.prices[field.key].max"
-      :label="field.label"
-    />
+        <button
+          class="inline-flex items-center justify-center rounded-[16px] bg-white/6 px-4 py-3 text-[13px] font-semibold text-[#d7d7d7] transition hover:bg-white/10 hover:text-white"
+          @click="store.resetFilters()"
+        >
+          Сбросить
+        </button>
+      </div>
 
-    <div class="flex w-full flex-col gap-2 sm:w-[370px]">
-      <span class="text-sm font-bold text-[#bdbdbd]">Свободная цена</span>
-      <div class="flex gap-2">
-        <button
-          :class="[
-            'flex-1 rounded-lg py-2 font-bold',
-            store.freePrice ? 'bg-green-600' : 'bg-[#404040]',
-          ]"
-          @click="store.freePrice = true"
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div
+          v-for="field in selectFields"
+          :key="field.key"
+          class="min-w-0 rounded-[24px] bg-white/[0.04] p-4"
         >
-          Вкл
-        </button>
-        <button
-          :class="[
-            'flex-1 rounded-lg py-2 font-bold',
-            !store.freePrice ? 'bg-red-600' : 'bg-[#404040]',
-          ]"
-          @click="store.freePrice = false"
-        >
-          Выкл
-        </button>
+          <CustomSelect
+            v-model="store.filters[field.key]"
+            :label="field.label"
+            :options="field.options"
+            :placeholder="field.placeholder"
+          />
+        </div>
       </div>
     </div>
 
-    <div class="mt-4 flex w-full flex-col gap-4 sm:flex-row">
-      <button
-        class="w-full rounded-lg bg-[#505050] p-[15px] font-bold hover:bg-[#606060]"
-        @click="store.resetFilters()"
-      >
-        Сбросить фильтры
-      </button>
-      <button
-        class="w-full rounded-lg bg-[#1f78ff] p-[15px] font-bold hover:bg-[#606060]"
-        @click="store.applyFilters()"
-      >
-        Применить фильтры
-      </button>
+    <div class="px-5 py-5 sm:px-6">
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <PriceRange
+          v-for="field in priceFields"
+          :key="field.key"
+          v-model:min="store.prices[field.key].min"
+          v-model:max="store.prices[field.key].max"
+          :label="field.label"
+        />
+      </div>
+
+      <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+        <button
+          class="w-full rounded-[18px] bg-[#3b3b3b] px-5 py-4 text-[15px] font-bold text-white transition hover:bg-[#474747]"
+          @click="store.resetFilters()"
+        >
+          Очистить фильтры
+        </button>
+        <button
+          class="w-full rounded-[18px] bg-[#1f78ff] px-5 py-4 text-[15px] font-bold text-white transition hover:bg-[#2a6ed9]"
+          @click="store.applyFilters()"
+        >
+          Применить фильтры
+        </button>
+      </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -80,13 +78,18 @@ type SelectFieldKey =
 
 type PriceFieldKey = "supply" | "sale" | "wholesale";
 
+type SelectOption = {
+  label: string;
+  value: string;
+};
+
 const store = useCatalogDataTableStore();
 
 const selectFields = computed<Array<{
   key: SelectFieldKey;
   label: string;
   placeholder: string;
-  options: string[];
+  options: SelectOption[];
 }>>(() => [
   {
     key: "store",
@@ -97,25 +100,25 @@ const selectFields = computed<Array<{
   {
     key: "category",
     label: "Категория",
-    placeholder: "Введите категорию",
+    placeholder: "Выберите категорию",
     options: store.filterOptions.category,
   },
   {
     key: "article",
     label: "Артикул",
-    placeholder: "Введите артикул",
+    placeholder: "Выберите артикул",
     options: store.filterOptions.article,
   },
   {
     key: "brand",
     label: "Бренд",
-    placeholder: "Введите бренд",
+    placeholder: "Выберите бренд",
     options: store.filterOptions.brand,
   },
   {
     key: "supplier",
     label: "Поставщик",
-    placeholder: "Введите поставщика",
+    placeholder: "Выберите поставщика",
     options: store.filterOptions.supplier,
   },
   {

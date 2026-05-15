@@ -40,6 +40,13 @@ function fallbackBarcode() {
   return `2${Date.now().toString().slice(-12)}`;
 }
 
+function safeRevokePreviewUrl(value?: string | null) {
+  const src = String(value ?? "");
+  if (src.startsWith("blob:")) {
+    URL.revokeObjectURL(src);
+  }
+}
+
 export const useProductStore = defineStore("product", {
   state: (): ProductStoreState => ({
     form: createInitialProductFormState(),
@@ -149,11 +156,11 @@ export const useProductStore = defineStore("product", {
     },
     removeImage(id: string) {
       const removed = this.form.images.find((img) => img.id === id);
-      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      if (removed) safeRevokePreviewUrl(removed.previewUrl);
       this.form.images = this.form.images.filter((img) => img.id !== id);
     },
     clearImages() {
-      this.form.images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      this.form.images.forEach((img) => safeRevokePreviewUrl(img.previewUrl));
       this.form.images = [];
     },
     setStoreQty(storeId: string, qty: number) {

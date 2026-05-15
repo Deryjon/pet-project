@@ -21,7 +21,7 @@
       </UInput>
     </div>
 
-    <div class="relative z-30 flex gap-2 h-full">
+    <div class="relative z-30 flex gap-2 h-full`">
       <UButton
         color="primary"
         variant="solid"
@@ -113,18 +113,15 @@
       </button>
     </div>
 
-    <USlideover
-      v-model:open="pickerOpen"
-      side="right"
-      :close="false"
-      :ui="{
-        overlay: 'bg-black/60 backdrop-blur-sm',
-        content: 'z-[9999] h-full w-full max-w-[1180px] overflow-hidden rounded-none border-0 bg-[#1f1f1f] text-white shadow-2xl ring-0 sm:rounded-l-[32px] lg:rounded-l-[44px]',
-      }"
+    <AppSlideover
+      :open="pickerOpen"
+      @update:open="pickerOpen = $event"
+      maxWidthClass="max-w-[1180px]"
+      roundedClass="rounded-none sm:rounded-l-[32px] lg:rounded-l-[44px]"
+      panelClass="bg-[#1f1f1f] text-white"
     >
-      <template #content>
         <div class="flex min-h-full flex-col">
-          <div class="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 px-5 py-5 sm:px-6">
+          <div class="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
             <div>
               <h3 class="text-[24px] font-semibold">{{ pickerGroupTitle }}</h3>
               <p class="mt-1 text-sm text-[#9a9a9a]">{{ pickerDescription }}</p>
@@ -156,7 +153,7 @@
           </div>
 
           <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[420px_minmax(0,1fr)]">
-            <div class="flex min-h-0 flex-col border-b border-white/10 p-5 lg:border-b-0 lg:border-r">
+            <div class="flex min-h-0 flex-col p-5">
               <UInput
                 v-model="saleSearch"
                 color="neutral"
@@ -342,8 +339,7 @@
             </div>
           </div>
         </div>
-      </template>
-    </USlideover>
+    </AppSlideover>
   </div>
 </template>
 

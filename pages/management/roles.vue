@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, h, onMounted, ref, watch } from "vue";
 import { useHead } from "#imports";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -24,6 +24,8 @@ import { useUserStore } from "@/store/useUserStore";
 useHead({ title: "Роли | Konkurent" });
 
 type PanelMode = "create" | "edit";
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 50;
 
 const {
   createRole,
@@ -37,6 +39,7 @@ const toast = useToast();
 const { can } = useAccessControl();
 const userStore = useUserStore();
 const route = useRoute();
+const router = useRouter();
 const managedCompanyId = computed(() => String(route.query.company_id || "").trim());
 
 const loadingRoles = ref(false);
@@ -59,7 +62,19 @@ const roleIsAdmin = ref(false);
 const roles = ref<RoleSelectItem[]>([]);
 const sections = ref<PermissionSection[]>([]);
 const tableSorting = ref<any[]>([]);
-const tablePagination = ref({ pageIndex: 0, pageSize: 10 });
+const tablePagination = ref({
+  pageIndex: readPositiveQueryNumber(route.query.page, DEFAULT_PAGE) - 1,
+  pageSize: readPositiveQueryNumber(route.query.limit, DEFAULT_PAGE_SIZE),
+});
+
+function readSingleQueryValue(value: unknown) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function readPositiveQueryNumber(value: unknown, fallback: number) {
+  const parsed = Number(readSingleQueryValue(value));
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 const filteredRoles = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
@@ -433,21 +448,52 @@ async function savePermissions() {
   }
 }
 
-watch(isPanelOpen, (isOpen) => {
-  if (typeof document === "undefined") {
+// --- Watchers for URL synchronization ---
+function syncPaginationFromRoute() {
+  const nextPageIndex = readPositiveQueryNumber(route.query.page, DEFAULT_PAGE) - 1;
+  const nextPageSize = readPositiveQueryNumber(route.query.limit, DEFAULT_PAGE_SIZE);
+
+  if (tablePagination.value.pageIndex !== nextPageIndex) {
+    tablePagination.value.pageIndex = nextPageIndex;
+  }
+
+  if (tablePagination.value.pageSize !== nextPageSize) {
+    tablePagination.value.pageSize = nextPageSize;
+  }
+}
+
+function syncRouteWithPagination() {
+  const nextPage = String(tablePagination.value.pageIndex + 1);
+  const nextLimit = String(tablePagination.value.pageSize);
+  const currentPage = String(readSingleQueryValue(route.query.page) || "");
+  const currentLimit = String(readSingleQueryValue(route.query.limit) || "");
+
+  if (currentPage === nextPage && currentLimit === nextLimit) {
     return;
   }
-  document.body.classList.toggle("overflow-hidden", isOpen);
+
+  void router.replace({
+    query: {
+      ...route.query,
+      page: nextPage,
+      limit: nextLimit,
+    },
+  });
+}
+
+watch([() => tablePagination.value.pageIndex, () => tablePagination.value.pageSize], () => {
+  syncRouteWithPagination();
 });
 
-onBeforeUnmount(() => {
-  if (typeof document === "undefined") {
-    return;
-  }
-  document.body.classList.remove("overflow-hidden");
+watch(() => [route.query.page, route.query.limit], () => {
+  syncPaginationFromRoute();
 });
 
-onMounted(loadRoles);
+onMounted(() => {
+  syncPaginationFromRoute();
+  syncRouteWithPagination();
+  loadRoles();
+});
 </script>
 
 <template>
@@ -501,6 +547,8 @@ onMounted(loadRoles);
             :currentPage="currentPage"
             :totalPages="totalPages"
             :loading="loadingRoles"
+            :pageSize="tablePagination.pageSize"
+            @update:pageSize="(size) => tablePagination.pageSize = size"
             @previous="previousRolesPage"
             @next="nextRolesPage"
           />
@@ -508,22 +556,8 @@ onMounted(loadRoles);
       </DataTable>
     </div>
 
-    <Teleport to="body">
-      <transition name="fade">
-        <div
-          v-if="isPanelOpen"
-          class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-          @click="closePanel"
-        />
-      </transition>
-
-      <transition name="slide-panel">
-        <aside
-          v-if="isPanelOpen"
-          class="fixed right-0 top-0 z-[60] flex h-full w-full max-w-[760px] flex-col overflow-hidden rounded-l-[40px] bg-[#2b2b2b] text-white shadow-2xl"
-          @click.stop
-        >
-          <div class="flex items-center justify-between border-b border-white/10 px-8 py-6">
+    <AppSlideover :open="isPanelOpen" @update:open="isPanelOpen = $event" maxWidthClass="max-w-[760px]">
+      <div class="flex items-center justify-between px-8 py-6">
             <div>
               <p class="text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]">
                 {{ panelMode === "create" ? "Новая роль" : "Редактирование роли" }}
@@ -547,11 +581,11 @@ onMounted(loadRoles);
             >
               <Icon name="heroicons:x-mark-20-solid" class="h-6 w-6" />
             </button>
-          </div>
+      </div>
 
-          <div class="flex-1 overflow-y-auto px-8 py-8">
-            <div class="space-y-6">
-              <section class="rounded-[24px] bg-[#363636] p-5">
+      <div class="flex-1 overflow-y-auto px-8 py-8">
+        <div class="space-y-6">
+          <section class="rounded-[24px] bg-[#363636] p-5">
                 <div class="mb-5 flex items-center justify-between gap-4">
                   <div>
                     <p class="text-[18px] font-bold text-white">Данные роли</p>
@@ -599,10 +633,10 @@ onMounted(loadRoles);
                 </div>
               </section>
 
-              <section
-                v-if="panelMode === 'edit'"
-                class="rounded-[24px] border border-white/8 bg-[#343434] p-5"
-              >
+          <section
+            v-if="panelMode === 'edit'"
+            class="rounded-[24px] bg-[#343434] p-5"
+          >
                 <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p class="text-[18px] font-bold text-white">Permissions</p>
@@ -611,7 +645,7 @@ onMounted(loadRoles);
                     </p>
                   </div>
 
-                  <div class="rounded-[16px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-white">
+                  <div class="rounded-[16px] bg-black/10 px-4 py-3 text-sm text-white">
                     Активно: {{ activePermissionCount }}
                   </div>
                 </div>
@@ -645,7 +679,7 @@ onMounted(loadRoles);
                   <article
                     v-for="section in sections"
                     :key="section.id"
-                    class="rounded-[20px] border border-white/8 bg-[#2f2f2f] p-4"
+                    class="rounded-[20px] bg-[#2f2f2f] p-4"
                   >
                     <div class="mb-3 flex items-center justify-between gap-3">
                       <p class="text-sm font-semibold text-white">{{ section.key || section.id }}</p>
@@ -656,7 +690,7 @@ onMounted(loadRoles);
                       <div
                         v-for="permission in visiblePermissions(section.permissions)"
                         :key="permission.id"
-                        class="rounded-[18px] border border-white/8 bg-[#383838] p-4"
+                        class="rounded-[18px] bg-[#383838] p-4"
                       >
                         <label class="flex cursor-pointer items-start gap-3">
                           <input
@@ -708,83 +742,58 @@ onMounted(loadRoles);
                     </div>
                   </article>
                 </div>
-              </section>
-            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="px-8 py-6">
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            class="flex-1 cursor-pointer rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
+            @click="closePanel"
+          >
+            Закрыть
+          </button>
+
+          <button
+            type="button"
+            class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
+            :disabled="savingRole || !canSubmitRole || (panelMode === 'create' ? !canCreateRole : !canEditRole)"
+            @click="submitRole"
+          >
+            {{
+              savingRole
+                ? panelMode === "create"
+                  ? "Создание..."
+                  : "Сохранение..."
+                : panelMode === "create"
+                  ? "Создать роль"
+                  : "Сохранить роль"
+            }}
+          </button>
+
+          <button
+            v-if="panelMode === 'edit'"
+            type="button"
+            class="flex-1 cursor-pointer rounded-[16px] bg-[#1f9d68] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#22885d] disabled:cursor-not-allowed disabled:bg-[#3e735d] disabled:text-white/70"
+            :disabled="savingPermissions || !selectedRoleId || !hasPermissions || !canEditRole"
+            @click="savePermissions"
+          >
+            {{ savingPermissions ? "Сохранение permissions..." : "Сохранить permissions" }}
+          </button>
+
+          <button
+            v-if="panelMode === 'edit' && canDeleteRole"
+            type="button"
+            class="flex-1 cursor-pointer rounded-[16px] bg-red-600 px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-900 disabled:text-white/70"
+            :disabled="savingRole || !selectedRoleId"
+            @click="removeRole({ id: selectedRoleId, name: roleName, description: roleDescription, code: selectedRoleId, is_admin: roleIsAdmin, company_id: '', deleted_at: 0 })"
+          >
+            Удалить роль
+          </button>
           </div>
-
-          <div class="border-t border-white/10 px-8 py-6">
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                class="flex-1 cursor-pointer rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
-                @click="closePanel"
-              >
-                Закрыть
-              </button>
-
-              <button
-                type="button"
-                class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
-                :disabled="savingRole || !canSubmitRole || (panelMode === 'create' ? !canCreateRole : !canEditRole)"
-                @click="submitRole"
-              >
-                {{
-                  savingRole
-                    ? panelMode === "create"
-                      ? "Создание..."
-                      : "Сохранение..."
-                    : panelMode === "create"
-                      ? "Создать роль"
-                      : "Сохранить роль"
-                }}
-              </button>
-
-              <button
-                v-if="panelMode === 'edit'"
-                type="button"
-                class="flex-1 cursor-pointer rounded-[16px] bg-[#1f9d68] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#22885d] disabled:cursor-not-allowed disabled:bg-[#3e735d] disabled:text-white/70"
-                :disabled="savingPermissions || !selectedRoleId || !hasPermissions || !canEditRole"
-                @click="savePermissions"
-              >
-                {{ savingPermissions ? "Сохранение permissions..." : "Сохранить permissions" }}
-              </button>
-
-              <button
-                v-if="panelMode === 'edit' && canDeleteRole"
-                type="button"
-                class="flex-1 cursor-pointer rounded-[16px] bg-red-600 px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-900 disabled:text-white/70"
-                :disabled="savingRole || !selectedRoleId"
-                @click="removeRole({ id: selectedRoleId, name: roleName, description: roleDescription, code: selectedRoleId, is_admin: roleIsAdmin, company_id: '', deleted_at: 0 })"
-              >
-                Удалить роль
-              </button>
-            </div>
-          </div>
-        </aside>
-      </transition>
-    </Teleport>
+      </div>
+    </AppSlideover>
   </section>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.slide-panel-enter-active,
-.slide-panel-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.slide-panel-enter-from,
-.slide-panel-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
-</style>

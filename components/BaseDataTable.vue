@@ -27,7 +27,7 @@ function handleCellClick(cell: any, row: any) {
 </script>
 
 <template>
-  <div class="overflow-hidden rounded-[20px]">
+  <div class="overflow-hidden ">
     <div v-if="store.loading" class="py-6 text-center text-white">
       Загружаем данные...
     </div>
@@ -43,7 +43,7 @@ function handleCellClick(cell: any, row: any) {
       <table
         class="min-w-[720px] w-full text-left text-sm text-[#bdbdbd] sm:min-w-full sm:text-[17px]"
       >
-        <thead class="border-t border-b rounded-[0px]">
+        <thead class="border-t border-b">
           <tr v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
             <th
               v-for="header in headerGroup.headers"

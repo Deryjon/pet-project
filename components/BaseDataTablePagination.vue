@@ -8,15 +8,11 @@ const props = withDefaults(
     loading?: boolean;
     pageSize?: number;
     pageSizeOptions?: number[];
-    previousLabel?: string;
-    nextLabel?: string;
   }>(),
   {
     loading: false,
     pageSize: 10,
     pageSizeOptions: () => [10, 20, 30, 40, 50],
-    previousLabel: "Назад",
-    nextLabel: "Вперед",
   },
 );
 
@@ -30,44 +26,72 @@ const isPreviousDisabled = computed(() => props.loading || props.currentPage <= 
 const isNextDisabled = computed(
   () => props.loading || props.currentPage >= props.totalPages,
 );
+
+const pageSizeItems = computed(() =>
+  props.pageSizeOptions.map((value) => ({
+    label: String(value),
+    value,
+  })),
+);
+
+const selectedPageSize = computed({
+  get: () => Number(props.pageSize || 10),
+  set: (value: number | string) => {
+    const nextValue = Number(value);
+    if (!Number.isFinite(nextValue) || nextValue <= 0) {
+      return;
+    }
+
+    emit("update:pageSize", nextValue);
+  },
+});
 </script>
 
 <template>
-  <div class="mt-[15px] flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-[10px]">
-    <label class="flex items-center justify-center gap-2 rounded-[12px] border border-[#2f6ed6]/35 bg-[#10294f]/70 px-3 py-2 text-sm text-white sm:justify-start sm:text-base">
-      <span class="text-[#bdbdbd]">Показать по</span>
-      <select
-        class="rounded-[8px] border border-[#2f6ed6]/50 bg-[#1f1f1f] px-2 py-1 text-white outline-none focus:border-[#4993dd]"
-        :value="pageSize"
+  <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="order-2 flex items-center sm:order-1">
+      <div class="flex min-w-[132px] items-center justify-between gap-3">
+        <UButton
+          icon="i-heroicons-chevron-left-20-solid"
+          color="neutral"
+          variant="ghost"
+          :disabled="isPreviousDisabled"
+          :ui="{ icon: { base: 'h-6 w-6 text-[#1f78ff]' } }"
+          @click="emit('previous')"
+        />
+
+        <span class="min-w-[52px] text-center text-[14px] font-medium text-white/70">
+          {{ currentPage }} <span class="mx-1 opacity-40">/</span> {{ totalPages }}
+        </span>
+
+        <UButton
+          icon="i-heroicons-chevron-right-20-solid"
+          color="neutral"
+          variant="ghost"
+          :disabled="isNextDisabled"
+          :ui="{ icon: { base: 'h-6 w-6 text-[#1f78ff]' } }"
+          @click="emit('next')"
+        />
+      </div>
+    </div>
+
+    <div class="order-1 flex items-center justify-between gap-2 sm:order-2 sm:justify-end">
+      <span class="text-[16px] font-semibold text-[#1f78ff]">Показывать по:</span>
+      <USelect
+        v-model="selectedPageSize"
+        :items="pageSizeItems"
+        value-key="value"
         :disabled="loading"
-        @change="emit('update:pageSize', Number(($event.target as HTMLSelectElement).value))"
-      >
-        <option v-for="option in pageSizeOptions" :key="option" :value="option">
-          {{ option }}
-        </option>
-      </select>
-    </label>
-
-    <div class="flex items-center justify-center gap-[10px]">
-      <button
-        class="rounded-[10px] bg-[#404040] px-[12px] py-[10px] text-sm text-white hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:opacity-60 sm:px-[12px] sm:py-[8px] sm:text-base"
-        :disabled="isPreviousDisabled"
-        @click="emit('previous')"
-      >
-        {{ previousLabel }}
-      </button>
-
-      <span class="min-w-[72px] text-center text-sm text-white sm:text-base">
-        {{ currentPage }} / {{ totalPages }}
-      </span>
-
-      <button
-        class="rounded-[10px] bg-[#404040] px-[12px] py-[10px] text-sm text-white hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:opacity-60 sm:px-[12px] sm:py-[8px] sm:text-base"
-        :disabled="isNextDisabled"
-        @click="emit('next')"
-      >
-        {{ nextLabel }}
-      </button>
+        size="sm"
+        color="neutral"
+        variant="outline"
+        class="w-[62px] shrink-0"
+        :ui="{
+          base: 'rounded-[10px] border-white/10 bg-[#363636] text-white',
+          content: 'z-[70] w-[62px] min-w-[72px] overflow-hidden rounded-[12px] border border-white/10 bg-[#2f2f2f] text-white shadow-[0_18px_40px_rgba(0,0,0,0.28)]',
+          item: 'text-white data-[highlighted]:bg-[#404040]',
+        }"
+      />
     </div>
   </div>
 </template>

@@ -11,6 +11,7 @@ import type {
   VariationType,
   VariationTypeLabel,
 } from "~/types/product-create";
+import { resolveProductImageUrl } from "~/composables/useProducts";
 
 export interface ProductFormShopOption {
   id: string;
@@ -523,7 +524,7 @@ function extractImages(raw: any): CreateProductFormState["images"] {
 
   return imageValues
     .map((image: any, index: number) => {
-      const src = String(image?.url ?? image?.src ?? image?.path ?? image ?? "").trim();
+      const src = resolveProductImageUrl(image?.url ?? image?.src ?? image?.path ?? image);
       if (!src) return null;
 
       const filename = src.split("/").pop() || `image_${index + 1}`;

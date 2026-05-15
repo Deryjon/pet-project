@@ -19,6 +19,13 @@ const emit = defineEmits<{
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const dragOver = ref(false);
 
+function safeRevokePreviewUrl(value?: string | null) {
+  const src = String(value ?? "");
+  if (src.startsWith("blob:")) {
+    URL.revokeObjectURL(src);
+  }
+}
+
 function toImage(file: File): ProductImage {
   return {
     id: `${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -31,7 +38,7 @@ function toImage(file: File): ProductImage {
 
 function setSingleImage(file?: File | null) {
   if (!file || !file.type.startsWith("image/")) return;
-  props.modelValue.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+  props.modelValue.forEach((img) => safeRevokePreviewUrl(img.previewUrl));
   emit("update:modelValue", [toImage(file)]);
 }
 
@@ -50,7 +57,7 @@ function onDrop(event: DragEvent) {
 
 function removeImage(id: string) {
   const image = props.modelValue.find((img) => img.id === id);
-  if (image) URL.revokeObjectURL(image.previewUrl);
+  if (image) safeRevokePreviewUrl(image.previewUrl);
   emit(
     "update:modelValue",
     props.modelValue.filter((img) => img.id !== id),

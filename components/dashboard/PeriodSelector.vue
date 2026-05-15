@@ -70,10 +70,16 @@ const selectedRangeLabel = computed(() => {
             size="md"
             class="w-full rounded-[12px] bg-[#262626] text-white"
             :ui="{
-              root: 'bg-[#262626] text-white',
-              header: 'text-white',
-              heading: 'text-white',
-              gridWeekDaysRow: 'text-[#bdbdbd]',
+              base: 'bg-[#262626] text-white',
+              header: {
+                base: 'text-white',
+                title: 'text-white'
+              },
+              cell: {
+                base: 'text-white hover:bg-[#404040]',
+                selected: 'bg-[#1f78ff] text-white'
+              },
+              weekday: 'text-[#bdbdbd]'
             }"
           />
         </template>

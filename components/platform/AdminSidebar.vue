@@ -52,10 +52,7 @@ function isActive(path: string) {
     </nav>
 
     <div class="mt-6 rounded-[24px] bg-slate-950 p-4 text-white shadow-[0_20px_45px_rgba(15,23,42,0.2)]">
-      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-300">Доступ</p>
-      <p class="mt-2 text-[15px] font-semibold">Отдельная админ-панель для платформы.</p>
-      <p class="mt-2 text-[13px] leading-6 text-slate-300">Здесь собраны компании, подписки, оплаты, тарифы, пользователи и настройки.</p>
-      <UButton color="neutral" variant="soft" class="mt-4 w-full cursor-pointer justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">Выйти</UButton>
+      <UButton color="neutral" variant="soft" class=" w-full cursor-pointer justify-center rounded-2xl bg-white/10 text-white hover:bg-white/15" @click="emit('logout')">Выйти</UButton>
     </div>
   </aside>
 </template>
