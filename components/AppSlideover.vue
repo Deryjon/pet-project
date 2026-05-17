@@ -79,46 +79,58 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <transition name="slideover-fade">
+    <transition name="slideover-root">
       <div
         v-if="open"
         class="fixed inset-0 z-50"
       >
-        <div class="absolute inset-0" :class="overlayClass" @click="onOverlayClick" />
+        <div
+          class="slideover-overlay absolute inset-0"
+          :class="overlayClass"
+          @click="onOverlayClick"
+        />
 
-        <transition name="slideover-panel">
-          <aside
-            class="fixed right-0 top-0 z-[60] flex h-full w-full flex-col overflow-hidden border-0 shadow-2xl"
-            :class="[maxWidthClass, roundedClass, panelClass]"
-            @click.stop
-          >
-            <slot />
-          </aside>
-        </transition>
+        <aside
+          class="slideover-panel fixed right-0 top-0 z-[60] flex h-full w-full flex-col overflow-hidden border-0 shadow-2xl"
+          :class="[maxWidthClass, roundedClass, panelClass]"
+          @click.stop
+        >
+          <slot />
+        </aside>
       </div>
     </transition>
   </Teleport>
 </template>
 
 <style scoped>
-.slideover-fade-enter-active,
-.slideover-fade-leave-active {
-  transition: opacity 0.3s ease;
+.slideover-root-enter-active,
+.slideover-root-leave-active {
+  transition: none;
 }
 
-.slideover-fade-enter-from,
-.slideover-fade-leave-to {
+.slideover-overlay {
+  transition: opacity 0.22s ease;
+}
+
+.slideover-panel {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  transform-origin: right center;
+}
+
+.slideover-root-enter-from .slideover-overlay,
+.slideover-root-leave-to .slideover-overlay {
   opacity: 0;
 }
 
-.slideover-panel-enter-active,
-.slideover-panel-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.slideover-panel-enter-from,
-.slideover-panel-leave-to {
+.slideover-root-enter-from .slideover-panel,
+.slideover-root-leave-to .slideover-panel {
+  opacity: 0;
   transform: translateX(100%);
-  opacity: 0;
+}
+
+.slideover-root-enter-to .slideover-panel,
+.slideover-root-leave-from .slideover-panel {
+  opacity: 1;
+  transform: translateX(0);
 }
 </style>

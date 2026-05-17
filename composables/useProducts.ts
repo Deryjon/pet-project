@@ -48,6 +48,57 @@ export interface ProductDTO {
   _original?: any;
 }
 
+function getProductImageValue(raw: any): unknown {
+  if (!raw) {
+    return null;
+  }
+
+  const images = Array.isArray(raw?.images) ? raw.images : [];
+  const firstImage = images[0];
+
+  return (
+    raw?.photo ??
+    raw?.main_image_url ??
+    firstImage?.url ??
+    firstImage?.src ??
+    firstImage?.path ??
+    raw?.image ??
+    null
+  );
+}
+
+function getImageBackendBase(apiBase?: string) {
+  const candidates: string[] = [];
+
+  if (typeof apiBase === "string") {
+    candidates.push(apiBase);
+  }
+
+  try {
+    const runtimeConfig = useRuntimeConfig();
+    if (typeof runtimeConfig?.public?.backendOrigin === "string") {
+      candidates.push(runtimeConfig.public.backendOrigin);
+    }
+    if (typeof runtimeConfig?.public?.apiBase === "string") {
+      candidates.push(runtimeConfig.public.apiBase);
+    }
+  } catch {
+    // No active Nuxt context, fall back to env values below.
+  }
+
+  candidates.push(
+    String(import.meta.env.NUXT_PUBLIC_BACKEND_ORIGIN ?? ""),
+    String(import.meta.env.NUXT_API_PROXY_TARGET ?? ""),
+    String(import.meta.env.NUXT_PUBLIC_API_BASE ?? ""),
+  );
+
+  const absoluteBase = candidates
+    .map((value) => String(value ?? "").trim())
+    .find((value) => /^(https?:)?\/\//i.test(value));
+
+  return absoluteBase ? absoluteBase.replace(/\/api\/?$/i, "") : "";
+}
+
 export function resolveProductImageUrl(value: unknown, apiBase?: string) {
   const src = String(value ?? "").trim();
   if (!src) {
@@ -58,19 +109,19 @@ export function resolveProductImageUrl(value: unknown, apiBase?: string) {
     return src;
   }
 
-  const resolvedApiBase = String(
-    apiBase ??
-      import.meta.env.NUXT_PUBLIC_API_BASE ??
-      import.meta.env.NUXT_API_PROXY_TARGET ??
-      "",
-  ).trim();
+  const normalizedSrc = src.startsWith("/")
+    ? src
+    : src.includes("/")
+      ? `/${src.replace(/^\/+/, "")}`
+      : `/uploads/products/${src}`;
 
-  if (!resolvedApiBase) {
-    return src.startsWith("/") ? src : `/${src}`;
+  const backendOrigin = getImageBackendBase(apiBase);
+
+  if (!backendOrigin) {
+    return normalizedSrc.startsWith("/") ? normalizedSrc : `/${normalizedSrc}`;
   }
 
-  const backendOrigin = resolvedApiBase.replace(/\/api\/?$/i, "");
-  const normalizedPath = src.startsWith("/") ? src : `/${src}`;
+  const normalizedPath = normalizedSrc.startsWith("/") ? normalizedSrc : `/${normalizedSrc}`;
 
   try {
     return new URL(normalizedPath, `${backendOrigin}/`).toString();
@@ -260,6 +311,27 @@ export function useProducts() {
         `/v2/product-movement/${encodeURIComponent(String(publicId))}?${query.toString()}`,
       );
       return unwrapPayload<ProductMovementResponse>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function uploadProductPhoto(file: File) {
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+
+      const res = await apiFetch<any>("/v2/product/photo", {
+        method: "POST",
+        body: formData,
+      });
+
+      const url = String(res?.url ?? res?.data?.url ?? "").trim();
+      if (!url) {
+        throw new Error("Product photo upload returned empty url");
+      }
+
+      return url;
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
     }
@@ -456,6 +528,7 @@ export function useProducts() {
     fetchMeasurementUnit,
     fetchPriceTags,
     fetchProductMovements,
+    uploadProductPhoto,
     fetchAllowedShops,
     loadProductCard,
     bulkArchiveProducts,
@@ -584,7 +657,7 @@ function normalizeProduct(raw: any, apiBase?: string): ProductDTO {
     name: String(raw?.name ?? raw?.title ?? ""),
     sku: String(raw?.sku ?? raw?.article ?? ""),
     barcode: String(raw?.barcode ?? ""),
-    photo: resolveProductImageUrl(raw?.photo ?? raw?.image, apiBase) || null,
+    photo: resolveProductImageUrl(getProductImageValue(raw), apiBase) || null,
     product_type: String(raw?.product_type ?? "goods"),
     variant_type: String(raw?.variant_type ?? "simple"),
     unit: String(raw?.unit ?? "piece"),
@@ -622,7 +695,7 @@ function normalizeBillzProduct(raw: any, apiBase?: string): ProductDTO {
     name: String(raw?.name ?? raw?.base_name ?? ""),
     sku: String(raw?.sku ?? ""),
     barcode: String(raw?.barcode ?? ""),
-    photo: resolveProductImageUrl(raw?.photo, apiBase) || null,
+    photo: resolveProductImageUrl(getProductImageValue(raw), apiBase) || null,
     product_type: String(raw?.product_type_id ?? "goods"),
     variant_type: "simple",
     unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "piece"),
@@ -659,7 +732,7 @@ function normalizeCatalogProduct(raw: any, apiBase?: string): ProductDTO {
     name: String(raw?.name ?? raw?.base_name ?? raw?.title ?? ""),
     sku: String(raw?.sku ?? raw?.article ?? raw?.vendor_code ?? ""),
     barcode: String(raw?.barcode ?? raw?.plu_code ?? ""),
-    photo: resolveProductImageUrl(raw?.photo ?? raw?.main_image_url ?? raw?.image, apiBase) || null,
+    photo: resolveProductImageUrl(getProductImageValue(raw), apiBase) || null,
     product_type: String(raw?.product_type ?? raw?.product_type_id ?? "goods"),
     variant_type: String(raw?.variant_type ?? "simple"),
     unit: String(

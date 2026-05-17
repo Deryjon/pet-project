@@ -5,7 +5,11 @@ import {
   getSortedRowModel,
   useVueTable,
 } from "@tanstack/vue-table";
-import { useProducts, type ProductDTO } from "~/composables/useProducts";
+import {
+  resolveProductImageUrl,
+  useProducts,
+  type ProductDTO,
+} from "~/composables/useProducts";
 import type { ProductCardData } from "~/types/product-detail";
 import { useLocationStore } from "@/store/useLocationStore";
 
@@ -681,7 +685,11 @@ function normalizeDetailedProduct(productCard: ProductCardData) {
 
   return {
     id: product?.id ?? "",
-    photo: product?.main_image_url ?? null,
+    photo: resolveProductImageUrl(
+      product?.photo ??
+      product?.main_image_url ??
+      product?.images?.[0]?.url,
+    ) || null,
     name: String(product?.name ?? ""),
     sku: String(product?.sku ?? ""),
     barcode: String(product?.barcode ?? ""),

@@ -24,7 +24,7 @@ const router = useRouter();
 const route = useRoute();
 const store = useProductStore();
 const locationStore = useLocationStore();
-const { createProduct, updateProduct } = useProducts();
+const { createProduct, updateProduct, uploadProductPhoto } = useProducts();
 const toast = useToast();
 const { can } = useAccessControl();
 
@@ -171,6 +171,12 @@ async function submitForm(mode: "save" | "save-and-new") {
 
   submitting.value = true;
   try {
+    for (const image of store.form.images) {
+      if (image.file && !image.uploadedUrl) {
+        image.uploadedUrl = await uploadProductPhoto(image.file);
+      }
+    }
+
     if (isEditMode.value) {
       if (!store.editingProductId) {
         throw new Error("Не найден редактируемый товар");
@@ -330,7 +336,3 @@ async function confirmCancel() {
     </UModal>
   </section>
 </template>
-
-<style>
-@reference "tailwindcss";
-</style>
