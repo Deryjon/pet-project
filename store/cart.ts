@@ -1060,7 +1060,7 @@ export const useCartStore = defineStore("cart", () => {
         body.user_id = userId;
       }
 
-      const res = await apiFetch(`/v2/order/${encodeURIComponent(String(saleId.value))}/payment-method`, {
+      const res = await apiFetch(`/order/${encodeURIComponent(String(saleId.value))}/payment-method`, {
         method: "PATCH",
         body,
       });
@@ -1118,7 +1118,7 @@ export const useCartStore = defineStore("cart", () => {
     payLoading.value = true;
     try {
       const endpoint = isExchange ? "exchange" : "return";
-      const res = await apiFetch(`/v2/order/${encodeURIComponent(sourceSale.value.id)}/${endpoint}`, {
+      const res = await apiFetch(`/order/${encodeURIComponent(sourceSale.value.id)}/${endpoint}`, {
         method: "POST",
         body,
       });
