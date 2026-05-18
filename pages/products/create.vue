@@ -60,6 +60,7 @@ const pricesRef = ref<HTMLElement | null>(null);
 const stocksRef = ref<HTMLElement | null>(null);
 const featuresRef = ref<HTMLElement | null>(null);
 const activeSection = ref<"main" | "prices" | "stocks" | "features">("main");
+let scrollListenerAttached = false;
 
 function scrollTo(section: string) {
   const map: Record<string, HTMLElement | null> = {
@@ -109,7 +110,19 @@ function updateActiveSectionByScroll() {
   activeSection.value = current;
 }
 
-onMounted(() => {
+function attachScrollListener() {
+  if (scrollListenerAttached) return;
+  window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
+  scrollListenerAttached = true;
+}
+
+function detachScrollListener() {
+  if (!scrollListenerAttached) return;
+  window.removeEventListener("scroll", updateActiveSectionByScroll);
+  scrollListenerAttached = false;
+}
+
+async function initializePage() {
   if (!can(isEditMode.value ? "product-edit" : "product-create")) {
     void router.replace("/403");
     return;
@@ -117,8 +130,10 @@ onMounted(() => {
 
   store.syncAvailableShops(locationStore.locations);
 
-  if (!isEditMode.value && store.editingProductId) {
+  if (!isEditMode.value) {
     store.resetForm();
+    validationMessages.value = [];
+    activeSection.value = "main";
   }
 
   if (isEditMode.value && !store.editingProductId) {
@@ -131,15 +146,25 @@ onMounted(() => {
     return;
   }
 
-  window.addEventListener("scroll", updateActiveSectionByScroll, { passive: true });
+  attachScrollListener();
   updateActiveSectionByScroll();
 
+  await nextTick();
   if (route.query.focus === "stocks") {
-    nextTick(() => {
-      scrollTo("stocks");
-    });
+    scrollTo("stocks");
   }
+}
+
+onMounted(() => {
+  void initializePage();
 });
+
+watch(
+  () => [route.query.mode, route.query.id, route.query.focus],
+  () => {
+    void initializePage();
+  },
+);
 
 watch(
   () => locationStore.locations,
@@ -150,7 +175,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
-  window.removeEventListener("scroll", updateActiveSectionByScroll);
+  detachScrollListener();
 });
 
 async function submitForm(mode: "save" | "save-and-new") {

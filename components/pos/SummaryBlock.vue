@@ -24,20 +24,6 @@
     </button>
 
     <button
-      class="flex w-full items-center justify-center p-5 text-gray-300"
-      :class="cartStore.cancelLoading ? 'cursor-not-allowed opacity-60' : ''"
-      :disabled="cartStore.cancelLoading"
-      @click="onCancel"
-    >
-      <Icon
-        v-if="cartStore.cancelLoading"
-        name="heroicons:arrow-path"
-        class="mr-2 h-4 w-4 animate-spin"
-      />
-      Отмена продажи
-    </button>
-
-    <button
       v-if="canParkSale"
       class="flex w-full items-center justify-center p-5 text-gray-300"
       :class="cartStore.parkingLoading ? 'cursor-not-allowed opacity-60' : ''"
@@ -482,19 +468,6 @@ async function confirmPay() {
   });
 }
 
-async function onCancel() {
-  const result = isReturnFlow.value
-    ? await cartStore.cancelSale()
-    : await cartStore.deleteDraftSale();
-
-  if (result === false) {
-    toast.add({
-      title: "Не удалось удалить черновик",
-      description: cartStore.lastCartError || undefined,
-      color: "error",
-    });
-  }
-}
 
 async function onPark() {
   const result = await cartStore.parkSale({ createNewDraft: true });
