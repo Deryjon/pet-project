@@ -252,13 +252,10 @@ const toast = useToast();
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + item.quantity, 0),
 );
-const randomSaleNumber = ref(Math.floor(100000 + Math.random() * 900000));
 const saleDisplayNumber = computed(() =>
   store.saleNumber
     ? `#${store.saleNumber}`
-    : store.saleId
-      ? `#${store.saleId}`
-      : `#${randomSaleNumber.value}`,
+    : "",
 );
 
 const cartLoading = computed(() => store.creatingSale || store.loadingSale || store.restoringSale);
