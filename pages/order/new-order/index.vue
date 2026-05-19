@@ -80,6 +80,7 @@ const router = useRouter();
 const page = ref(Math.max(1, Number(route.query.page || 1) || 1));
 const limit = ref(10);
 const initialPageLoading = ref(true);
+const leavingRoute = ref(false);
 const search = computed(() => cartStore.searchQuery);
 const currentShopId = computed(() => String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""));
 const operationStatuses = computed(() => {
@@ -109,46 +110,41 @@ const currentOperationLabel = computed(() => {
   if (cartStore.productsLoading) return "Загружаем товары";
   return "Обновляем продажу";
 });
-const routeSaleId = computed(() => normalizeRouteValue(route.params.id) || normalizeRouteValue(route.query.sale_id));
 
-function normalizeRouteValue(value: unknown) {
-  const normalized = Array.isArray(value) ? value[0] : value;
-  return String(normalized ?? "").trim();
-}
-
-function currentOrderPath(id: string | number) {
-  return `/order/new-order/${encodeURIComponent(String(id))}`;
+function currentOrderPath() {
+  return "/order/new-order";
 }
 
 async function syncOrderRoute() {
-  if (!cartStore.saleId) return;
+  if (leavingRoute.value) return;
 
-  const nextQuery: Record<string, string> = {};
+  const nextQuery: Record<string, string> = {
+    page: String(page.value),
+  };
 
   if (cartStore.saleNumber) {
     nextQuery.order_number = String(cartStore.saleNumber);
   }
-  nextQuery.page = String(page.value);
 
-  const nextPath = currentOrderPath(cartStore.saleId);
-  if (route.path !== nextPath || JSON.stringify(route.query) !== JSON.stringify(nextQuery)) {
-    await router.replace({ path: nextPath, query: nextQuery });
+  if (route.path !== currentOrderPath() || JSON.stringify(route.query) !== JSON.stringify(nextQuery)) {
+    await router.replace({ path: currentOrderPath(), query: nextQuery });
   }
 }
 
-async function prepareDraftSale() {
+async function ensureActiveSale() {
   if (!currentShopId.value) return;
 
   await cartStore.loadSaleReferenceData();
+  await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+  await syncOrderRoute();
+}
 
-  if (!cartStore.saleId) {
-    await cartStore.initSale();
-  }
+async function leaveCurrentSale() {
+  await cartStore.leaveActiveSale({ keepReceipt: true, keepSearchQuery: true });
+}
 
-  if (cartStore.saleId) {
-    await cartStore.loadSale(cartStore.saleId);
-    await syncOrderRoute();
-  }
+function handlePageUnload() {
+  cartStore.leaveActiveSaleOnUnload();
 }
 
 async function fetchProducts() {
@@ -275,55 +271,32 @@ watch(
 );
 
 watch(currentShopId, (next, prev) => {
-  if (!next) return;
+  if (!next || !prev || next === prev || leavingRoute.value) return;
 
-  if (cartStore.hasSaleShopMismatch(next) || (prev && next !== prev && (cartStore.saleId || cartStore.cart.length))) {
-    cartStore.resetSaleState({ keepReceipt: true });
-    cartStore.lastCartError = !prev
-      ? "Найдена сохранённая продажа из другого филиала. Корзина очищена."
-      : "Филиал изменён. Корзина очищена, чтобы не смешивать остатки разных магазинов.";
-  }
-  if (prev && next !== prev) {
-    void prepareDraftSale();
-  }
+  void (async () => {
+    await leaveCurrentSale();
+    await ensureActiveSale();
+  })();
 });
 
 onMounted(async () => {
   try {
-    await cartStore.loadSaleReferenceData();
-    const initialSaleId = routeSaleId.value;
-
-    if (initialSaleId) {
-      cartStore.saleId = initialSaleId;
-      cartStore.saleShopId = "";
-    }
-
-    if (!initialSaleId && cartStore.hasSaleShopMismatch(currentShopId.value)) {
-      cartStore.resetSaleState({ keepReceipt: true });
-      cartStore.lastCartError = "Найдена сохранённая продажа из другого филиала. Корзина очищена.";
-    }
-
-    if (cartStore.saleId) {
-      try {
-        await cartStore.loadSale(cartStore.saleId);
-        await syncOrderRoute();
-      } catch {
-        cartStore.resetSaleState({ keepReceipt: true });
-        cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
-      }
-    } else {
-      await cartStore.initSale();
-      if (cartStore.saleId) {
-        await cartStore.loadSale(cartStore.saleId);
-        await syncOrderRoute();
-      }
-    }
+    await ensureActiveSale();
+    window.addEventListener("beforeunload", handlePageUnload);
+    window.addEventListener("pagehide", handlePageUnload);
   } finally {
     initialPageLoading.value = false;
   }
 });
 
+onBeforeRouteLeave(() => {
+  leavingRoute.value = true;
+  void leaveCurrentSale();
+});
+
 onBeforeUnmount(() => {
   if (t) clearTimeout(t);
+  window.removeEventListener("beforeunload", handlePageUnload);
+  window.removeEventListener("pagehide", handlePageUnload);
 });
 </script>

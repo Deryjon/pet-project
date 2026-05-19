@@ -678,7 +678,6 @@ export const useCartStore = defineStore("cart", () => {
   }
 
   async function initSale() {
-    if (saleId.value) return saleId.value;
     creatingSale.value = true;
     try {
       const { apiFetch } = useApi();
@@ -701,12 +700,73 @@ export const useCartStore = defineStore("cart", () => {
       keepSearchQuery: options?.keepSearchQuery,
     });
 
-    const nextId = await initSale();
-    if (nextId) {
-      await loadSale(nextId);
+    return await initSale();
+  }
+
+  async function leaveActiveSale(options?: {
+    keepReceipt?: boolean;
+    keepSearchQuery?: boolean;
+  }) {
+    const currentId = String(saleId.value ?? "").trim();
+    if (!currentId || isReturnFlow()) {
+      resetSaleState({
+        keepReceipt: options?.keepReceipt,
+        keepSearchQuery: options?.keepSearchQuery,
+      });
+      return null;
     }
 
-    return nextId;
+    const { apiFetch } = useApi();
+    parkingLoading.value = true;
+    try {
+      const res = await runSaleItemMutation([
+        () => apiFetch(`/new-sale/${encodeURIComponent(currentId)}/leave`, { method: "POST" }),
+        () => apiFetch(`/new-sale/${encodeURIComponent(currentId)}/park`, { method: "POST" }),
+      ]);
+
+      resetSaleState({
+        keepReceipt: options?.keepReceipt,
+        keepSearchQuery: options?.keepSearchQuery,
+      });
+      lastCartError.value = "";
+      return res;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось закрыть текущую продажу.");
+      return null;
+    } finally {
+      parkingLoading.value = false;
+    }
+  }
+
+  function leaveActiveSaleOnUnload() {
+    const currentId = String(saleId.value ?? "").trim();
+    if (!import.meta.client || !currentId || isReturnFlow()) return;
+
+    try {
+      const { apiBase } = useApi();
+      const userStore = useUserStore();
+      const base = String(apiBase || "").trim();
+      const resolvedBase = base
+        ? new URL(base.replace(/\/$/, "") + "/", window.location.origin)
+        : new URL("/", window.location.origin);
+      const target = new URL(`new-sale/${encodeURIComponent(currentId)}/leave`, resolvedBase);
+      const authToken = String(userStore.token || "").trim();
+
+      void fetch(target.toString(), {
+        method: "POST",
+        credentials: "include",
+        keepalive: true,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+    } catch {
+      // Ignore unload transport errors.
+    }
   }
 
   async function loadSale(sid?: string | number | null) {
@@ -1220,12 +1280,14 @@ export const useCartStore = defineStore("cart", () => {
     parkingLoading.value = true;
     try {
       const res = await runSaleItemMutation([
+        () => apiFetch(`/draft-sales/${encodeURIComponent(parkedId)}/resume`, { method: "POST" }),
+        () => apiFetch(`/v2/draft-sales/${encodeURIComponent(parkedId)}/resume`, { method: "POST" }),
         () => apiFetch(`/v2/parked-sales/${encodeURIComponent(parkedId)}/resume`, { method: "POST" }),
         () => apiFetch(`/parked-sales/${encodeURIComponent(parkedId)}/resume`, { method: "POST" }),
       ]);
 
       resetSaleState({ keepReceipt: true, keepSearchQuery: true });
-      await loadSale(parkedId);
+      await initSale();
       lastCartError.value = "";
       return res;
     } catch (error: any) {
@@ -1446,6 +1508,8 @@ export const useCartStore = defineStore("cart", () => {
     discountLoading,
     initSale,
     openFreshSale,
+    leaveActiveSale,
+    leaveActiveSaleOnUnload,
     loadSale,
     addToCartServer,
     addToCart,

@@ -1,7 +1,11 @@
-<template>
-  <NewOrderPage />
-</template>
-
 <script setup lang="ts">
-import NewOrderPage from "./index.vue";
+const route = useRoute();
+
+await navigateTo(
+  {
+    path: "/order/new-order",
+    query: route.query,
+  },
+  { replace: true },
+);
 </script>
