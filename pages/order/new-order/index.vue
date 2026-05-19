@@ -3,26 +3,9 @@
     class="relative flex h-full flex-col bg-[#262626] text-white xl:flex-row"
   >
     <div
-      v-if="globalSaleLoading"
-      class="absolute inset-0 z-30 flex items-center justify-center bg-[#262626]/72 px-4 backdrop-blur-sm"
-    >
-      <div
-        class="flex min-w-[260px] max-w-[420px] items-center gap-4 rounded-[24px] border border-white/10 bg-[#2b2b2b] px-5 py-4 shadow-2xl"
-      >
-        <Icon
-          name="heroicons:arrow-path"
-          class="h-6 w-6 shrink-0 animate-spin text-[#78b3ff]"
-        />
-        <div>
-          <div class="text-[15px] font-semibold text-white">
-            {{ currentOperationLabel }}
-          </div>
-          <div class="mt-1 text-sm text-[#bdbdbd]">
-            Подождите, операция обновляет текущую продажу.
-          </div>
-        </div>
-      </div>
-    </div>
+      v-if="searchLoadingOverlay"
+      class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
+    />
 
     <div class="relative flex h-full w-full flex-col overflow-y-auto xl:pr-6">
       <div
@@ -41,22 +24,6 @@
       >
         <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Восстанавливаем продажу и способы оплаты...
-      </div>
-      <div
-        v-if="operationStatuses.length"
-        class="mt-3 flex flex-wrap gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-[#bdbdbd]"
-      >
-        <span
-          v-for="status in operationStatuses"
-          :key="status"
-          class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#303030] px-3 py-1.5"
-        >
-          <Icon
-            name="heroicons:arrow-path"
-            class="h-3.5 w-3.5 animate-spin text-[#78b3ff]"
-          />
-          {{ status }}
-        </span>
       </div>
       <Cart />
     </div>
@@ -103,36 +70,9 @@ const search = computed(() => cartStore.searchQuery);
 const currentShopId = computed(() =>
   String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""),
 );
-const operationStatuses = computed(() => {
-  const statuses: string[] = [];
-
-  if (cartStore.creatingSale) statuses.push("#SALE");
-  if (cartStore.loadingSale || cartStore.restoringSale) statuses.push("#ORDER");
-  if (cartStore.productsLoading) statuses.push("#PRODUCTS");
-  if (cartStore.addingItem) statuses.push("#ITEM");
-  if (cartStore.saleMetaLoading) statuses.push("#META");
-  if (cartStore.discountLoading) statuses.push("#DISCOUNT");
-  if (cartStore.parkingLoading) statuses.push("#PARK");
-  if (cartStore.payLoading) statuses.push("#PAY");
-  if (cartStore.cancelLoading) statuses.push("#CANCEL");
-
-  return statuses;
-});
-const globalSaleLoading = computed(
-  () => !initialPageLoading.value && operationStatuses.value.length > 0,
+const searchLoadingOverlay = computed(
+  () => cartStore.productsLoading && Boolean(search.value.trim()),
 );
-const currentOperationLabel = computed(() => {
-  if (cartStore.payLoading) return "Проводим оплату";
-  if (cartStore.saleMetaLoading) return "Обновляем параметры продажи";
-  if (cartStore.discountLoading) return "Пересчитываем скидку";
-  if (cartStore.addingItem) return "Обновляем корзину";
-  if (cartStore.cancelLoading) return "Сбрасываем продажу";
-  if (cartStore.loadingSale || cartStore.restoringSale)
-    return "Загружаем черновик продажи";
-  if (cartStore.creatingSale) return "Создаем новую продажу";
-  if (cartStore.productsLoading) return "Загружаем товары";
-  return "Обновляем продажу";
-});
 
 function currentOrderPath() {
   return "/order/new-order";

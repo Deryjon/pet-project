@@ -24,9 +24,16 @@
         </UBadge>
       </div>
 
-      <span class="break-all text-[18px] font-bold text-[#bdbdbd] sm:text-[36px]">
-        {{ saleDisplayNumber }}
-      </span>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <Icon
+          v-if="showOrderLoader"
+          name="heroicons:arrow-path"
+          class="h-5 w-5 shrink-0 animate-spin text-[#78b3ff] sm:h-7 sm:w-7"
+        />
+        <span class="break-all text-[18px] font-bold text-[#bdbdbd] sm:text-[36px]">
+          {{ saleDisplayNumber }}
+        </span>
+      </div>
     </div>
 
     <div class="sellers mt-[15px] flex flex-wrap gap-3">
@@ -257,6 +264,7 @@ const saleDisplayNumber = computed(() =>
     ? `#${store.saleNumber}`
     : "",
 );
+const showOrderLoader = computed(() => store.addingItem || store.discountLoading);
 
 const cartLoading = computed(() => store.creatingSale || store.loadingSale || store.restoringSale);
 const sellerModalOpen = ref(false);

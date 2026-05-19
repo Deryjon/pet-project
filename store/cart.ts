@@ -977,14 +977,31 @@ export const useCartStore = defineStore("cart", () => {
     try {
       setItemBusy(productId, true);
       const { apiFetch } = useApi();
-      const res: any = await apiFetch(`/new-sale/${encodeURIComponent(String(saleId.value))}/items`, {
-        method: "POST",
-        body: {
-          product_id: item.productId ?? item.publicId ?? item.id,
-          quantity: normalizedQuantity,
-          sale_price: Number(item.price || 0),
-        },
-      });
+      const saleIdValue = encodeURIComponent(String(saleId.value));
+      const targetItemId = encodeURIComponent(String(item.itemId ?? item.id));
+      const payload = {
+        product_id: item.productId ?? item.publicId ?? item.id,
+        quantity: normalizedQuantity,
+        sale_price: Number(item.price || 0),
+      };
+      const res: any = await runSaleItemMutation([
+        () => apiFetch(`/new-sale/${saleIdValue}/items/${targetItemId}`, {
+          method: "PATCH",
+          body: payload,
+        }),
+        () => apiFetch(`/v1/new-sale/${saleIdValue}/items/${targetItemId}`, {
+          method: "PATCH",
+          body: payload,
+        }),
+        () => apiFetch(`/v2/new-sale/${saleIdValue}/items/${targetItemId}`, {
+          method: "PATCH",
+          body: payload,
+        }),
+        () => apiFetch(`/new-sale/${saleIdValue}/items`, {
+          method: "POST",
+          body: payload,
+        }),
+      ]);
       applyOrderState(res);
       lastCartError.value = "";
       return;
@@ -1000,6 +1017,7 @@ export const useCartStore = defineStore("cart", () => {
   async function removeFromCartServer(productId: number | string) {
     if (isItemBusy(productId)) return;
     const item = cart.value.find((entry) => String(entry.id) === String(productId));
+    if (!item) return;
 
     if (!saleId.value || isReturnFlow()) {
       removeFromCart(productId);
@@ -1009,10 +1027,13 @@ export const useCartStore = defineStore("cart", () => {
     try {
       setItemBusy(productId, true);
       const { apiFetch } = useApi();
-      const res: any = await apiFetch(
-        `/new-sale/${encodeURIComponent(String(saleId.value))}/items/${encodeURIComponent(String(item?.itemId ?? productId))}`,
-        { method: "DELETE" },
-      );
+      const saleIdValue = encodeURIComponent(String(saleId.value));
+      const targetItemId = encodeURIComponent(String(item.itemId ?? item.id));
+      const targetProductId = encodeURIComponent(String(item.productId ?? item.publicId ?? item.id));
+      const res: any = await runSaleItemMutation([
+        () => apiFetch(`/new-sale/${saleIdValue}/items/${targetItemId}`, { method: "DELETE" }),
+        () => apiFetch(`/new-sale/${saleIdValue}/items/${targetProductId}`, { method: "DELETE" }),
+      ]);
       applyOrderState(res);
       lastCartError.value = "";
       return;
