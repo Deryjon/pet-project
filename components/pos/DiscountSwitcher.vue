@@ -29,19 +29,14 @@
           :placeholder="inputPlaceholder"
           :ui="{
             root: 'w-full',
-            base: 'h-[52px] rounded-[15px] border-0 bg-[#404040] px-4 text-[15px] font-semibold text-white placeholder:text-[#8f8f8f] focus:outline-none focus:ring-0 sm:h-[58px] sm:text-[17px]',
+            base: 'h-[52px] rounded-[15px] border-0 bg-[#404040] px-4 text-[15px] font-semibold text-white placeholder:text-[#b3b3b3] focus:outline-none focus:ring-0 sm:h-[58px] sm:text-[17px]',
             trailing: 'pe-4'
           }"
         >
-          <template #trailing>
-            <span class="text-[12px] font-bold uppercase tracking-[0.08em] text-[#8f8f8f]">
-              {{ activeSwitcher }}
-            </span>
-          </template>
         </UInput>
       </div>
 
-      <div class="flex w-full rounded-[15px] bg-[#404040] p-1 sm:max-w-[180px]">
+      <div class="flex h-[52px] w-full rounded-[15px] bg-[#404040] p-1 sm:h-[58px] sm:w-[180px] sm:min-w-[180px]">
         <button type="button" :class="switcherClass('%')" @click="setType('%')">%</button>
         <button type="button" :class="switcherClass('uzs')" @click="setType('uzs')">uzs</button>
       </div>
@@ -90,7 +85,11 @@ const globalDiscountBase = computed(() =>
 );
 const discountInput = computed(() =>
   activeSwitcher.value === "uzs"
-    ? formatCommaMoney(Math.max(0, globalDiscountBase.value - Number(cartStore.discountValue || 0)))
+    ? Number(cartStore.discountValue || 0) > 0
+      ? formatCommaMoney(
+          Math.max(0, globalDiscountBase.value - Number(cartStore.discountValue || 0)),
+        )
+      : ""
     : String(cartStore.discountValue || "")
 );
 
@@ -158,7 +157,7 @@ function onDiscountInput(value: string | number) {
 
 function switcherClass(type: "%" | "uzs") {
   return [
-    'w-1/2 rounded-[12px] p-3 text-center text-[13px] font-semibold uppercase transition sm:text-[14px]',
+    'flex-1 rounded-[12px] px-3 text-center text-[14px] font-semibold uppercase transition sm:text-[16px]',
     activeSwitcher.value === type
       ? 'bg-[#262626] text-white'
       : 'text-[#bdbdbd] hover:bg-[#5e5e5e]'

@@ -167,41 +167,31 @@ export interface ProductDetailResponse {
   is_default: boolean;
 }
 
+export type ProductMovementType =
+  | "import"
+  | "transfer"
+  | "write_off"
+  | "return"
+  | "parked"
+  | "order"
+  | "sale";
+
 export interface ProductMovementItem {
-  internal_id?: number;
+  internal_id: number;
   id: string;
-  type?: string;
-  action_type?: string;
-  action_label?: string;
-  direction?: "in" | "out" | string;
+  type: ProductMovementType;
+  type_label: string;
   created_at: string;
-  external_id?: string;
-  measurement_value?: number;
-  loaded_measurement_value?: number;
-  quantity?: number;
-  before_quantity?: number;
-  after_quantity?: number;
-  from_shop?: string;
-  to_shop?: string;
-  shop_id?: string;
-  shop_name?: string;
-  branch_code?: string;
-  supply_price?: number;
-  retail_price?: number;
-  new_retail_price?: number;
-  from_retail_price?: number;
-  from_supply_price?: number;
-  user?: {
-    id: string;
-    name: string;
-  } | null;
-  document?: {
-    id: string;
-    number: string;
-    type: string;
-    status: string;
-    created_at: string;
-  } | null;
+  external_id: string;
+  measurement_value: number;
+  loaded_measurement_value: number;
+  from_shop: string;
+  to_shop: string;
+  supply_price: number;
+  retail_price: number;
+  new_retail_price: number;
+  from_retail_price: number;
+  from_supply_price: number;
 }
 
 export interface ProductMovementTypeOption {
@@ -215,19 +205,27 @@ export interface ProductMovementShopOption {
   branch_code: string;
 }
 
+export interface ProductSupplyPriceHistoryItem {
+  product_id: string;
+  shop_id: string;
+  supply_price: number;
+  supply_currency: string;
+  old_supply_price: number;
+  created_at: string;
+}
+
 export interface ProductMovementResponse {
   total_measurement_value: number;
   imported: number;
   sold: number;
-  returned?: number;
   transfer_arrived: number;
   transfer_returned: number;
   transfered: number;
   written_off: number;
   count: number;
   movements: ProductMovementItem[];
-  supply_price_history: null;
-  accepted_order?: number;
+  supply_price_history: ProductSupplyPriceHistoryItem[];
+  accepted_order: number;
   available_movement_types?: ProductMovementTypeOption[];
   available_shops?: ProductMovementShopOption[];
   filters?: {

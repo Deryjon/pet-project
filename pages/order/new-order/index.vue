@@ -1,20 +1,16 @@
 <template>
-  <section class="relative flex h-full flex-col bg-[#262626] text-white xl:flex-row">
+  <section
+    class="relative flex h-full flex-col bg-[#262626] text-white xl:flex-row"
+  >
     <div
-      v-if="globalSaleLoading"
-      class="absolute inset-0 z-30 flex items-center justify-center bg-[#262626]/72 px-4 backdrop-blur-sm"
-    >
-      <div class="flex min-w-[260px] max-w-[420px] items-center gap-4 rounded-[24px] border border-white/10 bg-[#2b2b2b] px-5 py-4 shadow-2xl">
-        <Icon name="heroicons:arrow-path" class="h-6 w-6 shrink-0 animate-spin text-[#78b3ff]" />
-        <div>
-          <div class="text-[15px] font-semibold text-white">{{ currentOperationLabel }}</div>
-          <div class="mt-1 text-sm text-[#bdbdbd]">Подождите, операция обновляет текущую продажу.</div>
-        </div>
-      </div>
-    </div>
+      v-if="searchLoadingOverlay"
+      class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
+    />
 
     <div class="relative flex h-full w-full flex-col overflow-y-auto xl:pr-6">
-      <div class="pointer-events-none absolute right-0 top-8 hidden h-[calc(100%-64px)] w-px bg-[#404040] xl:block" />
+      <div
+        class="pointer-events-none absolute right-0 top-0 bottom-0 hidden w-px bg-[#404040] xl:block"
+      />
       <SearchBar />
       <div
         v-if="cartStore.lastCartError"
@@ -29,23 +25,12 @@
         <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Восстанавливаем продажу и способы оплаты...
       </div>
-      <div
-        v-if="operationStatuses.length"
-        class="mt-3 flex flex-wrap gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-[#bdbdbd]"
-      >
-        <span
-          v-for="status in operationStatuses"
-          :key="status"
-          class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#303030] px-3 py-1.5"
-        >
-          <Icon name="heroicons:arrow-path" class="h-3.5 w-3.5 animate-spin text-[#78b3ff]" />
-          {{ status }}
-        </span>
-      </div>
       <Cart />
     </div>
 
-    <div class="mt-6 flex h-full w-full flex-col justify-between border-t border-white/10 pt-6 xl:ml-6 xl:mt-0 xl:w-[450px] xl:border-l xl:border-t-0 xl:border-white/10 xl:pl-6 xl:pt-0">
+    <div
+      class="mt-6 flex h-full w-full flex-col justify-between border-t border-white/10 pt-6 xl:ml-6 xl:mt-0 xl:w-[500px] xl:border-t-0 xl:pl-6 xl:pt-0"
+    >
       <div class="flex flex-col">
         <ClientForm />
         <DiscountSwitcher />
@@ -80,75 +65,52 @@ const router = useRouter();
 const page = ref(Math.max(1, Number(route.query.page || 1) || 1));
 const limit = ref(10);
 const initialPageLoading = ref(true);
+const leavingRoute = ref(false);
 const search = computed(() => cartStore.searchQuery);
-const currentShopId = computed(() => String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""));
-const operationStatuses = computed(() => {
-  const statuses: string[] = [];
+const currentShopId = computed(() =>
+  String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""),
+);
+const searchLoadingOverlay = computed(
+  () => cartStore.productsLoading && Boolean(search.value.trim()),
+);
 
-  if (cartStore.creatingSale) statuses.push("#SALE");
-  if (cartStore.loadingSale || cartStore.restoringSale) statuses.push("#ORDER");
-  if (cartStore.productsLoading) statuses.push("#PRODUCTS");
-  if (cartStore.addingItem) statuses.push("#ITEM");
-  if (cartStore.saleMetaLoading) statuses.push("#META");
-  if (cartStore.discountLoading) statuses.push("#DISCOUNT");
-  if (cartStore.parkingLoading) statuses.push("#PARK");
-  if (cartStore.payLoading) statuses.push("#PAY");
-  if (cartStore.cancelLoading) statuses.push("#CANCEL");
-
-  return statuses;
-});
-const globalSaleLoading = computed(() => !initialPageLoading.value && operationStatuses.value.length > 0);
-const currentOperationLabel = computed(() => {
-  if (cartStore.payLoading) return "Проводим оплату";
-  if (cartStore.saleMetaLoading) return "Обновляем параметры продажи";
-  if (cartStore.discountLoading) return "Пересчитываем скидку";
-  if (cartStore.addingItem) return "Обновляем корзину";
-  if (cartStore.cancelLoading) return "Сбрасываем продажу";
-  if (cartStore.loadingSale || cartStore.restoringSale) return "Загружаем черновик продажи";
-  if (cartStore.creatingSale) return "Создаем новую продажу";
-  if (cartStore.productsLoading) return "Загружаем товары";
-  return "Обновляем продажу";
-});
-const routeSaleId = computed(() => normalizeRouteValue(route.params.id) || normalizeRouteValue(route.query.sale_id));
-
-function normalizeRouteValue(value: unknown) {
-  const normalized = Array.isArray(value) ? value[0] : value;
-  return String(normalized ?? "").trim();
-}
-
-function currentOrderPath(id: string | number) {
-  return `/order/new-order/${encodeURIComponent(String(id))}`;
+function currentOrderPath() {
+  return "/order/new-order";
 }
 
 async function syncOrderRoute() {
-  if (!cartStore.saleId) return;
+  if (leavingRoute.value) return;
 
-  const nextQuery: Record<string, string> = {};
+  const nextQuery: Record<string, string> = {
+    page: String(page.value),
+  };
 
   if (cartStore.saleNumber) {
     nextQuery.order_number = String(cartStore.saleNumber);
   }
-  nextQuery.page = String(page.value);
 
-  const nextPath = currentOrderPath(cartStore.saleId);
-  if (route.path !== nextPath || JSON.stringify(route.query) !== JSON.stringify(nextQuery)) {
-    await router.replace({ path: nextPath, query: nextQuery });
+  if (
+    route.path !== currentOrderPath() ||
+    JSON.stringify(route.query) !== JSON.stringify(nextQuery)
+  ) {
+    await router.replace({ path: currentOrderPath(), query: nextQuery });
   }
 }
 
-async function prepareDraftSale() {
+async function ensureActiveSale() {
   if (!currentShopId.value) return;
 
   await cartStore.loadSaleReferenceData();
+  await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+  await syncOrderRoute();
+}
 
-  if (!cartStore.saleId) {
-    await cartStore.initSale();
-  }
+async function leaveCurrentSale() {
+  await cartStore.leaveActiveSale({ keepReceipt: true, keepSearchQuery: true });
+}
 
-  if (cartStore.saleId) {
-    await cartStore.loadSale(cartStore.saleId);
-    await syncOrderRoute();
-  }
+function handlePageUnload() {
+  cartStore.leaveActiveSaleOnUnload();
 }
 
 async function fetchProducts() {
@@ -192,7 +154,7 @@ async function fetchProducts() {
       name: String(p.name ?? p.base_name ?? p.product?.name ?? ""),
       price: Number(
         p.retail_price ??
-        p.sellPrice ??
+          p.sellPrice ??
           p.sell_price ??
           p.sale_price ??
           p.shop_prices?.[0]?.retail_price ??
@@ -214,7 +176,7 @@ async function fetchProducts() {
       ),
       shopId: String(
         p?.shop_prices?.[0]?.shop_id ??
-        p?.shop_measurement_values?.[0]?.shop_id ??
+          p?.shop_measurement_values?.[0]?.shop_id ??
           p?.shop_id ??
           p?.product_stock?.shop_id ??
           p?.stock?.shop_id ??
@@ -224,7 +186,11 @@ async function fetchProducts() {
     }));
 
     try {
-      (cartStore.products as any).splice(0, (cartStore.products as any).length, ...mapped);
+      (cartStore.products as any).splice(
+        0,
+        (cartStore.products as any).length,
+        ...mapped,
+      );
     } catch {
       cartStore.products = mapped as any;
     }
@@ -237,13 +203,20 @@ async function fetchProducts() {
     } catch {
       // ignore
     }
-    const status = Number(error?.statusCode ?? error?.response?.status ?? error?.data?.statusCode ?? 0);
+    const status = Number(
+      error?.statusCode ??
+        error?.response?.status ??
+        error?.data?.statusCode ??
+        0,
+    );
     if (status === 403) {
       cartStore.lastCartError = "Нет прав доступа.";
       return;
     }
     cartStore.lastCartError =
-      error?.data?.message || error?.message || "Не удалось загрузить товары для текущего филиала.";
+      error?.data?.message ||
+      error?.message ||
+      "Не удалось загрузить товары для текущего филиала.";
   } finally {
     cartStore.productsLoading = false as any;
   }
@@ -267,63 +240,37 @@ watch(
   },
 );
 
-watch(
-  [page, () => cartStore.saleId, () => cartStore.saleNumber],
-  () => {
-    void syncOrderRoute();
-  },
-);
+watch([page, () => cartStore.saleId, () => cartStore.saleNumber], () => {
+  void syncOrderRoute();
+});
 
 watch(currentShopId, (next, prev) => {
-  if (!next) return;
+  if (!next || !prev || next === prev || leavingRoute.value) return;
 
-  if (cartStore.hasSaleShopMismatch(next) || (prev && next !== prev && (cartStore.saleId || cartStore.cart.length))) {
-    cartStore.resetSaleState({ keepReceipt: true });
-    cartStore.lastCartError = !prev
-      ? "Найдена сохранённая продажа из другого филиала. Корзина очищена."
-      : "Филиал изменён. Корзина очищена, чтобы не смешивать остатки разных магазинов.";
-  }
-  if (prev && next !== prev) {
-    void prepareDraftSale();
-  }
+  void (async () => {
+    await leaveCurrentSale();
+    await ensureActiveSale();
+  })();
 });
 
 onMounted(async () => {
   try {
-    await cartStore.loadSaleReferenceData();
-    const initialSaleId = routeSaleId.value;
-
-    if (initialSaleId) {
-      cartStore.saleId = initialSaleId;
-      cartStore.saleShopId = "";
-    }
-
-    if (!initialSaleId && cartStore.hasSaleShopMismatch(currentShopId.value)) {
-      cartStore.resetSaleState({ keepReceipt: true });
-      cartStore.lastCartError = "Найдена сохранённая продажа из другого филиала. Корзина очищена.";
-    }
-
-    if (cartStore.saleId) {
-      try {
-        await cartStore.loadSale(cartStore.saleId);
-        await syncOrderRoute();
-      } catch {
-        cartStore.resetSaleState({ keepReceipt: true });
-        cartStore.lastCartError = "Не удалось восстановить сохранённую продажу. Начните новую продажу.";
-      }
-    } else {
-      await cartStore.initSale();
-      if (cartStore.saleId) {
-        await cartStore.loadSale(cartStore.saleId);
-        await syncOrderRoute();
-      }
-    }
+    await ensureActiveSale();
+    window.addEventListener("beforeunload", handlePageUnload);
+    window.addEventListener("pagehide", handlePageUnload);
   } finally {
     initialPageLoading.value = false;
   }
 });
 
+onBeforeRouteLeave(() => {
+  leavingRoute.value = true;
+  void leaveCurrentSale();
+});
+
 onBeforeUnmount(() => {
   if (t) clearTimeout(t);
+  window.removeEventListener("beforeunload", handlePageUnload);
+  window.removeEventListener("pagehide", handlePageUnload);
 });
 </script>

@@ -2,12 +2,20 @@
   <div class="flex flex-col bg-[#262626] text-[15px] font-bold shadow-style sm:text-[17px]">
     <div class="flex items-center justify-between p-4">
       <span>Промежуточно</span>
-      <span>{{ formatPrice(subtotal) }} UZS</span>
+      <span
+        v-if="showSummarySkeleton"
+        class="h-5 w-28 animate-pulse rounded-full bg-[#404040]"
+      />
+      <span v-else>{{ formatPrice(subtotal) }} UZS</span>
     </div>
 
     <div class="flex items-center justify-between p-4">
       <span>Скидки</span>
-      <span>{{ formatPrice(totalDiscount) }} UZS</span>
+      <span
+        v-if="showSummarySkeleton"
+        class="h-5 w-24 animate-pulse rounded-full bg-[#404040]"
+      />
+      <span v-else>{{ formatPrice(totalDiscount) }} UZS</span>
     </div>
 
     <button
@@ -20,21 +28,11 @@
         <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         {{ primaryActionLabel }}
       </span>
-      <span class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(payableAmount) }} UZS</span>
-    </button>
-
-    <button
-      class="flex w-full items-center justify-center p-5 text-gray-300"
-      :class="cartStore.cancelLoading ? 'cursor-not-allowed opacity-60' : ''"
-      :disabled="cartStore.cancelLoading"
-      @click="onCancel"
-    >
-      <Icon
-        v-if="cartStore.cancelLoading"
-        name="heroicons:arrow-path"
-        class="mr-2 h-4 w-4 animate-spin"
+      <span
+        v-if="showSummarySkeleton"
+        class="h-5 w-32 animate-pulse rounded-full bg-white/25"
       />
-      Отмена продажи
+      <span v-else class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(payableAmount) }} UZS</span>
     </button>
 
     <button
@@ -315,6 +313,9 @@ const toast = useToast();
 
 const paymentPanelOpen = ref(false);
 const selectedPaymentMethod = ref<string>("");
+const showSummarySkeleton = computed(
+  () => cartStore.addingItem || cartStore.discountLoading,
+);
 
 const isReturnFlow = computed(() => saleFlowMode.value === "return");
 const isExchangeFlow = computed(() => isReturnFlow.value && Number(exchangeItemsTotal.value || 0) > 0);
@@ -482,19 +483,6 @@ async function confirmPay() {
   });
 }
 
-async function onCancel() {
-  const result = isReturnFlow.value
-    ? await cartStore.cancelSale()
-    : await cartStore.deleteDraftSale();
-
-  if (result === false) {
-    toast.add({
-      title: "Не удалось удалить черновик",
-      description: cartStore.lastCartError || undefined,
-      color: "error",
-    });
-  }
-}
 
 async function onPark() {
   const result = await cartStore.parkSale({ createNewDraft: true });

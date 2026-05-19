@@ -295,7 +295,23 @@ function buildProductPayload(
   }
 
   if (form.images.length) {
-    payload.images = form.images.map((image) => image.name).filter(Boolean);
+    payload.images = form.images
+      .map((image) => {
+        if (image.uploadedUrl) {
+          return resolveProductImageUrl(image.uploadedUrl);
+        }
+
+        if (!image.file && image.previewUrl) {
+          return resolveProductImageUrl(image.previewUrl);
+        }
+
+        if (!image.file && image.name) {
+          return resolveProductImageUrl(image.name);
+        }
+
+        return "";
+      })
+      .filter(Boolean);
   }
 
   if (isUuidLike(form.unit)) {
@@ -520,7 +536,10 @@ function extractShopQuantities(raw: any): Record<string, number> {
 }
 
 function extractImages(raw: any): CreateProductFormState["images"] {
-  const imageValues = Array.isArray(raw?.images) ? raw.images : raw?.photo ? [raw.photo] : [];
+  const imageValues = Array.isArray(raw?.images) && raw.images.length
+    ? raw.images
+    : [raw?.photo, raw?.main_image_url]
+        .filter((value) => value != null && String(value).trim().length > 0);
 
   return imageValues
     .map((image: any, index: number) => {
@@ -534,6 +553,7 @@ function extractImages(raw: any): CreateProductFormState["images"] {
         name: filename,
         size: 0,
         previewUrl: src,
+        uploadedUrl: src,
       };
     })
     .filter((image: CreateProductFormState["images"][number] | null): image is CreateProductFormState["images"][number] => Boolean(image));
