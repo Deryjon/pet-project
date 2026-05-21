@@ -113,7 +113,7 @@
                 v-for="sale in group.items"
                 :key="sale.id"
                 class="sale-card"
-                :class="{ 'sale-card--active': selectedSaleId === sale.id }"
+                :class="{ 'sale-card--active': activeSaleId === sale.id }"
                 @click="openSaleDetails(sale)"
               >
                 <div class="sale-left sale-left--stacked">
@@ -230,16 +230,25 @@
       </aside>
 
       <AppSlideover
-        :open="detailsOpen && !!selectedSale"
+        :open="detailsOpen && !!drawerSale"
         @update:open="detailsOpen = $event"
+        overlayClass="bg-black/60 backdrop-blur-sm"
         maxWidthClass="max-w-[480px]"
-        panelClass="sale-drawer"
+        panelClass="sale-drawer overflow-y-auto bg-[#262626] px-5 py-5 text-white shadow-[-24px_0_60px_rgba(0,0,0,0.38)] sm:px-[26px] sm:py-[26px]"
         roundedClass="rounded-none"
       >
+        <div v-if="saleDetailsLoading" class="drawer-state">
+          <Icon name="heroicons:arrow-path" class="h-5 w-5 animate-spin" />
+          Загружаем продажу...
+        </div>
+        <div v-else-if="saleDetailsError" class="drawer-state drawer-state--error">
+          {{ saleDetailsError }}
+        </div>
+        <template v-else-if="drawerSale">
             <header class="drawer-header">
               <div>
-                <h2>Продажа #{{ saleNumberValue(selectedSale) }}</h2>
-                <strong>{{ selectedSale.amountLabel }}</strong>
+                <h2>Продажа #{{ saleNumberValue(drawerSale) }}</h2>
+                <strong>{{ drawerSale.amountLabel }}</strong>
               </div>
               <button type="button" class="drawer-close" @click="detailsOpen = false">
                 <Icon name="heroicons:x-mark-20-solid" class="h-5 w-5" />
@@ -249,8 +258,8 @@
             <section class="drawer-section">
               <h3>Оплата</h3>
               <div class="drawer-row">
-                <span>{{ selectedSale.paymentLabel }}</span>
-                <strong>{{ selectedSale.amountLabel }}</strong>
+                <span>{{ drawerSale.paymentLabel }}</span>
+                <strong>{{ drawerSale.amountLabel }}</strong>
               </div>
             </section>
 
@@ -258,19 +267,19 @@
               <h3>Корзина</h3>
               <div class="cashier-line">
                 <span>Кассир:</span>
-                <strong>{{ selectedSale.cashierLabel }}</strong>
+                <strong>{{ drawerSale.cashierLabel }}</strong>
               </div>
 
-              <div v-if="selectedSale.items.length" class="drawer-cart">
-                <article v-for="item in selectedSale.items" :key="item.key" class="drawer-item">
+              <div v-if="drawerSale.items.length" class="drawer-cart">
+                <article v-for="item in drawerSale.items" :key="item.key" class="drawer-item">
                   <p class="drawer-item-title">{{ itemQuantityLabel(item) }} x {{ item.name || "Товар" }}</p>
                   <p class="drawer-item-code">{{ item.codeLabel || "—" }}</p>
                   <p v-if="item.discountLabel" class="drawer-item-discount">{{ item.discountLabel }}</p>
                   <div class="drawer-price-row">
-                    <strong>{{ item.amountLabel || selectedSale.amountLabel }}</strong>
+                    <strong>{{ item.amountLabel || drawerSale.amountLabel }}</strong>
                     <span v-if="item.originalAmountLabel">{{ item.originalAmountLabel }}</span>
                   </div>
-                  <p class="drawer-item-seller">{{ item.sellerLabel || selectedSale.sellerLabel }}</p>
+                  <p class="drawer-item-seller">{{ item.sellerLabel || drawerSale.sellerLabel }}</p>
                 </article>
               </div>
             </section>
@@ -280,11 +289,11 @@
               <div class="detail-list">
                 <div>
                   <span>Дата и время:</span>
-                  <strong>{{ selectedSale.dateTimeLabel }}</strong>
+                  <strong>{{ drawerSale.dateTimeLabel }}</strong>
                 </div>
                 <div>
                   <span>Магазин:</span>
-                  <strong>{{ selectedSale.pointLabel }}</strong>
+                  <strong>{{ drawerSale.pointLabel }}</strong>
                 </div>
               </div>
             </section>
@@ -293,24 +302,25 @@
               <h3>Кэшбек</h3>
               <div class="drawer-row">
                 <span></span>
-                <strong>{{ selectedSale.cashbackLabel || formatUzs(0) }}</strong>
+                <strong>{{ drawerSale.cashbackLabel || formatUzs(0) }}</strong>
               </div>
             </section>
 
             <footer class="drawer-actions">
-              <button type="button" class="drawer-action" @click="printSale(selectedSale)">
+              <button type="button" class="drawer-action" @click="printSale(drawerSale)">
                 <Icon name="heroicons:printer" class="h-5 w-5" />
                 Печать чека
               </button>
-              <button type="button" class="drawer-action drawer-action--secondary" @click="editSale(selectedSale)">
+              <button type="button" class="drawer-action drawer-action--secondary" @click="editSale(drawerSale)">
                 <Icon name="heroicons:pencil-square" class="h-5 w-5" />
                 Изменить
               </button>
-              <button type="button" class="drawer-action drawer-action--danger" @click="requestDeleteSale(selectedSale)">
+              <button type="button" class="drawer-action drawer-action--danger" @click="requestDeleteSale(drawerSale)">
                 <Icon name="heroicons:trash" class="h-5 w-5" />
                 Удалить
               </button>
             </footer>
+        </template>
       </AppSlideover>
     </div>
   </section>
@@ -384,6 +394,9 @@ const limit = ref(Math.max(1, Number(route.query.limit || 10) || 10));
 const total = ref(0);
 const selectedSaleId = ref<string | null>(null);
 const detailsOpen = ref(false);
+const saleDetails = ref<SaleView | null>(null);
+const saleDetailsLoading = ref(false);
+const saleDetailsError = ref("");
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const saleScopeOptions = [
@@ -441,7 +454,9 @@ const groupedSales = computed(() => {
   return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0])).map(([date, items]) => ({ date, label: new Date(date).toLocaleDateString("ru-RU"), items }));
 });
 
-const selectedSale = computed(() => filteredSales.value.find((sale) => sale.id === selectedSaleId.value) ?? filteredSales.value[0] ?? null);
+const selectedListSale = computed(() => filteredSales.value.find((sale) => sale.id === selectedSaleId.value) ?? null);
+const drawerSale = computed(() => saleDetails.value ?? selectedListSale.value);
+const activeSaleId = computed(() => selectedSaleId.value ?? filteredSales.value[0]?.id ?? null);
 const summaryAmountLabel = computed(() => formatUzs(summaryAmount.value || filteredSales.value.reduce((sum, sale) => sum + sale.amountValue, 0)));
 const extraStats = computed(() => ({
   clientBalance: readStatNumber(["clientBalance", "client_balance", "customerBalance", "customer_balance"]),
@@ -493,8 +508,25 @@ const paymentEntries = computed(() => {
 });
 
 watch(filteredSales, (value) => {
-  if (!value.length) selectedSaleId.value = null;
-  else if (!value.some((sale) => sale.id === selectedSaleId.value)) selectedSaleId.value = value[0]?.id ?? null;
+  if (!value.length) {
+    selectedSaleId.value = null;
+    detailsOpen.value = false;
+    saleDetails.value = null;
+    saleDetailsError.value = "";
+    return;
+  }
+
+  if (value.some((sale) => sale.id === selectedSaleId.value)) {
+    return;
+  }
+
+  if (detailsOpen.value) {
+    detailsOpen.value = false;
+  }
+
+  saleDetails.value = null;
+  saleDetailsError.value = "";
+  selectedSaleId.value = value[0]?.id ?? null;
 });
 
 watch([page, limit, selectedDate], () => {
@@ -540,6 +572,7 @@ async function syncRouteQuery() {
 }
 
 function normalizeSale(raw: any): SaleView {
+  const detail = raw?.order_detail ?? raw?.orderDetail ?? raw?.detail ?? raw;
   const id = String(raw?.id ?? raw?.sale_id ?? raw?.number ?? Math.random());
   const numberValue = String(raw?.number ?? raw?.sale_number ?? raw?.receipt_number ?? raw?.id ?? "—");
   const createdAt = raw?.created_at ?? raw?.createdAt ?? raw?.date ?? new Date().toISOString();
@@ -681,9 +714,26 @@ function resetFilters() {
   amountTo.value = "";
 }
 
-function openSaleDetails(sale: SaleView) {
-  selectedSaleId.value = sale.id;
+async function openSaleDetails(sale: SaleView) {
+  const saleId = sale.id;
+
+  selectedSaleId.value = saleId;
   detailsOpen.value = true;
+  saleDetails.value = null;
+  saleDetailsError.value = "";
+  saleDetailsLoading.value = true;
+
+  try {
+    const details = await fetchSaleDetails(saleId);
+    if (selectedSaleId.value !== saleId) return;
+    saleDetails.value = details;
+  } catch {
+    if (selectedSaleId.value !== saleId) return;
+    saleDetailsError.value = "Не удалось загрузить детали продажи.";
+  } finally {
+    if (selectedSaleId.value !== saleId) return;
+    saleDetailsLoading.value = false;
+  }
 }
 
 function saleNumberValue(sale: SaleView) {
@@ -776,6 +826,86 @@ async function fetchSales() {
     loading.value = false;
   }
 }
+
+async function fetchSaleDetails(id: string) {
+  const endpoints = [`/order/${encodeURIComponent(id)}`, `/v2/order/${encodeURIComponent(id)}`];
+  let lastError: unknown = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const response: any = await apiFetch(endpoint, { method: "GET" });
+      const payload = response?.data ?? response?.item ?? response?.order ?? response;
+      return normalizeSaleDetails(payload);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+function normalizeSaleDetails(raw: any): SaleView {
+  const detail = raw?.order_detail ?? raw?.orderDetail ?? raw?.detail ?? raw;
+  const createdAt = raw?.sold_at ?? raw?.finished_at ?? detail?.created_at ?? raw?.created_at ?? new Date().toISOString();
+  const itemsSource = Array.isArray(detail?.order_items) ? detail.order_items : [];
+  const sellerName = String(detail?.user?.name ?? raw?.user?.name ?? raw?.seller?.name ?? raw?.cashier?.name ?? "Не указан");
+  const items = itemsSource.map((item: any, index: number) => ({
+    key: String(item?.id ?? `${index}`),
+    quantity: Math.max(toNumber(item?.measurement_value ?? item?.quantity ?? item?.qty ?? 0), 0),
+    quantityLabel: formatQuantity(Math.max(toNumber(item?.measurement_value ?? item?.quantity ?? item?.qty ?? 0), 0)),
+    type: normalizeItemType(item?.product_type_id ?? item?.type ?? item?.product_type ?? item?.kind),
+    name: String(item?.name ?? item?.product?.name ?? "Товар"),
+    codeLabel: String(item?.sku ?? item?.barcode ?? item?.product?.sku ?? item?.product?.barcode ?? "—"),
+    discountLabel: formatDiscountLabel(item),
+    amountLabel: formatUzs(toNumber(item?.total_price ?? item?.total ?? item?.amount ?? item?.line_total ?? item?.final_price ?? item?.price)),
+    originalAmountLabel: formatOriginalAmountLabel(item),
+    sellerLabel: String(item?.sellers?.[0]?.seller?.name ?? item?.seller?.name ?? item?.seller_name ?? sellerName),
+  }));
+  const itemsCount = items.reduce((sum: number, item: SaleItemView) => sum + item.quantity, 0);
+  const paymentInfo = resolveSaleDetailsPaymentInfo(raw);
+  const amountValue = toNumber(detail?.total_price ?? raw?.payable_total ?? raw?.total ?? raw?.amount ?? raw?.grand_total);
+  const cashbackValue = toNumber(detail?.with_cashback ?? raw?.cashback ?? raw?.cashback_amount ?? raw?.bonus ?? raw?.bonus_amount);
+
+  return {
+    id: String(raw?.id ?? raw?.sale_id ?? raw?.number ?? Math.random()),
+    numberLabel: `Продажа #${String(raw?.order_number ?? raw?.number ?? raw?.sale_number ?? raw?.receipt_number ?? raw?.id ?? "—")}`,
+    numberValue: String(raw?.order_number ?? raw?.number ?? raw?.sale_number ?? raw?.receipt_number ?? raw?.id ?? "—"),
+    typeLabel: String(raw?.order_type ?? raw?.type_label ?? raw?.operation_label ?? raw?.operation_type_label ?? "Продажа"),
+    dateValue: toIsoDate(createdAt),
+    dateTimeLabel: `${new Date(createdAt).toLocaleDateString("ru-RU")} | ${new Date(createdAt).toLocaleTimeString("ru-RU")}`,
+    sellerLabel: sellerName,
+    pointLabel: String(detail?.shop?.name ?? raw?.shop?.name ?? raw?.branch_title ?? raw?.branch_name ?? raw?.location?.name ?? raw?.point?.name ?? "Не указана"),
+    amountLabel: formatUzs(amountValue),
+    amountValue,
+    paymentKey: paymentInfo.key,
+    paymentLabel: paymentInfo.label,
+    clientLabel: String(detail?.customer?.name ?? raw?.client?.name ?? raw?.customer?.name ?? raw?.buyer?.name ?? raw?.client_name ?? "Без клиента"),
+    cashierLabel: String(detail?.user?.name ?? raw?.cashier?.name ?? raw?.cashier_name ?? raw?.user?.name ?? sellerName),
+    statusKey: String(raw?.order_status ?? raw?.status ?? "paid").toLowerCase(),
+    itemsCountLabel: `${itemsCount} ед.`,
+    cashbackLabel: formatUzs(cashbackValue),
+    items,
+  };
+}
+
+function resolveSaleDetailsPaymentInfo(raw: any) {
+  const detail = raw?.order_detail ?? raw?.orderDetail ?? raw?.detail ?? raw;
+  const orderPayments = Array.isArray(detail?.order_payments) ? detail.order_payments : [];
+  const firstOrderPayment = orderPayments.find((payment: any) => toNumber(payment?.paid_amount) > 0) ?? orderPayments[0];
+
+  if (firstOrderPayment) {
+    const companyPaymentType = firstOrderPayment?.company_payment_type;
+    const paymentName = String(companyPaymentType?.name ?? firstOrderPayment?.payment_sub_type_name ?? "").trim();
+    const paymentId = String(companyPaymentType?.payment_type_id ?? firstOrderPayment?.company_payment_type_id ?? firstOrderPayment?.payment_sub_type_id ?? "").trim();
+
+    return {
+      key: normalizePaymentKey(paymentId || paymentName),
+      label: paymentName || formatPaymentLabel(paymentId),
+    };
+  }
+
+  return resolvePaymentInfo(raw);
+}
 </script>
 
 <style scoped>
@@ -851,6 +981,8 @@ async function fetchSales() {
 .total-panel span { color: rgba(255,255,255,.78); }
 .total-panel strong { display: block; margin-top: 8px; font-size: 24px; }
 .sale-drawer { height: 100%; overflow-y: auto; background: #262626; padding: 26px; color: #fff; box-shadow: -24px 0 60px rgba(0,0,0,.38); }
+.drawer-state { min-height: 220px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #cbd5e1; font-weight: 700; }
+.drawer-state--error { color: #fda4af; text-align: center; }
 .drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-bottom: 22px; }
 .drawer-header h2 { color: #f6f8fc; font-size: 22px; font-weight: 800; line-height: 1.25; }
 .drawer-header strong { display: block; margin-top: 14px; color: #78b3ff; font-size: 22px; font-weight: 800; }
