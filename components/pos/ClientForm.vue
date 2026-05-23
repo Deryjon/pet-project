@@ -1,70 +1,184 @@
 <template>
-  <div class="top flex flex-col gap-4 sm:gap-6" ref="dropdownRef">
+  <div ref="dropdownRef" class="top flex flex-col gap-4 sm:gap-6">
     <div class="flex items-center justify-between gap-3">
       <label class="block text-[16px] font-semibold sm:text-[18px]">Клиент</label>
-      <button class="text-[#4993dd]">Создать</button>
+      <button type="button" class="text-[#4993dd]" @click="goToCreateClient">Создать</button>
     </div>
 
     <div class="relative">
       <div class="flex items-center gap-2 rounded-[15px] bg-[#404040] p-3 sm:p-4">
-        <span><svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 8C9.1875 8 11 6.21875 11 4C11 1.8125 9.1875 0 7 0C4.78125 0 3 1.8125 3 4C3 6.21875 4.78125 8 7 8ZM9.78125 9H9.25C8.5625 9.34375 7.8125 9.5 7 9.5C6.1875 9.5 5.40625 9.34375 4.71875 9H4.1875C1.875 9 0 10.9062 0 13.2188V14.5C0 15.3438 0.65625 16 1.5 16H12.5C13.3125 16 14 15.3438 14 14.5V13.2188C14 10.9062 12.0938 9 9.78125 9Z" fill="#4993DD"></path></svg></span>
+        <span>
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M7 8C9.1875 8 11 6.21875 11 4C11 1.8125 9.1875 0 7 0C4.78125 0 3 1.8125 3 4C3 6.21875 4.78125 8 7 8ZM9.78125 9H9.25C8.5625 9.34375 7.8125 9.5 7 9.5C6.1875 9.5 5.40625 9.34375 4.71875 9H4.1875C1.875 9 0 10.9062 0 13.2188V14.5C0 15.3438 0.65625 16 1.5 16H12.5C13.3125 16 14 15.3438 14 14.5V13.2188C14 10.9062 12.0938 9 9.78125 9Z"
+              fill="#4993DD"
+            />
+          </svg>
+        </span>
         <input
-          type="text"
           v-model="search"
+          type="text"
           placeholder="Имя или номер клиента"
           class="flex-1 bg-transparent text-[14px] text-white outline-none sm:text-base"
-          @focus="isOpen = true"
+          @focus="handleFocus"
         />
       </div>
 
       <transition name="fade">
-        <ul
-          v-if="isOpen && filteredClients.length"
-          class="absolute left-0 right-0 z-10 mt-2 max-h-[200px] overflow-y-auto rounded-[15px] bg-[#2e2e2e] shadow-lg"
+        <div
+          v-if="isOpen"
+          class="absolute left-0 right-0 z-10 mt-2 overflow-hidden rounded-[15px] bg-[#2e2e2e] shadow-lg"
         >
-          <li
-            v-for="client in filteredClients"
-            :key="client.id"
-            @click="selectClient(client)"
-            class="cursor-pointer rounded-[10px] px-4 py-3 hover:bg-[#4993dd] hover:text-white"
-          >
-            {{ client.name }} — {{ client.phone }}
-          </li>
-        </ul>
+          <div v-if="search.trim().length > 0 && search.trim().length < 4" class="px-4 py-3 text-sm text-[#bdbdbd]">
+            Введите минимум 4 символа
+          </div>
+
+          <div v-else-if="loading" class="px-4 py-3 text-sm text-[#bdbdbd]">
+            Ищем клиентов...
+          </div>
+
+          <div v-else-if="errorMessage" class="px-4 py-3 text-sm text-[#ffb4b4]">
+            {{ errorMessage }}
+          </div>
+
+          <div v-else-if="search.trim().length >= 4 && !clients.length" class="px-4 py-3 text-sm text-[#bdbdbd]">
+            Клиенты не найдены
+          </div>
+
+          <ul v-else-if="clients.length" class="max-h-[220px] overflow-y-auto">
+            <li
+              v-for="client in clients"
+              :key="client.id"
+              class="cursor-pointer rounded-[10px] px-4 py-3 hover:bg-[#4993dd] hover:text-white"
+              @click="selectClient(client)"
+            >
+              <div class="flex flex-col gap-1">
+                <span>{{ client.full_name }}</span>
+                <span class="text-xs text-white/70">{{ client.phone || client.code }}</span>
+              </div>
+            </li>
+          </ul>
+        </div>
       </transition>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type { ClientListItem } from "@/composables/useClients";
+import { useClients } from "@/composables/useClients";
+import { useCartStore } from "@/store/cart";
+
+const POS_CREATED_CLIENT_STORAGE_KEY = "pos:selected-client";
+
+const { listClients } = useClients();
+const cartStore = useCartStore();
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
 
 const isOpen = ref(false);
+const loading = ref(false);
 const search = ref("");
-const selectedClient = ref<any>(null);
+const selectedClient = ref<ClientListItem | null>(null);
+const clients = ref<ClientListItem[]>([]);
+const errorMessage = ref("");
+const dropdownRef = ref<HTMLElement | null>(null);
 
-const clients = ref([
-  { id: 1, name: "Иван Иванов", phone: "+998 90 123 45 67" },
-  { id: 2, name: "Петр Петров", phone: "+998 91 765 43 21" },
-  { id: 3, name: "Саша Сидоров", phone: "+998 93 111 22 33" },
-]);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
-const filteredClients = computed(() => {
-  if (!search.value) return clients.value;
-  return clients.value.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.value.toLowerCase()) ||
-      c.phone.includes(search.value)
-  );
-});
+function buildCreateClientRoute() {
+  const query: Record<string, string> = {
+    returnTo: route.fullPath || "/order/new-order?page=1",
+  };
 
-function selectClient(client: any) {
+  const value = search.value.trim();
+  if (value) {
+    if (/^\+?\d[\d\s()-]*$/.test(value)) {
+      query.phone = value;
+    } else {
+      query.first_name = value;
+    }
+  }
+
+  return { path: "/clients/create", query };
+}
+
+async function fetchClients() {
+  const query = search.value.trim();
+
+  if (query.length < 4) {
+    clients.value = [];
+    errorMessage.value = "";
+    loading.value = false;
+    return;
+  }
+
+  loading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const response = await listClients({
+      page: 1,
+      limit: 10,
+      search: query,
+    });
+    clients.value = Array.isArray(response?.items) ? response.items : [];
+  } catch (error: any) {
+    clients.value = [];
+    errorMessage.value =
+      error?.data?.message || error?.message || "Не удалось загрузить клиентов.";
+  } finally {
+    loading.value = false;
+  }
+}
+
+function handleFocus() {
+  isOpen.value = true;
+}
+
+function applySelectedClient(client: ClientListItem) {
   selectedClient.value = client;
-  search.value = client.name;
+  search.value = client.full_name;
+}
+
+async function selectClient(client: ClientListItem) {
+  if (!cartStore.supportsOrdersDebtFlow) {
+    cartStore.setCustomerSelection({
+      id: client.id,
+      name: client.full_name,
+      phone: client.phone,
+      code: client.code,
+    });
+    applySelectedClient(client);
+    isOpen.value = false;
+    toast.add({
+      title: "Клиент выбран локально",
+      description: "Привязка клиента к новому orders API недоступна на текущем проде.",
+      color: "warning",
+    });
+    return;
+  }
+
+  const result = await cartStore.attachCustomer({ id: client.id });
+  if (!result) {
+    toast.add({
+      title: "Не удалось привязать клиента",
+      description: cartStore.lastCartError || undefined,
+      color: "error",
+    });
+    return;
+  }
+
+  applySelectedClient(client);
   isOpen.value = false;
 }
 
-const dropdownRef = ref<HTMLElement | null>(null);
+async function goToCreateClient() {
+  await router.push(buildCreateClientRoute());
+}
 
 function handleClickOutside(event: MouseEvent) {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
@@ -72,10 +186,103 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
+async function restoreCreatedClientFromSession() {
+  if (!import.meta.client) return;
+
+  const raw = window.sessionStorage.getItem(POS_CREATED_CLIENT_STORAGE_KEY);
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      id?: string;
+      full_name?: string;
+      phone?: string;
+      code?: string;
+    };
+
+    if (!parsed?.id || !parsed?.full_name) {
+      return;
+    }
+
+    const restoredClient = {
+      id: parsed.id,
+      code: parsed.code || "",
+      full_name: parsed.full_name,
+      phone: parsed.phone || "",
+      groups: [],
+      tags: [],
+      gender: "unknown",
+      total_purchases_uzs: 0,
+      last_purchase_at: null,
+      birth_date: null,
+      registered_at: new Date().toISOString(),
+      registration_shop: null,
+      balance_uzs: 0,
+      debt_uzs: 0,
+      visits_count: 0,
+    };
+
+    if (!cartStore.supportsOrdersDebtFlow) {
+      cartStore.setCustomerSelection({
+        id: restoredClient.id,
+        name: restoredClient.full_name,
+        phone: restoredClient.phone,
+        code: restoredClient.code,
+      });
+      applySelectedClient(restoredClient);
+    } else {
+      const result = await cartStore.attachCustomer({ id: restoredClient.id });
+      if (result) {
+        applySelectedClient(restoredClient);
+      }
+    }
+  } catch {
+    // ignore invalid session payload
+  } finally {
+    window.sessionStorage.removeItem(POS_CREATED_CLIENT_STORAGE_KEY);
+  }
+}
+
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+
+  if (selectedClient.value && search.value !== selectedClient.value.full_name) {
+    selectedClient.value = null;
+  }
+
+  searchTimer = setTimeout(() => {
+    void fetchClients();
+  }, 300);
+});
+
 onMounted(() => {
   document.addEventListener("click", handleClickOutside);
+  void restoreCreatedClientFromSession();
+
+  if (!selectedClient.value && cartStore.currentOrder?.customerId && cartStore.currentOrder?.customerName) {
+    selectedClient.value = {
+      id: String(cartStore.currentOrder.customerId),
+      code: "",
+      full_name: cartStore.currentOrder.customerName,
+      phone: "",
+      groups: [],
+      tags: [],
+      gender: "unknown",
+      total_purchases_uzs: 0,
+      last_purchase_at: null,
+      birth_date: null,
+      registered_at: new Date().toISOString(),
+      registration_shop: null,
+      balance_uzs: 0,
+      debt_uzs: 0,
+      visits_count: 0,
+    };
+    search.value = cartStore.currentOrder.customerName;
+  }
 });
+
 onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer);
   document.removeEventListener("click", handleClickOutside);
 });
 </script>
@@ -85,6 +292,7 @@ onBeforeUnmount(() => {
 .fade-leave-active {
   transition: all 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
