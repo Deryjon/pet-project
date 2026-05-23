@@ -35,6 +35,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiProxyTarget: import.meta.env.NUXT_API_PROXY_TARGET || 'https://api.konkurent-group.uz/api',
     public: {
+      backendOrigin: (
+        import.meta.env.NUXT_PUBLIC_BACKEND_ORIGIN ||
+        import.meta.env.NUXT_API_PROXY_TARGET ||
+        'https://api.konkurent-group.uz/api'
+      ).replace(/\/api\/?$/i, ''),
       // Prefer direct backend requests unless explicitly overridden.
       // Can still be set to '/api' via NUXT_PUBLIC_API_BASE to use the Nuxt proxy.
       apiBase:

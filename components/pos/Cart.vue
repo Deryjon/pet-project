@@ -24,9 +24,16 @@
         </UBadge>
       </div>
 
-      <span class="break-all text-[18px] font-bold text-[#bdbdbd] sm:text-[36px]">
-        {{ saleDisplayNumber }}
-      </span>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <Icon
+          v-if="showOrderLoader"
+          name="heroicons:arrow-path"
+          class="h-5 w-5 shrink-0 animate-spin text-[#78b3ff] sm:h-7 sm:w-7"
+        />
+        <span class="break-all text-[18px] font-bold text-[#bdbdbd] sm:text-[36px]">
+          {{ saleDisplayNumber }}
+        </span>
+      </div>
     </div>
 
     <div class="sellers mt-[15px] flex flex-wrap gap-3">
@@ -252,14 +259,12 @@ const toast = useToast();
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + item.quantity, 0),
 );
-const randomSaleNumber = ref(Math.floor(100000 + Math.random() * 900000));
 const saleDisplayNumber = computed(() =>
   store.saleNumber
     ? `#${store.saleNumber}`
-    : store.saleId
-      ? `#${store.saleId}`
-      : `#${randomSaleNumber.value}`,
+    : "",
 );
+const showOrderLoader = computed(() => store.addingItem || store.discountLoading);
 
 const cartLoading = computed(() => store.creatingSale || store.loadingSale || store.restoringSale);
 const sellerModalOpen = ref(false);

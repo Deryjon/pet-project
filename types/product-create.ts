@@ -10,6 +10,7 @@ export interface ProductImage {
   name: string;
   size: number;
   previewUrl: string;
+  uploadedUrl?: string;
 }
 
 export interface PriceFields {

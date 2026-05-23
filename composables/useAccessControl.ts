@@ -476,7 +476,7 @@ export function firstAllowedRbacRoute(can: (slug: string) => boolean) {
     { path: "/products/transfer", slug: "transfers" },
     { path: "/products/writeoff", slug: "write-offs" },
     { path: "/order/all", slug: "orders" },
-    { path: "/clients/all", slug: "clients" },
+    { path: "/clients?page=1&limit=10", slug: "clients" },
     { path: "/clients/loyalty-program", slug: "loyalty-setting" },
     { path: "/clients/cashbox", slug: "debt-detail" },
     { path: "/analytics/shop", slug: "reports-shop-summary" },

@@ -1,25 +1,16 @@
 ﻿<script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { getLocalTimeZone } from "@internationalized/date";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
+import { useLocationStore } from "@/store/useLocationStore";
 import { useProductStore } from "@/store/productStore";
 import { resolveProductImageUrl, useProducts } from "~/composables/useProducts";
-import type { ProductMovementResponse } from "~/types/product-detail";
+import type { ProductMovementItem, ProductMovementResponse } from "~/types/product-detail";
 
 type TableSection = {
   title: string;
   columns: string[];
   rows: string[][];
-};
-
-type ProductHistoryRow = {
-  dateCell: string;
-  actionLabel: string;
-  actionType: string;
-  quantityCell: string;
-  shopCell: string;
-  dateKey: string | null;
 };
 
 type HistoryActionOption = {
@@ -34,6 +25,7 @@ type HistoryShopOption = {
 
 const store = useCatalogDataTableStore();
 const router = useRouter();
+const locationStore = useLocationStore();
 const productStore = useProductStore();
 const { fetchProductMovements } = useProducts();
 const placeholderImgUrl = new URL(
@@ -57,17 +49,14 @@ const showProductSidebar = computed({
 });
 
 const filtersOpen = ref(false);
-const datePopoverOpen = ref(false);
 const actionPopoverOpen = ref(false);
 const shopPopoverOpen = ref(false);
 const productHistoryLoading = ref(false);
-const productHistoryLoaded = ref(false);
-const productHistoryRowsFromApi = ref<ProductHistoryRow[]>([]);
+const productMovementData = ref<ProductMovementResponse | null>(null);
 const historyActionOptions = ref<HistoryActionOption[]>([]);
 const historyShopOptions = ref<HistoryShopOption[]>([]);
 
-const tz = getLocalTimeZone();
-const selectedDate = ref<any>(null);
+const selectedDate = ref("");
 const selectedActionType = ref("");
 const selectedShopId = ref("");
 
@@ -87,84 +76,6 @@ const formatUZS = (value: unknown) => {
   return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
 };
 
-const fallbackProductHistoryRows = computed<ProductHistoryRow[]>(() => {
-  const p = selectedProduct.value;
-  if (!p) return [];
-
-  const original = p._original ?? {};
-  const historySource = pickFirstArray(
-    original?.history,
-    original?.histories,
-    original?.product_history,
-    original?.product_histories,
-    original?.movements,
-    original?.movement_history,
-    original?.transactions,
-    original?.events,
-    original?.logs,
-  );
-
-  if (historySource.length) {
-    return historySource.map((item: any) => {
-      const rawDate =
-        item?.created_at ??
-          item?.createdAt ??
-          item?.date_time ??
-          item?.dateTime ??
-          item?.date ??
-          item?.time;
-      const actionMeta = resolveHistoryActionMeta(item);
-      const quantityCell = String(
-        Number(item?.quantity ?? item?.measurement_value ?? item?.active_measurement_value ?? item?.count ?? 0),
-      );
-      const shopCell =
-        String(
-          item?.shop?.name ??
-            item?.shop_name ??
-            item?.branch?.name ??
-            item?.branch_name ??
-            item?.store?.name ??
-            item?.store_name ??
-            p.shop_name ??
-            "-",
-        ).trim() || "-";
-
-      return {
-        dateCell: formatDateTimeCell(rawDate),
-        actionLabel: actionMeta.label,
-        actionType: actionMeta.type,
-        quantityCell,
-        shopCell,
-        dateKey: normalizeDateKey(rawDate),
-      };
-    });
-  }
-
-  const fallbackDateValue = original?.created_at ?? original?.createdAt ?? original?.date ?? null;
-  const fallbackAction = resolveHistoryActionMeta(original);
-  const fallbackShop =
-    String(
-      original?.current_shop?.shop?.name ??
-        original?.current_shop?.name ??
-        original?.shop_name ??
-        p.shop_name ??
-        "-",
-    ).trim() || "-";
-
-  return [{
-    dateCell: formatDateTimeCell(fallbackDateValue),
-    actionLabel: fallbackAction.label,
-    actionType: fallbackAction.type,
-    quantityCell: String(Number(p.quantity ?? 0)),
-    shopCell: fallbackShop,
-    dateKey: normalizeDateKey(fallbackDateValue),
-  }];
-});
-
-const rawProductHistoryRows = computed<ProductHistoryRow[]>(() =>
-  productHistoryLoaded.value ? productHistoryRowsFromApi.value : fallbackProductHistoryRows.value,
-);
-
 const selectedActionLabel = computed(() =>
   actionOptions.value.find((option) => option.value === selectedActionType.value)?.label ?? "Все действия",
 );
@@ -173,33 +84,41 @@ const selectedShopLabel = computed(() =>
   shopOptions.value.find((option) => option.shopId === selectedShopId.value)?.shopName ?? "Все магазины",
 );
 
-const filteredProductHistoryRows = computed<string[][]>(() => {
+const shopNameMap = computed(() => {
+  const entries = [
+    ...locationStore.locations.map((shop) => [String(shop.id), String(shop.name)] as const),
+    ...historyShopOptions.value.map((shop) => [String(shop.shopId), String(shop.shopName)] as const),
+  ];
+
+  return new Map(entries.filter(([id, name]) => id && name));
+});
+
+const movementStateMessage = computed(() => {
   if (productHistoryLoading.value) {
-    return [["Загрузка...", "-", "-", "-"]];
+    return "Загрузка...";
   }
 
-  const selectedDateKey = normalizeCalendarDateKey(selectedDate.value);
-  const rows = rawProductHistoryRows.value.filter((row) => {
-    if (selectedDateKey && row.dateKey !== selectedDateKey) {
-      return false;
-    }
+  const movement = productMovementData.value;
+  if (!movement) return "Нет данных";
+  if (movement.movements.length > 0) return "";
+  if (movement.count > 0) return "Текущая страница пуста. Проверьте пагинацию или фильтры.";
+  return "Нет движений";
+});
 
-    if (selectedActionType.value && row.actionType !== selectedActionType.value) {
-      return false;
-    }
-
-    if (selectedShopId.value && row.shopCell !== selectedShopLabel.value) {
-      return false;
-    }
-
-    return true;
-  });
-
-  if (!rows.length) {
-    return [["Нет данных", "-", "-", "-"]];
+const movementRows = computed<string[][]>(() => {
+  if (movementStateMessage.value) {
+    return [[movementStateMessage.value, "-", "-", "-", "-", "-", "-"]];
   }
 
-  return rows.map((row) => [row.dateCell, row.actionLabel, row.quantityCell, row.shopCell]);
+  return (productMovementData.value?.movements ?? []).map((item) => [
+    formatDateTimeCell(item.created_at),
+    item.type_label,
+    String(item.external_id || "-"),
+    String(Number(item.measurement_value ?? 0)),
+    String(Number(item.loaded_measurement_value ?? 0)),
+    formatUZS(item.supply_price),
+    formatUZS(item.retail_price),
+  ]);
 });
 
 const stockRows = computed<string[][]>(() => {
@@ -249,6 +168,41 @@ const stockRows = computed<string[][]>(() => {
   ]];
 });
 
+const movementStatCards = computed(() => {
+  const movement = productMovementData.value;
+  if (!movement) return [];
+
+  return [
+    { label: "Остаток", value: Number(movement.total_measurement_value ?? 0) },
+    { label: "Импорт", value: Number(movement.imported ?? 0) },
+    { label: "Продано", value: Number(movement.sold ?? 0) },
+    { label: "Трансфер", value: Number(movement.transfered ?? 0) },
+    { label: "Пришло трансфером", value: Number(movement.transfer_arrived ?? 0) },
+    { label: "Списано", value: Number(movement.written_off ?? 0) },
+    { label: "В заказах", value: Number(movement.accepted_order ?? 0) },
+  ];
+});
+
+const supplyPriceHistoryRows = computed<string[][]>(() => {
+  const movement = productMovementData.value;
+  const history = Array.isArray(movement?.supply_price_history) ? movement.supply_price_history : [];
+
+  if (!history.length) {
+    return [["Нет истории закупочной цены", "-", "-", "-"]];
+  }
+
+  return history.map((item) => {
+    const shopId = String(item.shop_id ?? "").trim();
+    const shopName = shopNameMap.value.get(shopId) || shopId || "-";
+    return [
+      formatDateTimeCell(item.created_at),
+      shopName,
+      formatUZS(item.old_supply_price),
+      formatUZS(item.supply_price),
+    ];
+  });
+});
+
 const tableSections = computed<TableSection[]>(() => {
   const p = selectedProduct.value;
   if (!p) return [];
@@ -257,9 +211,9 @@ const tableSections = computed<TableSection[]>(() => {
 
   const sections: TableSection[] = [
     {
-      title: "История продукта",
-      columns: ["Дата", "Действие", "Кол-во", "Магазин"],
-      rows: filteredProductHistoryRows.value,
+      title: "История движения",
+      columns: ["Дата", "Действие", "Документ", "Кол-во", "Остаток после", "Закупка", "Розница"],
+      rows: movementRows.value,
     },
   ];
 
@@ -306,6 +260,12 @@ const tableSections = computed<TableSection[]>(() => {
       ],
     });
   }
+
+  sections.push({
+    title: "История закупочной цены",
+    columns: ["Дата", "Магазин", "Старая цена", "Новая цена"],
+    rows: supplyPriceHistoryRows.value,
+  });
 
   sections.push({
     title: "Остатки",
@@ -402,21 +362,6 @@ function onProductImageError(event: Event) {
   }
 }
 
-function formatSingleDate(value: any) {
-  if (!value || typeof value.toDate !== "function") return "Все даты";
-  return value.toDate(tz).toLocaleDateString("ru-RU");
-}
-
-function pickFirstArray(...values: unknown[]) {
-  for (const value of values) {
-    if (Array.isArray(value) && value.length) {
-      return value;
-    }
-  }
-
-  return [];
-}
-
 function formatDateTimeCell(value: unknown) {
   const date = value ? new Date(String(value)) : null;
   if (!date || Number.isNaN(date.getTime())) {
@@ -426,139 +371,20 @@ function formatDateTimeCell(value: unknown) {
   return `${date.toLocaleDateString("ru-RU")}\n\n${date.toLocaleTimeString("ru-RU")}`;
 }
 
-function mapMovementTypeLabel(value: string, fallbackLabel?: string) {
-  const normalized = String(value ?? "").trim().toUpperCase();
-
-  if (normalized === "SALE") return "Продажа";
-  if (normalized === "RETURN") return "Возврат";
-  if (normalized === "WRITE_OFF") return "Списание";
-  if (normalized === "PURCHASE") return "Поступление";
-  if (normalized === "TRANSFER") return "Трансфер";
-
-  return String(fallbackLabel ?? value ?? "Операция").trim() || "Операция";
-}
-
-function resolveHistoryActionMeta(item: any) {
-  const explicitType = String(item?.action_type ?? "").trim().toUpperCase();
-  const explicitLabel = String(item?.action_label ?? "").trim();
-
-  if (explicitType) {
-    return {
-      type: explicitType,
-      label: explicitLabel || mapMovementTypeLabel(explicitType),
-    };
-  }
-
-  const type = String(
-    item?.action_name ??
-      item?.action ??
-      item?.event_name ??
-      item?.event_type ??
-      item?.type ??
-      item?.operation_type ??
-      item?.document_type ??
-      "",
-  )
-    .trim()
-    .toLowerCase();
-
-  const documentNumber = String(
-    item?.document_number ??
-      item?.number ??
-      item?.import_number ??
-      item?.transaction_number ??
-      item?.id ??
-      "",
-  ).trim();
-
-  if (type.includes("import")) {
-    return { type: "Импорт", label: documentNumber ? `Импорт #${documentNumber}` : "Импорт" };
-  }
-
-  if (type.includes("sale") || type.includes("sell") || type.includes("прод")) {
-    return { type: "Продажа", label: documentNumber ? `Продажа #${documentNumber}` : "Продажа" };
-  }
-
-  if (type.includes("transfer") || type.includes("транс")) {
-    return { type: "Трансфер", label: documentNumber ? `Трансфер #${documentNumber}` : "Трансфер" };
-  }
-
-  if (type.includes("writeoff") || type.includes("write_off") || type.includes("спис")) {
-    return { type: "Списание", label: documentNumber ? `Списание #${documentNumber}` : "Списание" };
-  }
-
-  if (type.includes("inventory") || type.includes("инвент")) {
-    return {
-      type: "Инвентаризация",
-      label: documentNumber ? `Инвентаризация #${documentNumber}` : "Инвентаризация",
-    };
-  }
-
-  if (type.includes("return") || type.includes("возв")) {
-    return { type: "Возврат", label: documentNumber ? `Возврат #${documentNumber}` : "Возврат" };
-  }
-
-  if (type.includes("order") || type.includes("заказ")) {
-    return { type: "Заказ", label: documentNumber ? `Заказ #${documentNumber}` : "Заказ" };
-  }
-
-  if (type.includes("receive") || type.includes("приход")) {
-    return {
-      type: "Поступление",
-      label: documentNumber ? `Поступление #${documentNumber}` : "Поступление",
-    };
-  }
-
-  if (type.includes("price") || type.includes("оцен")) {
-    return { type: "Оценка", label: documentNumber ? `Оценка #${documentNumber}` : "Оценка" };
-  }
-
-  if (type.includes("reserve") || type.includes("hold") || type.includes("отлож")) {
-    return { type: "Отложка", label: documentNumber ? `Отложка #${documentNumber}` : "Отложка" };
-  }
-
-  const fallbackLabel = String(
-    item?.title ?? item?.name ?? item?.label ?? item?.description ?? "",
-  ).trim();
-  if (fallbackLabel) {
-    return { type: fallbackLabel, label: fallbackLabel };
-  }
-
-  if (documentNumber) {
-    return { type: "Операция", label: `Документ #${documentNumber}` };
-  }
-
-  return { type: "Операция", label: "Операция" };
-}
-
-function normalizeDateKey(value: unknown) {
-  const date = value ? new Date(String(value)) : null;
-  if (!date || Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
-function normalizeCalendarDateKey(value: any) {
-  if (!value || typeof value.toDate !== "function") {
-    return null;
-  }
-
-  return value.toDate(tz).toISOString().slice(0, 10);
+function normalizeCalendarDateKey(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
 async function loadProductHistory() {
   const productId = String(
-    selectedProduct.value?.id ??
-      selectedProduct.value?._original?.public_id ??
+    selectedProduct.value?._original?.public_id ??
+      selectedProduct.value?.id ??
       selectedProduct.value?._original?.id ??
       "",
   ).trim();
 
   if (!productId) {
-    productHistoryLoaded.value = false;
-    productHistoryRowsFromApi.value = [];
+    productMovementData.value = null;
     historyActionOptions.value = [];
     historyShopOptions.value = [];
     return;
@@ -576,37 +402,33 @@ async function loadProductHistory() {
       movement_type: selectedActionType.value || undefined,
       shop_id: selectedShopId.value || undefined,
     });
+    productMovementData.value = movementRes;
 
     const movements = Array.isArray(movementRes?.movements) ? movementRes.movements : [];
-    productHistoryLoaded.value = true;
-    productHistoryRowsFromApi.value = movements.map((item: any) => {
-      const actionMeta = resolveHistoryActionMeta(item);
-      const rawDate = item?.created_at ?? item?.date ?? null;
-      const primaryShop = String(item?.shop_name ?? item?.to_shop ?? item?.shop?.name ?? "").trim();
-      const fallbackShop = String(item?.from_shop ?? item?.store_name ?? "").trim();
-      const quantityValue = Number(item?.quantity ?? item?.measurement_value ?? item?.loaded_measurement_value ?? 0);
-
-      return {
-        dateCell: formatDateTimeCell(rawDate),
-        actionLabel: actionMeta.label,
-        actionType: actionMeta.type,
-        quantityCell: String(quantityValue),
-        shopCell: primaryShop || fallbackShop || "-",
-        dateKey: normalizeDateKey(rawDate),
-      };
-    });
+    const availableShops = Array.isArray(movementRes?.available_shops) ? movementRes.available_shops : [];
 
     historyActionOptions.value = Array.isArray(movementRes?.available_movement_types)
       ? movementRes.available_movement_types
           .map((item) => ({
-            value: String(item?.value ?? "").trim().toUpperCase(),
-            label: mapMovementTypeLabel(String(item?.value ?? ""), String(item?.label ?? "")),
+            value: String(item?.value ?? "").trim(),
+            label: String(item?.label ?? "").trim() || String(item?.value ?? "").trim(),
           }))
           .filter((item) => item.value)
-      : [];
+      : Array.from(
+          new Map(
+            movements.map((item: ProductMovementItem) => {
+                const value = String(item.type ?? "").trim();
+                const label = String(item.type_label ?? "").trim();
+                return value && label ? [value, label] as const : null;
+              })
+              .filter(Boolean)
+              .map((entry) => entry as readonly [string, string]),
+          ),
+          ([value, label]) => ({ value, label }),
+        );
 
-    historyShopOptions.value = Array.isArray(movementRes?.available_shops)
-      ? movementRes.available_shops
+    historyShopOptions.value = availableShops
+      ? availableShops
           .map((shop) => ({
             shopId: String(shop?.shop_id ?? "").trim(),
             shopName: String(shop?.shop_name ?? "").trim(),
@@ -614,8 +436,7 @@ async function loadProductHistory() {
           .filter((shop) => shop.shopId && shop.shopName)
       : [];
   } catch {
-    productHistoryLoaded.value = false;
-    productHistoryRowsFromApi.value = [];
+    productMovementData.value = null;
   } finally {
     productHistoryLoading.value = false;
   }
@@ -631,8 +452,7 @@ watch(
   ],
   async ([isOpen]) => {
     if (!isOpen) {
-      productHistoryLoaded.value = false;
-      productHistoryRowsFromApi.value = [];
+      productMovementData.value = null;
       return;
     }
 
@@ -679,6 +499,20 @@ watch(
           ></div>
 
           <div
+            v-if="movementStatCards.length"
+            class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7"
+          >
+            <div
+              v-for="card in movementStatCards"
+              :key="card.label"
+              class="rounded-[20px] border border-white/8 bg-[linear-gradient(180deg,#363636,#2f2f2f)] px-4 py-4 shadow-[0_16px_40px_rgba(0,0,0,0.18)]"
+            >
+              <p class="text-[12px] uppercase tracking-[0.18em] text-[#9f9f9f]">{{ card.label }}</p>
+              <p class="mt-2 text-[24px] font-bold text-white">{{ card.value }}</p>
+            </div>
+          </div>
+
+          <div
             v-for="(section, sectionIndex) in tableSections"
             :key="section.title"
             class="mb-6"
@@ -705,46 +539,12 @@ watch(
               v-if="sectionIndex === 0 && filtersOpen"
               class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3"
             >
-              <UPopover
-                v-model:open="datePopoverOpen"
-                :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
-                :ui="{
-                  content:
-                    'z-[10050] w-[280px] max-w-[calc(100vw-32px)] rounded-[12px] bg-[#262626] p-3 shadow-xl sm:w-[320px]',
-                }"
-              >
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-left text-sm text-white hover:bg-[#a7a6a6] sm:py-4 sm:text-base"
-                >
-                  <span>{{ formatSingleDate(selectedDate) }}</span>
-                  <Icon name="ph:calendar" class="h-4 w-4 text-[#3b82f6]" />
-                </UButton>
-                <template #content>
-                  <div class="space-y-3">
-                    <UCalendar
-                      v-model="selectedDate"
-                      color="neutral"
-                      class="w-full rounded-[10px] bg-[#262626] text-white"
-                      :ui="{
-                        root: 'bg-[#262626] text-white',
-                        header: 'text-white',
-                        heading: 'text-white',
-                        gridWeekDaysRow: 'text-[#bdbdbd]',
-                      }"
-                    />
-                    <UButton
-                      color="neutral"
-                      variant="soft"
-                      class="w-full justify-center rounded-[10px] bg-[#363636] text-white hover:bg-[#404040]"
-                      @click="selectedDate = null"
-                    >
-                      Сбросить дату
-                    </UButton>
-                  </div>
-                </template>
-              </UPopover>
+              <AppDatePicker
+                v-model="selectedDate"
+                placeholder="Все даты"
+                clearable
+                class="w-full"
+              />
 
               <UPopover
                 v-model:open="actionPopoverOpen"
@@ -837,7 +637,7 @@ watch(
                     <td
                       v-for="(cell, cellIndex) in row"
                       :key="`${section.title}-${rowIndex}-${cellIndex}`"
-                      class="whitespace-pre-line p-2"
+                      class="p-2 whitespace-pre-line"
                     >
                       {{ cell }}
                     </td>

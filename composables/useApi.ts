@@ -9,7 +9,8 @@ export function useApi() {
   const user = useUserStore();
   const { startPageLoading, stopPageLoading } = usePageLoader();
 
-  const apiBase = config.public.apiBase as string; // e.g. '/api'
+  const rawApiBase = String(config.public.apiBase || "").trim();
+  const apiBase = normalizeApiBase(rawApiBase); // e.g. '/api' or 'https://host/api'
 
 
   async function apiFetch<T>(
@@ -71,4 +72,20 @@ export function useApi() {
   }
 
   return { apiBase, apiFetch };
+}
+
+function normalizeApiBase(value: string) {
+  if (!value) {
+    return "/api";
+  }
+
+  if (value === "/api" || value.endsWith("/api")) {
+    return value;
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return `${value.replace(/\/+$/, "")}/api`;
+  }
+
+  return value;
 }

@@ -2,12 +2,14 @@
   <div class="flex flex-col bg-[#262626] text-[15px] font-bold shadow-style sm:text-[17px]">
     <div class="flex items-center justify-between p-4">
       <span>Промежуточно</span>
-      <span>{{ formatPrice(subtotal) }} UZS</span>
+      <span v-if="showSummarySkeleton" class="h-5 w-28 animate-pulse rounded-full bg-[#404040]" />
+      <span v-else>{{ formatPrice(subtotal) }} UZS</span>
     </div>
 
     <div class="flex items-center justify-between p-4">
       <span>Скидки</span>
-      <span>{{ formatPrice(totalDiscount) }} UZS</span>
+      <span v-if="showSummarySkeleton" class="h-5 w-24 animate-pulse rounded-full bg-[#404040]" />
+      <span v-else>{{ formatPrice(totalDiscount) }} UZS</span>
     </div>
 
     <button
@@ -17,24 +19,15 @@
       @click="openPaymentPanel"
     >
       <span class="flex items-center gap-2 text-[13px] uppercase sm:text-base">
-        <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-        {{ primaryActionLabel }}
+        <Icon
+          v-if="cartStore.payLoading || cartStore.completingOrder"
+          name="heroicons:arrow-path"
+          class="h-4 w-4 animate-spin"
+        />
+        Оплаты
       </span>
-      <span class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(payableAmount) }} UZS</span>
-    </button>
-
-    <button
-      class="flex w-full items-center justify-center p-5 text-gray-300"
-      :class="cartStore.cancelLoading ? 'cursor-not-allowed opacity-60' : ''"
-      :disabled="cartStore.cancelLoading"
-      @click="onCancel"
-    >
-      <Icon
-        v-if="cartStore.cancelLoading"
-        name="heroicons:arrow-path"
-        class="mr-2 h-4 w-4 animate-spin"
-      />
-      Отмена продажи
+      <span v-if="showSummarySkeleton" class="h-5 w-32 animate-pulse rounded-full bg-white/25" />
+      <span v-else class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(totalAmount) }} UZS</span>
     </button>
 
     <button
@@ -44,139 +37,272 @@
       :disabled="cartStore.parkingLoading"
       @click="onPark"
     >
-      <Icon
-        v-if="cartStore.parkingLoading"
-        name="heroicons:arrow-path"
-        class="mr-2 h-4 w-4 animate-spin"
-      />
+      <Icon v-if="cartStore.parkingLoading" name="heroicons:arrow-path" class="mr-2 h-4 w-4 animate-spin" />
       Отложить чек
     </button>
 
     <AppSlideover
       :open="paymentPanelOpen"
       @update:open="paymentPanelOpen = $event"
-      maxWidthClass="max-w-[980px]"
-      panelClass="bg-[#1f1f1f] p-4 text-white sm:p-6"
+      maxWidthClass="max-w-[1080px]"
+      panelClass="max-h-[100vh] overflow-y-auto bg-[#1f1f1f] p-4 text-white sm:p-6"
       overlayClass="bg-black/50 backdrop-blur-sm"
     >
-        <div class="flex h-full flex-col">
-          <div class="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <h3 class="text-[22px] font-semibold sm:text-[28px]">{{ panelTitle }}</h3>
-              <p class="mt-1 text-sm text-[#a3a3a3]">
-                Выберите способ оплаты для текущей операции.
-              </p>
+      <div class="flex h-full flex-col">
+        <div class="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-[22px] font-semibold sm:text-[28px]">Оплаты и долг</h3>
+            <p class="mt-1 text-sm text-[#a3a3a3]">
+              Добавляйте оплаты частями. Если останется остаток, его можно оформить как долг клиента.
+            </p>
+          </div>
+
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
+            @click="closePaymentPanel"
+          >
+            <Icon name="mingcute:close-fill" class="h-5 w-5" />
+          </UButton>
+        </div>
+
+        <div class="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <div class="rounded-[26px] border border-white/8 bg-[#2a2a2a] p-5">
+            <div class="mb-4 flex items-center justify-between">
+              <span class="text-sm font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">Заказ</span>
+              <span class="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase text-[#d0d0d0]">
+                {{ currentCustomerLabel }}
+              </span>
             </div>
 
-            <UButton
-              color="neutral"
-              variant="ghost"
-              class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white"
-              @click="closePaymentPanel"
+            <div class="space-y-3 text-[14px] text-[#bdbdbd]">
+              <div class="flex items-center justify-between">
+                <span>Товаров</span>
+                <span>{{ totalQuantity }} шт</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Промежуточно</span>
+                <span>{{ formatPrice(subtotal) }} UZS</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Скидка</span>
+                <span>{{ formatPrice(totalDiscount) }} UZS</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Оплачено</span>
+                <span>{{ formatPrice(paidAmount) }} UZS</span>
+              </div>
+            </div>
+
+            <div class="my-5 h-px bg-white/10" />
+
+            <div class="rounded-[18px] bg-[#303030] px-4 py-4">
+              <div class="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">Остаток к оплате</div>
+              <div class="mt-2 text-[28px] font-bold leading-none" :class="remainingDebtAmount > 0 ? 'text-[#ffcf80]' : 'text-white'">
+                {{ formatPrice(remainingDebtAmount) }} UZS
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-[26px] border border-white/8 bg-[#262626] p-5">
+            <div class="mb-5">
+              <h4 class="text-[20px] font-semibold">Добавить оплату</h4>
+              <p class="mt-1 text-sm text-[#8f8f8f]">Выберите способ оплаты и сумму. Можно добавлять несколько оплат.</p>
+            </div>
+
+            <div
+              v-if="paymentMethodsLoading"
+              class="mb-4 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-3 text-sm text-[#bdbdbd]"
             >
+              Загружаем способы оплаты...
+            </div>
+
+            <div
+              v-else-if="singlePaymentMethods.length === 0"
+              class="mb-4 rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+            >
+              Для компании не настроены способы оплаты.
+            </div>
+
+            <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <button
+                v-for="method in singlePaymentMethods"
+                :key="method.value"
+                type="button"
+                class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
+                :class="
+                  selectedPaymentMethod === method.value
+                    ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
+                    : 'border-white/8 bg-[#303030] text-white hover:border-white/15 hover:bg-[#353535]'
+                "
+                @click="selectedPaymentMethod = method.value"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-11 w-11 items-center justify-center rounded-[16px]"
+                    :class="selectedPaymentMethod === method.value ? 'bg-[#1f78ff] text-white' : 'bg-[#404040] text-[#bdbdbd]'"
+                  >
+                    <Icon :name="method.icon" class="h-5 w-5" />
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-[16px] font-semibold">{{ method.label }}</span>
+                    <span class="text-[12px] uppercase tracking-[0.08em] text-[#8f8f8f]">{{ method.hint }}</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div class="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <input
+                v-model="paymentAmountInput"
+                type="number"
+                min="0"
+                :max="remainingDebtAmount"
+                class="rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4 text-white outline-none"
+                placeholder="Сумма оплаты"
+              />
+              <UButton
+                color="primary"
+                class="justify-center rounded-[18px] px-5 py-4 font-semibold"
+                :disabled="!canAddPayment"
+                @click="addPayment"
+              >
+                Добавить оплату
+              </UButton>
+            </div>
+
+            <div
+              v-if="!cartStore.supportsOrdersDebtFlow"
+              class="mt-4 rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-200"
+            >
+              На текущем проде новый orders-модуль с долгами ещё недоступен. Для этого экрана нужен UUID заказа и backend с `/orders/*`.
+            </div>
+
+            <div class="mt-6">
+              <div class="mb-3 flex items-center justify-between">
+                <h5 class="text-[16px] font-semibold">Внесённые оплаты</h5>
+                <span class="text-sm text-[#8f8f8f]">{{ currentPayments.length }}</span>
+              </div>
+
+              <div v-if="!currentPayments.length" class="rounded-[18px] border border-dashed border-white/10 px-4 py-4 text-sm text-[#8f8f8f]">
+                Пока нет добавленных оплат.
+              </div>
+
+              <div v-else class="space-y-3">
+                <div
+                  v-for="payment in currentPayments"
+                  :key="payment.id"
+                  class="flex items-center justify-between rounded-[18px] border border-white/8 bg-[#303030] px-4 py-4"
+                >
+                  <div>
+                    <p class="text-[15px] font-semibold text-white">{{ payment.paymentTypeName || paymentTypeLabel(payment.paymentTypeId) }}</p>
+                    <p class="mt-1 text-sm text-[#a0a0a0]">{{ formatPrice(payment.amount) }} UZS</p>
+                  </div>
+
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    class="rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    :disabled="cartStore.payLoading || cartStore.completingOrder"
+                    @click="removePayment(payment.id)"
+                  >
+                    <Icon name="heroicons:trash-20-solid" class="h-4 w-4" />
+                  </UButton>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="remainingDebtAmount > 0"
+              class="mt-6 rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-100"
+            >
+              <p class="font-semibold">Остаток не закрыт</p>
+              <p class="mt-1">Осталось {{ formatPrice(remainingDebtAmount) }} UZS.</p>
+              <p v-if="!cartStore.currentOrder?.customerId" class="mt-2 text-amber-200">
+                Для продажи в долг сначала выберите клиента.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+          <UButton
+            block
+            color="neutral"
+            variant="soft"
+            class="justify-center rounded-[18px] bg-[#404040] py-4 font-semibold text-white hover:bg-[#525252]"
+            @click="closePaymentPanel"
+          >
+            Назад
+          </UButton>
+
+          <UButton
+            v-if="remainingDebtAmount <= 0"
+            block
+            color="primary"
+            class="justify-center rounded-[18px] py-4 font-semibold disabled:cursor-not-allowed"
+            :disabled="!canCompletePaidOrder"
+            @click="completePaidOrder"
+          >
+            <Icon v-if="cartStore.completingOrder" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+            Завершить продажу
+          </UButton>
+
+          <UButton
+            v-else
+            block
+            color="primary"
+            class="justify-center rounded-[18px] py-4 font-semibold disabled:cursor-not-allowed"
+            :disabled="!canOpenDebtModal"
+            @click="debtModalOpen = true"
+          >
+            Оформить остаток в долг
+          </UButton>
+        </div>
+      </div>
+    </AppSlideover>
+
+    <UModal
+      v-model:open="debtModalOpen"
+      :ui="{
+        overlay: 'bg-black/50 backdrop-blur-sm',
+        content: 'mx-4 max-w-[560px] rounded-[28px] border border-white/10 bg-[#262626] p-0 text-white shadow-2xl ring-0 sm:mx-0',
+      }"
+    >
+      <template #content>
+        <div class="p-5 sm:p-6">
+          <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-[22px] font-semibold">Продажа в долг</h3>
+              <p class="mt-1 text-sm text-[#bdbdbd]">Остаток заказа будет оформлен как долг клиента.</p>
+            </div>
+
+            <UButton color="neutral" variant="ghost" class="rounded-full text-[#bdbdbd] hover:bg-white/5 hover:text-white" @click="debtModalOpen = false">
               <Icon name="mingcute:close-fill" class="h-5 w-5" />
             </UButton>
           </div>
 
-          <div class="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
-            <div class="rounded-[26px] border border-white/8 bg-[#2a2a2a] p-5">
-              <div class="mb-4 flex items-center justify-between">
-                <span class="text-sm font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">Чек</span>
-                <span class="rounded-full bg-[#1f78ff]/15 px-3 py-1 text-xs font-semibold uppercase text-[#78b3ff]">
-                  {{ paymentModeLabel }}
-                </span>
-              </div>
-
-              <div class="space-y-3">
-                <div class="flex items-center justify-between text-[14px] text-[#bdbdbd]">
-                  <span>Товаров</span>
-                  <span>{{ totalQuantity }} шт</span>
-                </div>
-                <div class="flex items-center justify-between text-[14px] text-[#bdbdbd]">
-                  <span>Промежуточно</span>
-                  <span>{{ formatPrice(subtotal) }} UZS</span>
-                </div>
-                <div class="flex items-center justify-between text-[14px] text-[#bdbdbd]">
-                  <span>Скидка</span>
-                  <span>{{ formatPrice(totalDiscount) }} UZS</span>
-                </div>
-              </div>
-
-              <div class="my-5 h-px bg-white/10" />
-
-              <div class="rounded-[18px] bg-[#1f78ff] px-4 py-4">
-                <div class="text-xs font-semibold uppercase tracking-[0.12em] text-white/70">
-                  {{ totalCardLabel }}
-                </div>
-                <div class="mt-2 text-[28px] font-bold leading-none">
-                  {{ formatPrice(payableAmount) }} UZS
-                </div>
-              </div>
+          <div class="space-y-4">
+            <div class="rounded-[18px] bg-[#303030] px-4 py-4">
+              <p class="text-sm text-[#8f8f8f]">Остаток долга</p>
+              <p class="mt-2 text-[28px] font-bold text-[#ffcf80]">{{ formatPrice(remainingDebtAmount) }} UZS</p>
             </div>
 
-            <div class="rounded-[26px] border border-white/8 bg-[#262626] p-5">
-              <div class="mb-4">
-                <h4 class="text-[20px] font-semibold">Способ оплаты</h4>
-                <p class="mt-1 text-sm text-[#8f8f8f]">
-                  Для возврата и обмена можно использовать способ оплаты исходной продажи или выбрать другой.
-                </p>
-              </div>
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-white">Срок погашения</span>
+              <input v-model="dueDateInput" type="date" class="w-full rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4 text-white outline-none" />
+            </label>
 
-              <div
-                v-if="paymentMethodsLoading"
-                class="mb-4 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-3 text-sm text-[#bdbdbd]"
-              >
-                Загружаем способы оплаты...
-              </div>
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-white">Ссылка на чек / документ</span>
+              <input v-model="receiptUrlInput" type="text" class="w-full rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4 text-white outline-none" placeholder="https://..." />
+            </label>
 
-              <div
-                v-else-if="singlePaymentMethods.length === 0"
-                class="mb-4 rounded-[18px] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
-              >
-                Для компании не настроены способы оплаты.
-              </div>
-
-              <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <button
-                  v-for="method in singlePaymentMethods"
-                  :key="method.value"
-                  type="button"
-                  :disabled="cartStore.saleMetaLoading"
-                  class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
-                  :class="
-                    selectedPaymentMethod === method.value
-                      ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
-                      : 'border-white/8 bg-[#303030] text-white hover:border-white/15 hover:bg-[#353535]'
-                  "
-                  @click="selectPaymentMethod(method.value)"
-                >
-                  <div class="flex items-center gap-3">
-                    <div
-                      class="flex h-11 w-11 items-center justify-center rounded-[16px]"
-                      :class="
-                        selectedPaymentMethod === method.value
-                          ? 'bg-[#1f78ff] text-white'
-                          : 'bg-[#404040] text-[#bdbdbd]'
-                      "
-                    >
-                      <Icon :name="method.icon" class="h-5 w-5" />
-                    </div>
-                    <div class="flex flex-col">
-                      <span class="text-[16px] font-semibold">{{ method.label }}</span>
-                      <span class="text-[12px] uppercase tracking-[0.08em] text-[#8f8f8f]">
-                        {{ method.hint }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Icon
-                    v-if="selectedPaymentMethod === method.value"
-                    name="heroicons:check-20-solid"
-                    class="h-5 w-5 text-[#78b3ff]"
-                  />
-                </button>
-              </div>
-            </div>
+            <label class="flex items-center gap-3 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-4 text-sm text-white">
+              <input v-model="debtConfirmation" type="checkbox" class="h-4 w-4 accent-[#4993dd]" />
+              <span>Оформить остаток как долг</span>
+            </label>
           </div>
 
           <div class="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -185,24 +311,78 @@
               color="neutral"
               variant="soft"
               class="justify-center rounded-[18px] bg-[#404040] py-4 font-semibold text-white hover:bg-[#525252]"
-              @click="closePaymentPanel"
+              @click="debtModalOpen = false"
             >
-              Назад
+              Отмена
             </UButton>
 
             <UButton
               block
               color="primary"
               class="justify-center rounded-[18px] py-4 font-semibold disabled:cursor-not-allowed"
-              :disabled="!canConfirmPayment || cartStore.payLoading"
-              @click="confirmPay"
+              :disabled="!canConfirmDebtCompletion"
+              @click="completeWithDebt"
             >
-              <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-              {{ primaryActionLabel }}
+              <Icon v-if="cartStore.completingOrder" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+              Завершить и оформить долг
             </UButton>
           </div>
         </div>
-    </AppSlideover>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="completionModalOpen"
+      :ui="{
+        overlay: 'bg-black/50 backdrop-blur-sm',
+        content: 'mx-4 max-w-[620px] rounded-[28px] border border-white/10 bg-[#262626] p-0 text-white shadow-2xl ring-0 sm:mx-0',
+      }"
+    >
+      <template #content>
+        <div class="p-5 sm:p-6">
+          <h3 class="text-[24px] font-semibold">Продажа завершена</h3>
+
+          <div v-if="completionDebt" class="mt-5 rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4">
+            <p class="text-sm text-[#8f8f8f]">Оформлен долг</p>
+            <p class="mt-2 text-[26px] font-bold text-white">{{ formatPrice(completionDebt.remaining_amount_uzs) }} UZS</p>
+            <p class="mt-2 text-sm text-[#d1d1d1]">Срок: {{ completionDebt.due_date ? formatDate(completionDebt.due_date) : "Не указан" }}</p>
+          </div>
+
+          <div class="mt-6 flex flex-col gap-3">
+            <UButton
+              v-if="completionCustomerId"
+              block
+              color="neutral"
+              variant="soft"
+              class="justify-center rounded-[18px] bg-[#404040] py-4 font-semibold text-white hover:bg-[#525252]"
+              @click="goToClientCard"
+            >
+              Перейти в карточку клиента
+            </UButton>
+
+            <UButton
+              v-if="completionCustomerId && completionDebt"
+              block
+              color="neutral"
+              variant="soft"
+              class="justify-center rounded-[18px] bg-[#404040] py-4 font-semibold text-white hover:bg-[#525252]"
+              @click="goToClientDebts"
+            >
+              Перейти в долги клиента
+            </UButton>
+
+            <UButton
+              block
+              color="primary"
+              class="justify-center rounded-[18px] py-4 font-semibold"
+              @click="startNewSale"
+            >
+              Новая продажа
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <UModal
       v-model:open="printStore.receiptPreviewOpen"
@@ -216,9 +396,7 @@
           <div class="mb-5 flex items-start justify-between gap-4">
             <div>
               <h3 class="text-[22px] font-semibold">Чек продажи</h3>
-              <p class="mt-1 text-sm text-[#bdbdbd]">
-                Проверьте чек перед печатью или закройте окно.
-              </p>
+              <p class="mt-1 text-sm text-[#bdbdbd]">Проверьте чек перед печатью или закройте окно.</p>
             </div>
 
             <UButton
@@ -236,24 +414,18 @@
             class="mx-auto rounded-lg bg-white p-3 font-sans text-[12px] text-black"
             :class="printStore.receiptPaperClass === 'receipt-paper-58' ? 'max-w-[250px]' : 'max-w-[320px]'"
           >
-            <div v-if="printStore.settings.showCompanyName" class="text-center font-bold">
-              {{ printStore.settings.companyName }}
-            </div>
+            <div v-if="printStore.settings.showCompanyName" class="text-center font-bold">{{ printStore.settings.companyName }}</div>
             <div
               v-if="printStore.settings.showShopName && (printStore.settings.shopName || printStore.settings.address)"
               class="text-center text-[#555]"
             >
               {{ printStore.settings.shopName || printStore.settings.address }}
             </div>
-            <div v-if="printStore.settings.phone" class="text-center text-[#555]">
-              {{ receiptPhone }}
-            </div>
+            <div v-if="printStore.settings.phone" class="text-center text-[#555]">{{ receiptPhone }}</div>
             <div class="my-2 border-t border-dashed border-black"></div>
             <div>Чек: {{ printStore.latestReceipt.saleNumber || printStore.latestReceipt.saleId || "-" }}</div>
             <div>Дата: {{ new Date(printStore.latestReceipt.paidAt).toLocaleString("ru-RU") }}</div>
-            <div v-if="printStore.settings.showPaymentMethod">
-              Оплата: {{ printStore.latestReceipt.paymentMethodName }}
-            </div>
+            <div v-if="printStore.settings.showPaymentMethod">Оплата: {{ printStore.latestReceipt.paymentMethodName }}</div>
             <div class="my-2 border-t border-dashed border-black"></div>
             <div
               v-for="line in printStore.latestReceipt.lines"
@@ -283,12 +455,7 @@
             >
               Закрыть
             </UButton>
-            <UButton
-              block
-              color="primary"
-              class="justify-center rounded-[16px] py-3 font-semibold"
-              @click="printStore.printReceipt()"
-            >
+            <UButton block color="primary" class="justify-center rounded-[16px] py-3 font-semibold" @click="printStore.printReceipt()">
               <Icon name="heroicons:printer" class="h-5 w-5" />
               Печать
             </UButton>
@@ -302,6 +469,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import { useCartStore } from "@/store/cart";
 import { usePrintSettingsStore, type SaleReceiptSnapshot } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
@@ -309,23 +477,35 @@ import { formatUzPhoneDisplay } from "~/utils/phone";
 
 const cartStore = useCartStore();
 const printStore = usePrintSettingsStore();
-const { subtotal, totalDiscount, total, cart, paymentMethods, paymentMethodsLoading, saleFlowMode, exchangeItemsTotal, sourceSale } = storeToRefs(cartStore);
+const router = useRouter();
+const {
+  subtotal,
+  totalDiscount,
+  total,
+  cart,
+  paymentMethods,
+  paymentMethodsLoading,
+  saleFlowMode,
+  paidAmount,
+  remainingDebtAmount,
+  createdDebt,
+} = storeToRefs(cartStore);
 const { formatPrice } = useFormatPrice();
 const toast = useToast();
 
 const paymentPanelOpen = ref(false);
-const selectedPaymentMethod = ref<string>("");
+const debtModalOpen = ref(false);
+const completionModalOpen = ref(false);
+const selectedPaymentMethod = ref("");
+const paymentAmountInput = ref("");
+const dueDateInput = ref("");
+const receiptUrlInput = ref("");
+const debtConfirmation = ref(false);
+const completionCustomerId = ref("");
+const completionDebt = ref<any | null>(null);
 
+const showSummarySkeleton = computed(() => cartStore.addingItem || cartStore.discountLoading);
 const isReturnFlow = computed(() => saleFlowMode.value === "return");
-const isExchangeFlow = computed(() => isReturnFlow.value && Number(exchangeItemsTotal.value || 0) > 0);
-const currentPaymentMethodId = computed(() =>
-  String(
-    sourceSale.value?.paymentMethodId ??
-    cartStore.orderRaw?.payment_method ??
-    cartStore.orderRaw?.payment?.id ??
-    "",
-  ).trim(),
-);
 
 function paymentMethodIcon(method: { isCash?: boolean }) {
   return method.isCash ? "heroicons:banknotes" : "heroicons:credit-card";
@@ -343,108 +523,100 @@ const singlePaymentMethods = computed(() =>
     })),
 );
 
-const payableAmount = computed(() =>
-  isReturnFlow.value
-    ? Number(total.value || 0)
-    : Number(cartStore.payableTotal || total.value || 0),
+const totalAmount = computed(() =>
+  isReturnFlow.value ? Number(total.value || 0) : Number(cartStore.payableTotal || total.value || 0),
 );
-const primaryActionLabel = computed(() => {
-  if (isExchangeFlow.value) return "Обмен";
-  if (isReturnFlow.value) return "Возврат";
-  return "Оплатить";
-});
-const panelTitle = computed(() => {
-  if (isExchangeFlow.value) return "Обмен";
-  if (isReturnFlow.value) return "Возврат продажи";
-  return "Оплата продажи";
-});
-const totalCardLabel = computed(() => {
-  if (isExchangeFlow.value) return "Разница к оплате";
-  if (isReturnFlow.value) return "Сумма возврата";
-  return "Общая сумма";
-});
-const canPay = computed(() => payableAmount.value > 0 && !cartStore.payLoading && !paymentMethodsLoading.value);
-const canStartCheckout = computed(() => {
-  if (isReturnFlow.value) {
-    return cart.value.length > 0 && !cartStore.payLoading && !paymentMethodsLoading.value;
-  }
-  return canPay.value;
-});
-const canParkSale = computed(() =>
-  !isReturnFlow.value &&
-  cart.value.length > 0 &&
-  !cartStore.payLoading &&
-  !cartStore.parkingLoading,
+const canStartCheckout = computed(() => !isReturnFlow.value && cart.value.length > 0 && !cartStore.completingOrder);
+const canParkSale = computed(
+  () => !isReturnFlow.value && cart.value.length > 0 && !cartStore.payLoading && !cartStore.parkingLoading,
 );
-const secondaryActionLabel = computed(() => {
-  if (isReturnFlow.value) return "Отменить возврат";
-  if (cart.value.length > 0) return "Удалить черновик";
-  return "Сбросить чек";
-});
-const receiptPhone = computed(() => formatUzPhoneDisplay(printStore.settings.phone) || printStore.settings.phone);
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0),
 );
-const paymentModeLabel = computed(
-  () => singlePaymentMethods.value.find((item) => item.value === selectedPaymentMethod.value)?.label || "Не выбрано",
-);
-const canConfirmPayment = computed(() => {
-  if (!canStartCheckout.value || paymentMethodsLoading.value || singlePaymentMethods.value.length === 0) {
-    return false;
-  }
-  if (isExchangeFlow.value && Number(exchangeItemsTotal.value || 0) <= 0) {
-    return false;
-  }
-  return Boolean(selectedPaymentMethod.value);
+const currentCustomerLabel = computed(() => cartStore.currentOrder?.customerName || "Без клиента");
+const currentPayments = computed(() => cartStore.currentOrder?.payments || []);
+const canAddPayment = computed(() => {
+  const amount = Number(paymentAmountInput.value || 0);
+  return (
+    cartStore.supportsOrdersDebtFlow &&
+    !isReturnFlow.value &&
+    Boolean(selectedPaymentMethod.value) &&
+    amount > 0 &&
+    amount <= Number(remainingDebtAmount.value || 0) &&
+    !cartStore.payLoading &&
+    !cartStore.completingOrder
+  );
 });
+const canCompletePaidOrder = computed(
+  () =>
+    cartStore.supportsOrdersDebtFlow &&
+    !isReturnFlow.value &&
+    cart.value.length > 0 &&
+    Number(remainingDebtAmount.value || 0) <= 0 &&
+    !cartStore.completingOrder,
+);
+const canOpenDebtModal = computed(
+  () =>
+    cartStore.supportsOrdersDebtFlow &&
+    !isReturnFlow.value &&
+    cart.value.length > 0 &&
+    Number(remainingDebtAmount.value || 0) > 0 &&
+    Boolean(cartStore.currentOrder?.customerId) &&
+    !cartStore.completingOrder,
+);
+const canConfirmDebtCompletion = computed(
+  () => canOpenDebtModal.value && debtConfirmation.value,
+);
+const receiptPhone = computed(() => formatUzPhoneDisplay(printStore.settings.phone) || printStore.settings.phone);
 
-async function openPaymentPanel() {
-  if (!canStartCheckout.value) return;
-  await cartStore.loadPaymentMethods();
-  if (currentPaymentMethodId.value) {
-    selectedPaymentMethod.value = currentPaymentMethodId.value;
-  }
-  paymentPanelOpen.value = true;
+function formatDate(value: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
 }
 
-function closePaymentPanel() {
-  paymentPanelOpen.value = false;
+function paymentTypeLabel(paymentTypeId: string) {
+  return singlePaymentMethods.value.find((method) => method.value === paymentTypeId)?.label || "Способ оплаты";
 }
 
-async function selectPaymentMethod(value: string) {
-  const nextValue = String(value || "").trim();
-  if (!nextValue || selectedPaymentMethod.value === nextValue) return;
-
-  const previousValue = selectedPaymentMethod.value;
-  selectedPaymentMethod.value = nextValue;
-
-  if (!cartStore.saleId || isReturnFlow.value) return;
-
-  const result = await cartStore.updateSaleMeta({ paymentMethodId: nextValue });
-  if (result) return;
-
-  selectedPaymentMethod.value = previousValue;
-  toast.add({
-    title: "Не удалось изменить способ оплаты",
-    description: cartStore.lastCartError || undefined,
-    color: "error",
-  });
+function resetDebtModalState() {
+  dueDateInput.value = "";
+  receiptUrlInput.value = "";
+  debtConfirmation.value = false;
 }
 
-async function confirmPay() {
-  if (!canConfirmPayment.value) return;
+function openCompletionState(result: any) {
+  completionCustomerId.value = String(
+    result?.customerId ??
+    result?.customer?.id ??
+    cartStore.currentOrder?.customerId ??
+    "",
+  ).trim();
+  completionDebt.value = result?.createdDebt ?? result?.created_debt ?? createdDebt.value ?? null;
+  completionModalOpen.value = true;
+}
 
-  const companyPaymentTypeId = String(selectedPaymentMethod.value || "").trim();
-  if (!companyPaymentTypeId) return;
-  const selectedMethod = singlePaymentMethods.value.find((method) => method.value === companyPaymentTypeId);
+function syncReceipt(result: any) {
+  const methodName =
+    currentPayments.value.length === 1
+      ? paymentTypeLabel(currentPayments.value[0].paymentTypeId)
+      : currentPayments.value.length > 1
+        ? "Смешанная оплата"
+        : "Не указано";
+
   const receiptSnapshot: SaleReceiptSnapshot = {
     saleId: cartStore.saleId,
     saleNumber: cartStore.saleNumber,
     paidAt: new Date().toISOString(),
-    paymentMethodName: selectedMethod?.label || "Не указано",
+    paymentMethodName: methodName,
     subtotal: subtotal.value,
     discount: totalDiscount.value,
-    total: payableAmount.value,
+    total: totalAmount.value,
     lines: cart.value.map((item: any) => {
       const quantity = Math.max(1, Number(item.quantity || 1));
       const price = Number(item.price || 0);
@@ -458,42 +630,119 @@ async function confirmPay() {
     }),
   };
 
-  const result = isReturnFlow.value
-    ? await cartStore.submitReturnOrExchange({ paymentMethodId: companyPaymentTypeId })
-    : await cartStore.paySale({ paymentMethodId: companyPaymentTypeId });
+  printStore.setLatestReceipt({
+    ...receiptSnapshot,
+    receiptResponse: result,
+  });
+}
+
+async function openPaymentPanel() {
+  if (!canStartCheckout.value) return;
+  await cartStore.loadPaymentMethods();
+  const defaultMethod = singlePaymentMethods.value.find((method) => method.isCash) ?? singlePaymentMethods.value[0];
+  selectedPaymentMethod.value = selectedPaymentMethod.value || defaultMethod?.value || "";
+  paymentAmountInput.value = String(Math.max(0, Number(remainingDebtAmount.value || totalAmount.value || 0)));
+  paymentPanelOpen.value = true;
+}
+
+function closePaymentPanel() {
+  paymentPanelOpen.value = false;
+}
+
+async function addPayment() {
+  if (!canAddPayment.value) return;
+
+  const result = await cartStore.addOrderPayment({
+    paymentTypeId: selectedPaymentMethod.value,
+    amount: Number(paymentAmountInput.value || 0),
+  });
 
   if (!result) {
     toast.add({
-      title: isReturnFlow.value ? "Не удалось завершить операцию" : "Не удалось провести оплату",
+      title: "Не удалось добавить оплату",
       description: cartStore.lastCartError || undefined,
       color: "error",
     });
     return;
   }
 
-  printStore.setLatestReceipt({
-    ...receiptSnapshot,
-    receiptResponse: result,
-  });
-  closePaymentPanel();
-  toast.add({
-    title: isExchangeFlow.value ? "Обмен оформлен" : isReturnFlow.value ? "Возврат оформлен" : "Оплата проведена",
-    color: "success",
-  });
+  paymentAmountInput.value = String(Math.max(0, Number(remainingDebtAmount.value || 0)));
+  toast.add({ title: "Оплата добавлена", color: "success" });
 }
 
-async function onCancel() {
-  const result = isReturnFlow.value
-    ? await cartStore.cancelSale()
-    : await cartStore.deleteDraftSale();
-
-  if (result === false) {
+async function removePayment(paymentId: string) {
+  const result = await cartStore.removeOrderPayment(paymentId);
+  if (!result) {
     toast.add({
-      title: "Не удалось удалить черновик",
+      title: "Не удалось удалить оплату",
       description: cartStore.lastCartError || undefined,
       color: "error",
     });
+    return;
   }
+
+  paymentAmountInput.value = String(Math.max(0, Number(remainingDebtAmount.value || 0)));
+}
+
+async function completePaidOrder() {
+  const result = await cartStore.completeOrder();
+  if (!result) {
+    toast.add({
+      title: "Не удалось завершить продажу",
+      description: cartStore.lastCartError || undefined,
+      color: "error",
+    });
+    return;
+  }
+
+  syncReceipt(result);
+  closePaymentPanel();
+  openCompletionState(result);
+  toast.add({ title: "Продажа завершена", color: "success" });
+}
+
+async function completeWithDebt() {
+  if (!canConfirmDebtCompletion.value) return;
+
+  const result = await cartStore.completeOrder({
+    allowDebt: true,
+    dueDate: dueDateInput.value || null,
+    receiptUrl: receiptUrlInput.value || null,
+  });
+
+  if (!result) {
+    toast.add({
+      title: "Не удалось оформить продажу в долг",
+      description: cartStore.lastCartError || undefined,
+      color: "error",
+    });
+    return;
+  }
+
+  syncReceipt(result);
+  debtModalOpen.value = false;
+  closePaymentPanel();
+  resetDebtModalState();
+  openCompletionState(result);
+  toast.add({ title: "Продажа завершена", color: "success" });
+}
+
+async function startNewSale() {
+  completionModalOpen.value = false;
+  resetDebtModalState();
+  await cartStore.openFreshSale({ keepReceipt: true });
+}
+
+async function goToClientCard() {
+  if (!completionCustomerId.value) return;
+  completionModalOpen.value = false;
+  await router.push(`/clients/card/${completionCustomerId.value}`);
+}
+
+async function goToClientDebts() {
+  if (!completionCustomerId.value) return;
+  completionModalOpen.value = false;
+  await router.push(`/clients/card/${completionCustomerId.value}?tab=debts`);
 }
 
 async function onPark() {
@@ -513,16 +762,22 @@ async function onPark() {
   });
 }
 
-watch(singlePaymentMethods, (methods) => {
-  const defaultPaymentType =
-    methods.find((method) => method.value === currentPaymentMethodId.value) ??
-    methods.find((method) => method.isCash) ??
-    methods[0];
-  const first = defaultPaymentType?.value || "";
-  const available = new Set(methods.map((method) => method.value));
+watch(
+  singlePaymentMethods,
+  (methods) => {
+    const first = (methods.find((method) => method.isCash) ?? methods[0])?.value || "";
+    const available = new Set(methods.map((method) => method.value));
 
-  if (!available.has(selectedPaymentMethod.value)) {
-    selectedPaymentMethod.value = first;
+    if (!available.has(selectedPaymentMethod.value)) {
+      selectedPaymentMethod.value = first;
+    }
+  },
+  { immediate: true },
+);
+
+watch(debtModalOpen, (next) => {
+  if (!next) {
+    resetDebtModalState();
   }
-}, { immediate: true });
+});
 </script>
