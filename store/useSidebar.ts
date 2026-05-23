@@ -10,7 +10,7 @@ export const useSidebarStore = defineStore("sidebar", () => {
     { name: "Главная", icon: "heroicons:home", route: "/" },
     { name: "Товары", icon: "heroicons:archive-box", route: "/products" },
     { name: "Продажи", icon: "heroicons:shopping-cart", route: "/sales" },
-    { name: "Клиенты", icon: "heroicons:user-group", route: "/clients" },
+    { name: "Клиенты", icon: "heroicons:user-group", route: "/clients?page=1&limit=10" },
     { name: "Отчёты", icon: "heroicons:chart-bar", route: "/reports" },
   ]);
 

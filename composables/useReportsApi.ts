@@ -4,13 +4,25 @@ export type ReportFilterQuery = {
   from?: string;
   to?: string;
   shopId?: string;
+  shopIds?: string[];
+  plotShopIds?: string[];
   sellerId?: string;
   categoryId?: string;
   productId?: string;
   brandId?: string;
   supplierId?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number | string;
   perPage?: number | string;
+  limit?: number | string;
+  currency?: string;
+  groupBy?: string;
+  field?: string;
+  topProductField?: string;
+  topCategoryField?: string;
+  detalization?: string;
+  priceType?: number | string;
   method?: "revenue" | "profit" | "quantity";
 };
 
@@ -162,6 +174,92 @@ export type SellerReportDetails = {
   salary_report: SellerSalaryReport | null;
 };
 
+export type GeneralReportTableRow = {
+  id: string;
+  date: string;
+  shop_name: string;
+  gross_sales: number;
+  discount_sum: number;
+  discount_percent: number;
+  sales_supply_price: number;
+  net_gross_sales: number;
+  gross_profit: number;
+  average_cheque: number;
+  average_price: number;
+  products_sold: number;
+  transactions_count: number;
+  orders_count: number;
+  returns_count: number;
+  exchanges_count: number;
+};
+
+export type GeneralReportTableResult = {
+  rows: GeneralReportTableRow[];
+  count: number;
+};
+
+export type GeneralSalesReportResult = {
+  value: number;
+  shop_stats: ShopReportRow[];
+  shop_plot: ReportPoint[];
+};
+
+export type GeneralProductCategoryRow = {
+  id: string;
+  name: string;
+  sold_quantity: number;
+  net_revenue: number;
+  gross_profit: number;
+};
+
+export type GeneralProductReportResult = {
+  value: number;
+  shop_stats: ShopReportRow[];
+  shop_plot: ReportPoint[];
+  top_products: ProductReportRow[];
+  top_categories: GeneralProductCategoryRow[];
+};
+
+export type GeneralSellerReportRow = {
+  id: string;
+  name: string;
+  net_profit: number;
+  net_sales: number;
+  average_cheque: number;
+  average_sold_measurement_value: number;
+  average_price: number;
+  total_sold_measurement_value: number;
+};
+
+export type GeneralSellerReportResult = {
+  top_sellers: GeneralSellerReportRow[];
+  count_others: number;
+  other_sellers: GeneralSellerReportRow[];
+};
+
+export type GeneralCustomerStatRow = {
+  id: string;
+  name: string;
+  new_count: number;
+  returned_count: number;
+};
+
+export type GeneralCustomerTopEntity = {
+  id: string;
+  name: string;
+  value: number;
+  subtitle: string;
+};
+
+export type GeneralCustomerReportResult = {
+  shop_plot: ReportPoint[];
+  shop_stats: GeneralCustomerStatRow[];
+  new_count: number;
+  returned_count: number;
+  top_client: GeneralCustomerTopEntity | null;
+  top_transaction: GeneralCustomerTopEntity | null;
+};
+
 function asString(value: unknown, fallback = "") {
   return String(value ?? fallback).trim();
 }
@@ -284,10 +382,10 @@ function normalizeProduct(raw: any): ProductReportRow {
     sku: asString(raw?.sku ?? raw?.article),
     category: asString(raw?.category ?? raw?.category_name, "Без категории"),
     brand: asString(raw?.brand ?? raw?.brand_name, "Без бренда"),
-    sold_quantity: asNumber(raw?.sold_quantity ?? raw?.products_sold ?? raw?.quantity),
+    sold_quantity: asNumber(raw?.sold_qty ?? raw?.sold_quantity ?? raw?.products_sold ?? raw?.quantity),
     gross_revenue: asNumber(raw?.gross_revenue ?? raw?.gross_sales),
     net_revenue: asNumber(raw?.net_revenue ?? raw?.net_gross_sales),
-    sold_cost: asNumber(raw?.sold_cost ?? raw?.supply_cost ?? raw?.cost_price),
+    sold_cost: asNumber(raw?.sold_cost ?? raw?.sales_supply_price ?? raw?.supply_cost ?? raw?.cost_price),
     gross_profit: asNumber(raw?.gross_profit ?? raw?.profit_at_sale),
     margin_percent: asNumber(raw?.margin_percent ?? raw?.profit_margin_percent),
     average_discount: asNumber(raw?.average_discount ?? raw?.discount_percent),
@@ -317,6 +415,74 @@ function normalizeSeller(raw: any): SellerReportRow {
     bonus_amount: asNumber(raw?.bonus_amount),
     salary_total: asNumber(raw?.salary_total),
     calculation_type: asString(raw?.calculation_type, "FIXED_PLUS_PROFIT"),
+  };
+}
+
+function normalizeGeneralSeller(raw: any): GeneralSellerReportRow {
+  return {
+    id: asString(raw?.seller_id ?? raw?.id ?? raw?.user_id),
+    name: asString(raw?.name ?? raw?.seller_name ?? raw?.user_name, "Продавец"),
+    net_profit: asNumber(raw?.net_profit ?? raw?.gross_profit),
+    net_sales: asNumber(raw?.net_sales ?? raw?.net_gross_sales),
+    average_cheque: asNumber(raw?.average_cheque),
+    average_sold_measurement_value: asNumber(raw?.average_sold_measurement_value),
+    average_price: asNumber(raw?.average_price),
+    total_sold_measurement_value: asNumber(raw?.total_sold_measurement_value ?? raw?.products_sold),
+  };
+}
+
+function normalizeGeneralCategory(raw: any): GeneralProductCategoryRow {
+  return {
+    id: asString(raw?.id ?? raw?.category_id ?? raw?.name),
+    name: asString(raw?.name ?? raw?.category_name, "Без категории"),
+    sold_quantity: asNumber(raw?.sold_qty ?? raw?.sold_quantity ?? raw?.products_sold),
+    net_revenue: asNumber(raw?.net_gross_sales ?? raw?.net_revenue),
+    gross_profit: asNumber(raw?.gross_profit),
+  };
+}
+
+function normalizeGeneralCustomerStat(raw: any): GeneralCustomerStatRow {
+  return {
+    id: asString(raw?.shop_id ?? raw?.id ?? raw?.name),
+    name: asString(raw?.shop_name ?? raw?.name, "Магазин"),
+    new_count: asNumber(raw?.new_count ?? raw?.new),
+    returned_count: asNumber(raw?.returned_count ?? raw?.returned),
+  };
+}
+
+function normalizeTopCustomerEntity(raw: any): GeneralCustomerTopEntity | null {
+  if (!raw) return null;
+
+  const id = asString(raw?.id ?? raw?.customer_id ?? raw?.transaction_id ?? raw?.name);
+  const name = asString(raw?.name ?? raw?.customer_name ?? raw?.order_number, "");
+  const value = asNumber(raw?.value ?? raw?.gross_sales ?? raw?.net_gross_sales ?? raw?.amount ?? raw?.sum);
+  const subtitle = asString(raw?.phone ?? raw?.shop_name ?? raw?.label ?? raw?.date, "");
+
+  if (!id && !name && !value && !subtitle) {
+    return null;
+  }
+
+  return { id: id || name, name: name || "Без названия", value, subtitle };
+}
+
+function normalizeGeneralReportTableRow(raw: any, index: number): GeneralReportTableRow {
+  return {
+    id: asString(raw?.id ?? `${raw?.date ?? raw?.start_date ?? index}-${raw?.shop_id ?? raw?.shop_name ?? index}`),
+    date: asString(raw?.date ?? raw?.start_date ?? raw?.day),
+    shop_name: asString(raw?.shop_name ?? raw?.name, "Магазин"),
+    gross_sales: asNumber(raw?.gross_sales),
+    discount_sum: asNumber(raw?.discount_sum),
+    discount_percent: asNumber(raw?.discount_percent),
+    sales_supply_price: asNumber(raw?.sales_supply_price),
+    net_gross_sales: asNumber(raw?.net_gross_sales),
+    gross_profit: asNumber(raw?.gross_profit),
+    average_cheque: asNumber(raw?.average_cheque),
+    average_price: asNumber(raw?.average_price),
+    products_sold: asNumber(raw?.products_sold),
+    transactions_count: asNumber(raw?.transactions_count),
+    orders_count: asNumber(raw?.orders_count),
+    returns_count: asNumber(raw?.returns_count),
+    exchanges_count: asNumber(raw?.exchanges_count),
   };
 }
 
@@ -375,9 +541,48 @@ function normalizeSalaryReport(raw: any): SellerSalaryReport {
 }
 
 function buildQuery(query: ReportFilterQuery) {
-  return Object.fromEntries(
-    Object.entries(query).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== ""),
-  );
+  const params: Record<string, string | number> = {};
+
+  const assign = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      const normalized = value.map((item) => String(item).trim()).filter(Boolean).join(",");
+      if (normalized) params[key] = normalized;
+      return;
+    }
+
+    const normalized = String(value).trim();
+    if (normalized !== "") {
+      params[key] = normalized;
+    }
+  };
+
+  assign("from", query.from);
+  assign("to", query.to);
+  assign("shopId", query.shopId);
+  assign("sellerId", query.sellerId);
+  assign("categoryId", query.categoryId);
+  assign("productId", query.productId);
+  assign("brandId", query.brandId);
+  assign("supplierId", query.supplierId);
+  assign("page", query.page);
+  assign("perPage", query.perPage);
+  assign("method", query.method);
+
+  assign("start_date", query.startDate);
+  assign("end_date", query.endDate);
+  assign("shop_ids", query.shopIds);
+  assign("plot_shop_ids", query.plotShopIds);
+  assign("limit", query.limit);
+  assign("currency", query.currency);
+  assign("group_by", query.groupBy);
+  assign("field", query.field);
+  assign("top_product_field", query.topProductField);
+  assign("top_category_field", query.topCategoryField);
+  assign("detalization", query.detalization);
+  assign("price_type", query.priceType);
+
+  return params;
 }
 
 export function useReportsApi() {
@@ -472,6 +677,67 @@ export function useReportsApi() {
     return extractRows(payload, ["customers", "items", "data"]).map(normalizeCustomer);
   }
 
+  async function getGeneralReport(query: ReportFilterQuery = {}) {
+    const payload = await request("/general-report", query);
+    return {
+      summary: buildSummary(payload),
+      shop_stats: extractRows(payload, ["shop_stats", "shops", "items"]).map(normalizeShop),
+    };
+  }
+
+  async function getGeneralReportTable(query: ReportFilterQuery = {}): Promise<GeneralReportTableResult> {
+    const payload = await request("/general-report-table", query);
+    const rows = extractRows(payload, ["shop_stats_by_date", "items", "data"]).map((row: any, index: number) =>
+      normalizeGeneralReportTableRow(row, index),
+    );
+
+    return {
+      rows,
+      count: asNumber(payload?.count ?? payload?.total ?? rows.length),
+    };
+  }
+
+  async function getGeneralSalesReport(query: ReportFilterQuery = {}): Promise<GeneralSalesReportResult> {
+    const payload = await request("/general-sales-report", query);
+    return {
+      value: asNumber(payload?.value),
+      shop_stats: extractRows(payload, ["shop_stats", "shops", "items"]).map(normalizeShop),
+      shop_plot: extractChart(payload, ["shop_plot", "plot", "chart"]),
+    };
+  }
+
+  async function getGeneralProductReport(query: ReportFilterQuery = {}): Promise<GeneralProductReportResult> {
+    const payload = await request("/general-product-report", query);
+    return {
+      value: asNumber(payload?.value),
+      shop_stats: extractRows(payload, ["shop_stats", "shops", "items"]).map(normalizeShop),
+      shop_plot: extractChart(payload, ["shop_plot", "plot", "chart"]),
+      top_products: extractRows(payload, ["top_products", "products", "items"]).map(normalizeProduct),
+      top_categories: extractRows(payload, ["top_categories", "categories", "items"]).map(normalizeGeneralCategory),
+    };
+  }
+
+  async function getGeneralSellerReport(query: ReportFilterQuery = {}): Promise<GeneralSellerReportResult> {
+    const payload = await request("/general-seller-report", query);
+    return {
+      top_sellers: extractRows(payload, ["top_sellers", "sellers", "items"]).map(normalizeGeneralSeller),
+      count_others: asNumber(payload?.count_others),
+      other_sellers: extractRows(payload, ["other_sellers"]).map(normalizeGeneralSeller),
+    };
+  }
+
+  async function getGeneralCustomerReport(query: ReportFilterQuery = {}): Promise<GeneralCustomerReportResult> {
+    const payload = await request("/general-customer-report", query);
+    return {
+      shop_plot: extractChart(payload, ["shop_plot", "plot", "chart"]),
+      shop_stats: extractRows(payload, ["shop_stats", "shops", "items"]).map(normalizeGeneralCustomerStat),
+      new_count: asNumber(payload?.new_count),
+      returned_count: asNumber(payload?.returned_count),
+      top_client: normalizeTopCustomerEntity(payload?.top_client),
+      top_transaction: normalizeTopCustomerEntity(payload?.top_transaction),
+    };
+  }
+
   function getSummaryFromPayload(payload: any) {
     const summary = buildSummary(extractSummaryPayload(payload));
     summary.chart_sales = extractChart(payload, ["chart_sales", "sales_by_day", "sales"]);
@@ -492,5 +758,11 @@ export function useReportsApi() {
     getSellerSales,
     getSellerDetails,
     getCustomers,
+    getGeneralReport,
+    getGeneralReportTable,
+    getGeneralSalesReport,
+    getGeneralProductReport,
+    getGeneralSellerReport,
+    getGeneralCustomerReport,
   };
 }

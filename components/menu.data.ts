@@ -33,9 +33,9 @@ export const MENU_DATA: IMenuItem[] = [
   {
     name: "Клиенты",
     icon: "solar:user-bold",
-    url: "/clients",
+    url: "/clients?page=1&limit=10",
     items: [
-      { title: "Все клиенты", url: "/clients/all" },
+      { title: "Все клиенты", url: "/clients?page=1&limit=10" },
       { title: "Программа лояльности", url: "/clients/loyalty-program" },
       { title: "Долги клиентов", url: "/clients/cashbox" },
     ],

@@ -32,15 +32,35 @@ type SalePaymentPayload = {
   client_name?: string;
 };
 
-type PosOrderStatus =
-  | "draft"
-  | "paid"
-  | "cancelled"
-  | "parked"
-  | "returned"
-  | "partially_returned"
-  | "exchanged"
-  | "partially_exchanged";
+type OrderCustomer = {
+  id: string;
+  code: string;
+  firstName: string;
+  lastName: string | null;
+  middleName: string | null;
+  phone: string;
+};
+
+type PosOrderPayment = {
+  id: string;
+  paymentTypeId: string;
+  amount: number;
+  paymentTypeName?: string | null;
+};
+
+type PosCreatedDebt = {
+  id: string;
+  client_id: string;
+  amount_uzs: number;
+  remaining_amount_uzs: number;
+  repaid_amount_uzs: number;
+  due_date: string | null;
+  status: string;
+  created_at: string;
+  receipt_url: string | null;
+};
+
+type PosOrderStatus = string;
 
 type PosOrder = {
   id: string;
@@ -49,12 +69,16 @@ type PosOrder = {
   shopId: string;
   cashboxId?: string | null;
   items: any[];
-  payments: any[];
+  payments: PosOrderPayment[];
   totalPrice: number;
   discountAmount: number;
   paidAmount: number;
+  remainingDebtAmount: number;
   comment?: string | null;
   customerId?: string | null;
+  customerName?: string | null;
+  customer?: OrderCustomer | null;
+  createdDebt?: PosCreatedDebt | null;
   versionNumber: number;
 };
 
@@ -113,6 +137,7 @@ export const useCartStore = defineStore("cart", () => {
   const orderDraftDebt = ref<any | null>(null);
   const loyaltyProgram = ref<any | null>(null);
   const companyCurrency = ref<any | null>(null);
+  const completingOrder = ref(false);
 
   const products = ref<CartProduct[]>([
     {
@@ -292,7 +317,7 @@ export const useCartStore = defineStore("cart", () => {
       : Array.isArray(source?.order_detail?.order_items)
         ? source.order_detail.order_items
         : [];
-    const payments = Array.isArray(source.payments)
+    const paymentsSource = Array.isArray(source.payments)
       ? source.payments
       : Array.isArray(source?.order_detail?.order_payments)
         ? source.order_detail.order_payments
@@ -316,6 +341,38 @@ export const useCartStore = defineStore("cart", () => {
       source.amount ??
       (String(source.status ?? "").toLowerCase() === "paid" ? totalPrice : 0),
     );
+    const customerSource = source.customer ?? source.client ?? source.buyer ?? null;
+    const customerFirstName = String(customerSource?.firstName ?? customerSource?.first_name ?? "");
+    const customerLastName = String(customerSource?.lastName ?? customerSource?.last_name ?? "");
+    const customerMiddleName = String(customerSource?.middleName ?? customerSource?.middle_name ?? "");
+    const customerFullName = [customerLastName, customerFirstName, customerMiddleName]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(" ");
+    const normalizedCustomerFullName = customerFullName || null;
+    const payments = paymentsSource.map((payment: any, index: number) => ({
+      id: String(payment?.id ?? payment?.paymentId ?? payment?.payment_id ?? `payment-${index}`),
+      paymentTypeId: String(
+        payment?.paymentTypeId ??
+        payment?.payment_type_id ??
+        payment?.payment_method ??
+        payment?.payment?.id ??
+        "",
+      ),
+      amount: Number(payment?.amount ?? payment?.paid_amount ?? payment?.sum ?? 0),
+      paymentTypeName: String(
+        payment?.paymentTypeName ??
+        payment?.payment_type_name ??
+        payment?.payment?.name ??
+        "",
+      ) || null,
+    }));
+    const remainingDebtAmount = Number(
+      source.remainingDebtAmount ??
+      source.remaining_debt_amount ??
+      Math.max(0, totalPrice - paidAmount),
+    );
+    const createdDebtSource = source.createdDebt ?? source.created_debt ?? null;
 
     return {
       id: String(source.id),
@@ -328,8 +385,41 @@ export const useCartStore = defineStore("cart", () => {
       totalPrice,
       discountAmount: Number(source.discountAmount ?? source.discount_amount ?? 0),
       paidAmount,
+      remainingDebtAmount: Math.max(0, remainingDebtAmount),
       comment: source.comment ?? null,
       customerId: source.customerId ?? source.customer_id ?? null,
+      customerName:
+        source.customerName ??
+        source.customer_name ??
+        source.customer?.name ??
+        source.client?.name ??
+        source.buyer?.name ??
+        source.client_name ??
+        normalizedCustomerFullName ??
+        null,
+      customer: customerSource
+        ? {
+            id: String(customerSource.id ?? source.customerId ?? source.customer_id ?? ""),
+            code: String(customerSource.code ?? ""),
+            firstName: customerFirstName,
+            lastName: customerLastName || null,
+            middleName: customerMiddleName || null,
+            phone: String(customerSource.phone ?? ""),
+          }
+        : null,
+      createdDebt: createdDebtSource
+        ? {
+            id: String(createdDebtSource.id ?? ""),
+            client_id: String(createdDebtSource.client_id ?? createdDebtSource.clientId ?? ""),
+            amount_uzs: Number(createdDebtSource.amount_uzs ?? createdDebtSource.amount ?? 0),
+            remaining_amount_uzs: Number(createdDebtSource.remaining_amount_uzs ?? createdDebtSource.remainingAmount ?? 0),
+            repaid_amount_uzs: Number(createdDebtSource.repaid_amount_uzs ?? createdDebtSource.repaidAmount ?? 0),
+            due_date: createdDebtSource.due_date ?? createdDebtSource.dueDate ?? null,
+            status: String(createdDebtSource.status ?? ""),
+            created_at: String(createdDebtSource.created_at ?? createdDebtSource.createdAt ?? ""),
+            receipt_url: createdDebtSource.receipt_url ?? createdDebtSource.receiptUrl ?? null,
+          }
+        : null,
       versionNumber: Number(source.versionNumber ?? source.version_number ?? 1),
     };
   }
@@ -708,7 +798,16 @@ export const useCartStore = defineStore("cart", () => {
     keepSearchQuery?: boolean;
   }) {
     const currentId = String(saleId.value ?? "").trim();
+    const normalizedStatus = String(currentOrder.value?.status ?? "").toLowerCase();
     if (!currentId || isReturnFlow()) {
+      resetSaleState({
+        keepReceipt: options?.keepReceipt,
+        keepSearchQuery: options?.keepSearchQuery,
+      });
+      return null;
+    }
+
+    if (normalizedStatus === "completed" || normalizedStatus === "paid") {
       resetSaleState({
         keepReceipt: options?.keepReceipt,
         keepSearchQuery: options?.keepSearchQuery,
@@ -740,7 +839,8 @@ export const useCartStore = defineStore("cart", () => {
 
   function leaveActiveSaleOnUnload() {
     const currentId = String(saleId.value ?? "").trim();
-    if (!import.meta.client || !currentId || isReturnFlow()) return;
+    const normalizedStatus = String(currentOrder.value?.status ?? "").toLowerCase();
+    if (!import.meta.client || !currentId || isReturnFlow() || normalizedStatus === "completed" || normalizedStatus === "paid") return;
 
     try {
       const { apiBase } = useApi();
@@ -951,6 +1051,177 @@ export const useCartStore = defineStore("cart", () => {
 
   function clearCart() {
     cart.value = [];
+  }
+
+  function setCustomerSelection(payload: {
+    id: string;
+    name?: string | null;
+    phone?: string | null;
+    code?: string | null;
+  }) {
+    if (!currentOrder.value) return;
+
+    const normalizedId = String(payload.id || "").trim() || null;
+    const normalizedName = String(payload.name ?? "").trim() || null;
+    currentOrder.value = {
+      ...currentOrder.value,
+      customerId: normalizedId,
+      customerName: normalizedName,
+      customer: normalizedId
+        ? {
+            id: normalizedId,
+            code: String(payload.code ?? "").trim(),
+            firstName: normalizedName || "",
+            lastName: null,
+            middleName: null,
+            phone: String(payload.phone ?? "").trim(),
+          }
+        : null,
+    };
+  }
+
+  const supportsOrdersDebtFlow = computed(() => isUuidLike(saleId.value));
+
+  async function attachCustomer(payload: { id: string }) {
+    if (!saleId.value) return null;
+
+    const customerId = String(payload.id || "").trim();
+    if (!customerId) {
+      lastCartError.value = "Клиент не выбран.";
+      return null;
+    }
+
+    if (!supportsOrdersDebtFlow.value) {
+      return {
+        localOnly: true,
+      };
+    }
+
+    const { apiFetch } = useApi();
+    saleMetaLoading.value = true;
+    try {
+      const response = await apiFetch(`/orders/${encodeURIComponent(String(saleId.value))}/customer`, {
+        method: "PATCH",
+        body: { customerId },
+      });
+      applyOrderState(response);
+      lastCartError.value = "";
+      return response;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось привязать клиента к заказу.");
+      return null;
+    } finally {
+      saleMetaLoading.value = false;
+    }
+  }
+
+  async function addOrderPayment(payload: { paymentTypeId: string; amount: number }) {
+    if (!saleId.value) return null;
+
+    if (!supportsOrdersDebtFlow.value) {
+      lastCartError.value = "На текущем проде новый orders-модуль с долгами недоступен.";
+      return null;
+    }
+
+    const paymentTypeId = String(payload.paymentTypeId || "").trim();
+    const amount = Math.max(0, Number(payload.amount || 0));
+    if (!paymentTypeId || amount <= 0) {
+      lastCartError.value = "Укажите способ оплаты и сумму.";
+      return null;
+    }
+
+    const { apiFetch } = useApi();
+    payLoading.value = true;
+    try {
+      const response = await apiFetch(`/orders/${encodeURIComponent(String(saleId.value))}/payments`, {
+        method: "POST",
+        body: {
+          paymentTypeId,
+          amount,
+        },
+      });
+      applyOrderState(response);
+      lastCartError.value = "";
+      return response;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось добавить оплату.");
+      return null;
+    } finally {
+      payLoading.value = false;
+    }
+  }
+
+  async function removeOrderPayment(paymentId: string) {
+    if (!saleId.value) return null;
+
+    if (!supportsOrdersDebtFlow.value) {
+      lastCartError.value = "На текущем проде новый orders-модуль с долгами недоступен.";
+      return null;
+    }
+
+    const normalizedPaymentId = String(paymentId || "").trim();
+    if (!normalizedPaymentId) return null;
+
+    const { apiFetch } = useApi();
+    payLoading.value = true;
+    try {
+      const response = await apiFetch(`/orders/${encodeURIComponent(String(saleId.value))}/payments/${encodeURIComponent(normalizedPaymentId)}`, {
+        method: "DELETE",
+      });
+      applyOrderState(response);
+      lastCartError.value = "";
+      return response;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось удалить оплату.");
+      return null;
+    } finally {
+      payLoading.value = false;
+    }
+  }
+
+  async function completeOrder(payload?: { allowDebt?: boolean; dueDate?: string | null; receiptUrl?: string | null }) {
+    if (!saleId.value) return null;
+
+    if (!supportsOrdersDebtFlow.value) {
+      lastCartError.value = "На текущем проде новый orders-модуль с долгами недоступен.";
+      return null;
+    }
+
+    const order = currentOrder.value ?? (await loadSale(saleId.value));
+    if (!order || order.items.length === 0) {
+      lastCartError.value = "Order must contain at least one item";
+      return null;
+    }
+
+    const remaining = Math.max(0, Number(order.remainingDebtAmount ?? 0));
+    if (remaining > 0 && payload?.allowDebt && !order.customerId) {
+      lastCartError.value = "Customer must be attached before completing an order with debt";
+      return null;
+    }
+
+    const { apiFetch } = useApi();
+    completingOrder.value = true;
+    try {
+      const response = await apiFetch(`/orders/${encodeURIComponent(String(saleId.value))}/complete`, {
+        method: "POST",
+        body: payload?.allowDebt
+          ? {
+              allowDebt: true,
+              dueDate: payload.dueDate || undefined,
+              receiptUrl: payload.receiptUrl || null,
+            }
+          : {},
+      });
+      applyOrderState(response);
+      receipt.value = { payment: response, order: pickOrder(response) };
+      lastCartError.value = "";
+      return response;
+    } catch (error: any) {
+      lastCartError.value = apiErrorMessage(error, "Не удалось завершить продажу.");
+      return null;
+    } finally {
+      completingOrder.value = false;
+    }
   }
 
   async function syncCartItemQuantity(productId: number | string, nextQuantity: number) {
@@ -1415,6 +1686,22 @@ export const useCartStore = defineStore("cart", () => {
         : itemDiscounts.value + globalDiscountAmount(),
   );
 
+  const paidAmount = computed(() =>
+    Math.max(0, Number(currentOrder.value?.paidAmount ?? 0)),
+  );
+
+  const remainingDebtAmount = computed(() =>
+    Math.max(
+      0,
+      Number(
+        currentOrder.value?.remainingDebtAmount ??
+        Math.max(0, Number(total.value || 0) - Number(paidAmount.value || 0)),
+      ),
+    ),
+  );
+
+  const createdDebt = computed(() => currentOrder.value?.createdDebt ?? null);
+
   function itemGlobalDiscountShare(item: any) {
     if (isReturnFlow()) return 0;
     const totalGlobalDiscount = currentOrder.value
@@ -1502,6 +1789,7 @@ export const useCartStore = defineStore("cart", () => {
     loadingSale,
     addingItem,
     payLoading,
+    completingOrder,
     cancelLoading,
     parkingLoading,
     saleMetaLoading,
@@ -1522,6 +1810,10 @@ export const useCartStore = defineStore("cart", () => {
     filteredProducts,
     totalDiscount,
     payableTotal,
+    paidAmount,
+    remainingDebtAmount,
+    createdDebt,
+    supportsOrdersDebtFlow,
     returnItemsTotal,
     exchangeItemsTotal,
     discountPercent,
@@ -1540,6 +1832,11 @@ export const useCartStore = defineStore("cart", () => {
     removeFromCartServer,
     applySaleDiscount,
     paySale,
+    addOrderPayment,
+    removeOrderPayment,
+    attachCustomer,
+    setCustomerSelection,
+    completeOrder,
     parkSale,
     deleteDraftSale,
     resumeParkedSale,
@@ -1640,5 +1937,11 @@ function resolveSaleItemArticle(item: any) {
       item?.product?.article ??
       item?.product?.vendor_code ??
       "",
+  );
+}
+
+function isUuidLike(value: unknown) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value ?? "").trim(),
   );
 }

@@ -1,7 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { getLocalTimeZone } from "@internationalized/date";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useProductStore } from "@/store/productStore";
@@ -50,7 +49,6 @@ const showProductSidebar = computed({
 });
 
 const filtersOpen = ref(false);
-const datePopoverOpen = ref(false);
 const actionPopoverOpen = ref(false);
 const shopPopoverOpen = ref(false);
 const productHistoryLoading = ref(false);
@@ -58,8 +56,7 @@ const productMovementData = ref<ProductMovementResponse | null>(null);
 const historyActionOptions = ref<HistoryActionOption[]>([]);
 const historyShopOptions = ref<HistoryShopOption[]>([]);
 
-const tz = getLocalTimeZone();
-const selectedDate = ref<any>(null);
+const selectedDate = ref("");
 const selectedActionType = ref("");
 const selectedShopId = ref("");
 
@@ -365,11 +362,6 @@ function onProductImageError(event: Event) {
   }
 }
 
-function formatSingleDate(value: any) {
-  if (!value || typeof value.toDate !== "function") return "Все даты";
-  return value.toDate(tz).toLocaleDateString("ru-RU");
-}
-
 function formatDateTimeCell(value: unknown) {
   const date = value ? new Date(String(value)) : null;
   if (!date || Number.isNaN(date.getTime())) {
@@ -379,12 +371,8 @@ function formatDateTimeCell(value: unknown) {
   return `${date.toLocaleDateString("ru-RU")}\n\n${date.toLocaleTimeString("ru-RU")}`;
 }
 
-function normalizeCalendarDateKey(value: any) {
-  if (!value || typeof value.toDate !== "function") {
-    return null;
-  }
-
-  return value.toDate(tz).toISOString().slice(0, 10);
+function normalizeCalendarDateKey(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
 async function loadProductHistory() {
@@ -551,46 +539,12 @@ watch(
               v-if="sectionIndex === 0 && filtersOpen"
               class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3"
             >
-              <UPopover
-                v-model:open="datePopoverOpen"
-                :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
-                :ui="{
-                  content:
-                    'z-[10050] w-[280px] max-w-[calc(100vw-32px)] rounded-[12px] bg-[#262626] p-3 shadow-xl sm:w-[320px]',
-                }"
-              >
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  class="flex w-full items-center justify-between rounded-[12px] bg-[#404040] px-4 py-3 text-left text-sm text-white hover:bg-[#a7a6a6] sm:py-4 sm:text-base"
-                >
-                  <span>{{ formatSingleDate(selectedDate) }}</span>
-                  <Icon name="ph:calendar" class="h-4 w-4 text-[#3b82f6]" />
-                </UButton>
-                <template #content>
-                  <div class="space-y-3">
-                    <UCalendar
-                      v-model="selectedDate"
-                      color="neutral"
-                      class="w-full rounded-[10px] bg-[#262626] text-white"
-                      :ui="{
-                        root: 'bg-[#262626] text-white',
-                        header: 'text-white',
-                        heading: 'text-white',
-                        gridWeekDaysRow: 'text-[#bdbdbd]',
-                      }"
-                    />
-                    <UButton
-                      color="neutral"
-                      variant="soft"
-                      class="w-full justify-center rounded-[10px] bg-[#363636] text-white hover:bg-[#404040]"
-                      @click="selectedDate = null"
-                    >
-                      Сбросить дату
-                    </UButton>
-                  </div>
-                </template>
-              </UPopover>
+              <AppDatePicker
+                v-model="selectedDate"
+                placeholder="Все даты"
+                clearable
+                class="w-full"
+              />
 
               <UPopover
                 v-model:open="actionPopoverOpen"
