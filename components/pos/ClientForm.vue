@@ -144,23 +144,17 @@ function applySelectedClient(client: ClientListItem) {
   search.value = client.full_name;
 }
 
+function syncClientSelection(client: Pick<ClientListItem, "id" | "full_name" | "phone" | "code">) {
+  cartStore.setCustomerSelection({
+    id: client.id,
+    name: client.full_name,
+    phone: client.phone,
+    code: client.code,
+  });
+}
+
 async function selectClient(client: ClientListItem) {
-  if (!cartStore.supportsOrdersDebtFlow) {
-    cartStore.setCustomerSelection({
-      id: client.id,
-      name: client.full_name,
-      phone: client.phone,
-      code: client.code,
-    });
-    applySelectedClient(client);
-    isOpen.value = false;
-    toast.add({
-      title: "Клиент выбран локально",
-      description: "Привязка клиента к новому orders API недоступна на текущем проде.",
-      color: "warning",
-    });
-    return;
-  }
+  syncClientSelection(client);
 
   const result = await cartStore.attachCustomer({ id: client.id });
   if (!result) {
@@ -221,20 +215,10 @@ async function restoreCreatedClientFromSession() {
       debt_uzs: 0,
       visits_count: 0,
     };
-
-    if (!cartStore.supportsOrdersDebtFlow) {
-      cartStore.setCustomerSelection({
-        id: restoredClient.id,
-        name: restoredClient.full_name,
-        phone: restoredClient.phone,
-        code: restoredClient.code,
-      });
+    syncClientSelection(restoredClient);
+    const result = await cartStore.attachCustomer({ id: restoredClient.id });
+    if (result) {
       applySelectedClient(restoredClient);
-    } else {
-      const result = await cartStore.attachCustomer({ id: restoredClient.id });
-      if (result) {
-        applySelectedClient(restoredClient);
-      }
     }
   } catch {
     // ignore invalid session payload

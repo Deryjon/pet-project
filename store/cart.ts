@@ -29,7 +29,7 @@ type CompanyPaymentMethod = {
 
 type SalePaymentPayload = {
   paymentMethodId: string;
-  client_name?: string;
+  clientId?: string | null;
 };
 
 type OrderCustomer = {
@@ -387,7 +387,7 @@ export const useCartStore = defineStore("cart", () => {
       paidAmount,
       remainingDebtAmount: Math.max(0, remainingDebtAmount),
       comment: source.comment ?? null,
-      customerId: source.customerId ?? source.customer_id ?? null,
+      customerId: source.customerId ?? source.customer_id ?? source.clientId ?? source.client_id ?? null,
       customerName:
         source.customerName ??
         source.customer_name ??
@@ -399,7 +399,7 @@ export const useCartStore = defineStore("cart", () => {
         null,
       customer: customerSource
         ? {
-            id: String(customerSource.id ?? source.customerId ?? source.customer_id ?? ""),
+            id: String(customerSource.id ?? source.customerId ?? source.customer_id ?? source.clientId ?? source.client_id ?? ""),
             code: String(customerSource.code ?? ""),
             firstName: customerFirstName,
             lastName: customerLastName || null,
@@ -1091,18 +1091,12 @@ export const useCartStore = defineStore("cart", () => {
       return null;
     }
 
-    if (!supportsOrdersDebtFlow.value) {
-      return {
-        localOnly: true,
-      };
-    }
-
     const { apiFetch } = useApi();
     saleMetaLoading.value = true;
     try {
-      const response = await apiFetch(`/orders/${encodeURIComponent(String(saleId.value))}/customer`, {
+      const response = await apiFetch(`/new-sale/${encodeURIComponent(String(saleId.value))}/client`, {
         method: "PATCH",
-        body: { customerId },
+        body: { client_id: customerId },
       });
       applyOrderState(response);
       lastCartError.value = "";
@@ -1333,7 +1327,7 @@ export const useCartStore = defineStore("cart", () => {
         method: "POST",
         body: {
           payment_method: payload.paymentMethodId,
-          client_name: payload.client_name?.trim() || undefined,
+          client_id: String(payload.clientId ?? order.customerId ?? "").trim() || undefined,
           branch_code: resolveBranchCode() || undefined,
         },
       });
