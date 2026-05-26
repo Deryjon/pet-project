@@ -155,7 +155,7 @@
 
             <div class="mt-5 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-4 text-sm text-[#d0d0d0]">
               <p class="font-semibold text-white">Оплата пойдет одним запросом</p>
-              <p class="mt-1">Фронт отправит в `POST /new-sale/:id/pay` выбранный `payment_method`, `client_id` и, если нужен долг, вложенный объект `debt`.</p>
+              <p class="mt-1">Фронт отправит в `POST /new-sale/:id/pay` выбранный `payment_method`, `client_id` и, если нужен долг, вложенный объект `debt`. Клиент к заказу привязывается отдельным `PATCH /orders/:id/customer` с `clientId`.</p>
               <p v-if="!cartStore.currentOrder?.customerId" class="mt-2 text-amber-200">
                 Клиент не выбран. Продажа все равно может быть оплачена, но без привязки к клиенту.
               </p>
@@ -483,7 +483,13 @@ const canParkSale = computed(
 const totalQuantity = computed(() =>
   cart.value.reduce((sum, item) => sum + Math.max(1, Number(item.quantity || 1)), 0),
 );
-const currentCustomerLabel = computed(() => cartStore.currentOrder?.customerName || "Без клиента");
+const currentCustomerLabel = computed(
+  () =>
+    cartStore.currentOrder?.customerName ||
+    cartStore.currentOrder?.client?.firstName ||
+    cartStore.currentOrder?.customer?.firstName ||
+    "Без клиента",
+);
 const currentPayments = computed(() => cartStore.currentOrder?.payments || []);
 const canAddPayment = computed(() => false);
 const hasCustomerAttached = computed(() => Boolean(String(cartStore.currentOrder?.customerId ?? "").trim()));

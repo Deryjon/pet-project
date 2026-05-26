@@ -243,11 +243,19 @@ onMounted(() => {
   document.addEventListener("click", handleClickOutside);
   void restoreCreatedClientFromSession();
 
-  if (!selectedClient.value && cartStore.currentOrder?.customerId && cartStore.currentOrder?.customerName) {
+  const orderClientId = String(cartStore.currentOrder?.client?.id ?? cartStore.currentOrder?.customerId ?? "").trim();
+  const orderClientName = String(
+    cartStore.currentOrder?.customerName ??
+    cartStore.currentOrder?.client?.firstName ??
+    cartStore.currentOrder?.customer?.firstName ??
+    "",
+  ).trim();
+
+  if (!selectedClient.value && orderClientId && orderClientName) {
     selectedClient.value = {
-      id: String(cartStore.currentOrder.customerId),
+      id: orderClientId,
       code: "",
-      full_name: cartStore.currentOrder.customerName,
+      full_name: orderClientName,
       phone: "",
       groups: [],
       tags: [],
@@ -261,7 +269,7 @@ onMounted(() => {
       debt_uzs: 0,
       visits_count: 0,
     };
-    search.value = cartStore.currentOrder.customerName;
+    search.value = orderClientName;
   }
 });
 
