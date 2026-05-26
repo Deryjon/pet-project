@@ -153,16 +153,6 @@
               </button>
             </div>
 
-            <div class="mt-5 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-4 text-sm text-[#d0d0d0]">
-              <p class="font-semibold text-white">Оплата пойдет одним запросом</p>
-              <p class="mt-1">Фронт отправит в `POST /new-sale/:id/pay` выбранный `payment_method`, `client_id` и, если нужен долг, вложенный объект `debt`. Клиент к заказу привязывается отдельным `PATCH /orders/:id/customer` с `clientId`.</p>
-              <p v-if="!cartStore.currentOrder?.customerId" class="mt-2 text-amber-200">
-                Клиент не выбран. Продажа все равно может быть оплачена, но без привязки к клиенту.
-              </p>
-              <p v-else-if="remainingDebtAmount > 0" class="mt-2 text-amber-200">
-                Для продажи в долг клиент уже привязан, осталось указать срок и комментарий.
-              </p>
-            </div>
           </div>
         </div>
 
@@ -178,12 +168,12 @@
           </UButton>
 
           <UButton
-            v-if="canOpenDebtModal"
+            v-if="canShowDebtAction"
             block
             color="neutral"
             variant="soft"
             class="justify-center rounded-[18px] bg-[#564327] py-4 font-semibold text-[#ffcf80] hover:bg-[#6a5231]"
-            @click="debtModalOpen = true"
+            @click="openDebtModal"
           >
             Оформить в долг
           </UButton>
@@ -205,12 +195,12 @@
     <UModal
       v-model:open="debtModalOpen"
       :ui="{
-        overlay: 'bg-black/50 backdrop-blur-sm',
-        content: 'mx-4 max-w-[560px] rounded-[28px] border border-white/10 bg-[#262626] p-0 text-white shadow-2xl ring-0 sm:mx-0',
+        overlay: 'z-[110] bg-black/50 backdrop-blur-sm',
+        content: 'z-[120] mx-4 max-h-[calc(100vh-2rem)] max-w-[560px] overflow-hidden rounded-[28px] border border-white/10 bg-[#262626] p-0 text-white shadow-2xl ring-0 sm:mx-0',
       }"
     >
       <template #content>
-        <div class="p-5 sm:p-6">
+        <div class="max-h-[calc(100vh-2rem)] overflow-y-auto p-5 sm:p-6">
           <div class="mb-5 flex items-start justify-between gap-4">
             <div>
               <h3 class="text-[22px] font-semibold">Продажа в долг</h3>
@@ -223,6 +213,17 @@
           </div>
 
           <div class="space-y-4">
+            <div class="rounded-[18px] border border-white/8 bg-[#303030] px-4 py-4 text-sm text-[#d0d0d0]">
+              <p class="font-semibold text-white">Оплата пойдет одним запросом</p>
+              <p class="mt-1">Фронт отправит в `POST /new-sale/:id/pay` выбранный `payment_method`, `client_id` и, если нужен долг, вложенный объект `debt`. Клиент к заказу привязывается отдельным `PATCH /orders/:id/customer` с `clientId`.</p>
+              <p v-if="!cartStore.currentOrder?.customerId" class="mt-2 text-amber-200">
+                Клиент не выбран. Продажа все равно может быть оплачена, но без привязки к клиенту.
+              </p>
+              <p v-else class="mt-2 text-amber-200">
+                Для продажи в долг клиент уже привязан, осталось указать срок и комментарий.
+              </p>
+            </div>
+
             <div class="rounded-[18px] bg-[#303030] px-4 py-4">
               <p class="text-sm text-[#8f8f8f]">Остаток долга</p>
               <p class="mt-2 text-[28px] font-bold text-[#ffcf80]">{{ formatPrice(remainingDebtAmount) }} UZS</p>
@@ -501,16 +502,16 @@ const canCompletePaidOrder = computed(
     !cartStore.payLoading &&
     !cartStore.completingOrder,
 );
-const canOpenDebtModal = computed(
+const canShowDebtAction = computed(
   () =>
     !isReturnFlow.value &&
     cart.value.length > 0 &&
     Boolean(selectedPaymentMethod.value) &&
     Number(remainingDebtAmount.value || 0) > 0 &&
-    hasCustomerAttached.value &&
     !cartStore.payLoading &&
     !cartStore.completingOrder,
 );
+const canOpenDebtModal = computed(() => canShowDebtAction.value && hasCustomerAttached.value);
 const canConfirmDebtCompletion = computed(() => canOpenDebtModal.value && debtConfirmation.value);
 const receiptPhone = computed(() => formatUzPhoneDisplay(printStore.settings.phone) || printStore.settings.phone);
 
@@ -598,6 +599,21 @@ async function openPaymentPanel() {
 
 function closePaymentPanel() {
   paymentPanelOpen.value = false;
+}
+
+function openDebtModal() {
+  if (!canShowDebtAction.value) return;
+
+  if (!hasCustomerAttached.value) {
+    toast.add({
+      title: "Нельзя оформить в долг",
+      description: "Сначала привяжите клиента к заказу.",
+      color: "error",
+    });
+    return;
+  }
+
+  debtModalOpen.value = true;
 }
 
 async function addPayment() {

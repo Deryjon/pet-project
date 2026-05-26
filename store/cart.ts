@@ -1135,7 +1135,7 @@ export const useCartStore = defineStore("cart", () => {
       const response = await apiFetch(
         isOrdersFlow
           ? `/orders/${encodeURIComponent(String(saleId.value))}/customer`
-          : `/new-sale/${encodeURIComponent(String(saleId.value))}/client`,
+          : `/new-sale/${encodeURIComponent(String(saleId.value))}/customer`,
         {
           method: "PATCH",
           body: isOrdersFlow ? { clientId: customerId } : { client_id: customerId },
