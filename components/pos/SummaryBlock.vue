@@ -155,9 +155,12 @@
 
             <div class="mt-5 rounded-[18px] border border-white/8 bg-[#303030] px-4 py-4 text-sm text-[#d0d0d0]">
               <p class="font-semibold text-white">Оплата пойдет одним запросом</p>
-              <p class="mt-1">Фронт отправит в `POST /new-sale/:id/pay` выбранный `payment_method` и текущий `client_id`, если клиент выбран.</p>
+              <p class="mt-1">Фронт отправит в `POST /new-sale/:id/pay` выбранный `payment_method`, `client_id` и, если нужен долг, вложенный объект `debt`.</p>
               <p v-if="!cartStore.currentOrder?.customerId" class="mt-2 text-amber-200">
                 Клиент не выбран. Продажа все равно может быть оплачена, но без привязки к клиенту.
+              </p>
+              <p v-else-if="remainingDebtAmount > 0" class="mt-2 text-amber-200">
+                Для продажи в долг клиент уже привязан, осталось указать срок и комментарий.
               </p>
             </div>
           </div>
@@ -172,6 +175,17 @@
             @click="closePaymentPanel"
           >
             Назад
+          </UButton>
+
+          <UButton
+            v-if="canOpenDebtModal"
+            block
+            color="neutral"
+            variant="soft"
+            class="justify-center rounded-[18px] bg-[#564327] py-4 font-semibold text-[#ffcf80] hover:bg-[#6a5231]"
+            @click="debtModalOpen = true"
+          >
+            Оформить в долг
           </UButton>
 
           <UButton
@@ -217,6 +231,16 @@
             <label class="block">
               <span class="mb-2 block text-sm font-semibold text-white">Срок погашения</span>
               <input v-model="dueDateInput" type="date" class="w-full rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4 text-white outline-none" />
+            </label>
+
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-white">Комментарий</span>
+              <textarea
+                v-model="debtCommentInput"
+                rows="3"
+                class="w-full rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4 text-white outline-none"
+                placeholder="Например: оплатит после зарплаты"
+              />
             </label>
 
             <label class="block">
@@ -424,6 +448,7 @@ const completionModalOpen = ref(false);
 const selectedPaymentMethod = ref("");
 const paymentAmountInput = ref("");
 const dueDateInput = ref("");
+const debtCommentInput = ref("");
 const receiptUrlInput = ref("");
 const debtConfirmation = ref(false);
 const completionCustomerId = ref("");
@@ -461,6 +486,7 @@ const totalQuantity = computed(() =>
 const currentCustomerLabel = computed(() => cartStore.currentOrder?.customerName || "Без клиента");
 const currentPayments = computed(() => cartStore.currentOrder?.payments || []);
 const canAddPayment = computed(() => false);
+const hasCustomerAttached = computed(() => Boolean(String(cartStore.currentOrder?.customerId ?? "").trim()));
 const canCompletePaidOrder = computed(
   () =>
     !isReturnFlow.value &&
@@ -469,8 +495,17 @@ const canCompletePaidOrder = computed(
     !cartStore.payLoading &&
     !cartStore.completingOrder,
 );
-const canOpenDebtModal = computed(() => false);
-const canConfirmDebtCompletion = computed(() => false);
+const canOpenDebtModal = computed(
+  () =>
+    !isReturnFlow.value &&
+    cart.value.length > 0 &&
+    Boolean(selectedPaymentMethod.value) &&
+    Number(remainingDebtAmount.value || 0) > 0 &&
+    hasCustomerAttached.value &&
+    !cartStore.payLoading &&
+    !cartStore.completingOrder,
+);
+const canConfirmDebtCompletion = computed(() => canOpenDebtModal.value && debtConfirmation.value);
 const receiptPhone = computed(() => formatUzPhoneDisplay(printStore.settings.phone) || printStore.settings.phone);
 
 function formatDate(value: string | null) {
@@ -490,6 +525,7 @@ function paymentTypeLabel(paymentTypeId: string) {
 
 function resetDebtModalState() {
   dueDateInput.value = "";
+  debtCommentInput.value = "";
   receiptUrlInput.value = "";
   debtConfirmation.value = false;
 }
@@ -510,9 +546,10 @@ function openCompletionState(result: any) {
 }
 
 function syncReceipt(result: any) {
+  const firstPayment = currentPayments.value[0];
   const methodName =
-    currentPayments.value.length === 1
-      ? paymentTypeLabel(currentPayments.value[0].paymentTypeId)
+    currentPayments.value.length === 1 && firstPayment
+      ? paymentTypeLabel(firstPayment.paymentTypeId)
       : currentPayments.value.length > 1
         ? "Смешанная оплата"
         : paymentTypeLabel(selectedPaymentMethod.value);
@@ -615,10 +652,15 @@ async function completePaidOrder() {
 async function completeWithDebt() {
   if (!canConfirmDebtCompletion.value) return;
 
-  const result = await cartStore.completeOrder({
-    allowDebt: true,
-    dueDate: dueDateInput.value || null,
-    receiptUrl: receiptUrlInput.value || null,
+  const result = await cartStore.paySale({
+    paymentMethodId: selectedPaymentMethod.value,
+    clientId: cartStore.currentOrder?.customerId ?? null,
+    debt: {
+      amount_uzs: Number(remainingDebtAmount.value || 0),
+      due_date: dueDateInput.value || null,
+      comment: debtCommentInput.value || null,
+      receipt_url: receiptUrlInput.value || null,
+    },
   });
 
   if (!result) {
