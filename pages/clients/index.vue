@@ -2,11 +2,7 @@
 import { computed, h, onMounted, ref, watch } from "vue";
 import { useHead } from "#imports";
 import { useRoute, useRouter } from "vue-router";
-import {
-  getCoreRowModel,
-  getSortedRowModel,
-  useVueTable,
-} from "@tanstack/vue-table";
+import { getCoreRowModel, getSortedRowModel, useVueTable } from "@tanstack/vue-table";
 import DataTable from "@/components/DataTable.vue";
 import BaseDataTable from "@/components/BaseDataTable.vue";
 import BaseDataTableHeader from "@/components/BaseDataTableHeader.vue";
@@ -22,7 +18,7 @@ const DEFAULT_PAGE_SIZE = 10;
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const { listClients, getClientFilters, deleteClient } = useClients();
+const { listClients, getClientStats, getClientFilters, deleteClient } = useClients();
 
 const showStats = ref(false);
 const loading = ref(false);
@@ -33,10 +29,9 @@ const clients = ref<ClientListItem[]>([]);
 const totalItems = ref(0);
 const serverError = ref("");
 const stats = ref({
-  total_clients: 0,
-  last_week_new_clients: 0,
-  non_returning_clients: 0,
-  birthdays_today_or_period: 0,
+  last_week_count: 0,
+  not_returned_count: 0,
+  birthday_count: 0,
 });
 const filters = ref<{
   groups: NamedEntity[];
@@ -88,11 +83,9 @@ function formatUzs(value: number) {
 }
 
 function formatDate(value: string | null, withTime = false) {
-  if (!value) return "-";
+  if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   const datePart = new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
@@ -100,9 +93,7 @@ function formatDate(value: string | null, withTime = false) {
     year: "numeric",
   }).format(date);
 
-  if (!withTime) {
-    return datePart;
-  }
+  if (!withTime) return datePart;
 
   const timePart = new Intl.DateTimeFormat("ru-RU", {
     hour: "2-digit",
@@ -135,9 +126,7 @@ function syncRouteWithPagination() {
 
   const currentPageValue = String(readSingleQueryValue(route.query.page) || "");
   const currentLimitValue = String(readSingleQueryValue(route.query.limit) || "");
-  if (currentPageValue === nextQuery.page && currentLimitValue === nextQuery.limit) {
-    return;
-  }
+  if (currentPageValue === nextQuery.page && currentLimitValue === nextQuery.limit) return;
 
   void router.replace({ query: nextQuery });
 }
@@ -171,12 +160,6 @@ async function fetchClients() {
     const response = await listClients(buildListQuery());
     clients.value = Array.isArray(response?.items) ? response.items : [];
     totalItems.value = Number(response?.total ?? clients.value.length);
-    stats.value = {
-      total_clients: Number(response?.stats?.total_clients ?? 0),
-      last_week_new_clients: Number(response?.stats?.last_week_new_clients ?? 0),
-      non_returning_clients: Number(response?.stats?.non_returning_clients ?? 0),
-      birthdays_today_or_period: Number(response?.stats?.birthdays_today_or_period ?? 0),
-    };
   } catch (error: any) {
     clients.value = [];
     totalItems.value = 0;
@@ -187,10 +170,25 @@ async function fetchClients() {
   }
 }
 
-async function fetchFilters() {
-  if (filtersLoading.value || filtersLoaded.value) {
-    return;
+async function fetchStats() {
+  try {
+    const response = await getClientStats();
+    stats.value = {
+      last_week_count: Number(response?.last_week_count ?? 0),
+      not_returned_count: Number(response?.not_returned_count ?? 0),
+      birthday_count: Number(response?.birthday_count ?? 0),
+    };
+  } catch {
+    stats.value = {
+      last_week_count: 0,
+      not_returned_count: 0,
+      birthday_count: 0,
+    };
   }
+}
+
+async function fetchFilters() {
+  if (filtersLoading.value || filtersLoaded.value) return;
 
   filtersLoading.value = true;
   try {
@@ -215,14 +213,12 @@ async function fetchFilters() {
 }
 
 async function handleDeleteClient(client: ClientListItem) {
-  if (typeof window !== "undefined" && !window.confirm(`Удалить клиента ${client.full_name}?`)) {
-    return;
-  }
+  if (typeof window !== "undefined" && !window.confirm(`Удалить клиента ${client.full_name}?`)) return;
 
   try {
     await deleteClient(client.id);
     toast.add({ title: "Клиент удален", color: "success" });
-    await fetchClients();
+    await Promise.all([fetchClients(), fetchStats()]);
   } catch (error: any) {
     toast.add({
       title: "Не удалось удалить клиента",
@@ -266,10 +262,9 @@ function toggleClientSelection(clientId: string, checked: boolean) {
 }
 
 const statsCards = computed(() => [
-  { label: "Всего клиентов", value: `${stats.value.total_clients} клиентов` },
-  { label: "Последняя неделя", value: `+ ${stats.value.last_week_new_clients} клиентов` },
-  { label: "Не возвращающиеся", value: `${stats.value.non_returning_clients} клиентов` },
-  { label: "Дни рождения", value: `${stats.value.birthdays_today_or_period} клиентов` },
+  { label: "Новые за неделю", value: `${stats.value.last_week_count}` },
+  { label: "Не вернувшиеся", value: `${stats.value.not_returned_count}` },
+  { label: "Дни рождения", value: `${stats.value.birthday_count}` },
 ]);
 
 const tableColumns = computed<any[]>(() => [
@@ -280,8 +275,7 @@ const tableColumns = computed<any[]>(() => [
         type: "checkbox",
         checked: areAllVisibleSelected.value,
         class: "h-[14px] w-[14px] cursor-pointer accent-[#4993dd]",
-        onChange: (event: Event) =>
-          toggleAllVisibleClients((event.target as HTMLInputElement).checked),
+        onChange: (event: Event) => toggleAllVisibleClients((event.target as HTMLInputElement).checked),
       }),
     enableSorting: false,
     cell: ({ row }: any) =>
@@ -289,14 +283,8 @@ const tableColumns = computed<any[]>(() => [
         type: "checkbox",
         checked: selectedClientIds.value.includes(row.original.id),
         class: "h-[14px] w-[14px] cursor-pointer accent-[#4993dd]",
-        onChange: (event: Event) =>
-          toggleClientSelection(row.original.id, (event.target as HTMLInputElement).checked),
+        onChange: (event: Event) => toggleClientSelection(row.original.id, (event.target as HTMLInputElement).checked),
       }),
-  },
-  {
-    accessorKey: "code",
-    header: "ID",
-    cell: ({ row }: any) => h("span", { class: "font-semibold text-white" }, row.original.code),
   },
   {
     accessorKey: "full_name",
@@ -306,8 +294,7 @@ const tableColumns = computed<any[]>(() => [
         "button",
         {
           type: "button",
-          class:
-            "max-w-[220px] whitespace-normal text-left font-semibold text-[#4993dd] transition hover:text-[#7bbcff]",
+          class: "max-w-[220px] whitespace-normal text-left font-semibold text-[#4993dd] transition hover:text-[#7bbcff]",
           onClick: () => openClientCard(row.original),
         },
         row.original.full_name,
@@ -319,29 +306,15 @@ const tableColumns = computed<any[]>(() => [
     cell: ({ row }: any) => h("span", { class: "text-white" }, row.original.phone || "-"),
   },
   {
-    accessorKey: "groups",
-    header: "Группы",
+    accessorKey: "registration_shop",
+    header: "Магазин регистрации",
     cell: ({ row }: any) =>
-      h(
-        "div",
-        { class: "max-w-[140px] whitespace-normal text-white" },
-        row.original.groups?.length ? row.original.groups.map((item: NamedEntity) => item.name).join(", ") : "-",
-      ),
+      h("div", { class: "max-w-[160px] whitespace-normal text-white" }, row.original.registration_shop?.name || "-"),
   },
   {
-    accessorKey: "tags",
-    header: "Теги",
-    cell: ({ row }: any) =>
-      h(
-        "div",
-        { class: "max-w-[140px] whitespace-normal text-white" },
-        row.original.tags?.length ? row.original.tags.map((item: NamedEntity) => item.name).join(", ") : "-",
-      ),
-  },
-  {
-    accessorKey: "gender",
-    header: "Пол",
-    cell: ({ row }: any) => h("span", { class: "text-white" }, genderLabel(row.original.gender)),
+    accessorKey: "last_purchase_at",
+    header: "Последняя покупка",
+    cell: ({ row }: any) => h("span", { class: "text-white" }, formatDate(row.original.last_purchase_at) || ""),
   },
   {
     accessorKey: "total_purchases_uzs",
@@ -349,39 +322,14 @@ const tableColumns = computed<any[]>(() => [
     cell: ({ row }: any) => h("span", { class: "text-white" }, formatUzs(row.original.total_purchases_uzs)),
   },
   {
-    accessorKey: "last_purchase_at",
-    header: "Последняя покупка",
-    cell: ({ row }: any) => h("span", { class: "text-white" }, formatDate(row.original.last_purchase_at)),
-  },
-  {
-    accessorKey: "birth_date",
-    header: "День рождения",
-    cell: ({ row }: any) => h("span", { class: "text-white" }, formatDate(row.original.birth_date)),
-  },
-  {
-    accessorKey: "registered_at",
-    header: "Дата регистрации",
-    cell: ({ row }: any) => h("span", { class: "text-white" }, formatDate(row.original.registered_at)),
-  },
-  {
-    accessorKey: "registration_shop",
-    header: "Магазин регистрации",
-    cell: ({ row }: any) =>
-      h(
-        "div",
-        { class: "max-w-[160px] whitespace-normal text-white" },
-        row.original.registration_shop?.name || "-",
-      ),
+    accessorKey: "debt_uzs",
+    header: "Долг",
+    cell: ({ row }: any) => h("span", { class: "text-white" }, formatUzs(row.original.debt_uzs)),
   },
   {
     accessorKey: "balance_uzs",
     header: "Баланс",
     cell: ({ row }: any) => h("span", { class: "text-white" }, formatUzs(row.original.balance_uzs)),
-  },
-  {
-    accessorKey: "debt_uzs",
-    header: "Текущий долг",
-    cell: ({ row }: any) => h("span", { class: "text-white" }, formatUzs(row.original.debt_uzs)),
   },
   {
     id: "actions",
@@ -394,8 +342,7 @@ const tableColumns = computed<any[]>(() => [
           "button",
           {
             type: "button",
-            class:
-              "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-[#262626] text-[#a9cbff] transition hover:bg-[#303030]",
+            class: "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-[#262626] text-[#a9cbff] transition hover:bg-[#303030]",
             title: "Изменить",
             "aria-label": "Изменить",
             onClick: () => openEditClient(row.original),
@@ -406,8 +353,7 @@ const tableColumns = computed<any[]>(() => [
           "button",
           {
             type: "button",
-            class:
-              "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-[#262626] text-red-300 transition hover:bg-[#303030]",
+            class: "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-[#262626] text-red-300 transition hover:bg-[#303030]",
             title: "Удалить",
             "aria-label": "Удалить",
             onClick: () => handleDeleteClient(row.original),
@@ -478,7 +424,7 @@ watch(
   () => [tablePagination.value.pageIndex, tablePagination.value.pageSize],
   () => {
     syncRouteWithPagination();
-    fetchClients();
+    void fetchClients();
   },
 );
 
@@ -510,7 +456,7 @@ watch(filtersOpen, (next) => {
 onMounted(async () => {
   syncPaginationFromRoute();
   syncRouteWithPagination();
-  await fetchClients();
+  await Promise.all([fetchClients(), fetchStats()]);
 });
 </script>
 
@@ -533,7 +479,7 @@ onMounted(async () => {
     </div>
 
     <transition name="fade">
-      <div v-if="showStats" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div v-if="showStats" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <article
           v-for="item in statsCards"
           :key="item.label"
@@ -552,7 +498,7 @@ onMounted(async () => {
           :showSearch="true"
           :showFilters="true"
           :filtersOpen="filtersOpen"
-          searchPlaceholder="Поиск по ID, имени или телефону"
+          searchPlaceholder="Поиск по имени или телефону"
           :createButton="{ label: 'Новый клиент', to: '/clients/create?page=1' }"
           @toggleFilters="filtersOpen = !filtersOpen"
         >
@@ -567,7 +513,7 @@ onMounted(async () => {
             <label class="space-y-2">
               <span class="text-sm font-semibold text-white">Группа</span>
               <select v-model="filterState.groupId" class="filter-field">
-                <option value="">Выберите группы</option>
+                <option value="">Выберите группу</option>
                 <option v-for="group in filters.groups" :key="group.id" :value="group.id">{{ group.name }}</option>
               </select>
             </label>
@@ -575,13 +521,13 @@ onMounted(async () => {
             <label class="space-y-2">
               <span class="text-sm font-semibold text-white">Тег</span>
               <select v-model="filterState.tagId" class="filter-field">
-                <option value="">Выберите теги</option>
+                <option value="">Выберите тег</option>
                 <option v-for="tag in filters.tags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
               </select>
             </label>
 
             <div class="space-y-2">
-              <span class="text-sm font-semibold text-white">День рождения</span>
+              <span class="text-sm font-semibold text-white">Дата рождения</span>
               <div class="grid grid-cols-2 gap-3">
                 <input v-model="filterState.birthDateFrom" type="date" class="filter-field" />
                 <input v-model="filterState.birthDateTo" type="date" class="filter-field" />
@@ -625,7 +571,7 @@ onMounted(async () => {
             <label class="space-y-2">
               <span class="text-sm font-semibold text-white">Магазин регистрации</span>
               <select v-model="filterState.registrationShopId" class="filter-field">
-                <option value="">Выберите магазины</option>
+                <option value="">Выберите магазин</option>
                 <option v-for="shop in filters.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
               </select>
             </label>
@@ -680,17 +626,9 @@ onMounted(async () => {
   padding: 14px 16px;
   color: #fff;
   outline: none;
-  transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease;
 }
 
 .filter-field::placeholder {
   color: #94a3b8;
-}
-
-.filter-field:focus {
-  border-color: rgba(56, 189, 248, 0.65);
-  background: rgba(255, 255, 255, 0.08);
 }
 </style>

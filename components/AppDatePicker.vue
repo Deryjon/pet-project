@@ -3,18 +3,25 @@ import { computed, ref, watch } from "vue";
 
 defineOptions({ inheritAttrs: false });
 
+type DateRangeValue = {
+  from?: string | null;
+  to?: string | null;
+};
+
 const props = withDefaults(defineProps<{
-  modelValue?: string | null;
+  modelValue?: string | DateRangeValue | null;
   placeholder?: string;
   clearable?: boolean;
+  selectionMode?: "single" | "range";
 }>(), {
   modelValue: "",
   placeholder: "Выберите дату",
   clearable: false,
+  selectionMode: "single",
 });
 
 const emit = defineEmits<{
-  "update:modelValue": [value: string];
+  "update:modelValue": [value: string | DateRangeValue];
 }>();
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -24,26 +31,43 @@ const monthFormatter = new Intl.DateTimeFormat("ru-RU", {
 });
 
 const todayDate = new Date();
-const visibleMonth = ref(startOfMonth(parseModelDate(props.modelValue) || todayDate));
+const visibleMonth = ref(startOfMonth(resolveInitialDate()));
 
 watch(
   () => props.modelValue,
-  (nextValue) => {
-    const parsed = parseModelDate(nextValue);
-    if (parsed) visibleMonth.value = startOfMonth(parsed);
+  () => {
+    visibleMonth.value = startOfMonth(resolveInitialDate());
   },
+  { deep: true },
 );
 
-const selectedDate = computed(() => parseModelDate(props.modelValue));
+const selectedDate = computed(() => parseSingleValue(props.modelValue));
+const selectedRange = computed(() => parseRangeValue(props.modelValue));
+const isRangeMode = computed(() => props.selectionMode === "range");
 
 const label = computed(() => {
+  if (isRangeMode.value) {
+    const from = selectedRange.value.from;
+    const to = selectedRange.value.to;
+
+    if (from && to) {
+      return `${from.toLocaleDateString("ru-RU")} - ${to.toLocaleDateString("ru-RU")}`;
+    }
+
+    if (from) {
+      return `С ${from.toLocaleDateString("ru-RU")}`;
+    }
+
+    return props.placeholder;
+  }
+
   if (!selectedDate.value) return props.placeholder;
   return selectedDate.value.toLocaleDateString("ru-RU");
 });
 
 const monthLabel = computed(() => {
-  const label = monthFormatter.format(visibleMonth.value);
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  const labelValue = monthFormatter.format(visibleMonth.value);
+  return labelValue.charAt(0).toUpperCase() + labelValue.slice(1);
 });
 
 const calendarDays = computed(() => {
@@ -58,16 +82,53 @@ const calendarDays = computed(() => {
     const date = new Date(firstDate);
     date.setDate(firstDate.getDate() + index);
 
+    const rangeFrom = selectedRange.value.from;
+    const rangeTo = selectedRange.value.to;
+    const inRange = rangeFrom && rangeTo ? isBetweenDates(date, rangeFrom, rangeTo) : false;
+
     return {
       date,
       key: toIsoDate(date),
       day: date.getDate(),
       inMonth: date.getMonth() === visibleMonth.value.getMonth(),
       isToday: isSameDate(date, todayDate),
-      isSelected: selectedDate.value ? isSameDate(date, selectedDate.value) : false,
+      isSelected: isRangeMode.value
+        ? Boolean((rangeFrom && isSameDate(date, rangeFrom)) || (rangeTo && isSameDate(date, rangeTo)))
+        : Boolean(selectedDate.value && isSameDate(date, selectedDate.value)),
+      isRangeStart: Boolean(rangeFrom && isSameDate(date, rangeFrom)),
+      isRangeEnd: Boolean(rangeTo && isSameDate(date, rangeTo)),
+      isInRange: inRange,
     };
   });
 });
+
+function resolveInitialDate() {
+  if (isRangeValue(props.modelValue)) {
+    return parseModelDate(props.modelValue.from) || parseModelDate(props.modelValue.to) || todayDate;
+  }
+
+  return parseModelDate(typeof props.modelValue === "string" ? props.modelValue : "") || todayDate;
+}
+
+function isRangeValue(value: unknown): value is DateRangeValue {
+  return typeof value === "object" && value !== null && ("from" in value || "to" in value);
+}
+
+function parseSingleValue(value?: string | DateRangeValue | null) {
+  if (typeof value !== "string") return null;
+  return parseModelDate(value);
+}
+
+function parseRangeValue(value?: string | DateRangeValue | null) {
+  if (!isRangeValue(value)) {
+    return { from: null, to: null };
+  }
+
+  return {
+    from: parseModelDate(value.from),
+    to: parseModelDate(value.to),
+  };
+}
 
 function parseModelDate(value?: string | null) {
   if (!value) return null;
@@ -96,6 +157,15 @@ function isSameDate(first: Date, second: Date) {
     && first.getDate() === second.getDate();
 }
 
+function isBeforeDate(first: Date, second: Date) {
+  return first.getTime() < second.getTime();
+}
+
+function isBetweenDates(target: Date, from: Date, to: Date) {
+  const time = target.getTime();
+  return time > from.getTime() && time < to.getTime();
+}
+
 function previousMonth() {
   visibleMonth.value = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() - 1, 1);
 }
@@ -105,15 +175,70 @@ function nextMonth() {
 }
 
 function selectDate(date: Date) {
-  emit("update:modelValue", toIsoDate(date));
+  if (!isRangeMode.value) {
+    emit("update:modelValue", toIsoDate(date));
+    return;
+  }
+
+  const nextDate = toIsoDate(date);
+  const currentFrom = selectedRange.value.from ? toIsoDate(selectedRange.value.from) : "";
+  const currentTo = selectedRange.value.to ? toIsoDate(selectedRange.value.to) : "";
+
+  if (!currentFrom || (currentFrom && currentTo)) {
+    emit("update:modelValue", {
+      from: nextDate,
+      to: "",
+    });
+    return;
+  }
+
+  const fromDate = parseModelDate(currentFrom);
+  if (!fromDate) {
+    emit("update:modelValue", {
+      from: nextDate,
+      to: "",
+    });
+    return;
+  }
+
+  if (isBeforeDate(date, fromDate)) {
+    emit("update:modelValue", {
+      from: nextDate,
+      to: currentFrom,
+    });
+    return;
+  }
+
+  emit("update:modelValue", {
+    from: currentFrom,
+    to: nextDate,
+  });
 }
 
 function setToday() {
   visibleMonth.value = startOfMonth(todayDate);
+
+  if (isRangeMode.value) {
+    const iso = toIsoDate(todayDate);
+    emit("update:modelValue", {
+      from: iso,
+      to: iso,
+    });
+    return;
+  }
+
   emit("update:modelValue", toIsoDate(todayDate));
 }
 
 function clearDate() {
+  if (isRangeMode.value) {
+    emit("update:modelValue", {
+      from: "",
+      to: "",
+    });
+    return;
+  }
+
   emit("update:modelValue", "");
 }
 </script>
@@ -130,7 +255,7 @@ function clearDate() {
       >
         <span>
           <span class="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            Дата
+            {{ isRangeMode ? "Период" : "Дата" }}
           </span>
           <span :class="modelValue ? 'text-white' : 'text-slate-300'" class="mt-0.5 block text-[15px] font-semibold">
             {{ label }}
@@ -153,9 +278,14 @@ function clearDate() {
               <Icon name="heroicons:chevron-left" class="h-5 w-5" />
             </button>
 
-            <p class="text-[16px] font-bold text-white">
-              {{ monthLabel }}
-            </p>
+            <div class="text-center">
+              <p class="text-[16px] font-bold text-white">
+                {{ monthLabel }}
+              </p>
+              <p v-if="isRangeMode" class="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                Выберите начало и конец периода
+              </p>
+            </div>
 
             <button
               type="button"
@@ -184,15 +314,34 @@ function clearDate() {
               :class="[
                 item.isSelected
                   ? 'bg-[#1f78ff] text-white shadow-[0_10px_26px_rgba(31,120,255,0.35)]'
-                  : item.inMonth
-                    ? 'text-slate-100 hover:bg-white/10'
-                    : 'text-slate-600 hover:bg-white/[0.04]',
+                  : item.isInRange
+                    ? 'bg-[#1f78ff]/15 text-sky-100'
+                    : item.inMonth
+                      ? 'text-slate-100 hover:bg-white/10'
+                      : 'text-slate-600 hover:bg-white/[0.04]',
                 item.isToday && !item.isSelected ? 'ring-1 ring-[#1f78ff]/60' : '',
+                item.isRangeStart ? 'rounded-r-[8px]' : '',
+                item.isRangeEnd ? 'rounded-l-[8px]' : '',
               ]"
               @click="selectDate(item.date)"
             >
               {{ item.day }}
             </button>
+          </div>
+
+          <div v-if="isRangeMode" class="mt-4 grid grid-cols-2 gap-2 rounded-[18px] border border-white/10 bg-white/[0.03] p-3 text-sm">
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">С</div>
+              <div class="mt-1 text-white">
+                {{ selectedRange.from ? selectedRange.from.toLocaleDateString("ru-RU") : "Не выбрано" }}
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">По</div>
+              <div class="mt-1 text-white">
+                {{ selectedRange.to ? selectedRange.to.toLocaleDateString("ru-RU") : "Не выбрано" }}
+              </div>
+            </div>
           </div>
 
           <div class="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
@@ -201,7 +350,7 @@ function clearDate() {
               class="rounded-[14px] border border-white/10 bg-white/[0.06] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
               @click="setToday"
             >
-              Сегодня
+              {{ isRangeMode ? "Сегодня" : "Сегодня" }}
             </button>
 
             <button

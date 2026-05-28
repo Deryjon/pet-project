@@ -1,12 +1,12 @@
 <template>
-  <div ref="dropdownRef" class="top flex flex-col gap-4 sm:gap-6">
+  <div ref="dropdownRef" class="top flex flex-col gap-4 rounded-[24px] border border-white/8 bg-[rgba(38,38,38,0.78)] p-4 shadow-[0_20px_45px_rgba(0,0,0,0.16)] sm:gap-6 sm:p-5">
     <div class="flex items-center justify-between gap-3">
       <label class="block text-[16px] font-semibold sm:text-[18px]">Клиент</label>
       <button type="button" class="text-[#4993dd]" @click="goToCreateClient">Создать</button>
     </div>
 
     <div class="relative">
-      <div class="flex items-center gap-2 rounded-[15px] bg-[#404040] p-3 sm:p-4">
+      <div class="flex items-center gap-2 rounded-[18px] bg-[#404040] p-3 sm:p-4">
         <span>
           <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -27,7 +27,7 @@
       <transition name="fade">
         <div
           v-if="isOpen"
-          class="absolute left-0 right-0 z-10 mt-2 overflow-hidden rounded-[15px] bg-[#2e2e2e] shadow-lg"
+          class="absolute left-0 right-0 z-10 mt-3 overflow-hidden rounded-[18px] border border-white/8 bg-[#2e2e2e] shadow-[0_24px_50px_rgba(0,0,0,0.22)]"
         >
           <div v-if="search.trim().length > 0 && search.trim().length < 4" class="px-4 py-3 text-sm text-[#bdbdbd]">
             Введите минимум 4 символа
@@ -243,11 +243,19 @@ onMounted(() => {
   document.addEventListener("click", handleClickOutside);
   void restoreCreatedClientFromSession();
 
-  if (!selectedClient.value && cartStore.currentOrder?.customerId && cartStore.currentOrder?.customerName) {
+  const orderClientId = String(cartStore.currentOrder?.client?.id ?? cartStore.currentOrder?.customerId ?? "").trim();
+  const orderClientName = String(
+    cartStore.currentOrder?.customerName ??
+    cartStore.currentOrder?.client?.firstName ??
+    cartStore.currentOrder?.customer?.firstName ??
+    "",
+  ).trim();
+
+  if (!selectedClient.value && orderClientId && orderClientName) {
     selectedClient.value = {
-      id: String(cartStore.currentOrder.customerId),
+      id: orderClientId,
       code: "",
-      full_name: cartStore.currentOrder.customerName,
+      full_name: orderClientName,
       phone: "",
       groups: [],
       tags: [],
@@ -261,7 +269,7 @@ onMounted(() => {
       debt_uzs: 0,
       visits_count: 0,
     };
-    search.value = cartStore.currentOrder.customerName;
+    search.value = orderClientName;
   }
 });
 

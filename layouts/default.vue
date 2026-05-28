@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
       ]"
       style="max-width: 100vw; overflow-x: hidden"
     >
-      <div class="sticky top-0 z-20 -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:hidden">
+      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:hidden">
         <UButton
           color="neutral"
           variant="soft"
@@ -128,6 +128,9 @@ onBeforeUnmount(() => {
         >
           <Icon name="tabler:menu-2" class="h-5 w-5" />
         </UButton>
+        <div class="icon flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#404040]">
+          <img src="/favicon.png" alt="Logo" class="h-6 w-6 object-contain" />
+        </div>
       </div>
 
       <slot />
