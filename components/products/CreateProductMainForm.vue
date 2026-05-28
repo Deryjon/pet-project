@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed } from "vue";
 import CreateProductImageUpload from "@/components/products/CreateProductImageUpload.vue";
 import { useProductStore } from "@/store/productStore";
@@ -6,15 +6,21 @@ import type { ProductTypeLabel, VariationTypeLabel } from "~/types/product-creat
 
 const store = useProductStore();
 
-const isGoods = computed(() => store.form.productType === "Товар");
+const goodsType = computed(() => store.productTypes[0]);
+const serviceType = computed(() => store.productTypes[1]);
+const bundleType = computed(() => store.productTypes[2]);
+const simpleVariantType = computed(() => store.productVariants[0]);
+const variantType = computed(() => store.productVariants[1]);
+
+const isGoods = computed(() => store.form.productType === goodsType.value);
 const isVariantGoods = computed(
-  () => isGoods.value && store.form.variationType === "Вариативный",
+  () => isGoods.value && store.form.variationType === variantType.value,
 );
 const isSimpleGoods = computed(
-  () => isGoods.value && store.form.variationType === "Простой",
+  () => isGoods.value && store.form.variationType === simpleVariantType.value,
 );
-const isService = computed(() => store.form.productType === "Услуга");
-const isBundle = computed(() => store.form.productType === "Комплект");
+const isService = computed(() => store.form.productType === serviceType.value);
+const isBundle = computed(() => store.form.productType === bundleType.value);
 
 function selectProductType(type: ProductTypeLabel) {
   store.setProductType(type);
@@ -27,8 +33,8 @@ function selectVariationType(type: VariationTypeLabel) {
 
 <template>
   <div class="flex flex-col gap-2">
-    <div class="flex gap-4">
-      <h3 class="mb-4 text-2xl font-semibold">Основные</h3>
+    <div class="flex items-center gap-4">
+      <h3 class="mb-4 shrink-0 text-xl font-semibold sm:text-2xl">Основные</h3>
       <div
         class="relative my-4 w-full after:block after:h-[0.8px] after:w-full after:bg-[repeating-linear-gradient(to_right,#6f6f6f_0_12px,transparent_12px_24px)] after:content-['']"
       ></div>
@@ -36,7 +42,7 @@ function selectVariationType(type: VariationTypeLabel) {
 
     <div>
       <label class="font-base text-lg">Тип продукта</label>
-      <div class="mt-4 flex gap-4">
+      <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:gap-4">
         <UButton
           v-for="type in store.productTypes"
           :key="type"
@@ -68,7 +74,7 @@ function selectVariationType(type: VariationTypeLabel) {
 
     <div v-if="isGoods" class="mt-4">
       <label class="font-base text-lg">Вариативность продукта</label>
-      <div class="mt-4 flex gap-4">
+      <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:gap-4">
         <UButton
           v-for="variant in store.productVariants"
           :key="variant"
@@ -113,15 +119,15 @@ function selectVariationType(type: VariationTypeLabel) {
       />
     </div>
 
-    <div class="mt-4 flex gap-4">
+    <div class="mt-4 flex flex-col gap-4 lg:flex-row">
       <div class="w-full">
         <label class="font-medium">Артикул</label>
-        <div class="mt-4 flex items-center gap-2 rounded-[15px] bg-[#404040] p-2 pl-0">
+        <div class="mt-4 flex flex-col gap-2 rounded-[15px] bg-[#404040] p-2 sm:flex-row sm:items-center sm:pl-0">
           <UInput
             v-model="store.form.sku"
             type="text"
             placeholder="Введите артикул"
-            class="flex-1"
+            class="w-full flex-1"
             :ui="{
               base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
             }"
@@ -130,7 +136,7 @@ function selectVariationType(type: VariationTypeLabel) {
             color="primary"
             variant="solid"
             type="button"
-            class="shrink-0 rounded-[12px] bg-[#1f78ff] px-4 py-3 text-white hover:bg-[#1667dd] active:bg-[#1667dd]"
+            class="w-full shrink-0 rounded-[12px] bg-[#1f78ff] px-4 py-3 text-white hover:bg-[#1667dd] active:bg-[#1667dd] sm:w-auto"
             @click="store.generateCode('article')"
           >
             Сгенерировать
@@ -140,12 +146,12 @@ function selectVariationType(type: VariationTypeLabel) {
 
       <div v-if="!isVariantGoods" class="w-full">
         <label class="font-medium">Баркод</label>
-        <div class="mt-4 flex items-center gap-2 rounded-[15px] bg-[#404040] p-2 pl-0">
+        <div class="mt-4 flex flex-col gap-2 rounded-[15px] bg-[#404040] p-2 sm:flex-row sm:items-center sm:pl-0">
           <UInput
             v-model="store.form.barcode"
             type="text"
             placeholder="Введите баркод"
-            class="flex-1"
+            class="w-full flex-1"
             :ui="{
               base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
             }"
@@ -154,7 +160,7 @@ function selectVariationType(type: VariationTypeLabel) {
             color="primary"
             variant="solid"
             type="button"
-            class="shrink-0 rounded-[12px] bg-[#1f78ff] px-4 py-3 text-white hover:bg-[#1667dd] active:bg-[#1667dd]"
+            class="w-full shrink-0 rounded-[12px] bg-[#1f78ff] px-4 py-3 text-white hover:bg-[#1667dd] active:bg-[#1667dd] sm:w-auto"
             @click="store.generateCode('barcode')"
           >
             Сгенерировать
@@ -199,7 +205,7 @@ function selectVariationType(type: VariationTypeLabel) {
         <div
           v-for="variation in store.form.variations"
           :key="variation.id"
-          class="flex items-center gap-3"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center"
         >
           <UInput
             v-model="variation.value"
@@ -236,52 +242,54 @@ function selectVariationType(type: VariationTypeLabel) {
     <div v-if="isBundle" class="mt-4 rounded-[15px] bg-[#2f2f2f] p-4">
       <h4 class="text-lg font-semibold">Набор товаров</h4>
 
-      <table class="mt-4 w-full overflow-hidden rounded-lg border-gray-300">
-        <thead>
-          <tr>
-            <th class="p-3 text-left">Товар</th>
-            <th class="p-3 text-left">Количество</th>
-            <th class="p-3 text-left"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in store.form.bundleItems" :key="item.id" class="border-t border-[#454545]">
-            <td class="p-3">
-              <UInput
-                v-model="item.name"
-                type="text"
-                placeholder="Введите товар"
-                :ui="{
-                  base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
-                }"
-              />
-            </td>
-            <td class="p-3">
-              <UInput
-                :model-value="item.quantity"
-                type="number"
-                min="1"
-                class="w-32"
-                :ui="{
-                  base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
-                }"
-                @update:model-value="store.setBundleItemQty(item.id, Number($event))"
-              />
-            </td>
-            <td class="p-3 text-right">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                type="button"
-                class="rounded-lg bg-[#404040]"
-                @click="store.removeBundleItem(item.id)"
-              >
-                Удалить
-              </UButton>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="mt-4 overflow-x-auto rounded-lg">
+        <table class="w-full min-w-[560px] overflow-hidden rounded-lg border-gray-300">
+          <thead>
+            <tr>
+              <th class="p-3 text-left">Товар</th>
+              <th class="p-3 text-left">Количество</th>
+              <th class="p-3 text-left"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in store.form.bundleItems" :key="item.id" class="border-t border-[#454545]">
+              <td class="p-3">
+                <UInput
+                  v-model="item.name"
+                  type="text"
+                  placeholder="Введите товар"
+                  :ui="{
+                    base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+                  }"
+                />
+              </td>
+              <td class="p-3">
+                <UInput
+                  :model-value="item.quantity"
+                  type="number"
+                  min="1"
+                  class="w-32"
+                  :ui="{
+                    base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+                  }"
+                  @update:model-value="store.setBundleItemQty(item.id, Number($event))"
+                />
+              </td>
+              <td class="p-3 text-right">
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  type="button"
+                  class="rounded-lg bg-[#404040]"
+                  @click="store.removeBundleItem(item.id)"
+                >
+                  Удалить
+                </UButton>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <UButton
         color="primary"
@@ -295,5 +303,3 @@ function selectVariationType(type: VariationTypeLabel) {
     </div>
   </div>
 </template>
-
-

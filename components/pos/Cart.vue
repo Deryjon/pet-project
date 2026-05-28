@@ -1,6 +1,6 @@
 <template>
-  <div class="relative mt-6 rounded-xl sm:mt-[30px]">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="relative mt-6 rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(48,48,48,0.95),rgba(38,38,38,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.18)] sm:mt-[30px] sm:rounded-[30px] sm:p-5">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex flex-wrap items-center gap-3">
         <h3 class="text-[24px] font-semibold sm:text-[36px]">Корзина</h3>
 
@@ -24,7 +24,7 @@
         </UBadge>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-3">
+      <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
         <Icon
           v-if="showOrderLoader"
           name="heroicons:arrow-path"
@@ -36,11 +36,11 @@
       </div>
     </div>
 
-    <div class="sellers mt-[15px] flex flex-wrap gap-3">
+    <div class="sellers mt-4 flex flex-col gap-3 sm:mt-[15px] sm:flex-row sm:flex-wrap">
       <UButton
         color="primary"
         variant="solid"
-        class="rounded-[20px] bg-[#1f78ff] px-4 py-2 hover:bg-[#4993dd]"
+        class="w-full justify-center rounded-[20px] bg-[#1f78ff] px-4 py-3 hover:bg-[#4993dd] sm:w-auto sm:justify-start sm:py-2"
       >
         <span class="text-[14px] font-semibold sm:text-[16px]">
           {{ selectedSeller ? selectedSeller.name : "Все продавцы" }}
@@ -50,7 +50,7 @@
       <UButton
         color="neutral"
         variant="soft"
-        class="flex items-center justify-center rounded-[20px] bg-[#404040] px-4 py-1 hover:bg-[#5e5e5e]"
+        class="flex w-full items-center justify-center rounded-[20px] bg-[#404040] px-4 py-3 hover:bg-[#5e5e5e] sm:w-auto sm:py-1"
         @click="openSellerModal"
       >
         <svg
@@ -70,7 +70,7 @@
 
     <div
       v-if="cartLoading"
-      class="mt-[20px] space-y-3 rounded-[25px] border border-white/8 bg-[#303030] p-4"
+      class="mt-[20px] space-y-3 rounded-[25px] border border-white/8 bg-[#2f2f2f] p-4"
     >
       <div
         v-for="item in 4"
@@ -108,7 +108,7 @@
 
     <div
       v-else
-      class="mt-[20px] max-h-[360px] w-full overflow-y-auto rounded-[25px] sm:max-h-[400px]"
+      class="mt-[20px] max-h-[360px] w-full overflow-y-auto rounded-[25px] border border-white/6 bg-[#2d2d2d] p-2 sm:max-h-[400px]"
     >
       <CartItem
         v-for="item in cart"

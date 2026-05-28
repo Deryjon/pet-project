@@ -1,8 +1,8 @@
 <template>
   <section class="catalog">
-    <div class="top flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div class="top flex flex-col gap-4 xl:flex-row xl:items-center justify-between">
       <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div class="flex justify-between gap-4  items-center">
         <div
           v-if="can('catalog-statistics')"
           class="flex cursor-pointer items-center gap-[10px] text-[#b5b4b4]"

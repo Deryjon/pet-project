@@ -1,19 +1,19 @@
 <template>
-  <div class="flex flex-col bg-[#262626] text-[15px] font-bold shadow-style sm:text-[17px]">
-    <div class="flex items-center justify-between p-4">
+  <div class="flex flex-col overflow-hidden rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(38,38,38,0.98),rgba(28,28,28,0.98))] text-[15px] font-bold shadow-[0_22px_50px_rgba(0,0,0,0.18)] sm:rounded-[28px] sm:text-[17px]">
+    <div class="flex items-center justify-between border-b border-white/6 p-4">
       <span>Промежуточно</span>
       <span v-if="showSummarySkeleton" class="h-5 w-28 animate-pulse rounded-full bg-[#404040]" />
       <span v-else>{{ formatPrice(subtotal) }} UZS</span>
     </div>
 
-    <div class="flex items-center justify-between p-4">
+    <div class="flex items-center justify-between border-b border-white/6 p-4">
       <span>Скидки</span>
       <span v-if="showSummarySkeleton" class="h-5 w-24 animate-pulse rounded-full bg-[#404040]" />
       <span v-else>{{ formatPrice(totalDiscount) }} UZS</span>
     </div>
 
     <button
-      class="flex w-full items-center justify-between rounded-[15px] px-4 py-5 sm:px-5 sm:py-6"
+      class="flex w-full items-center justify-between rounded-none px-4 py-5 sm:px-5 sm:py-6"
       :class="canStartCheckout ? 'bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
       :disabled="!canStartCheckout"
       @click="openPaymentPanel"
@@ -32,7 +32,7 @@
 
     <button
       v-if="canParkSale"
-      class="flex w-full items-center justify-center p-5 text-gray-300"
+      class="flex w-full items-center justify-center border-t border-white/6 p-5 text-gray-300"
       :class="cartStore.parkingLoading ? 'cursor-not-allowed opacity-60' : ''"
       :disabled="cartStore.parkingLoading"
       @click="onPark"

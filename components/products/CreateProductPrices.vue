@@ -8,11 +8,13 @@ import {
 import { useProductStore } from "@/store/productStore";
 
 const store = useProductStore();
+const goodsType = computed(() => store.productTypes[0]);
+const variantType = computed(() => store.productVariants[1]);
 
 const isVariantGoods = computed(
   () =>
-    store.form.productType === "Товар" &&
-    store.form.variationType === "Вариативный",
+    store.form.productType === goodsType.value &&
+    store.form.variationType === variantType.value,
 );
 
 function formatPrice(value: number) {
@@ -90,8 +92,8 @@ function updateVariationMarkup(variationId: string) {
 
 <template>
   <section>
-    <div class="flex">
-      <h3 class="mb-4 text-2xl font-semibold">Цены</h3>
+    <div class="flex items-center">
+      <h3 class="mb-4 shrink-0 text-xl font-semibold sm:text-2xl">Цены</h3>
       <div
         class="relative my-4 w-full after:block after:h-[0.8px] after:w-full after:bg-[repeating-linear-gradient(to_right,#6f6f6f_0_12px,transparent_12px_24px)] after:content-['']"
       ></div>
@@ -147,8 +149,8 @@ function updateVariationMarkup(variationId: string) {
       </div>
     </div>
 
-    <div v-else>
-      <table class="mt-4 w-full overflow-hidden rounded-lg">
+    <div v-else class="mt-4 overflow-x-auto rounded-lg">
+      <table class="w-full min-w-[760px] overflow-hidden rounded-lg">
         <thead>
           <tr>
             <th class="p-3 text-left">Вариация</th>

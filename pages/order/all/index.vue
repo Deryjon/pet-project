@@ -909,10 +909,11 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 </script>
 
 <style scoped>
-.sales-page { min-height: calc(100vh - 88px); padding: 0 0 32px; color: white; }
-.sales-layout { display: block; }
+.sales-page { min-height: calc(100vh - 88px); padding: 8px 0 32px; color: white; }
+.sales-layout { display: block; min-width: 0; }
+.sales-main { min-width: 0; }
 .panel { border: 0; background: #262626; box-shadow: none; border-radius: 0; }
-.sales-header { padding: 0 0 18px; display: grid; gap: 16px; }
+.sales-header { display: grid; gap: 16px; margin-bottom: 18px; border: 1px solid rgba(255,255,255,.06); border-radius: 24px; background: linear-gradient(180deg,rgba(48,48,48,.94),rgba(38,38,38,.98)); padding: 20px; box-shadow: 0 24px 60px rgba(0,0,0,.18); }
 .header-top, .sales-footer, .pagination, .footer-actions, .stats-head, .stats-row, .payment-label, .sale-left, .sale-right { display: flex; align-items: center; }
 .header-top, .sales-footer, .stats-head, .stats-row { justify-content: space-between; gap: 16px; }
 .scope-select { position: relative; width: fit-content; min-width: 240px; }
@@ -921,7 +922,7 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .scope-menu { position: absolute; left: 0; top: calc(100% + 8px); z-index: 30; display: grid; min-width: 240px; gap: 6px; border-radius: 18px; background: #303030; padding: 8px; box-shadow: 0 18px 42px rgba(0,0,0,.32); }
 .scope-option { display: flex; min-height: 44px; width: 100%; align-items: center; justify-content: space-between; gap: 12px; border-radius: 14px; padding: 0 12px; color: #d7d7d7; font-size: 15px; font-weight: 800; text-align: left; }
 .scope-option:hover, .scope-option--active { background: #404040; color: #fff; }
-.header-meta { display: flex; align-items: center; gap: 12px; }
+.header-meta { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .count-inline { min-height: 46px; display: inline-flex; align-items: center; white-space: nowrap; border-radius: 15px; background: #303030; padding: 0 14px; color: #fff; font-size: 15px; font-weight: 800; }
 .count-badge span, .group-label, .sale-meta, .sale-user, .sale-shop, .stats-row span, .stats-head span, .stats-empty, .empty-text, .limit-box span, .total-panel span { color: #bdbdbd; }
 .header-controls { display: grid; grid-template-columns: minmax(320px,1fr) 132px; gap: 12px; align-items: stretch; }
@@ -940,7 +941,7 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .filter-field select, .filter-field input { width: 100%; min-height: 46px; border: 0; border-radius: 14px; background: #404040; padding: 0 12px; color: #fff; font-size: 14px; font-weight: 700; outline: none; }
 .range-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .filter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-self: end; }
-.sales-list { margin-top: 0; padding: 18px; border-radius: 18px; background: #262626; }
+.sales-list { margin-top: 0; padding: 20px; border: 1px solid rgba(255,255,255,.06); border-radius: 24px; background: linear-gradient(180deg,rgba(38,38,38,.98),rgba(32,32,32,.98)); box-shadow: 0 24px 60px rgba(0,0,0,.16); }
 .group + .group { margin-top: 18px; }
 .group-label { margin-bottom: 12px; padding: 0 2px; font-size: 14px; font-weight: 800; }
 .sale-card { display: flex; align-items: stretch; justify-content: space-between; gap: 18px; padding: 18px; border: 1px solid rgba(255,255,255,.06); border-radius: 16px; background: #303030; box-shadow: inset 4px 0 0 rgba(120,179,255,.32); transition: transform .2s ease, background .2s ease, border-color .2s ease; cursor: pointer; }
@@ -952,7 +953,7 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .sale-badge { display: inline-flex; min-height: 28px; align-items: center; justify-content: flex-start; border-radius: 10px; background: rgba(120,179,255,.12); border: 1px solid rgba(120,179,255,.18); padding: 0 10px; font-size: 13px; font-weight: 800; color: #dfe9ff; }
 .sale-id, .sale-amount, .stats-row strong, .total-panel strong, .empty-title { color: #f6f8fc; font-weight: 700; }
 .sale-id { font-size: 13px; color: #bdbdbd; }
-.sale-number { margin-top: 3px; color: #f6f8fc; font-size: 18px; font-weight: 800; line-height: 1.25; }
+.sale-number { margin-top: 3px; color: #f6f8fc; font-size: 18px; font-weight: 800; line-height: 1.25; word-break: break-word; }
 .sale-meta, .sale-user, .sale-shop { font-size: 13px; }
 .sale-user { display: none; }
 .sale-right { min-width: 180px; align-items: flex-end; flex-direction: column; justify-content: space-between; gap: 12px; }
@@ -966,7 +967,7 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .state--empty { flex-direction: column; }
 .empty-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: #303030; color: #78b3ff; }
 .empty-title { font-size: 18px; }
-.sales-footer { margin-top: 18px; padding: 0; }
+.sales-footer { margin-top: 18px; padding: 16px 18px; border: 1px solid rgba(255,255,255,.06); border-radius: 22px; background: rgba(38,38,38,.96); box-shadow: 0 18px 40px rgba(0,0,0,.14); }
 .pagination, .footer-actions, .payment-label { gap: 10px; }
 .icon-btn { width: 42px; height: 42px; border-radius: 14px; }
 .page-index { min-width: 24px; text-align: center; font-weight: 700; color: #f6f8fc; }
@@ -1009,5 +1010,6 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .drawer-action--danger { background: transparent; color: #ff9a9a; }
 .drawer-action--danger:hover { background: rgba(239,68,68,.16); }
 @media (max-width: 1180px) { .filters-panel { grid-template-columns: repeat(2,minmax(0,1fr)); } .filter-actions { grid-column: span 2; } }
-@media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel { padding: 16px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-meta, .header-controls, .filters-panel, .filter-actions { grid-template-columns: 1fr; } .header-meta { align-items: stretch; } .scope-select { width: 100%; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
+@media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel, .sales-footer { padding: 16px; border-radius: 20px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-controls, .filters-panel, .filter-actions { grid-template-columns: 1fr; } .header-meta { min-width: 0; align-items: stretch; } .scope-select { width: 100%; min-width: 0; } .scope-menu { min-width: 100%; } .scope-trigger { font-size: clamp(24px,8vw,32px); } .count-inline { justify-content: center; white-space: normal; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .footer-actions { width: 100%; } .limit-box { justify-content: space-between; } .sale-card { gap: 14px; padding: 16px; border-radius: 18px; } .header-controls { grid-template-columns: 1fr; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
+@media (max-width: 520px) { .sales-header, .sales-list, .sales-footer { padding: 14px; border-radius: 18px; } .sale-card { padding: 14px; } .sale-amount { font-size: 17px; } .sale-number { font-size: 16px; } .drawer-header h2, .drawer-header strong { font-size: 20px; } .toolbar-btn, .report-btn { min-height: 48px; } }
 </style>
