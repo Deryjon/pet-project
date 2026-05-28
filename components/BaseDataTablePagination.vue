@@ -48,7 +48,7 @@ const selectedPageSize = computed({
 </script>
 
 <template>
-  <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="mt-5 flex gap-3 items-center justify-between">
     <div class="order-2 flex items-center sm:order-1">
       <div class="flex min-w-[132px] items-center justify-between gap-3">
         <UButton

@@ -163,7 +163,7 @@ function appendCompanyId(path: string, companyId?: string) {
 export function useRolePermissionsApi() {
   const { apiFetch } = useApi();
 
-  const roleBaseCandidates = ["/v2/role", "/api/v2/role"];
+  const roleBaseCandidates = ["/v2/role"];
   const rolesListCandidates = [...roleBaseCandidates, "/company/roles"];
 
   async function requestWithCandidates<T = any>(

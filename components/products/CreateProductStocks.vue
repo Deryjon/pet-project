@@ -26,6 +26,9 @@ const store = useProductStore();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const goodsType = computed(() => store.productTypes[0]);
+const simpleVariantType = computed(() => store.productVariants[0]);
+const variantType = computed(() => store.productVariants[1]);
 
 const simpleDrafts = reactive<Record<string, number>>({});
 const variationDrafts = reactive<Record<string, Record<string, number>>>({});
@@ -38,13 +41,13 @@ const receiptSupplier = ref("");
 
 const isSimpleGoods = computed(
   () =>
-    store.form.productType === "Товар" &&
-    store.form.variationType === "Простой",
+    store.form.productType === goodsType.value &&
+    store.form.variationType === simpleVariantType.value,
 );
 const isVariantGoods = computed(
   () =>
-    store.form.productType === "Товар" &&
-    store.form.variationType === "Вариативный",
+    store.form.productType === goodsType.value &&
+    store.form.variationType === variantType.value,
 );
 const isEditMode = computed(() => route.query.mode === "edit" && Boolean(store.editingProductId));
 const supplierOptions = computed(() => {
@@ -257,7 +260,7 @@ function receiptTargetLabel() {
 
 <template>
   <section>
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div>
         <h3 class="text-xl font-semibold">Остатки</h3>
         <p
@@ -269,55 +272,59 @@ function receiptTargetLabel() {
       </div>
     </div>
 
-    <table v-if="isSimpleGoods" class="mt-8 w-full overflow-hidden rounded-lg border-gray-300">
-      <thead>
-        <tr>
-          <th class="p-3 text-left text-base">Магазин</th>
-          <th class="p-3 text-left text-base">Кол-во</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="s in store.form.stocks" :key="s.id" class="border-t">
-          <td class="p-3 text-[16px]">{{ s.name }}</td>
-          <td class="p-3">
-            <UInput
-              :model-value="simpleDrafts[s.id] ?? s.qty"
-              type="number"
-              min="0"
-              class="w-32"
-              :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-              @update:model-value="updateSimpleDraft(s.id, $event)"
-              @blur="commitSimpleStock(s.id)"
-            />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="isSimpleGoods" class="mt-8 overflow-x-auto rounded-lg">
+      <table class="w-full min-w-[360px] overflow-hidden rounded-lg border-gray-300">
+        <thead>
+          <tr>
+            <th class="p-3 text-left text-base">Магазин</th>
+            <th class="p-3 text-left text-base">Кол-во</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in store.form.stocks" :key="s.id" class="border-t">
+            <td class="p-3 text-[16px]">{{ s.name }}</td>
+            <td class="p-3">
+              <UInput
+                :model-value="simpleDrafts[s.id] ?? s.qty"
+                type="number"
+                min="0"
+                class="w-32"
+                :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                @update:model-value="updateSimpleDraft(s.id, $event)"
+                @blur="commitSimpleStock(s.id)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <table v-else-if="isVariantGoods" class="mt-8 w-full overflow-hidden rounded-lg border-gray-300">
-      <thead>
-        <tr>
-          <th class="p-3 text-left text-base">Вариация</th>
-          <th v-for="s in store.form.stocks" :key="s.id" class="p-3 text-left text-base">{{ s.name }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="variation in store.form.variations" :key="variation.id" class="border-t">
-          <td class="p-3 text-[16px]">{{ variation.value || "Без названия" }}</td>
-          <td v-for="s in store.form.stocks" :key="`${variation.id}-${s.id}`" class="p-3">
-            <UInput
-              :model-value="variationDrafts[variation.id]?.[s.id] ?? variation.stocks[s.id] ?? 0"
-              type="number"
-              min="0"
-              class="w-32"
-              :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-              @update:model-value="updateVariationDraft(variation.id, s.id, $event)"
-              @blur="commitVariationStock(variation.id, s.id)"
-            />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else-if="isVariantGoods" class="mt-8 overflow-x-auto rounded-lg">
+      <table class="w-full min-w-[720px] overflow-hidden rounded-lg border-gray-300">
+        <thead>
+          <tr>
+            <th class="p-3 text-left text-base">Вариация</th>
+            <th v-for="s in store.form.stocks" :key="s.id" class="p-3 text-left text-base">{{ s.name }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="variation in store.form.variations" :key="variation.id" class="border-t">
+            <td class="p-3 text-[16px]">{{ variation.value || "Без названия" }}</td>
+            <td v-for="s in store.form.stocks" :key="`${variation.id}-${s.id}`" class="p-3">
+              <UInput
+                :model-value="variationDrafts[variation.id]?.[s.id] ?? variation.stocks[s.id] ?? 0"
+                type="number"
+                min="0"
+                class="w-32"
+                :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                @update:model-value="updateVariationDraft(variation.id, s.id, $event)"
+                @blur="commitVariationStock(variation.id, s.id)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <UModal
       v-model:open="receiptModalOpen"

@@ -32,6 +32,17 @@ const submitting = ref(false);
 const validationMessages = ref<string[]>([]);
 const confirmCancelOpen = ref(false);
 const isEditMode = computed(() => route.query.mode === "edit");
+const cancelDialogTitle = computed(() =>
+  isEditMode.value ? "Отменить редактирование продукта?" : "Отменить создание продукта?",
+);
+const cancelDialogDescription = computed(() =>
+  isEditMode.value
+    ? "Вы уверены что хотите выйти и отменить редактирование продукта? Все несохраненные изменения будут потеряны"
+    : "Вы уверены что хотите выйти и отменить создание продукта? Все внесенные данные не сохранятся",
+);
+const cancelDialogConfirmLabel = computed(() =>
+  isEditMode.value ? "Отменить редактирование" : "Отменить создание",
+);
 const cancelModalOpen = computed({
   get: () => confirmCancelOpen.value,
   set: (open: boolean) => {
@@ -265,15 +276,15 @@ async function confirmCancel() {
     />
 
     <div class="mx-auto mt-8 w-full max-w-[1680px] px-4 pb-12 sm:px-6">
-      <div class="rounded-[34px] bg-[radial-gradient(circle_at_top_left,rgba(73,147,221,0.12),transparent_22%),linear-gradient(180deg,#262626,#212121)] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.28)] sm:p-6">
-        <div class="flex items-start gap-10">
+      <div class="rounded-[28px] bg-[radial-gradient(circle_at_top_left,rgba(73,147,221,0.12),transparent_22%),linear-gradient(180deg,#262626,#212121)] p-4 shadow-[0_28px_80px_rgba(0,0,0,0.28)] sm:rounded-[34px] sm:p-6">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
           <CreateProductSidebar
             :active-section="activeSection"
             :show-stocks="showStocks"
             @scrollTo="scrollTo"
           />
 
-          <div class="right flex-1 px-2 sm:px-4">
+          <div class="right min-w-0 flex-1 px-0 sm:px-2 lg:px-4">
             <UAlert
               v-if="validationMessages.length"
               color="error"
@@ -321,7 +332,13 @@ async function confirmCancel() {
       <template #content>
         <div class="p-6 sm:p-8">
           <div class="flex items-start justify-between gap-4">
-            <div>
+            <div v-if="isEditMode">
+              <h3 class="text-[24px] font-bold text-white">{{ cancelDialogTitle }}</h3>
+              <p class="mt-3 text-[15px] leading-6 text-[#b3b3b3]">
+                {{ cancelDialogDescription }}
+              </p>
+            </div>
+            <div v-else>
               <h3 class="text-[24px] font-bold text-white">Отменить создание продукта?</h3>
               <p class="mt-3 text-[15px] leading-6 text-[#b3b3b3]">
                 Вы уверены что хотите выйти и отменить создание продукта? Все внесенные данные не сохранятся
@@ -348,6 +365,16 @@ async function confirmCancel() {
               Остаться
             </UButton>
             <UButton
+              v-if="isEditMode"
+              color="error"
+              variant="solid"
+              class="justify-center rounded-[16px] bg-[#c14343] px-5 py-4 text-white hover:bg-[#d04d4d]"
+              @click="confirmCancel"
+            >
+              {{ cancelDialogConfirmLabel }}
+            </UButton>
+            <UButton
+              v-else
               color="error"
               variant="solid"
               class="justify-center rounded-[16px] bg-[#c14343] px-5 py-4 text-white hover:bg-[#d04d4d]"

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 const props = defineProps<{
   activeSection: "main" | "prices" | "stocks" | "features";
   showStocks: boolean;
@@ -14,17 +14,13 @@ function go(section: string) {
 </script>
 
 <template>
-  <aside class="sticky top-[120px] self-start rounded-[12px] bg-[#404040] p-1">
-    <nav class="flex flex-col gap-1">
+  <aside class="w-full self-start overflow-x-auto rounded-[12px] bg-[#404040] p-1 lg:sticky lg:top-[120px] lg:w-auto">
+    <nav class="flex min-w-max gap-1 lg:min-w-0 lg:flex-col">
       <UButton
         color="neutral"
         variant="ghost"
-        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
-        :class="
-          props.activeSection === 'main'
-            ? 'bg-[#262626] text-white'
-            : 'text-white hover:bg-[#262626]'
-        "
+        class="min-w-fit whitespace-nowrap rounded-[12px] px-4 py-3 text-left font-bold lg:w-[185px] lg:px-5 lg:py-4"
+        :class="props.activeSection === 'main' ? 'bg-[#262626] text-white' : 'text-white hover:bg-[#262626]'"
         @click="go('main')"
       >
         Основные
@@ -33,12 +29,8 @@ function go(section: string) {
       <UButton
         color="neutral"
         variant="ghost"
-        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
-        :class="
-          props.activeSection === 'prices'
-            ? 'bg-[#262626] text-white'
-            : 'text-white hover:bg-[#262626]'
-        "
+        class="min-w-fit whitespace-nowrap rounded-[12px] px-4 py-3 text-left font-bold lg:w-[185px] lg:px-5 lg:py-4"
+        :class="props.activeSection === 'prices' ? 'bg-[#262626] text-white' : 'text-white hover:bg-[#262626]'"
         @click="go('prices')"
       >
         Цены
@@ -48,12 +40,8 @@ function go(section: string) {
         v-if="props.showStocks"
         color="neutral"
         variant="ghost"
-        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
-        :class="
-          props.activeSection === 'stocks'
-            ? 'bg-[#262626] text-white'
-            : 'text-white hover:bg-[#262626]'
-        "
+        class="min-w-fit whitespace-nowrap rounded-[12px] px-4 py-3 text-left font-bold lg:w-[185px] lg:px-5 lg:py-4"
+        :class="props.activeSection === 'stocks' ? 'bg-[#262626] text-white' : 'text-white hover:bg-[#262626]'"
         @click="go('stocks')"
       >
         Остатки
@@ -62,12 +50,8 @@ function go(section: string) {
       <UButton
         color="neutral"
         variant="ghost"
-        class="w-[185px] rounded-[12px] px-5 py-4 text-left font-bold"
-        :class="
-          props.activeSection === 'features'
-            ? 'bg-[#262626] text-white'
-            : 'text-white hover:bg-[#262626]'
-        "
+        class="min-w-fit whitespace-nowrap rounded-[12px] px-4 py-3 text-left font-bold lg:w-[185px] lg:px-5 lg:py-4"
+        :class="props.activeSection === 'features' ? 'bg-[#262626] text-white' : 'text-white hover:bg-[#262626]'"
         @click="go('features')"
       >
         Характеристики
@@ -75,4 +59,3 @@ function go(section: string) {
     </nav>
   </aside>
 </template>
-

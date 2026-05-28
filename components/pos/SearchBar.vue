@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative flex flex-col items-stretch gap-2 sm:flex-row sm:items-start sm:justify-between"
+    class="relative flex flex-col items-stretch gap-3 sm:gap-4"
   >
     <div class="relative z-30 min-w-0 flex-1">
       <UInput
@@ -23,11 +23,11 @@
       </UInput>
     </div>
 
-    <div class="relative z-30 flex gap-2 h-full">
+    <div class="relative z-30 grid h-full grid-cols-2 gap-2 sm:flex sm:flex-wrap">
       <UButton
         color="primary"
         variant="solid"
-        class="grouped-action-button flex-1 justify-between rounded-[15px] bg-[#1f78ff] px-4 text-white hover:bg-[#4993dd] sm:flex-none"
+        class="grouped-action-button min-h-[52px] justify-center rounded-[16px] bg-[#1f78ff] px-4 text-white shadow-[0_18px_40px_rgba(31,120,255,0.22)] hover:bg-[#4993dd] sm:min-w-[170px] sm:flex-none"
         :disabled="isActionBusy"
         aria-label="Открыть возврат или обмен"
         title="Открыть возврат или обмен"
@@ -39,7 +39,7 @@
       <UButton
         color="neutral"
         variant="solid"
-        class="grouped-action-button flex-1 justify-between rounded-[15px] bg-[#303030] px-4 text-white hover:bg-[#3a3a3a] sm:flex-none"
+        class="grouped-action-button min-h-[52px] justify-center rounded-[16px] bg-[#303030] px-4 text-white hover:bg-[#3a3a3a] sm:min-w-[170px] sm:flex-none"
         :disabled="isActionBusy"
         aria-label="Открыть черновики или отложки"
         title="Открыть черновики или отложки"
@@ -59,7 +59,7 @@
 
     <div
       v-if="showDropdown"
-      class="absolute top-full z-20 mt-2 flex max-h-[250px] w-full flex-col gap-2 overflow-y-auto rounded-xl shadow-lg"
+      class="absolute top-full z-20 mt-3 flex max-h-[320px] w-full flex-col gap-2 overflow-y-auto rounded-[20px] border border-white/8 bg-[rgba(31,31,31,0.98)] p-2 shadow-[0_26px_60px_rgba(0,0,0,0.28)]"
     >
       <div v-if="store.productsLoading" class="flex flex-col gap-2">
         <div

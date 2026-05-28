@@ -30,6 +30,12 @@ type CompanyPaymentMethod = {
 type SalePaymentPayload = {
   paymentMethodId: string;
   clientId?: string | null;
+  debt?: {
+    amount_uzs?: number | null;
+    due_date?: string | null;
+    comment?: string | null;
+    receipt_url?: string | null;
+  } | null;
 };
 
 type OrderCustomer = {
@@ -58,6 +64,9 @@ type PosCreatedDebt = {
   status: string;
   created_at: string;
   receipt_url: string | null;
+  comment?: string | null;
+  is_overdue?: boolean;
+  bucket?: string | null;
 };
 
 type PosOrderStatus = string;
@@ -78,6 +87,8 @@ type PosOrder = {
   customerId?: string | null;
   customerName?: string | null;
   customer?: OrderCustomer | null;
+  clientId?: string | null;
+  client?: OrderCustomer | null;
   createdDebt?: PosCreatedDebt | null;
   versionNumber: number;
 };
@@ -374,6 +385,25 @@ export const useCartStore = defineStore("cart", () => {
     );
     const createdDebtSource = source.createdDebt ?? source.created_debt ?? null;
 
+    const normalizedCustomerId =
+      source.customerId ??
+      source.customer_id ??
+      source.clientId ??
+      source.client_id ??
+      customerSource?.id ??
+      null;
+    const normalizedCustomer =
+      customerSource
+        ? {
+            id: String(normalizedCustomerId ?? ""),
+            code: String(customerSource.code ?? ""),
+            firstName: customerFirstName,
+            lastName: customerLastName || null,
+            middleName: customerMiddleName || null,
+            phone: String(customerSource.phone ?? ""),
+          }
+        : null;
+
     return {
       id: String(source.id),
       orderNumber: String(source.sid ?? source.sale_number ?? source.orderNumber ?? source.order_number ?? source.number ?? ""),
@@ -387,7 +417,7 @@ export const useCartStore = defineStore("cart", () => {
       paidAmount,
       remainingDebtAmount: Math.max(0, remainingDebtAmount),
       comment: source.comment ?? null,
-      customerId: source.customerId ?? source.customer_id ?? source.clientId ?? source.client_id ?? null,
+      customerId: normalizedCustomerId,
       customerName:
         source.customerName ??
         source.customer_name ??
@@ -397,16 +427,9 @@ export const useCartStore = defineStore("cart", () => {
         source.client_name ??
         normalizedCustomerFullName ??
         null,
-      customer: customerSource
-        ? {
-            id: String(customerSource.id ?? source.customerId ?? source.customer_id ?? source.clientId ?? source.client_id ?? ""),
-            code: String(customerSource.code ?? ""),
-            firstName: customerFirstName,
-            lastName: customerLastName || null,
-            middleName: customerMiddleName || null,
-            phone: String(customerSource.phone ?? ""),
-          }
-        : null,
+      customer: normalizedCustomer,
+      clientId: normalizedCustomerId,
+      client: normalizedCustomer,
       createdDebt: createdDebtSource
         ? {
             id: String(createdDebtSource.id ?? ""),
@@ -418,6 +441,9 @@ export const useCartStore = defineStore("cart", () => {
             status: String(createdDebtSource.status ?? ""),
             created_at: String(createdDebtSource.created_at ?? createdDebtSource.createdAt ?? ""),
             receipt_url: createdDebtSource.receipt_url ?? createdDebtSource.receiptUrl ?? null,
+            comment: createdDebtSource.comment ?? null,
+            is_overdue: Boolean(createdDebtSource.is_overdue ?? createdDebtSource.isOverdue ?? false),
+            bucket: createdDebtSource.bucket ?? null,
           }
         : null,
       versionNumber: Number(source.versionNumber ?? source.version_number ?? 1),
@@ -1066,8 +1092,19 @@ export const useCartStore = defineStore("cart", () => {
     currentOrder.value = {
       ...currentOrder.value,
       customerId: normalizedId,
+      clientId: normalizedId,
       customerName: normalizedName,
       customer: normalizedId
+        ? {
+            id: normalizedId,
+            code: String(payload.code ?? "").trim(),
+            firstName: normalizedName || "",
+            lastName: null,
+            middleName: null,
+            phone: String(payload.phone ?? "").trim(),
+          }
+        : null,
+      client: normalizedId
         ? {
             id: normalizedId,
             code: String(payload.code ?? "").trim(),
@@ -1094,10 +1131,16 @@ export const useCartStore = defineStore("cart", () => {
     const { apiFetch } = useApi();
     saleMetaLoading.value = true;
     try {
-      const response = await apiFetch(`/new-sale/${encodeURIComponent(String(saleId.value))}/client`, {
-        method: "PATCH",
-        body: { client_id: customerId },
-      });
+      const isOrdersFlow = supportsOrdersDebtFlow.value;
+      const response = await apiFetch(
+        isOrdersFlow
+          ? `/orders/${encodeURIComponent(String(saleId.value))}/customer`
+          : `/new-sale/${encodeURIComponent(String(saleId.value))}/customer`,
+        {
+          method: "PATCH",
+          body: isOrdersFlow ? { clientId: customerId } : { client_id: customerId },
+        },
+      );
       applyOrderState(response);
       lastCartError.value = "";
       return response;
@@ -1323,13 +1366,39 @@ export const useCartStore = defineStore("cart", () => {
         return null;
       }
 
+      const clientId = String(payload.clientId ?? order.customerId ?? "").trim();
+      const debtAmount = Math.max(0, Number(payload.debt?.amount_uzs ?? 0));
+      const hasDebtMeta = Boolean(
+        payload.debt &&
+        (debtAmount > 0 || payload.debt.due_date || payload.debt.comment || payload.debt.receipt_url),
+      );
+
+      if (hasDebtMeta && !clientId) {
+        lastCartError.value = "Customer must be attached before completing an order with debt";
+        return null;
+      }
+
+      const body: Record<string, unknown> = {
+        payment_method: payload.paymentMethodId,
+        branch_code: resolveBranchCode() || undefined,
+      };
+
+      if (clientId) {
+        body.client_id = clientId;
+      }
+
+      if (hasDebtMeta) {
+        body.debt = {
+          ...(debtAmount > 0 ? { amount_uzs: debtAmount } : {}),
+          ...(payload.debt?.due_date ? { due_date: payload.debt.due_date } : {}),
+          ...(payload.debt?.comment?.trim() ? { comment: payload.debt.comment.trim() } : {}),
+          ...(payload.debt?.receipt_url?.trim() ? { receipt_url: payload.debt.receipt_url.trim() } : {}),
+        };
+      }
+
       const paymentRes: any = await apiFetch(`/new-sale/${encodeURIComponent(String(paidSaleId))}/pay`, {
         method: "POST",
-        body: {
-          payment_method: payload.paymentMethodId,
-          client_id: String(payload.clientId ?? order.customerId ?? "").trim() || undefined,
-          branch_code: resolveBranchCode() || undefined,
-        },
+        body,
       });
       receipt.value = { payment: paymentRes, order: pickOrder(paymentRes) };
       await openFreshSale({ keepReceipt: true });

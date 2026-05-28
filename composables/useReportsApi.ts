@@ -3,8 +3,15 @@ import { useApi } from "~/composables/useApi";
 export type ReportFilterQuery = {
   from?: string;
   to?: string;
+  dateFrom?: string;
+  dateTo?: string;
   shopId?: string;
   shopIds?: string[];
+  sellerIds?: string[];
+  productIds?: string[];
+  categoryIds?: string[];
+  supplierIds?: string[];
+  brandIds?: string[];
   plotShopIds?: string[];
   sellerId?: string;
   categoryId?: string;
@@ -24,6 +31,14 @@ export type ReportFilterQuery = {
   detalization?: string;
   priceType?: number | string;
   method?: "revenue" | "profit" | "quantity";
+  reportDate?: string;
+  version?: number | string;
+  groupWithoutShop?: boolean;
+  groupWithoutShops?: boolean;
+  groupWithSupplier?: boolean;
+  allSuppliers?: boolean;
+  detalizationByPosition?: boolean;
+  importType?: string;
 };
 
 export type SelectOption = {
@@ -559,21 +574,36 @@ function buildQuery(query: ReportFilterQuery) {
 
   assign("from", query.from);
   assign("to", query.to);
+  assign("date_from", query.dateFrom ?? query.startDate ?? query.from);
+  assign("date_to", query.dateTo ?? query.endDate ?? query.to);
   assign("shopId", query.shopId);
+  assign("shop_id", query.shopId);
   assign("sellerId", query.sellerId);
+  assign("seller_id", query.sellerId);
   assign("categoryId", query.categoryId);
+  assign("category_id", query.categoryId);
   assign("productId", query.productId);
+  assign("product_id", query.productId);
   assign("brandId", query.brandId);
+  assign("brand_id", query.brandId);
   assign("supplierId", query.supplierId);
+  assign("supplier_id", query.supplierId);
   assign("page", query.page);
   assign("perPage", query.perPage);
+  assign("per_page", query.perPage);
   assign("method", query.method);
 
-  assign("start_date", query.startDate);
-  assign("end_date", query.endDate);
-  assign("shop_ids", query.shopIds);
+  assign("start_date", query.startDate ?? query.from);
+  assign("end_date", query.endDate ?? query.to);
+  assign("shop_ids", query.shopIds?.length ? query.shopIds : query.shopId ? [query.shopId] : undefined);
+  assign("seller_ids", query.sellerIds?.length ? query.sellerIds : query.sellerId ? [query.sellerId] : undefined);
+  assign("product_ids", query.productIds?.length ? query.productIds : query.productId ? [query.productId] : undefined);
+  assign("category_ids", query.categoryIds?.length ? query.categoryIds : query.categoryId ? [query.categoryId] : undefined);
+  assign("supplier_ids", query.supplierIds?.length ? query.supplierIds : query.supplierId ? [query.supplierId] : undefined);
+  assign("brand_ids", query.brandIds?.length ? query.brandIds : query.brandId ? [query.brandId] : undefined);
   assign("plot_shop_ids", query.plotShopIds);
   assign("limit", query.limit);
+  assign("page_size", query.limit);
   assign("currency", query.currency);
   assign("group_by", query.groupBy);
   assign("field", query.field);
@@ -581,6 +611,14 @@ function buildQuery(query: ReportFilterQuery) {
   assign("top_category_field", query.topCategoryField);
   assign("detalization", query.detalization);
   assign("price_type", query.priceType);
+  assign("report_date", query.reportDate);
+  assign("version", query.version);
+  assign("group_without_shop", query.groupWithoutShop);
+  assign("group_without_shops", query.groupWithoutShops);
+  assign("group_with_supplier", query.groupWithSupplier);
+  assign("all_suppliers", query.allSuppliers);
+  assign("detalization_by_position", query.detalizationByPosition);
+  assign("import_type", query.importType);
 
   return params;
 }
@@ -625,18 +663,435 @@ export function useReportsApi() {
   }
 
   async function getProductSales(query: ReportFilterQuery = {}) {
-    const payload = await request("/reports/products/sales", query);
-    return extractRows(payload, ["products", "items", "data"]).map(normalizeProduct);
+    const payload = await request("/product-sales-report", query);
+    return {
+      value: asNumber(payload?.value),
+      product_plot: pickArray(payload, ["product_plot", "plot", "chart"]),
+      product_values: extractRows(payload, ["product_values", "products", "items"]).map((row: any, index: number) => ({
+        id: asString(row?.id ?? row?.product_id ?? row?.name ?? index),
+        name: asString(row?.name, "Товар"),
+        value: asNumber(row?.value),
+      })),
+      other_products_count: asNumber(payload?.other_products_count),
+      other_products_value: asNumber(payload?.other_products_value),
+    };
+  }
+
+  async function getV1ProductsSummary(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/reports/products/summary", query);
+    return {
+      product_sold: asNumber(payload?.product_sold ?? payload?.sold ?? payload?.sold_count ?? payload?.total_sold),
+      product_returned: asNumber(payload?.product_returned ?? payload?.returned ?? payload?.returned_count ?? payload?.total_returned),
+      net_gross_sales: asNumber(payload?.net_gross_sales ?? payload?.net_sales ?? payload?.net_revenue ?? payload?.total_net_sales),
+      net_gross_profit: asNumber(payload?.net_gross_profit ?? payload?.gross_profit ?? payload?.profit ?? payload?.total_profit),
+      count: asNumber(payload?.count ?? payload?.total ?? payload?.products_count),
+    };
+  }
+
+  async function getV1ProductsSales(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/reports/products/sales", query);
+    return {
+      rows: extractRows(payload, ["rows", "items", "data", "sales", "products"]).map((row: any, index: number) => ({
+        id: asString(row?.id ?? row?.product_id ?? row?.sale_id ?? `${row?.date ?? index}-${index}`),
+        date: asString(row?.date ?? row?.sold_at ?? row?.created_at),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        product_name: asString(row?.product_name ?? row?.name, "Товар"),
+        product_sku: asString(row?.product_sku ?? row?.sku),
+        product_barcode: asString(row?.product_barcode ?? row?.barcode),
+        product_brand_name: asString(row?.product_brand_name ?? row?.brand_name, "Без бренда"),
+        sold_measurement_value: asNumber(row?.sold_measurement_value ?? row?.sold_qty ?? row?.quantity),
+        returned_measurement_value: asNumber(row?.returned_measurement_value ?? row?.returned_qty ?? row?.returns_count),
+        net_sales: asNumber(row?.net_sales ?? row?.net_revenue ?? row?.revenue),
+        net_profit: asNumber(row?.net_profit ?? row?.gross_profit ?? row?.profit),
+      })),
+      count: asNumber(payload?.count ?? payload?.total),
+    };
+  }
+
+  async function getV1ProductSalesReport(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/product-sales-report", {
+      field: "net_sales",
+      groupBy: "name",
+      ...query,
+    });
+
+    return {
+      value: asNumber(payload?.value ?? payload?.total ?? payload?.net_sales),
+      product_plot: pickArray(payload, ["product_plot", "plot", "chart", "points"]),
+      product_values: extractRows(payload, ["product_values", "products", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.id ?? row?.product_id ?? row?.name ?? index),
+        name: asString(row?.name ?? row?.product_name, "Товар"),
+        value: asNumber(row?.value ?? row?.net_sales ?? row?.net_revenue),
+      })),
+      other_products_count: asNumber(payload?.other_products_count),
+      other_products_value: asNumber(payload?.other_products_value),
+    };
+  }
+
+  async function getV1ProductsSummaryResolved(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/reports/products/summary", query);
+
+    const normalizeRow = (row: any, index: number) => ({
+      id: asString(row?.id ?? row?.product_id ?? index),
+      product_id: asString(row?.product_id ?? row?.id ?? index),
+      product_name: asString(row?.product_name ?? row?.name, "Товар"),
+      product_sku: asString(row?.sku ?? row?.product_sku),
+      product_barcode: asString(row?.barcode ?? row?.product_barcode),
+      product_brand_name: asString(row?.brand ?? row?.brand_name, "Без бренда"),
+      category: asString(row?.category),
+      sold_measurement_value: asNumber(row?.quantity_sold ?? row?.sold_quantity),
+      returned_measurement_value: asNumber(row?.returns ?? row?.returned_quantity),
+      gross_sales: asNumber(row?.gross_sales ?? row?.revenue),
+      net_sales: asNumber(row?.net_gross_sales ?? row?.net_sales ?? row?.value),
+      net_profit: asNumber(row?.gross_profit ?? row?.net_profit),
+      sold_cost_price: asNumber(row?.sold_cost_price ?? row?.supply_cost),
+      average_discount: asNumber(row?.average_discount),
+      margin_percent: asNumber(row?.margin_percent),
+      stock_left: asNumber(row?.stock_left),
+    });
+
+    return {
+      count: asNumber(payload?.count ?? payload?.total ?? payload?.products_count),
+      products: extractRows(payload, ["products"]).map(normalizeRow),
+      top_selling_products: extractRows(payload, ["top_selling_products"]).map(normalizeRow),
+      most_profitable_products: extractRows(payload, ["most_profitable_products"]).map(normalizeRow),
+      low_margin_products: extractRows(payload, ["low_margin_products"]).map(normalizeRow),
+      biggest_discount_products: extractRows(payload, ["biggest_discount_products"]).map(normalizeRow),
+      slow_moving_products: extractRows(payload, ["slow_moving_products"]).map(normalizeRow),
+      low_stock_products: extractRows(payload, ["low_stock_products"]).map(normalizeRow),
+    };
+  }
+
+  async function getV1ProductsSalesResolved(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/reports/products/sales", query);
+    return {
+      summary: {
+        gross_sales: asNumber(payload?.summary?.gross_sales),
+        net_gross_sales: asNumber(payload?.summary?.net_gross_sales),
+        gross_profit: asNumber(payload?.summary?.gross_profit),
+        average_cheque: asNumber(payload?.summary?.average_cheque),
+        transactions_count: asNumber(payload?.summary?.transactions_count),
+        products_sold: asNumber(payload?.summary?.products_sold),
+        discount_sum: asNumber(payload?.summary?.discount_sum),
+        discount_percent: asNumber(payload?.summary?.discount_percent),
+        average_extra_charge: asNumber(payload?.summary?.average_extra_charge),
+        returns_count: asNumber(payload?.summary?.returns_count),
+        exchanges_count: asNumber(payload?.summary?.exchanges_count),
+      },
+      rows: extractRows(payload, ["items", "rows", "data", "sales", "products"]).map((row: any, index: number) => ({
+        id: asString(row?.id ?? row?.product_id ?? row?.sale_id ?? index),
+        date: asString(row?.date ?? row?.sold_at ?? row?.created_at),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        product_name: asString(row?.product_name ?? row?.name, "Товар"),
+        product_sku: asString(row?.sku ?? row?.product_sku),
+        product_barcode: asString(row?.barcode ?? row?.product_barcode),
+        product_brand_name: asString(row?.brand ?? row?.brand_name, "Без бренда"),
+        category: asString(row?.category),
+        sold_measurement_value: asNumber(row?.sold_quantity ?? row?.quantity ?? row?.sold_measurement_value),
+        returned_measurement_value: asNumber(row?.returned_quantity ?? row?.returns_count ?? row?.returned_measurement_value),
+        stock_left: asNumber(row?.stock_left),
+        gross_sales: asNumber(row?.revenue ?? row?.gross_sales),
+        net_sales: asNumber(row?.net_gross_sales ?? row?.net_sales),
+        supply_cost: asNumber(row?.supply_cost ?? row?.sold_cost_price),
+        net_profit: asNumber(row?.gross_profit ?? row?.net_profit),
+        margin_percent: asNumber(row?.margin_percent),
+        average_discount: asNumber(row?.average_discount),
+        average_price: asNumber(row?.average_price),
+      })),
+      top_selling_products: extractRows(payload, ["top_selling_products"]).map((row: any, index: number) => ({
+        id: asString(row?.product_id ?? row?.id ?? index),
+        product_name: asString(row?.product_name ?? row?.name, "Товар"),
+        product_sku: asString(row?.sku),
+        product_barcode: asString(row?.barcode),
+        product_brand_name: asString(row?.brand, "Без бренда"),
+        sold_measurement_value: asNumber(row?.sold_quantity),
+        returned_measurement_value: asNumber(row?.returned_quantity),
+        stock_left: asNumber(row?.stock_left),
+        gross_sales: asNumber(row?.revenue),
+        net_sales: asNumber(row?.net_gross_sales),
+        supply_cost: asNumber(row?.supply_cost),
+        net_profit: asNumber(row?.gross_profit),
+      })),
+      count: asNumber(payload?.count ?? payload?.total),
+    };
+  }
+
+  async function getV1ProductSalesReportResolved(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/product-sales-report", {
+      field: "net_sales",
+      groupBy: "name",
+      ...query,
+    });
+
+    return {
+      value: asNumber(payload?.value ?? payload?.total ?? payload?.net_sales),
+      product_plot: pickArray(payload, ["product_plot", "plot", "chart", "points"]).map((row: any, index: number) => {
+        if (typeof row === "number") {
+          return { label: String(index + 1), value: row };
+        }
+
+        const dynamicEntry = Object.entries(row || {}).find(([key]) => !["start_date", "date", "label"].includes(key));
+        return {
+          label: asString(row?.start_date ?? row?.date ?? row?.label, String(index + 1)),
+          value: asNumber(dynamicEntry?.[1]),
+          name: asString(dynamicEntry?.[0]),
+        };
+      }),
+      product_values: extractRows(payload, ["product_values", "products", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.id ?? row?.product_id ?? row?.name ?? index),
+        name: asString(row?.name ?? row?.product_name, "Товар"),
+        value: asNumber(row?.value ?? row?.net_sales ?? row?.net_revenue),
+      })),
+      other_products_count: asNumber(payload?.other_products_count),
+      other_products_value: asNumber(payload?.other_products_value),
+    };
+  }
+
+  async function getProductGeneralReport(query: ReportFilterQuery = {}) {
+    const payload = await request("/product-general-report", query);
+    return {
+      product_sold: asNumber(payload?.product_sold),
+      product_returned: asNumber(payload?.product_returned),
+      net_gross_sales: asNumber(payload?.net_gross_sales),
+      net_gross_profit: asNumber(payload?.net_gross_profit),
+      products_left: asNumber(payload?.products_left),
+      products_left_supply_price: asNumber(payload?.products_left_supply_price),
+      products_left_retail_price: asNumber(payload?.products_left_retail_price),
+      count: asNumber(payload?.count),
+    };
+  }
+
+  async function getProductGeneralTable(query: ReportFilterQuery = {}) {
+    const payload = await request("/product-general-table", query);
+    return {
+      rows: extractRows(payload, ["products_stats_by_date", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.product_id ?? row?.order_id ?? row?.movement_id ?? `${row?.date ?? index}-${index}`),
+        date: asString(row?.date),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        product_name: asString(row?.product_name, "Товар"),
+        product_sku: asString(row?.product_sku),
+        product_barcode: asString(row?.product_barcode),
+        product_brand_name: asString(row?.product_brand_name, "Без бренда"),
+        supplier_name: asString(row?.product_suppliers),
+        sold_measurement_value: asNumber(row?.sold_measurement_value),
+        returned_measurement_value: asNumber(row?.returned_measurement_value),
+        net_sold_measurement_value: asNumber(row?.net_sold_measurement_value),
+        gross_sales: asNumber(row?.gross_sales),
+        net_sales: asNumber(row?.net_sales),
+        net_profit: asNumber(row?.net_profit),
+        sold_supply_sum: asNumber(row?.sold_supply_sum),
+        average_margin: asNumber(row?.average_margin),
+        discount: asNumber(row?.discount),
+        sold_with_discount: asNumber(row?.sold_with_discount),
+        left_end_date: asNumber(row?.left_end_date),
+      })),
+      totals: payload?.products_stats_total ?? {},
+      count: asNumber(payload?.count),
+    };
   }
 
   async function getProductEffectiveness(query: ReportFilterQuery = {}) {
-    const payload = await request("/reports/products/effectiveness", query);
-    return extractRows(payload, ["products", "items", "data"]).map(normalizeProduct);
+    const payload = await request("/product-performance-report", query);
+    return {
+      rows: extractRows(payload, ["products", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.id ?? row?.product_id ?? row?.product_field ?? index),
+        product_field: asString(row?.product_field, "Товар"),
+        main_image_url: asString(row?.main_image_url),
+        net_sales: asNumber(row?.net_sales),
+        net_profit: asNumber(row?.net_profit),
+        total_sold_measurement_value: asNumber(row?.total_sold_measurement_value),
+        total_returned_measurement_value: asNumber(row?.total_returned_measurement_value),
+      })),
+      other_products_count: asNumber(payload?.other_products_count),
+      other_products_performance: payload?.other_products_performance ?? null,
+    };
+  }
+
+  async function getV1ProductEffectiveness(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/reports/products/effectiveness", query);
+    const sourceRows = extractRows(payload, ["items", "rows", "data", "products", "table_data"]);
+
+    return {
+      summary: payload?.summary ?? null,
+      count: asNumber(payload?.count ?? payload?.total ?? sourceRows.length),
+      rows: sourceRows.map((row: any, index: number) => {
+        const normalized = { ...(row || {}) } as Record<string, any>;
+        normalized.id = asString(
+          row?.id
+            ?? row?.product_id
+            ?? row?.sku
+            ?? row?.bar_code
+            ?? row?.barcode
+            ?? row?.name
+            ?? index,
+        );
+        normalized.shop_name = asString(row?.shop_name ?? row?.branch_name ?? row?.shop, normalized.shop_name ?? "Магазин");
+        normalized.name = asString(row?.name ?? row?.product_name ?? row?.product_field, normalized.name ?? "Товар");
+        normalized.sku = asString(row?.sku ?? row?.product_sku, normalized.sku ?? "");
+        normalized.bar_code = asString(row?.bar_code ?? row?.barcode ?? row?.product_barcode, normalized.bar_code ?? "");
+        normalized.category_name = asString(
+          row?.category_name ?? row?.category ?? row?.group_name,
+          normalized.category_name ?? "",
+        );
+        normalized.brand_name = asString(row?.brand_name ?? row?.brand, normalized.brand_name ?? "");
+        normalized.supplier_name = asString(
+          row?.supplier_name ?? row?.product_suppliers ?? row?.supplier,
+          normalized.supplier_name ?? "",
+        );
+        return normalized;
+      }),
+    };
+  }
+
+  async function getProductPerformanceTable(query: ReportFilterQuery = {}) {
+    const payload = await request("/report-product-performance-table", query);
+    return {
+      rows: extractRows(payload, ["table_data", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.product_id ?? row?.name ?? index),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        name: asString(row?.name, "Товар"),
+        sku: asString(row?.sku),
+        bar_code: asString(row?.bar_code),
+        brand_name: asString(row?.brand_name, "Без бренда"),
+        supplier_name: asString(row?.supplier_name),
+        stock_amount_begin: asNumber(row?.stock_amount_begin),
+        stock_amount_end: asNumber(row?.stock_amount_end),
+        import_amount: asNumber(row?.import_amount),
+        sold_amount: asNumber(row?.sold_amount),
+        returned_amount: asNumber(row?.returned_amount),
+        write_off_amount: asNumber(row?.write_off_amount),
+        qty_sellout: asNumber(row?.qty_sellout),
+        sellout_by_days: asNumber(row?.sellout_by_days),
+      })),
+      count: asNumber(payload?.count),
+      grouping_fields: asString(payload?.grouping_fields),
+      group_without_shop: Boolean(payload?.group_without_shop),
+      group_with_supplier: Boolean(payload?.group_with_supplier),
+    };
+  }
+
+  async function getProductPerformanceTotals(query: ReportFilterQuery = {}) {
+    const payload = await request("/report-product-performance-totals", query);
+    return {
+      totals: payload?.table_data ?? {},
+      count: asNumber(payload?.count),
+    };
+  }
+
+  async function getImportReportTable(query: ReportFilterQuery = {}) {
+    const payload = await request("/import-report-table", query);
+    return {
+      rows: extractRows(payload, ["rows", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.import_id ?? row?.product_id ?? row?.external_import_id ?? index),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        import_name: asString(row?.import_name, "Импорт"),
+        supplier_name: asString(row?.supplier_name),
+        import_type: asString(row?.import_type ?? row?.type),
+        date: asString(row?.date),
+        product_name: asString(row?.product_name, "Товар"),
+        product_sku: asString(row?.product_sku),
+        imported_qty: asNumber(row?.imported_qty),
+        imported_supply_sum: asNumber(row?.imported_supply_sum),
+        sold_qty: asNumber(row?.sold_qty),
+        sold_sale_sum: asNumber(row?.sold_sale_sum),
+        left_qty: asNumber(row?.left_qty),
+        outcome: asNumber(row?.outcome),
+      })),
+      count: asNumber(payload?.count),
+    };
+  }
+
+  async function getV1ImportReportTable(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/import-report-table", query);
+    const sourceRows = extractRows(payload, ["rows", "items", "data", "table_data", "imports"]);
+
+    return {
+      summary: payload?.summary ?? null,
+      count: asNumber(payload?.count ?? payload?.total ?? sourceRows.length),
+      rows: sourceRows.map((row: any, index: number) => {
+        const normalized = { ...(row || {}) } as Record<string, any>;
+        normalized.id = asString(
+          row?.id
+            ?? row?.import_id
+            ?? row?.external_import_id
+            ?? row?.product_id
+            ?? row?.document_number
+            ?? index,
+        );
+        normalized.date = asString(row?.date ?? row?.created_at ?? row?.imported_at, normalized.date ?? "");
+        normalized.shop_name = asString(row?.shop_name ?? row?.branch_name ?? row?.shop, normalized.shop_name ?? "Магазин");
+        normalized.import_type = asString(row?.import_type ?? row?.type, normalized.import_type ?? "");
+        normalized.import_number = asString(
+          row?.import_number ?? row?.document_number ?? row?.external_import_id ?? row?.import_id,
+          normalized.import_number ?? "",
+        );
+        normalized.product_name = asString(row?.product_name ?? row?.name, normalized.product_name ?? "Товар");
+        normalized.product_barcode = asString(row?.product_barcode ?? row?.barcode ?? row?.bar_code, normalized.product_barcode ?? "");
+        normalized.product_sku = asString(row?.product_sku ?? row?.sku, normalized.product_sku ?? "");
+        normalized.category_name = asString(row?.category_name ?? row?.category, normalized.category_name ?? "");
+        normalized.brand_name = asString(row?.brand_name ?? row?.brand, normalized.brand_name ?? "");
+        normalized.supplier_name = asString(
+          row?.supplier_name ?? row?.product_suppliers ?? row?.supplier,
+          normalized.supplier_name ?? "",
+        );
+        return normalized;
+      }),
+    };
+  }
+
+  async function getImportReportTotals(query: ReportFilterQuery = {}) {
+    const payload = await request("/import-report-totals", query);
+    return payload ?? {};
+  }
+
+  async function getV1ImportReportTotals(query: ReportFilterQuery = {}) {
+    const payload = await request("/v1/import-report-totals", query);
+    return payload ?? {};
+  }
+
+  async function getProductSuppliersTable(query: ReportFilterQuery = {}) {
+    const payload = await request("/product-sells-by-suppliers-table", query);
+    return {
+      rows: extractRows(payload, ["products_stats_by_date", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.product_id ?? row?.supplier_id ?? `${row?.date ?? index}-${index}`),
+        date: asString(row?.date),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        product_name: asString(row?.product_name, "Товар"),
+        product_sku: asString(row?.product_sku),
+        product_brand_name: asString(row?.product_brand_name, "Без бренда"),
+        product_suppliers: asString(row?.product_suppliers, "Без поставщика"),
+        sold_measurement_value: asNumber(row?.sold_measurement_value),
+        net_sales: asNumber(row?.net_sales),
+        net_profit: asNumber(row?.net_profit),
+        sold_supply_sum: asNumber(row?.sold_supply_sum),
+        average_margin: asNumber(row?.average_margin),
+        discount: asNumber(row?.discount),
+        left_end_date: asNumber(row?.left_end_date),
+      })),
+      totals: payload?.products_stats_total ?? {},
+      count: asNumber(payload?.count),
+    };
   }
 
   async function getProductStocks(query: ReportFilterQuery = {}) {
-    const payload = await request("/reports/products/stocks", query);
-    return extractRows(payload, ["products", "items", "data"]).map(normalizeProduct);
+    const payload = await request("/stock-report-table", query);
+    return {
+      rows: extractRows(payload, ["rows", "items", "data"]).map((row: any, index: number) => ({
+        id: asString(row?.product_id ?? row?.supplier_id ?? index),
+        shop_name: asString(row?.shop_name, "Магазин"),
+        product_name: asString(row?.product_name, "Товар"),
+        product_sku: asString(row?.product_sku),
+        product_barcode: asString(row?.product_barcode),
+        supplier_name: asString(row?.supplier_name),
+        supply_price: asNumber(row?.supply_price),
+        retail_price: asNumber(row?.retail_price),
+        measurement_value: asNumber(row?.measurement_value),
+        last_import: asString(row?.last_import),
+        estimated_income: asNumber(row?.estimated_income),
+        estimated_margin: asNumber(row?.estimated_margin),
+      })),
+      count: asNumber(payload?.count),
+    };
   }
 
   async function getProductAbcAnalysis(query: ReportFilterQuery = {}) {
@@ -751,7 +1206,23 @@ export function useReportsApi() {
     getShopDetails,
     getProducts,
     getProductSales,
+    getV1ProductsSummary,
+    getV1ProductsSales,
+    getV1ProductSalesReport,
+    getV1ProductsSummaryResolved,
+    getV1ProductsSalesResolved,
+    getV1ProductSalesReportResolved,
+    getProductGeneralReport,
+    getProductGeneralTable,
     getProductEffectiveness,
+    getV1ProductEffectiveness,
+    getProductPerformanceTable,
+    getProductPerformanceTotals,
+    getImportReportTable,
+    getV1ImportReportTable,
+    getImportReportTotals,
+    getV1ImportReportTotals,
+    getProductSuppliersTable,
     getProductStocks,
     getProductAbcAnalysis,
     getSellers,
