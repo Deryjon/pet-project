@@ -130,13 +130,14 @@
                 v-for="method in singlePaymentMethods"
                 :key="method.value"
                 type="button"
-                class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition"
+                :disabled="method.requiresCustomer && !hasCustomerAttached"
+                class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
                   selectedPaymentMethod === method.value
                     ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
                     : 'border-white/8 bg-[#303030] text-white hover:border-white/15 hover:bg-[#353535]'
                 "
-                @click="selectedPaymentMethod = method.value"
+                @click="selectPaymentMethod(method)"
               >
                 <div class="flex items-center gap-3">
                   <div
@@ -462,6 +463,14 @@ function paymentMethodIcon(method: { isCash?: boolean }) {
   return method.isCash ? "heroicons:banknotes" : "heroicons:credit-card";
 }
 
+function isDebtPaymentMethod(method: { name?: string; paymentTypeName?: string }) {
+  const searchBase = [method.name, method.paymentTypeName]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .join(" ");
+
+  return ["долг", "debt", "credit", "qarz", "nasiya"].some((token) => searchBase.includes(token));
+}
+
 const singlePaymentMethods = computed(() =>
   paymentMethods.value
     .filter((method) => !method.dontShowInMakePayment)
@@ -471,6 +480,8 @@ const singlePaymentMethods = computed(() =>
       hint: method.paymentTypeName || "",
       isCash: Boolean(method.isCash),
       icon: paymentMethodIcon(method),
+      isDebt: isDebtPaymentMethod(method),
+      requiresCustomer: isDebtPaymentMethod(method),
     })),
 );
 
@@ -494,11 +505,16 @@ const currentCustomerLabel = computed(
 const currentPayments = computed(() => cartStore.currentOrder?.payments || []);
 const canAddPayment = computed(() => false);
 const hasCustomerAttached = computed(() => Boolean(String(cartStore.currentOrder?.customerId ?? "").trim()));
+const selectedPaymentMethodMeta = computed(
+  () => singlePaymentMethods.value.find((method) => method.value === selectedPaymentMethod.value) ?? null,
+);
+const isDebtPaymentSelected = computed(() => Boolean(selectedPaymentMethodMeta.value?.isDebt));
 const canCompletePaidOrder = computed(
   () =>
     !isReturnFlow.value &&
     cart.value.length > 0 &&
     Boolean(selectedPaymentMethod.value) &&
+    !isDebtPaymentSelected.value &&
     !cartStore.payLoading &&
     !cartStore.completingOrder,
 );
@@ -506,7 +522,7 @@ const canShowDebtAction = computed(
   () =>
     !isReturnFlow.value &&
     cart.value.length > 0 &&
-    Boolean(selectedPaymentMethod.value) &&
+    isDebtPaymentSelected.value &&
     Number(remainingDebtAmount.value || 0) > 0 &&
     !cartStore.payLoading &&
     !cartStore.completingOrder,
