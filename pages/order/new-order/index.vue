@@ -7,7 +7,7 @@
       class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
     />
 
-    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-visible p-2 xl:h-full">
+    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden p-2 xl:h-full">
       <SearchBar />
       <div
         v-if="cartStore.lastCartError"
@@ -22,16 +22,18 @@
         <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Восстанавливаем продажу и способы оплаты...
       </div>
-      <Cart />
+      <div class="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+        <Cart />
+      </div>
     </div>
 
     <div
       aria-hidden="true"
-      class="hidden xl:block xl:bg-[#404040]"
+      class="hidden xl:block xl:w-px xl:self-stretch xl:bg-[#404040]"
     />
 
     <div
-      class="flex w-full shrink-0 flex-col rounded-[28px] xl:h-full xl:w-[350px] xl:justify-end xl:sticky xl:top-5 xl:ml-0"
+      class="flex w-full shrink-0 flex-col rounded-[28px] xl:h-full xl:w-[350px] xl:justify-end xl:ml-0"
     >
       <div class="flex flex-col gap-5">
         <ClientForm />
