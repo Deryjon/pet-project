@@ -180,6 +180,7 @@
           </UButton>
 
           <UButton
+            v-if="!isDebtPaymentSelected"
             block
             color="primary"
             class="justify-center rounded-[18px] py-4 font-semibold disabled:cursor-not-allowed"
@@ -546,6 +547,19 @@ function paymentTypeLabel(paymentTypeId: string) {
   return singlePaymentMethods.value.find((method) => method.value === paymentTypeId)?.label || "Способ оплаты";
 }
 
+function selectPaymentMethod(method: { value: string; label: string; requiresCustomer?: boolean }) {
+  if (method.requiresCustomer && !hasCustomerAttached.value) {
+    toast.add({
+      title: "Сначала выберите клиента",
+      description: `Способ оплаты "${method.label}" доступен только с привязанным клиентом.`,
+      color: "warning",
+    });
+    return;
+  }
+
+  selectedPaymentMethod.value = method.value;
+}
+
 function resetDebtModalState() {
   dueDateInput.value = "";
   debtCommentInput.value = "";
@@ -756,7 +770,10 @@ async function onPark() {
 watch(
   singlePaymentMethods,
   (methods) => {
-    const first = (methods.find((method) => method.isCash) ?? methods[0])?.value || "";
+    const first =
+      (methods.find((method) => method.isCash && (!method.requiresCustomer || hasCustomerAttached.value)) ??
+        methods.find((method) => !method.requiresCustomer || hasCustomerAttached.value) ??
+        methods[0])?.value || "";
     const available = new Set(methods.map((method) => method.value));
 
     if (!available.has(selectedPaymentMethod.value)) {
@@ -765,6 +782,18 @@ watch(
   },
   { immediate: true },
 );
+
+watch(hasCustomerAttached, (attached) => {
+  if (attached) return;
+  if (!selectedPaymentMethodMeta.value?.requiresCustomer) return;
+
+  const fallback =
+    singlePaymentMethods.value.find((method) => method.isCash && !method.requiresCustomer) ??
+    singlePaymentMethods.value.find((method) => !method.requiresCustomer) ??
+    null;
+
+  selectedPaymentMethod.value = fallback?.value || "";
+});
 
 watch(debtModalOpen, (next) => {
   if (!next) {
