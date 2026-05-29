@@ -44,6 +44,15 @@ export interface ProductAttributesForm {
   optionalField: string;
 }
 
+export type MeasurementUnitPrecision = "1" | ".0" | ".00" | ".000";
+
+export interface ProductMeasurementState {
+  measurement_unit_id: string;
+  measurement_unit_name?: string;
+  measurement_unit_short_name?: string;
+  measurement_unit_precision?: MeasurementUnitPrecision;
+}
+
 export interface CreateProductFormState {
   productType: ProductTypeLabel;
   variationType: VariationTypeLabel;
@@ -51,6 +60,10 @@ export interface CreateProductFormState {
   sku: string;
   barcode: string;
   unit: string;
+  measurement_unit_id: string;
+  measurement_unit_name?: string;
+  measurement_unit_short_name?: string;
+  measurement_unit_precision?: MeasurementUnitPrecision;
   images: ProductImage[];
   prices: PriceFields;
   stocks: ProductStoreStock[];
