@@ -108,7 +108,7 @@
 
     <div
       v-else
-      class="mt-[20px] max-h-[360px] w-full overflow-y-auto rounded-[25px] border border-white/6 bg-[#2d2d2d] p-2 sm:max-h-[400px]"
+      class="mt-[20px] w-full rounded-[25px] border border-white/6 bg-[#2d2d2d] p-2 overflow-visible xl:max-h-[calc(100vh-360px)] xl:overflow-y-auto"
     >
       <CartItem
         v-for="item in cart"
