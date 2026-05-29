@@ -93,6 +93,7 @@ export const ROUTE_PERMISSION_MAP: Record<string, AccessItem> = {
   "/reports/customers": { anyOf: ["reports.view", "reports.customers.view", "reports-clients-summary", "report-client"] },
   "/settings/profile": { slug: "settings-profile" },
   "/settings/company": { slug: "company-edit" },
+  "/settings/products": { slug: "company-edit" },
   "/settings/payment-types": { slug: "payment-types" },
   "/settings/cheque": { slug: "cheque-list" },
   "/settings/cheque/create": { slug: "cheque-create" },
@@ -362,6 +363,7 @@ export const MENU_PERMISSION_MAP: Record<string, AccessItem> = {
   },
   "/settings/profile": { anyOf: ["settings-profiles", "settings-profile"] },
   "/settings/company": { anyOf: ["settings-company", "company-edit"] },
+  "/settings/products": { anyOf: ["settings-company", "company-edit"] },
   "/settings/payment-types": {
     anyOf: [
       "settings-payment",
@@ -492,6 +494,7 @@ export function firstAllowedRbacRoute(can: (slug: string) => boolean) {
     { path: "/management/roles", slug: "role-list" },
     { path: "/settings/profile", slug: "settings-profile" },
     { path: "/settings/company", slug: "company-edit" },
+    { path: "/settings/products", slug: "company-edit" },
     { path: "/settings/payment-types", slug: "payment-types" },
     { path: "/settings/cheque", slug: "cheque-list" },
   ];
