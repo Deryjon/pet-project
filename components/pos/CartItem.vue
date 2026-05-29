@@ -1,11 +1,11 @@
 <template>
-  <div class="mb-3 rounded-[24px] border border-white/5 bg-[#3a3a3a] px-4 py-3 text-[16px] text-white shadow-xl">
+  <div class="mb-3 rounded-[24px]  bg-[#3a3a3a] px-4 py-3 text-[16px] text-white">
     <div class="flex flex-col gap-4">
       <div class="flex min-w-0 items-start gap-3">
         <div class="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] sm:h-[50px] sm:w-[50px]">
           <img
             src="../../assets/images/placeholder_img.svg"
-            alt="Товар"
+            alt="РўРѕРІР°СЂ"
             class="h-full w-full rounded-[12px] object-cover"
           />
         </div>
@@ -61,7 +61,7 @@
             class="w-8 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-60"
             @input="onQuantityInput"
           />
-          <span class="text-sm font-semibold text-[#9f9f9f]">ШТ</span>
+          <span class="text-sm font-semibold text-[#9f9f9f]">{{ measurementUnitLabel }}</span>
 
           <div class="flex flex-col">
             <button
@@ -101,6 +101,7 @@
 import { computed } from "vue";
 import { useCartStore } from "@/store/cart";
 import { useFormatPrice } from "@/composables/useFormatPrice";
+import { resolveMeasurementUnitLabel } from "@/composables/useMeasurementUnitLabel";
 
 const props = defineProps<{ item: any }>();
 defineEmits<{
@@ -111,6 +112,8 @@ const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 
 const quantity = computed(() => Math.max(1, Number(props.item.quantity || 1)));
+const measurementUnitLabel = computed(() => resolveMeasurementUnitLabel(props.item));
+
 const originalLineTotal = computed(() => Math.max(0, Math.round(Number(props.item.price || 0) * quantity.value)));
 const discountedLineTotal = computed(() => Math.max(0, store.itemFinalPriceWithGlobal(props.item) * quantity.value));
 const hasDiscount = computed(() => discountedLineTotal.value < originalLineTotal.value);
@@ -149,3 +152,4 @@ function onQuantityInput(event: Event) {
   void store.syncCartItemQuantity(props.item.id, nextQuantity);
 }
 </script>
+

@@ -1,5 +1,5 @@
 <template>
-  <div ref="dropdownRef" class="top flex flex-col gap-4 rounded-[24px] border border-white/8 bg-[rgba(38,38,38,0.78)] p-4 shadow-[0_20px_45px_rgba(0,0,0,0.16)] sm:gap-6 sm:p-5">
+  <div ref="dropdownRef" class="top flex flex-col gap-4 rounded-[24px] sm:gap-6">
     <div class="flex items-center justify-between gap-3">
       <label class="block text-[16px] font-semibold sm:text-[18px]">Клиент</label>
       <button type="button" class="text-[#4993dd]" @click="goToCreateClient">Создать</button>

@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { resolveMeasurementUnitLabel } from "@/composables/useMeasurementUnitLabel";
 import { computed, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useLocationStore } from "./useLocationStore";
@@ -16,6 +17,7 @@ type CartProduct = {
   shopId?: string;
   quantity?: number;
   productId?: string | number;
+  measurementUnitLabel?: string;
 };
 
 type CompanyPaymentMethod = {
@@ -488,6 +490,7 @@ export const useCartStore = defineStore("cart", () => {
           product?.measurement_values?.total_measurement_value ??
           0,
         ),
+        measurementUnitLabel: resolveMeasurementUnitLabel(item),
         shopId: order.shopId,
       };
     });
@@ -1428,6 +1431,7 @@ export const useCartStore = defineStore("cart", () => {
       article?: string;
       quantity: number;
       price: number;
+      measurementUnitLabel?: string;
     }>;
   }) {
     resetSaleState({ keepReceipt: true, keepSearchQuery: true });
@@ -1454,6 +1458,7 @@ export const useCartStore = defineStore("cart", () => {
       article: String(item.article ?? ""),
       quantity: Math.max(1, Number(item.quantity || 1)),
       availableQuantity: Math.max(1, Number(item.quantity || 1)),
+      measurementUnitLabel: resolveMeasurementUnitLabel(item),
       shopId: saleShopId.value,
       entryType: "return",
     }));
@@ -2011,8 +2016,11 @@ function resolveSaleItemArticle(item: any) {
   );
 }
 
+
+
 function isUuidLike(value: unknown) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value ?? "").trim(),
   );
 }
+

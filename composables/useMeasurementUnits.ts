@@ -67,7 +67,6 @@ export function useMeasurementUnits() {
       const response = await apiFetch<MeasurementUnitListResponse>("/v2/measurement-unit", {
         method: "GET",
         query: {
-          ...(input?.companyId ? { company_id: input.companyId } : {}),
           ...(input?.limit ? { limit: input.limit } : {}),
           ...(input?.page ? { page: input.page } : {}),
           ...(input?.name ? { name: input.name } : {}),
@@ -96,7 +95,11 @@ export function useMeasurementUnits() {
     try {
       return await apiFetch<{ message?: string }>("/v2/measurement-unit", {
         method: "POST",
-        body: payload,
+        body: {
+          name: payload.name,
+          short_name: payload.short_name,
+          precision: payload.precision,
+        },
       });
     } catch (error: any) {
       throw new Error(normalizeApiMessage(error, "Не удалось создать единицу измерения"));

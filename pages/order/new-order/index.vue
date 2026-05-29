@@ -1,26 +1,23 @@
 <template>
   <section
-    class="relative flex min-h-full flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[calc(100vh-120px)] xl:flex-row xl:gap-6 xl:px-0 xl:pb-0"
+    class="relative flex min-h-[calc(100vh-200px)] flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[calc(100vh-40px)] xl:h-[calc(100vh-40px)] xl:flex-row xl:items-stretch xl:gap-6 p-2"
   >
     <div
       v-if="searchLoadingOverlay"
       class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
     />
 
-    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-visible rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(42,42,42,0.96),rgba(31,31,31,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:rounded-[32px] sm:p-5 xl:overflow-y-auto xl:rounded-[36px] xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
-      <div
-        class="pointer-events-none absolute bottom-0 right-0 top-0 hidden w-px bg-[#404040] xl:block"
-      />
+    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-visible p-2 xl:h-full">
       <SearchBar />
       <div
         v-if="cartStore.lastCartError"
-        class="mt-3 rounded-[16px] border border-[#7f3d3d] bg-[#442f2f] px-4 py-3 text-[14px] font-medium text-[#ffd4d4]"
+        class="mt-3 rounded-[16px] border border-[#7f3d3d] bg-[#442f2f] text-[14px] font-medium text-[#ffd4d4]"
       >
         {{ cartStore.lastCartError }}
       </div>
       <div
         v-if="initialPageLoading"
-        class="mt-4 flex items-center gap-3 rounded-[16px] border border-white/10 bg-[#2b2b2b] px-4 py-3 text-[14px] font-medium text-[#d3d3d3]"
+        class="mt-4 flex items-center gap-3 rounded-[16px] border border-white/10 bg-[#2b2b2b] text-[14px] font-medium text-[#d3d3d3]"
       >
         <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
         Восстанавливаем продажу и способы оплаты...
@@ -29,13 +26,20 @@
     </div>
 
     <div
-      class="flex w-full shrink-0 flex-col gap-5 rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(73,147,221,0.14),transparent_28%),linear-gradient(180deg,rgba(42,42,42,0.96),rgba(31,31,31,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:rounded-[32px] sm:p-5 xl:sticky xl:top-5 xl:ml-0 xl:w-[500px] xl:self-start xl:border-white/6 xl:p-6"
+      aria-hidden="true"
+      class="hidden xl:block xl:bg-[#404040]"
+    />
+
+    <div
+      class="flex w-full shrink-0 flex-col rounded-[28px] xl:h-full xl:sticky xl:top-5 xl:ml-0 xl:w-[350px]"
     >
       <div class="flex flex-col gap-5">
         <ClientForm />
         <DiscountSwitcher />
       </div>
-      <Summary />
+      <div class="mt-5 xl:mt-auto">
+        <Summary />
+      </div>
     </div>
   </section>
 </template>
@@ -163,6 +167,14 @@ async function fetchProducts() {
       ),
       barcode: String(p.barcode ?? p.product?.barcode ?? ""),
       article: String(p.sku ?? p.article ?? p.product?.sku ?? ""),
+      measurementUnitLabel: String(
+        p?.measurement_unit?.short_name ??
+          p?.measurement_unit?.name ??
+          p?.product?.measurement_unit?.short_name ??
+          p?.product?.measurement_unit?.name ??
+          p?.unit ??
+          "шт",
+      ).trim() || "шт",
       availableQuantity: Number(
         p?.measurement_values?.total_active_measurement_value ??
           p?.measurement_values?.total_measurement_value ??

@@ -351,6 +351,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
 
   const statsCards = computed(() => {
     const source = statistics.value ?? {};
+    const statusSource = statisticsByStatus.value ?? {};
     return [
       {
         label: "Наименований",
@@ -362,12 +363,13 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       {
         label: "Товарных единиц",
         value: formatQuantityStat(
-          getStatisticValue(source, [
-            "total_quantity",
-            "quantity",
-            "total_measurement_value",
-            "items_count",
-          ]),
+          getStatisticValue(statusSource, ["measurement_value", "active_measurement_value"]) ??
+            getStatisticValue(source, [
+              "total_quantity",
+              "quantity",
+              "total_measurement_value",
+              "items_count",
+            ]),
         ),
       },
       {
@@ -841,7 +843,11 @@ function createQuantityColumn(accessorKey: string, header: string) {
     meta: {
       tdStyle: getCatalogColumnStyle(header),
     },
-    cell: ({ getValue }: any) => `${getValue() ?? 0} шт`,
+    cell: ({ getValue, row }: any) => {
+      const unit = String(row?.original?.unit ?? "").trim();
+      const value = getValue() ?? 0;
+      return unit ? `${value} ${unit}` : String(value);
+    },
   };
 }
 
@@ -1013,13 +1019,44 @@ function getStatisticValue(source: Record<string, unknown>, keys: string[]) {
 function formatStatNumber(value: unknown) {
   const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return "-";
-  return `${new Intl.NumberFormat("ru-RU").format(num)} шт`;
+  return new Intl.NumberFormat("ru-RU").format(num);
 }
 
 function formatQuantityStat(value: unknown) {
+  if (value && typeof value === "object") {
+    const measurementUnits = Array.isArray((value as Record<string, unknown>)?.measurement_units)
+      ? ((value as Record<string, unknown>).measurement_units as any[])
+      : [];
+
+    const formattedUnits = measurementUnits
+      .map((item) => {
+        const amount = Number(item?.measurement_value ?? 0);
+        if (!Number.isFinite(amount)) return "";
+
+        const unit = String(item?.measurement_unit ?? "").trim();
+        const formattedAmount = new Intl.NumberFormat("ru-RU").format(amount);
+        return unit ? `${formattedAmount} ${unit}` : formattedAmount;
+      })
+      .filter(Boolean);
+
+    if (formattedUnits.length) {
+      return formattedUnits.join(", ");
+    }
+
+    const nestedTotal = Number(
+      (value as Record<string, unknown>)?.total ??
+        (value as Record<string, unknown>)?.value ??
+        0,
+    );
+
+    if (Number.isFinite(nestedTotal)) {
+      return new Intl.NumberFormat("ru-RU").format(nestedTotal);
+    }
+  }
+
   const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return "-";
-  return `${new Intl.NumberFormat("ru-RU").format(num)} ед.`;
+  return new Intl.NumberFormat("ru-RU").format(num);
 }
 
 function formatMoneyStat(value: unknown) {

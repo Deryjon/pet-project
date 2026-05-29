@@ -7,7 +7,6 @@ import {
   useMeasurementUnits,
   type DefaultMeasurementUnit,
 } from "~/composables/useMeasurementUnits";
-import { useUserStore } from "~/store/useUserStore";
 
 const props = withDefaults(
   defineProps<{
@@ -25,7 +24,6 @@ const emit = defineEmits<{
 }>();
 
 const { fetchDefaultMeasurementUnits, fetchCompanyMeasurementUnits, createMeasurementUnit } = useMeasurementUnits();
-const userStore = useUserStore();
 const toast = useToast();
 
 const loadingDefaults = ref(false);
@@ -44,16 +42,6 @@ const form = reactive<{
   precision: "1",
 });
 
-const resolvedCompanyId = computed(() =>
-  String(
-    props.companyId ||
-      userStore.userState.companyId ||
-      userStore.userState.company?.companyId ||
-      userStore.userState.company?.id ||
-      "",
-  ).trim(),
-);
-
 const defaultUnitOptions = computed(() =>
   defaultUnits.value.map((unit) => ({
     label: `${unit.name} (${unit.short_name})`,
@@ -64,7 +52,6 @@ const defaultUnitOptions = computed(() =>
 const canSave = computed(() =>
   Boolean(
     !saving.value &&
-      resolvedCompanyId.value &&
       form.name.trim() &&
       form.short_name.trim() &&
       form.precision,
@@ -111,14 +98,12 @@ async function submit() {
 
   try {
     const response = await createMeasurementUnit({
-      company_id: resolvedCompanyId.value,
       name: form.name.trim(),
       short_name: form.short_name.trim(),
       precision: form.precision,
     });
 
     const freshUnits = await fetchCompanyMeasurementUnits({
-      companyId: resolvedCompanyId.value,
       limit: 1000,
       page: 1,
     });

@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col overflow-hidden rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(38,38,38,0.98),rgba(28,28,28,0.98))] text-[15px] font-bold shadow-[0_22px_50px_rgba(0,0,0,0.18)] sm:rounded-[28px] sm:text-[17px]">
+  <div class="flex flex-col overflow-hidden rounded-t-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(38,38,38,0.98),rgba(28,28,28,0.98))] text-[15px] font-bold shadow-[0_22px_50px_rgba(0,0,0,0.18)] sm:rounded-[28px] sm:text-[17px]">
     <div class="flex items-center justify-between border-b border-white/6 p-4">
-      <span>Промежуточно</span>
+      <span>Подытог</span>
       <span v-if="showSummarySkeleton" class="h-5 w-28 animate-pulse rounded-full bg-[#404040]" />
       <span v-else>{{ formatPrice(subtotal) }} UZS</span>
     </div>
@@ -24,7 +24,7 @@
           name="heroicons:arrow-path"
           class="h-4 w-4 animate-spin"
         />
-        Оплаты
+        Оплатить
       </span>
       <span v-if="showSummarySkeleton" class="h-5 w-32 animate-pulse rounded-full bg-white/25" />
       <span v-else class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(totalAmount) }} UZS</span>
@@ -79,7 +79,7 @@
             <div class="space-y-3 text-[14px] text-[#bdbdbd]">
               <div class="flex items-center justify-between">
                 <span>Товаров</span>
-                <span>{{ totalQuantity }} шт</span>
+                <span>{{ totalQuantity }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span>Промежуточно</span>
@@ -801,3 +801,4 @@ watch(debtModalOpen, (next) => {
   }
 });
 </script>
+

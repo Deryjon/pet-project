@@ -138,15 +138,6 @@ onMounted(() => {
   <div class="mt-4">
     <div class="flex items-center justify-between gap-3">
       <label class="font-medium">Единица измерения</label>
-      <UButton
-        color="neutral"
-        variant="soft"
-        type="button"
-        class="rounded-[12px] bg-[#404040] px-4 py-2 text-white hover:bg-[#505050]"
-        @click="modalOpen = true"
-      >
-        Добавить
-      </UButton>
     </div>
 
     <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_220px_220px]">
@@ -164,24 +155,6 @@ onMounted(() => {
           }"
         />
       </div>
-
-      <label class="flex flex-col gap-2">
-        <span class="text-sm text-[#d7d7d7]">Сокращение</span>
-        <UInput
-          :model-value="store.form.measurement_unit_short_name || ''"
-          disabled
-          :ui="{ base: 'min-h-[56px] rounded-[15px] border-0 ring-0 bg-[#353535] px-4 text-[16px] font-semibold text-white disabled:opacity-100' }"
-        />
-      </label>
-
-      <label class="flex flex-col gap-2">
-        <span class="text-sm text-[#d7d7d7]">Точность</span>
-        <UInput
-          :model-value="precisionLabel"
-          disabled
-          :ui="{ base: 'min-h-[56px] rounded-[15px] border-0 ring-0 bg-[#353535] px-4 text-[16px] font-semibold text-white disabled:opacity-100' }"
-        />
-      </label>
     </div>
 
     <MeasurementUnitModal
