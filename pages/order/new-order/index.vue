@@ -1,6 +1,6 @@
 <template>
   <section
-    class="relative flex min-h-[100vh] flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[100vh] xl:h-[100vh] xl:flex-row xl:items-stretch xl:gap-6 p-2"
+    class="relative flex min-h-[100vh] flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[calc(100vh-24px)] xl:h-[calc(100vh-24px)] xl:flex-row xl:items-stretch xl:gap-6 xl:pb-0 p-2"
   >
     <div
       v-if="searchLoadingOverlay"
@@ -31,7 +31,7 @@
     />
 
     <div
-      class="flex w-full shrink-0 flex-col rounded-[28px] xl:h-full xl:sticky xl:top-5 xl:ml-0 xl:w-[350px]"
+      class="flex w-full shrink-0 flex-col rounded-[28px] xl:h-full xl:w-[350px] xl:justify-end xl:sticky xl:top-5 xl:ml-0"
     >
       <div class="flex flex-col gap-5">
         <ClientForm />

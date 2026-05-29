@@ -33,7 +33,7 @@
     <button
       class="flex w-full items-center justify-center p-5 text-gray-300"
       :class="cartStore.parkingLoading ? 'cursor-not-allowed opacity-60' : ''"
-      :disabled="cartStore.parkingLoading"
+      :disabled="canParkSale"
       @click="onPark"
     >
       <Icon v-if="cartStore.parkingLoading" name="heroicons:arrow-path" class="mr-2 h-4 w-4 animate-spin" />
