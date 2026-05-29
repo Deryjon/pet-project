@@ -1266,10 +1266,18 @@ export const useCartStore = defineStore("cart", () => {
     if (!item) return;
     if (isItemBusy(productId)) return;
 
+    const parsedQuantity = Number(nextQuantity);
+
+    if (!Number.isFinite(parsedQuantity)) return;
+    if (parsedQuantity <= 0) {
+      await removeFromCartServer(productId);
+      return;
+    }
+
     const availableQuantity = Math.max(0, Number(item.availableQuantity ?? 0));
     const normalizedQuantity =
       availableQuantity <= 0
-        ? 0
+        ? Math.max(1, parsedQuantity)
         : Math.min(Math.max(1, Number(nextQuantity || 1)), availableQuantity);
 
     if (!saleId.value) {

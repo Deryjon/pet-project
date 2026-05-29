@@ -1,14 +1,64 @@
 <template>
   <div class="mb-3 rounded-[24px] border border-white/5 bg-[#3a3a3a] px-4 py-3 text-[16px] text-white shadow-xl">
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex min-w-0 items-center gap-4">
+    <div class="flex flex-col gap-4">
+      <div class="flex min-w-0 items-start gap-3">
+        <div class="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] sm:h-[50px] sm:w-[50px]">
+          <img
+            src="../../assets/images/placeholder_img.svg"
+            alt="Товар"
+            class="h-full w-full rounded-[12px] object-cover"
+          />
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="break-words text-[15px] font-bold uppercase tracking-[0.08em] text-white sm:text-[16px]">
+                {{ item.name }}
+              </div>
+
+              <div class="mt-2 flex min-w-0 flex-col gap-1 sm:hidden">
+                <span
+                  v-if="hasDiscount"
+                  class="text-[12px] font-semibold text-[#8f8f8f] line-through"
+                >
+                  {{ formatPrice(originalLineTotal) }} UZS
+                </span>
+                <span class="text-[16px] font-bold text-[#4993dd]">
+                  {{ formatPrice(discountedLineTotal) }} UZS
+                </span>
+              </div>
+
+              <div class="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8f8f8f] sm:mt-1 sm:text-[14px]">
+                <span class="break-all">{{ item.barcode }}</span>
+                <span v-if="item.barcode && item.article" class="text-[#5f5f5f]">/</span>
+                <span class="break-all">{{ item.article }}</span>
+              </div>
+            </div>
+
+            <div class="hidden shrink-0 sm:flex sm:min-w-0 sm:flex-col sm:items-end">
+              <span
+                v-if="hasDiscount"
+                class="px-2 text-[12px] font-semibold text-[#8f8f8f] line-through sm:text-[13px]"
+              >
+                {{ formatPrice(originalLineTotal) }} UZS
+              </span>
+              <span class="px-2 py-0.5 text-[16px] font-bold text-[#4993dd] sm:text-[17px]">
+                {{ formatPrice(discountedLineTotal) }} UZS
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
         <div class="flex items-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5">
           <input
             :value="item.quantity"
             type="number"
             min="1"
             :disabled="itemBusy"
-            class="w-5 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            class="w-8 cursor-text bg-transparent text-center text-[15px] font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-60"
             @input="onQuantityInput"
           />
           <span class="text-sm font-semibold text-[#9f9f9f]">ШТ</span>
@@ -31,39 +81,6 @@
               <Icon name="heroicons:chevron-down-20-solid" class="h-4 w-4" />
             </button>
           </div>
-        </div>
-
-        <div class="flex h-[50px] w-[50px] items-center justify-center rounded-[18px]">
-          <img
-            src="../../assets/images/placeholder_img.svg"
-            alt="Товар"
-            class="h-full w-full rounded-[12px] object-cover"
-          />
-        </div>
-
-        <div class="min-w-0 flex flex-col">
-          <div class="truncate text-[16px] font-bold uppercase tracking-[0.08em] text-white">
-            {{ item.name }}
-          </div>
-          <div class="mt-1 flex items-center gap-2 text-[14px] font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">
-            <span class="truncate">{{ item.barcode }}</span>
-            <span class="text-[#5f5f5f]">/</span>
-            <span class="truncate">{{ item.article }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex shrink-0 items-center gap-3">
-        <div class="flex flex-col items-end">
-          <span
-            v-if="hasDiscount"
-            class="px-2 text-[13px] font-semibold text-[#8f8f8f] line-through"
-          >
-            {{ formatPrice(originalLineTotal) }} UZS
-          </span>
-          <span class="px-2 py-0.5 text-[17px] font-bold text-[#4993dd]">
-            {{ formatPrice(discountedLineTotal) }} UZS
-          </span>
         </div>
 
         <UButton
@@ -121,6 +138,14 @@ function increaseQuantity() {
 
 function onQuantityInput(event: Event) {
   const target = event.target as HTMLInputElement | null;
-  void store.syncCartItemQuantity(props.item.id, Number(target?.value || 1));
+  const rawValue = target?.value?.trim() ?? "";
+
+  if (rawValue === "") return;
+
+  const nextQuantity = Number(rawValue);
+
+  if (!Number.isFinite(nextQuantity)) return;
+
+  void store.syncCartItemQuantity(props.item.id, nextQuantity);
 }
 </script>

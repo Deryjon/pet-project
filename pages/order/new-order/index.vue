@@ -7,7 +7,7 @@
       class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
     />
 
-    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(42,42,42,0.96),rgba(31,31,31,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:rounded-[32px] sm:p-5 xl:rounded-[36px] xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
+    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-visible rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(42,42,42,0.96),rgba(31,31,31,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:rounded-[32px] sm:p-5 xl:overflow-y-auto xl:rounded-[36px] xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
       <div
         class="pointer-events-none absolute bottom-0 right-0 top-0 hidden w-px bg-[#404040] xl:block"
       />

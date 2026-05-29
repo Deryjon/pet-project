@@ -59,7 +59,7 @@
 
     <div
       v-if="showDropdown"
-      class="absolute top-full z-20 mt-3 flex max-h-[320px] w-full flex-col gap-2 overflow-y-auto rounded-[20px] border border-white/8 bg-[rgba(31,31,31,0.98)] p-2 shadow-[0_26px_60px_rgba(0,0,0,0.28)]"
+      class="absolute top-full z-20 mt-3 flex max-h-[50vh] w-full flex-col gap-2 overflow-y-auto rounded-[20px] border border-white/8 bg-[rgba(31,31,31,0.98)] p-2 shadow-[0_26px_60px_rgba(0,0,0,0.28)] sm:max-h-[320px]"
     >
       <div v-if="store.productsLoading" class="flex flex-col gap-2">
         <div
