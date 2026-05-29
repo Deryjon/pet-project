@@ -68,6 +68,7 @@ export const MENU_DATA: IMenuItem[] = [
     items: [
       { title: "Профиль", url: "/settings/profile" },
       { title: "Компания", url: "/settings/company" },
+      { title: "Товары", url: "/settings/products" },
       { title: "Способы оплаты", url: "/settings/payment-types" },
       { title: "Чеки", url: "/settings/cheque" },
     ],

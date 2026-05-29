@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import CreateProductImageUpload from "@/components/products/CreateProductImageUpload.vue";
+import ProductMeasurementFields from "@/components/products/ProductMeasurementFields.vue";
 import { useProductStore } from "@/store/productStore";
 import type { ProductTypeLabel, VariationTypeLabel } from "~/types/product-create";
 
@@ -169,17 +170,7 @@ function selectVariationType(type: VariationTypeLabel) {
       </div>
     </div>
 
-    <div v-if="isSimpleGoods || isVariantGoods || isService" class="mt-4 flex flex-col">
-      <label class="mb-2 font-medium">Единица измерения</label>
-      <USelect
-        v-model="store.form.unit"
-        :items="store.units"
-        class="w-full md:w-1/2"
-        :ui="{
-          base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
-        }"
-      />
-    </div>
+    <ProductMeasurementFields v-if="isSimpleGoods || isVariantGoods || isService" />
 
     <div class="mt-4">
       <label class="mb-2 font-medium">Фото</label>

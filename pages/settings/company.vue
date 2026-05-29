@@ -15,6 +15,11 @@ const sections = [
     to: "/settings/shop",
   },
   {
+    title: "Товары",
+    description: "Управляйте единицами измерения, которые используются в карточках товаров",
+    to: "/settings/products",
+  },
+  {
     title: "Кассы",
     description: "Настройте список касс и их детали",
     to: "",

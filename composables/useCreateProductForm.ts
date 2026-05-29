@@ -3,6 +3,7 @@ import type {
   CreateProductApiPayload,
   CreateProductFormState,
   FormValidationIssue,
+  MeasurementUnitPrecision,
   PriceFields,
   ProductStoreStock,
   ProductType,
@@ -117,7 +118,11 @@ export function createInitialProductFormState(
     name: "",
     sku: "",
     barcode: "",
-    unit: "Штука",
+    unit: "шт",
+    measurement_unit_id: "",
+    measurement_unit_name: "Штука",
+    measurement_unit_short_name: "шт",
+    measurement_unit_precision: "1",
     images: [],
     prices: createDefaultPrices(),
     stocks: createStockRows(shops),
@@ -150,6 +155,16 @@ export function validateCreateProductForm(form: CreateProductFormState): FormVal
 
   if (!form.barcode.trim() && form.productType !== "Комплект") {
     issues.push({ path: "barcode", message: "Штрихкод обязателен." });
+  }
+
+  if (
+    (form.productType === "Товар" || form.productType === "Услуга") &&
+    !String(form.measurement_unit_id || "").trim()
+  ) {
+    issues.push({
+      path: "measurement_unit_id",
+      message: "Единица измерения обязательна для товара и услуги.",
+    });
   }
 
   if (nonNegative(form.prices.purchasePrice) !== form.prices.purchasePrice) {
@@ -314,8 +329,8 @@ function buildProductPayload(
       .filter(Boolean);
   }
 
-  if (isUuidLike(form.unit)) {
-    payload.measurement_unit_id = form.unit.trim();
+  if (String(form.measurement_unit_id || "").trim()) {
+    payload.measurement_unit_id = form.measurement_unit_id.trim();
   }
 
   if (isGoods && activeStocks.length) {
@@ -368,7 +383,7 @@ function buildProductPayload(
 
   payload.metadata = {
     ...(isRecord(sourceProduct?.metadata) ? sourceProduct.metadata : {}),
-    ui_unit: form.unit || "Штука",
+    ui_unit: form.measurement_unit_short_name || form.measurement_unit_name || form.unit || "шт",
     supplier_name: form.attributes.supplier.trim(),
     variation_attribute: form.variationAttribute.trim(),
   };
@@ -437,7 +452,12 @@ export function createProductFormStateFromApi(
   form.name = String(raw?.name ?? raw?.base_name ?? "").trim();
   form.sku = String(raw?.sku ?? "").trim();
   form.barcode = String(raw?.barcode ?? "").trim();
-  form.unit = normalizeMeasurementUnit(raw);
+  const measurementState = normalizeMeasurementUnit(raw);
+  form.unit = measurementState.measurement_unit_short_name || measurementState.measurement_unit_name || "шт";
+  form.measurement_unit_id = measurementState.measurement_unit_id;
+  form.measurement_unit_name = measurementState.measurement_unit_name;
+  form.measurement_unit_short_name = measurementState.measurement_unit_short_name;
+  form.measurement_unit_precision = measurementState.measurement_unit_precision;
   form.images = extractImages(raw);
   form.prices = {
     purchasePrice: nonNegative(purchasePrice),
@@ -493,19 +513,30 @@ function normalizeVariationTypeLabel(raw: any): VariationTypeLabel {
   return "Простой";
 }
 
-function normalizeMeasurementUnit(raw: any): string {
+function normalizeMeasurementUnit(raw: any): {
+  measurement_unit_id: string;
+  measurement_unit_name?: string;
+  measurement_unit_short_name?: string;
+  measurement_unit_precision?: MeasurementUnitPrecision;
+} {
   const measurementUnitId = String(raw?.measurement_unit_id ?? "").trim();
-  if (measurementUnitId && isUuidLike(measurementUnitId)) {
-    return measurementUnitId;
-  }
-
-  return String(
+  const measurementUnitName = String(raw?.measurement_unit?.name ?? "").trim();
+  const measurementUnitShortName = String(
     raw?.measurement_unit?.short_name ??
-      raw?.measurement_unit?.name ??
       raw?.metadata?.ui_unit ??
       raw?.unit ??
-      "Штука",
+      "",
   ).trim();
+  const measurementUnitPrecision = String(raw?.measurement_unit?.precision ?? "1").trim();
+
+  return {
+    measurement_unit_id: measurementUnitId && isUuidLike(measurementUnitId) ? measurementUnitId : "",
+    measurement_unit_name: measurementUnitName || undefined,
+    measurement_unit_short_name: measurementUnitShortName || undefined,
+    measurement_unit_precision: isMeasurementPrecision(measurementUnitPrecision)
+      ? measurementUnitPrecision
+      : "1",
+  };
 }
 
 function extractShopQuantities(raw: any): Record<string, number> {
@@ -602,4 +633,8 @@ function createVariationFromApi(
 
 function isRecord(value: unknown): value is Record<string, any> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isMeasurementPrecision(value: string): value is MeasurementUnitPrecision {
+  return value === "1" || value === ".0" || value === ".00" || value === ".000";
 }
