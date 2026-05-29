@@ -1,6 +1,6 @@
 <template>
   <section
-    class="relative flex min-h-[calc(100vh-200px)] flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[calc(100vh-40px)] xl:h-[calc(100vh-40px)] xl:flex-row xl:items-stretch xl:gap-6 p-2"
+    class="relative flex min-h-[100vh] flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[100vh] xl:h-[100vh] xl:flex-row xl:items-stretch xl:gap-6 p-2"
   >
     <div
       v-if="searchLoadingOverlay"
