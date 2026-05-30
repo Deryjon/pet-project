@@ -30,11 +30,15 @@ export function useAuth() {
     });
 
     const token = String(response?.access_token ?? response?.token ?? "").trim();
+    const refreshToken = String(response?.refresh_token ?? "").trim();
     if (!token) {
       throw new Error("Token not found in login response");
     }
+    if (!refreshToken) {
+      throw new Error("Refresh token not found in login response");
+    }
 
-    user.login(token, response?.user ?? {});
+    user.login(token, response?.user ?? {}, refreshToken);
     await user.fetchMe({ force: true });
     return { token, user: user.user };
   }
@@ -54,5 +58,19 @@ export function useAuth() {
     });
   }
 
-  return { login, register };
+  async function logout() {
+    try {
+      await apiFetch("/auth/logout", {
+        method: "POST",
+        body: {
+          refresh_token: user.refreshToken,
+        },
+      });
+    } catch (_) {
+    } finally {
+      user.logout();
+    }
+  }
+
+  return { login, register, logout };
 }

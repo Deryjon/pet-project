@@ -214,11 +214,15 @@ const onLogin = handleSubmit(async () => {
     }
 
     const token = response?.access_token ?? response?.token;
+    const refreshToken = String(response?.refresh_token ?? "").trim();
     if (!token) {
       throw new Error("Token not found in login response");
     }
+    if (!refreshToken) {
+      throw new Error("Refresh token not found in login response");
+    }
 
-    userStore.login(token, response?.user ?? {});
+    userStore.login(token, response?.user ?? {}, refreshToken);
     await userStore.fetchMe();
     await router.push("/");
   } catch (error: unknown) {

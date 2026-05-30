@@ -440,6 +440,7 @@ export function usePlatformAdminSession() {
 
   async function restore() {
     userStore.loadToken();
+    userStore.loadRefreshToken();
     if (!userStore.token) return false;
     try {
       return await userStore.fetchPlatformMe();
@@ -452,8 +453,10 @@ export function usePlatformAdminSession() {
   async function signIn(payload: { phone_number: string; password: string }) {
     const response: any = await apiFetch("/platform/auth/login", { method: "POST", body: payload });
     const token = response?.access_token ?? response?.token;
+    const refreshToken = String(response?.refresh_token ?? "").trim();
     if (!token) throw new Error("Token not found in server response");
-    userStore.setToken(String(token));
+    if (!refreshToken) throw new Error("Refresh token not found in server response");
+    userStore.setAuthTokens(String(token), refreshToken);
     const authenticated = await userStore.fetchPlatformMe();
     if (!authenticated || !userStore.hasPlatformAccess) {
       userStore.logout();
@@ -464,7 +467,12 @@ export function usePlatformAdminSession() {
 
   async function signOut() {
     try {
-      await apiFetch("/platform/auth/logout", { method: "POST" });
+      await apiFetch("/platform/auth/logout", {
+        method: "POST",
+        body: {
+          refresh_token: userStore.refreshToken,
+        },
+      });
     } catch {}
     userStore.logout();
   }
