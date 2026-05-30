@@ -749,7 +749,12 @@ function normalizeSale(raw: any): SaleListItem {
           article: String(
             item?.sku ?? item?.article ?? item?.product?.sku ?? "",
           ),
-          measurementUnitLabel: resolveMeasurementUnitLabel(item),
+          measurementUnitLabel: resolveMeasurementUnitLabel({
+            ...item,
+            product: item?.product,
+            measurementUnitLabel:
+              item?.measurementUnitLabel ?? item?.measurement_unit_label,
+          }),
         };
       })
       .filter((item: any) => item.productId && item.quantity > 0),

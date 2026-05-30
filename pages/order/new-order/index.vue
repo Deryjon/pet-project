@@ -79,6 +79,9 @@ const currentShopId = computed(() =>
 const searchLoadingOverlay = computed(
   () => cartStore.productsLoading && Boolean(search.value.trim()),
 );
+const routeSaleId = computed(() =>
+  String(route.query.sale_id ?? route.query.id ?? "").trim(),
+);
 
 function currentOrderPath() {
   return "/order/new-order";
@@ -90,6 +93,10 @@ async function syncOrderRoute() {
   const nextQuery: Record<string, string> = {
     page: String(page.value),
   };
+
+  if (cartStore.saleId) {
+    nextQuery.sale_id = String(cartStore.saleId);
+  }
 
   if (cartStore.saleNumber) {
     nextQuery.order_number = String(cartStore.saleNumber);
@@ -107,7 +114,20 @@ async function ensureActiveSale() {
   if (!currentShopId.value) return;
 
   await cartStore.loadSaleReferenceData();
-  await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+
+  const existingSaleId =
+    routeSaleId.value ||
+    String(cartStore.saleId ?? cartStore.currentOrder?.id ?? "").trim();
+
+  if (existingSaleId) {
+    const restored = await cartStore.loadSale(existingSaleId).catch(() => null);
+    if (!restored) {
+      await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+    }
+  } else {
+    await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+  }
+
   await syncOrderRoute();
 }
 
@@ -163,6 +183,12 @@ async function fetchProducts() {
           p.sellPrice ??
           p.sell_price ??
           p.sale_price ??
+          p.shop_prices?.[0]?.retail_price ??
+          p.price ??
+          0,
+      ),
+      basePrice: Number(
+        p.retail_price ??
           p.shop_prices?.[0]?.retail_price ??
           p.price ??
           0,
