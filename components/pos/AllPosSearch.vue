@@ -46,7 +46,10 @@
         </div>
         <div class="flex flex-col text-right">
           <span>{{ formatPrice(product.price) }} UZS</span>
-          <span class="text-[#999]">Кол-во: 1 шт</span>
+          <span class="text-[#999]">
+            Кол-во: {{ Number(product.availableQuantity ?? 0) }}
+            {{ resolveMeasurementUnitLabel(product) }}
+          </span>
         </div>
       </button>
     </div>
@@ -56,6 +59,7 @@
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
 import { useCartStore } from "~/store/cart";
+import { resolveMeasurementUnitLabel } from "@/composables/useMeasurementUnitLabel";
 
 const store = useCartStore();
 const { formatPrice } = useFormatPrice();
@@ -64,6 +68,8 @@ const { addToCart } = store;
 const showResults = computed(
   () => Boolean(searchQuery.value) && filteredProducts.value.length > 0
 );
+
+
 </script>
 
 <style scoped>
@@ -77,3 +83,4 @@ const showResults = computed(
   opacity: 0;
 }
 </style>
+

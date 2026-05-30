@@ -1,43 +1,60 @@
-<template>
-  <section
-    class="relative flex min-h-full flex-col gap-4 bg-[#262626] px-3 pb-6 text-white sm:gap-5 sm:px-4 sm:pb-8 xl:min-h-[calc(100vh-120px)] xl:flex-row xl:gap-6 xl:px-0 xl:pb-0"
-  >
-    <div
-      v-if="searchLoadingOverlay"
-      class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
-    />
-
-    <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-visible rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(42,42,42,0.96),rgba(31,31,31,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:rounded-[32px] sm:p-5 xl:overflow-y-auto xl:rounded-[36px] xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
-      <div
-        class="pointer-events-none absolute bottom-0 right-0 top-0 hidden w-px bg-[#404040] xl:block"
-      />
-      <SearchBar />
-      <div
-        v-if="cartStore.lastCartError"
-        class="mt-3 rounded-[16px] border border-[#7f3d3d] bg-[#442f2f] px-4 py-3 text-[14px] font-medium text-[#ffd4d4]"
-      >
-        {{ cartStore.lastCartError }}
-      </div>
-      <div
-        v-if="initialPageLoading"
-        class="mt-4 flex items-center gap-3 rounded-[16px] border border-white/10 bg-[#2b2b2b] px-4 py-3 text-[14px] font-medium text-[#d3d3d3]"
-      >
-        <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-        Восстанавливаем продажу и способы оплаты...
-      </div>
-      <Cart />
-    </div>
-
-    <div
-      class="flex w-full shrink-0 flex-col gap-5 rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(73,147,221,0.14),transparent_28%),linear-gradient(180deg,rgba(42,42,42,0.96),rgba(31,31,31,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.22)] sm:rounded-[32px] sm:p-5 xl:sticky xl:top-5 xl:ml-0 xl:w-[500px] xl:self-start xl:border-white/6 xl:p-6"
+﻿<template>
+  <div class="bg-[#262626] text-white">
+    <section
+      class="relative flex min-h-[100vh] flex-col gap-4 px-3 pb-28 pt-2 sm:gap-5 sm:px-4 sm:pb-32 xl:min-h-[calc(100vh-24px)] xl:h-[calc(100vh-24px)] xl:flex-row xl:items-stretch xl:gap-6 xl:bg-[#262626] xl:px-3 xl:pb-0 xl:pt-2"
     >
-      <div class="flex flex-col gap-5">
-        <ClientForm />
-        <DiscountSwitcher />
+      <div
+        v-if="searchLoadingOverlay"
+        class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
+      />
+
+      <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] bg-[#2f2f2f]/35 p-3 xl:h-full xl:rounded-none xl:bg-transparent xl:p-2">
+        <SearchBar />
+        <div
+          v-if="cartStore.lastCartError"
+          class="mt-3 rounded-[16px] border border-[#7f3d3d] bg-[#442f2f] px-4 py-3 text-[14px] font-medium text-[#ffd4d4]"
+        >
+          {{ cartStore.lastCartError }}
+        </div>
+        <div
+          v-if="initialPageLoading"
+          class="mt-4 flex items-center gap-3 rounded-[16px] border border-white/10 bg-[#2b2b2b] px-4 py-3 text-[14px] font-medium text-[#d3d3d3]"
+        >
+          <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
+          Восстанавливаем продажу и способы оплаты...
+        </div>
+        <div class="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+          <Cart />
+        </div>
       </div>
-      <Summary />
+
+      <div
+        aria-hidden="true"
+        class="hidden xl:block xl:w-px xl:self-stretch xl:bg-[#404040]"
+      />
+
+      <div
+        class="flex w-full shrink-0 flex-col gap-4 rounded-[24px] bg-[#2f2f2f]/35 p-3 xl:h-full xl:w-[350px] xl:justify-end xl:gap-5 xl:rounded-[28px] xl:bg-transparent xl:p-0 xl:ml-0"
+      >
+        <div class="flex flex-col gap-4 xl:gap-5">
+          <ClientForm />
+          <DiscountSwitcher />
+        </div>
+        <div v-if="isDesktop" class="mt-5 xl:mt-auto">
+          <Summary />
+        </div>
+      </div>
+    </section>
+
+    <div
+      v-if="!isDesktop"
+      class="sticky bottom-0 z-20 border-t border-white/8 bg-[#262626]/95 px-3 pb-3 pt-2 backdrop-blur-xl sm:px-4"
+    >
+      <div class="mx-auto max-w-[640px]">
+        <Summary />
+      </div>
     </div>
-  </section>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -50,6 +67,7 @@ import { useHead } from "#imports";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useApi } from "~/composables/useApi";
+import { resolveMeasurementUnitLabel } from "~/composables/useMeasurementUnitLabel";
 import { useCartStore } from "~/store/cart";
 import { useLocationStore } from "~/store/useLocationStore";
 
@@ -66,6 +84,7 @@ const page = ref(Math.max(1, Number(route.query.page || 1) || 1));
 const limit = ref(10);
 const initialPageLoading = ref(true);
 const leavingRoute = ref(false);
+const isDesktop = ref(false);
 const search = computed(() => cartStore.searchQuery);
 const currentShopId = computed(() =>
   String(selectedLocation.value?.id ?? cartStore.resolveCurrentShopId() ?? ""),
@@ -73,9 +92,17 @@ const currentShopId = computed(() =>
 const searchLoadingOverlay = computed(
   () => cartStore.productsLoading && Boolean(search.value.trim()),
 );
+const routeSaleId = computed(() =>
+  String(route.query.sale_id ?? route.query.id ?? "").trim(),
+);
 
 function currentOrderPath() {
   return "/order/new-order";
+}
+
+function syncViewportMode() {
+  if (!import.meta.client) return;
+  isDesktop.value = window.innerWidth >= 1280;
 }
 
 async function syncOrderRoute() {
@@ -84,6 +111,10 @@ async function syncOrderRoute() {
   const nextQuery: Record<string, string> = {
     page: String(page.value),
   };
+
+  if (cartStore.saleId) {
+    nextQuery.sale_id = String(cartStore.saleId);
+  }
 
   if (cartStore.saleNumber) {
     nextQuery.order_number = String(cartStore.saleNumber);
@@ -101,7 +132,20 @@ async function ensureActiveSale() {
   if (!currentShopId.value) return;
 
   await cartStore.loadSaleReferenceData();
-  await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+
+  const existingSaleId =
+    routeSaleId.value ||
+    String(cartStore.saleId ?? cartStore.currentOrder?.id ?? "").trim();
+
+  if (existingSaleId) {
+    const restored = await cartStore.loadSale(existingSaleId).catch(() => null);
+    if (!restored) {
+      await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+    }
+  } else {
+    await cartStore.openFreshSale({ keepReceipt: true, keepSearchQuery: true });
+  }
+
   await syncOrderRoute();
 }
 
@@ -161,8 +205,15 @@ async function fetchProducts() {
           p.price ??
           0,
       ),
+      basePrice: Number(
+        p.retail_price ??
+          p.shop_prices?.[0]?.retail_price ??
+          p.price ??
+          0,
+      ),
       barcode: String(p.barcode ?? p.product?.barcode ?? ""),
       article: String(p.sku ?? p.article ?? p.product?.sku ?? ""),
+      measurementUnitLabel: resolveMeasurementUnitLabel(p),
       availableQuantity: Number(
         p?.measurement_values?.total_active_measurement_value ??
           p?.measurement_values?.total_measurement_value ??
@@ -255,9 +306,11 @@ watch(currentShopId, (next, prev) => {
 
 onMounted(async () => {
   try {
+    syncViewportMode();
     await ensureActiveSale();
     window.addEventListener("beforeunload", handlePageUnload);
     window.addEventListener("pagehide", handlePageUnload);
+    window.addEventListener("resize", syncViewportMode);
   } finally {
     initialPageLoading.value = false;
   }
@@ -272,5 +325,6 @@ onBeforeUnmount(() => {
   if (t) clearTimeout(t);
   window.removeEventListener("beforeunload", handlePageUnload);
   window.removeEventListener("pagehide", handlePageUnload);
+  window.removeEventListener("resize", syncViewportMode);
 });
 </script>

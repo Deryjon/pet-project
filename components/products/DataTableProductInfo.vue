@@ -84,6 +84,10 @@ const selectedShopLabel = computed(() =>
   shopOptions.value.find((option) => option.shopId === selectedShopId.value)?.shopName ?? "Все магазины",
 );
 
+const productUnitLabel = computed(() =>
+  String(selectedProduct.value?.unit ?? selectedProduct.value?._original?.measurement_unit?.short_name ?? "").trim(),
+);
+
 const shopNameMap = computed(() => {
   const entries = [
     ...locationStore.locations.map((shop) => [String(shop.id), String(shop.name)] as const),
@@ -114,8 +118,8 @@ const movementRows = computed<string[][]>(() => {
     formatDateTimeCell(item.created_at),
     item.type_label,
     String(item.external_id || "-"),
-    String(Number(item.measurement_value ?? 0)),
-    String(Number(item.loaded_measurement_value ?? 0)),
+    formatProductQuantity(item.measurement_value),
+    formatProductQuantity(item.loaded_measurement_value),
     formatUZS(item.supply_price),
     formatUZS(item.retail_price),
   ]);
@@ -156,15 +160,20 @@ const stockRows = computed<string[][]>(() => {
       const inactive = Number(item?.inactive_measurement_value ?? item?.inactive_quantity ?? 0);
       const low = Number(item?.small_left_measurement_value ?? item?.low_quantity ?? 0);
 
-      return [shopName, String(active), String(inactive), String(low)];
+      return [
+        shopName,
+        formatProductQuantity(active),
+        formatProductQuantity(inactive),
+        formatProductQuantity(low),
+      ];
     });
   }
 
   return [[
     String(p.shop_name || "-"),
-    String(Number(p.quantity ?? 0)),
-    "0",
-    "0",
+    formatProductQuantity(p.quantity),
+    formatProductQuantity(0),
+    formatProductQuantity(0),
   ]];
 });
 
@@ -173,13 +182,13 @@ const movementStatCards = computed(() => {
   if (!movement) return [];
 
   return [
-    { label: "Остаток", value: Number(movement.total_measurement_value ?? 0) },
-    { label: "Импорт", value: Number(movement.imported ?? 0) },
-    { label: "Продано", value: Number(movement.sold ?? 0) },
-    { label: "Трансфер", value: Number(movement.transfered ?? 0) },
-    { label: "Пришло трансфером", value: Number(movement.transfer_arrived ?? 0) },
-    { label: "Списано", value: Number(movement.written_off ?? 0) },
-    { label: "В заказах", value: Number(movement.accepted_order ?? 0) },
+    { label: "Остаток", value: formatProductQuantity(movement.total_measurement_value) },
+    { label: "Импорт", value: formatProductQuantity(movement.imported) },
+    { label: "Продано", value: formatProductQuantity(movement.sold) },
+    { label: "Трансфер", value: formatProductQuantity(movement.transfered) },
+    { label: "Пришло трансфером", value: formatProductQuantity(movement.transfer_arrived) },
+    { label: "Списано", value: formatProductQuantity(movement.written_off) },
+    { label: "В заказах", value: formatProductQuantity(movement.accepted_order) },
   ];
 });
 
@@ -279,7 +288,7 @@ const tableSections = computed<TableSection[]>(() => {
 const characteristics = computed(() => [
   { label: "Артикул", value: selectedProduct.value?.sku || "XSN-29015" },
   { label: "Баркод", value: selectedProduct.value?.barcode || "2000000013404" },
-  { label: "Ед. изм.", value: "Штука" },
+  { label: "Ед. изм.", value: productUnitLabel.value || "-" },
   { label: "Бренд", value: selectedProduct.value?.brand || "-" },
   { label: "Весовой продукт", value: "Нет" },
   { label: "Маркировка", value: "Нет" },
@@ -369,6 +378,14 @@ function formatDateTimeCell(value: unknown) {
   }
 
   return `${date.toLocaleDateString("ru-RU")}\n\n${date.toLocaleTimeString("ru-RU")}`;
+}
+
+function formatProductQuantity(value: unknown) {
+  const num = Number(value ?? 0);
+  if (!Number.isFinite(num)) return "-";
+
+  const formatted = new Intl.NumberFormat("ru-RU").format(num);
+  return productUnitLabel.value ? `${formatted} ${productUnitLabel.value}` : formatted;
 }
 
 function normalizeCalendarDateKey(value: string) {
