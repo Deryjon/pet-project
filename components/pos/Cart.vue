@@ -1,6 +1,6 @@
 <template>
   <div class="relative mt-6 rounded-[26px]  sm:mt-[30px] sm:rounded-[30px] ">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex gap-4  items-center justify-between">
       <div class="flex flex-wrap items-center gap-3">
         <h3 class="text-[24px] font-semibold sm:text-[36px]">Корзина</h3>
 

@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="mb-3 rounded-[24px] bg-[#3a3a3a] px-4 py-5 text-[16px] text-white">
-    <div class="flex min-w-0 items-start gap-3">
-      <div class="flex items-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5">
+    <div class="flex min-w-0 flex-wrap items-start gap-3 sm:flex-nowrap">
+      <div class="order-4 flex w-full items-center justify-center gap-1 rounded-[18px] border border-white/50 bg-[#232323] px-1 py-1.5 sm:order-none sm:w-auto sm:justify-start">
         <UInput
           v-model="draftQuantity"
           type="number"
@@ -98,29 +98,25 @@
                   {{ formatPrice(discountedLineTotal) }} UZS
                 </span>
               </div>
-
-              <button
-                type="button"
-                :disabled="itemBusy"
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-[#303030] text-[#bdbdbd] transition hover:bg-[#3a3a3a] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                @click="openEditor"
-              >
-                <Icon name="heroicons:pencil-square" class="h-4 w-4" />
-              </button>
             </div>
-            <div v-if="sellerDisplayName" class="name-seller mt-1 flex justify-end px-2">
+            <div v-if="sellerDisplayName" class="name-seller mt-1 hidden justify-end px-2 sm:flex">
               <p class="text-[11px] font-medium uppercase tracking-[0.08em] text-[#8f8f8f] sm:text-[12px]">
                 {{ sellerDisplayName }}
               </p>
             </div>
           </div>
         </div>
+        <div v-if="sellerDisplayName" class="name-seller mt-2 sm:hidden">
+          <p class="text-[11px] font-medium uppercase tracking-[0.08em] text-[#8f8f8f]">
+            {{ sellerDisplayName }}
+          </p>
+        </div>
       </div>
       <UButton
         color="error"
         variant="ghost"
         :disabled="itemBusy"
-        class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+        class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center self-start rounded-[14px] border border-red-400/20 bg-red-500/5 p-0 text-red-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
         @click="$emit('remove')"
       >
         <Icon name="ic:baseline-delete" class="h-4 w-4" />
@@ -162,7 +158,7 @@
           <span class="break-all">{{ item.article }}</span>
         </div>
 
-        <div class="mt-5 grid grid-cols-2 gap-3">
+        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div class="rounded-[18px] bg-[#303030] px-4 py-3">
             <div class="text-xs uppercase tracking-[0.12em] text-[#8f8f8f]">Базовая цена</div>
             <div class="mt-2 text-[18px] font-bold text-white">{{ formatPrice(baseUnitPrice) }} UZS</div>
@@ -181,26 +177,26 @@
 
         <div class="mt-5 rounded-[18px] bg-[#303030] p-4">
           <div class="mb-3 text-xs uppercase tracking-[0.12em] text-[#8f8f8f]">Количество</div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               :disabled="itemBusy || editorQuantity <= 1"
-              class="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#404040] text-white transition hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-50"
+              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#404040] text-white transition hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:w-12"
               @click="editorQuantity = Math.max(1, editorQuantity - 1)"
             >
               <Icon name="heroicons:minus-20-solid" class="h-5 w-5" />
             </button>
 
-            <div class="flex min-w-0 flex-1 items-center rounded-[18px] border border-white/10 bg-[#262626] px-4 py-3">
+            <div class="flex min-w-0 flex-1 items-center rounded-[18px] border border-white/10 bg-[#262626] px-3 py-3 sm:px-4">
               <input
                 v-model.number="editorQuantity"
                 type="number"
                 min="1"
                 :max="maxAvailableQuantity"
                 :disabled="itemBusy"
-                class="w-full bg-transparent text-center text-[22px] font-bold outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                class="w-full bg-transparent text-center text-[20px] font-bold outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-[22px]"
               />
-              <span class="ml-3 shrink-0 text-sm font-semibold text-[#9f9f9f]">
+              <span class="ml-2 shrink-0 text-sm font-semibold text-[#9f9f9f] sm:ml-3">
                 {{ measurementUnitLabel }}
               </span>
             </div>
@@ -208,7 +204,7 @@
             <button
               type="button"
               :disabled="itemBusy || editorQuantity >= maxAvailableQuantity"
-              class="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#1f78ff] text-white transition hover:bg-[#4993dd] disabled:cursor-not-allowed disabled:opacity-50"
+              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#1f78ff] text-white transition hover:bg-[#4993dd] disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:w-12"
               @click="editorQuantity = Math.min(maxAvailableQuantity, editorQuantity + 1)"
             >
               <Icon name="heroicons:plus-20-solid" class="h-5 w-5" />
@@ -217,7 +213,7 @@
         </div>
 
         <div class="mt-5 rounded-[18px] bg-[#303030] p-4">
-          <div class="mb-3 flex items-center justify-between gap-3">
+          <div class="mb-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="text-xs uppercase tracking-[0.12em] text-[#8f8f8f]">Скидка на позицию</div>
             <div class="flex rounded-[12px] bg-[#262626] p-1">
               <button
@@ -239,7 +235,7 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <input
               v-model.number="editorDiscountValue"
               type="number"
@@ -257,7 +253,7 @@
             </button>
           </div>
 
-          <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div class="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
             <div class="rounded-[16px] bg-[#262626] px-4 py-3">
               <div class="text-xs uppercase tracking-[0.12em] text-[#8f8f8f]">Размер скидки</div>
               <div class="mt-2 font-semibold text-white">{{ editorDiscountSummary }}</div>
