@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative flex flex-col items-stretch gap-3 sm:gap-4"
+    class="relative flex gap-3 sm:gap-4"
   >
     <div class="relative z-30 min-w-0 flex-1">
       <UInput
@@ -27,7 +27,7 @@
       <UButton
         color="primary"
         variant="solid"
-        class="grouped-action-button min-h-[52px] justify-center rounded-[16px] bg-[#1f78ff] px-4 text-white shadow-[0_18px_40px_rgba(31,120,255,0.22)] hover:bg-[#4993dd] sm:min-w-[170px] sm:flex-none"
+        class="grouped-action-button min-h-[52px] justify-center rounded-[16px] bg-[#1f78ff] px-4 text-white shadow-[0_18px_40px_rgba(31,120,255,0.22)] hover:bg-[#4993dd] sm:min-w-[56px] sm:flex-none"
         :disabled="isActionBusy"
         aria-label="Открыть возврат или обмен"
         title="Открыть возврат или обмен"
@@ -39,7 +39,7 @@
       <UButton
         color="neutral"
         variant="solid"
-        class="grouped-action-button min-h-[52px] justify-center rounded-[16px] bg-[#303030] px-4 text-white hover:bg-[#3a3a3a] sm:min-w-[170px] sm:flex-none"
+        class="grouped-action-button min-h-[52px] justify-center rounded-[16px] bg-[#303030] px-4 text-white hover:bg-[#3a3a3a] sm:min-w-[56px] sm:flex-none"
         :disabled="isActionBusy"
         aria-label="Открыть черновики или отложки"
         title="Открыть черновики или отложки"
@@ -120,7 +120,7 @@
         <div class="ml-auto flex shrink-0 flex-col items-end whitespace-nowrap text-right">
           <span>{{ formatPrice(product.price) }} UZS</span>
           <span class="text-[#999]"
-            >Кол-во: {{ Number(product.availableQuantity ?? 0) }} шт</span
+            >Кол-во: {{ Number(product.availableQuantity ?? 0) }} {{ resolveMeasurementUnitLabel(product) }}</span
           >
         </div>
       </button>
@@ -295,7 +295,7 @@
                             {{ item.barcode || item.article || "Без кода" }}
                           </div>
                           <div class="mt-2 text-sm text-[#bdbdbd]">
-                            Продано: {{ item.quantity }} шт •
+                            Продано: {{ item.quantity }} {{ item.measurementUnitLabel }} /
                             {{ formatPrice(item.lineTotal) }} UZS
                           </div>
                         </div>
@@ -327,7 +327,7 @@
                         </div>
 
                         <div v-else class="text-right text-sm text-[#d3d3d3]">
-                          {{ item.quantity }} шт
+                          {{ item.quantity }} {{ item.measurementUnitLabel }}
                         </div>
                       </div>
                     </div>
@@ -424,6 +424,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
+import { resolveMeasurementUnitLabel } from "@/composables/useMeasurementUnitLabel";
 import { useCartStore } from "~/store/cart";
 
 type PickerMode = "return" | "exchange" | "draft" | "parked";
@@ -453,6 +454,7 @@ type SaleListItem = {
     unitPrice: number;
     barcode: string;
     article: string;
+    measurementUnitLabel: string;
   }>;
 };
 
@@ -747,6 +749,12 @@ function normalizeSale(raw: any): SaleListItem {
           article: String(
             item?.sku ?? item?.article ?? item?.product?.sku ?? "",
           ),
+          measurementUnitLabel: resolveMeasurementUnitLabel({
+            ...item,
+            product: item?.product,
+            measurementUnitLabel:
+              item?.measurementUnitLabel ?? item?.measurement_unit_label,
+          }),
         };
       })
       .filter((item: any) => item.productId && item.quantity > 0),
@@ -863,6 +871,7 @@ async function handlePrimaryAction() {
         article: item.article,
         quantity: item.selectedQuantity,
         price: item.unitPrice,
+        measurementUnitLabel: item.measurementUnitLabel,
       })),
     });
 
@@ -934,6 +943,8 @@ function extractSalesFromResponse(response: any) {
   if (Array.isArray(response)) return response;
   return [];
 }
+
+
 </script>
 
 <style scoped>
@@ -947,3 +958,4 @@ function extractSalesFromResponse(response: any) {
   opacity: 0;
 }
 </style>
+

@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { nonNegative } from "~/composables/useCreateProductForm";
+import { resolveFormMeasurementUnitLabel } from "@/composables/useMeasurementUnitLabel";
 import { useProductStore } from "@/store/productStore";
 
 type ReceiptTarget =
@@ -59,6 +60,8 @@ const supplierOptions = computed(() => {
   const currentSupplier = String(store.form.attributes.supplier ?? "").trim();
   return Array.from(new Set([...sourceSuppliers, currentSupplier].filter(Boolean)));
 });
+const receiptMeasurementUnitLabel = computed(() => resolveFormMeasurementUnitLabel(store.form));
+
 const receiptPurchasePriceDisplay = computed({
   get: () => formatNumber(receiptPurchasePrice.value),
   set: (value: string) => {
@@ -368,7 +371,7 @@ function receiptTargetLabel() {
                   class="w-full"
                   :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#363636] p-4 text-[18px] font-semibold text-white' }"
                 />
-                <span class="text-sm text-[#bdbdbd]">шт</span>
+                <span class="text-sm text-[#bdbdbd]">{{ receiptMeasurementUnitLabel }}</span>
               </div>
             </div>
 
@@ -440,3 +443,4 @@ function receiptTargetLabel() {
     </UModal>
   </section>
 </template>
+

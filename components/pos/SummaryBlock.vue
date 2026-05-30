@@ -1,19 +1,19 @@
 <template>
-  <div class="flex flex-col overflow-hidden rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(38,38,38,0.98),rgba(28,28,28,0.98))] text-[15px] font-bold shadow-[0_22px_50px_rgba(0,0,0,0.18)] sm:rounded-[28px] sm:text-[17px]">
-    <div class="flex items-center justify-between border-b border-white/6 p-4">
-      <span>Промежуточно</span>
+  <div class="flex flex-col overflow-hidden rounded-t-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(38,38,38,0.98),rgba(28,28,28,0.98))] text-[15px] font-bold shadow-[0_22px_50px_rgba(0,0,0,0.18)] sm:rounded-t-[20px] sm:text-[17px]">
+    <div class="flex items-center justify-between  px-4 py-5 sm:px-5 sm:py-4">
+      <span>Подытог</span>
       <span v-if="showSummarySkeleton" class="h-5 w-28 animate-pulse rounded-full bg-[#404040]" />
       <span v-else>{{ formatPrice(subtotal) }} UZS</span>
     </div>
 
-    <div class="flex items-center justify-between border-b border-white/6 p-4">
+    <div class="flex items-center justify-between  px-4 py-5 sm:px-5 sm:py-4">
       <span>Скидки</span>
       <span v-if="showSummarySkeleton" class="h-5 w-24 animate-pulse rounded-full bg-[#404040]" />
       <span v-else>{{ formatPrice(totalDiscount) }} UZS</span>
     </div>
 
     <button
-      class="flex w-full items-center justify-between rounded-none px-4 py-5 sm:px-5 sm:py-6"
+      class="flex w-full items-center justify-between rounded-[20px] px-4 py-5 sm:px-5 sm:py-6"
       :class="canStartCheckout ? 'bg-[#1f78ff]' : 'cursor-not-allowed bg-[#bdbdbd]'"
       :disabled="!canStartCheckout"
       @click="openPaymentPanel"
@@ -24,21 +24,20 @@
           name="heroicons:arrow-path"
           class="h-4 w-4 animate-spin"
         />
-        Оплаты
+        Оплатить
       </span>
       <span v-if="showSummarySkeleton" class="h-5 w-32 animate-pulse rounded-full bg-white/25" />
       <span v-else class="text-right text-[15px] sm:text-[17px]">{{ formatPrice(totalAmount) }} UZS</span>
     </button>
 
     <button
-      v-if="canParkSale"
-      class="flex w-full items-center justify-center border-t border-white/6 p-5 text-gray-300"
+      class="flex w-full items-center justify-center p-5 text-gray-300"
       :class="cartStore.parkingLoading ? 'cursor-not-allowed opacity-60' : ''"
-      :disabled="cartStore.parkingLoading"
+      :disabled="canParkSale"
       @click="onPark"
     >
       <Icon v-if="cartStore.parkingLoading" name="heroicons:arrow-path" class="mr-2 h-4 w-4 animate-spin" />
-      Отложить чек
+      Отложить
     </button>
 
     <AppSlideover
@@ -79,7 +78,7 @@
             <div class="space-y-3 text-[14px] text-[#bdbdbd]">
               <div class="flex items-center justify-between">
                 <span>Товаров</span>
-                <span>{{ totalQuantity }} шт</span>
+                <span>{{ totalQuantity }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span>Промежуточно</span>
@@ -801,3 +800,4 @@ watch(debtModalOpen, (next) => {
   }
 });
 </script>
+

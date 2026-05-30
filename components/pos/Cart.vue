@@ -1,5 +1,5 @@
 <template>
-  <div class="relative mt-6 rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(48,48,48,0.95),rgba(38,38,38,0.98))] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.18)] sm:mt-[30px] sm:rounded-[30px] sm:p-5">
+  <div class="relative mt-6 rounded-[26px]  sm:mt-[30px] sm:rounded-[30px] ">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex flex-wrap items-center gap-3">
         <h3 class="text-[24px] font-semibold sm:text-[36px]">Корзина</h3>
@@ -108,7 +108,7 @@
 
     <div
       v-else
-      class="mt-[20px] w-full rounded-[25px] border border-white/6 bg-[#2d2d2d] p-2 overflow-visible xl:max-h-[calc(100vh-360px)] xl:overflow-y-auto"
+      class="mt-[20px] "
     >
       <CartItem
         v-for="item in cart"
