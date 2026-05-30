@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { navigateTo } from "#app";
+import { useAuth } from "@/composables/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
 import UserPanel from "./UserPanel/UserPanel.vue";
 
 const userStore = useUserStore();
 const locationStore = useLocationStore();
+const { logout } = useAuth();
 let logoutInFlight: Promise<void> | null = null;
 
 const user = computed(() => ({
@@ -23,7 +25,7 @@ const handleLogout = async () => {
 
   logoutInFlight = (async () => {
     try {
-      userStore.logout();
+      await logout();
       await navigateTo("/auth/login", { replace: true });
     } finally {
       logoutInFlight = null;

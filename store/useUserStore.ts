@@ -124,6 +124,7 @@ export const useUserStore = defineStore("user", {
   state: () => ({
     user: null as NormalizedUser | null,
     token: null as string | null,
+    refreshToken: null as string | null,
     location: null as null | { id: string; name: string },
     initializing: false as boolean,
     authLoading: true as boolean,
@@ -457,6 +458,7 @@ export const useUserStore = defineStore("user", {
 
       try {
         this.loadToken();
+        this.loadRefreshToken();
         this.loadLocation();
 
         if (!this.token) {
@@ -477,15 +479,23 @@ export const useUserStore = defineStore("user", {
         this.authChecked = true;
       }
     },
-    login(token: string, userData: any) {
+    login(token: string, userData: any, refreshToken?: string) {
       this.token = token;
+      this.refreshToken = refreshToken ? String(refreshToken) : null;
       this.setUser(userData);
       useLocationStore().syncFromUser(userData);
       try {
         const tokenCookie = useCookie<string | null>("auth_token", { sameSite: "lax" });
+        const refreshTokenCookie = useCookie<string | null>("auth_refresh_token", { sameSite: "lax" });
         tokenCookie.value = token;
+        refreshTokenCookie.value = this.refreshToken;
         if (import.meta.client) {
           localStorage.setItem("auth_token", token);
+          if (this.refreshToken) {
+            localStorage.setItem("auth_refresh_token", this.refreshToken);
+          } else {
+            localStorage.removeItem("auth_refresh_token");
+          }
         }
       } catch (_) {}
     },
@@ -499,6 +509,20 @@ export const useUserStore = defineStore("user", {
         }
       } catch (_) {}
     },
+    setRefreshToken(token: string) {
+      this.refreshToken = token;
+      try {
+        const refreshTokenCookie = useCookie<string | null>("auth_refresh_token", { sameSite: "lax" });
+        refreshTokenCookie.value = token;
+        if (import.meta.client) {
+          localStorage.setItem("auth_refresh_token", token);
+        }
+      } catch (_) {}
+    },
+    setAuthTokens(token: string, refreshToken: string) {
+      this.setToken(token);
+      this.setRefreshToken(refreshToken);
+    },
     loadToken() {
       try {
         const tokenCookie = useCookie<string | null>("auth_token");
@@ -509,6 +533,19 @@ export const useUserStore = defineStore("user", {
         if (import.meta.client) {
           const token = localStorage.getItem("auth_token");
           if (token) this.token = token;
+        }
+      } catch (_) {}
+    },
+    loadRefreshToken() {
+      try {
+        const refreshTokenCookie = useCookie<string | null>("auth_refresh_token");
+        if (refreshTokenCookie?.value) {
+          this.refreshToken = refreshTokenCookie.value;
+          return;
+        }
+        if (import.meta.client) {
+          const refreshToken = localStorage.getItem("auth_refresh_token");
+          if (refreshToken) this.refreshToken = refreshToken;
         }
       } catch (_) {}
     },
@@ -534,6 +571,7 @@ export const useUserStore = defineStore("user", {
     logout() {
       this.user = null;
       this.token = null;
+      this.refreshToken = null;
       this.location = null;
       this.initializing = false;
       this.authLoading = false;
@@ -552,9 +590,12 @@ export const useUserStore = defineStore("user", {
       useLocationStore().reset();
       try {
         const tokenCookie = useCookie<string | null>("auth_token");
+        const refreshTokenCookie = useCookie<string | null>("auth_refresh_token");
         tokenCookie.value = null;
+        refreshTokenCookie.value = null;
         if (import.meta.client) {
           localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_refresh_token");
           localStorage.removeItem("selectedLocation");
         }
       } catch (_) {}
