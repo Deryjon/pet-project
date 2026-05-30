@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
 <template>
   <section
     v-if="showAuthLoader || !canRenderDashboard"
-    class="relative flex min-h-screen items-center justify-center bg-[#1f1f1f] px-4"
+    class="relative flex min-h-screen items-center justify-center bg-[#1f1f1f] px-6"
   >
     <div
       class="inline-flex min-w-[168px] items-center justify-center gap-2.5 rounded-[18px] border border-white/10 bg-[#262626]/95 px-5 py-3.5 text-[15px] font-bold text-white shadow-2xl"
@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
       ]"
       style="max-width: 100vw; overflow-x: hidden"
     >
-      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur-sm -mx-6 px-6 lg:hidden">
+      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 py-3 backdrop-blur-sm px-6 lg:hidden">
         <UButton
           color="neutral"
           variant="soft"

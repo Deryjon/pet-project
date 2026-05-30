@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useAuth } from "@/composables/useAuth";
 import BaseButton from "../ui/BaseButton.vue";
 import { usePanelStore } from "@/store/usePanelStore";
-import { useUserStore } from "@/store/useUserStore";
 
 const panel = usePanelStore();
-const user = useUserStore();
+const { logout } = useAuth();
 const isSubmitting = ref(false);
 
 const handleConfirm = async () => {
@@ -16,7 +16,7 @@ const handleConfirm = async () => {
   isSubmitting.value = true;
 
   try {
-    user.logout();
+    await logout();
     panel.closeAll();
     await navigateTo("/auth/login");
   } finally {
