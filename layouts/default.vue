@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
 
     <div
       :class="[
-        'app-main-content relative min-h-screen min-w-0 pt-6 text-white transition-all duration-300 ease-in-out lg:px-2',
+        'app-main-content relative min-h-screen min-w-0 pt-6 text-white transition-all duration-300 ease-in-out px-6',
         isMobileViewport
           ? 'w-full ml-0'
           : sidebar.collapsed
@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
       ]"
       style="max-width: 100vw; overflow-x: hidden"
     >
-      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:hidden">
+      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 px-4 py-3 backdrop-blur-sm -mx-6 px-6 lg:hidden">
         <UButton
           color="neutral"
           variant="soft"
