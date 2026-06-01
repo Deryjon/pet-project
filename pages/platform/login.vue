@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { nextTick, reactive, ref, watch } from "vue";
+import { navigateTo } from "#app";
 import { usePlatformAuth } from "@/composables/usePlatformAuth";
 
 definePageMeta({ layout: false });
 
-const router = useRouter();
 const { signIn, restore, authenticated } = usePlatformAuth();
 
 const form = reactive({
@@ -45,7 +44,7 @@ watch(
 
 restore().then((hasAccess) => {
   if (hasAccess || authenticated.value) {
-    router.replace("/platform");
+    navigateTo("/platform", { replace: true });
   }
 });
 
@@ -67,7 +66,12 @@ async function submit() {
       phone_number: `998${digits}`,
       password: form.password.trim(),
     });
-    await router.replace("/platform");
+    await nextTick();
+    const restored = await restore();
+    if (!restored && !authenticated.value) {
+      throw new Error("Не удалось восстановить сессию платформы");
+    }
+    await navigateTo("/platform", { replace: true });
   } catch (error: any) {
     const message = error?.data?.message;
     serverError.value = Array.isArray(message)

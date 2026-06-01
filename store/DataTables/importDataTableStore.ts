@@ -141,9 +141,43 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       }),
       cell: ({ getValue }: any) => {
         const value = getValue();
-        return h("div", { class: "whitespace-normal leading-6" }, [
-          h("div", {}, `приход ${formatNumber(value?.loaded)}`),
-          h("div", {}, `проверено ${formatNumber(value?.arrived)}`),
+        return h("div", { class: "flex flex-col gap-2 whitespace-normal" }, [
+          h(
+            "div",
+            {
+              class:
+                "inline-flex w-fit items-center gap-2 rounded-full bg-[#4993dd]/12 px-2.5 py-1 text-[12px] font-semibold text-[#4993dd]",
+            },
+            [
+              h(
+                "span",
+                {
+                  class:
+                    "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#4993dd]/18 text-[12px] leading-none text-[#4993dd]",
+                },
+                "↓",
+              ),
+              h("span", {}, formatNumber(value?.loaded)),
+            ],
+          ),
+          h(
+            "div",
+            {
+              class:
+                "inline-flex w-fit items-center gap-2 rounded-full bg-[#32b67a]/12 px-2.5 py-1 text-[12px] font-semibold text-[#32b67a]",
+            },
+            [
+              h(
+                "span",
+                {
+                  class:
+                    "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#32b67a]/18 text-[12px] leading-none text-[#32b67a]",
+                },
+                "✓",
+              ),
+              h("span", {}, formatNumber(value?.arrived)),
+            ],
+          ),
         ]);
       },
       meta: {
@@ -160,9 +194,43 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       }),
       cell: ({ getValue }: any) => {
         const value = getValue();
-        return h("div", { class: "whitespace-normal leading-6" }, [
-          h("div", {}, `приход ${formatCurrency(value?.supply)}`),
-          h("div", {}, `продажа ${formatCurrency(value?.retail)}`),
+        return h("div", { class: "flex flex-col gap-2 whitespace-normal" }, [
+          h(
+            "div",
+            {
+              class:
+                "inline-flex w-fit items-center gap-2 rounded-full bg-[#d4a62a]/12 px-2.5 py-1 text-[12px] font-semibold text-[#d4a62a]",
+            },
+            [
+              h(
+                "span",
+                {
+                  class:
+                    "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#d4a62a]/18 text-[12px] leading-none text-[#d4a62a]",
+                },
+                "↓",
+              ),
+              h("span", {}, formatCurrency(value?.supply)),
+            ],
+          ),
+          h(
+            "div",
+            {
+              class:
+                "inline-flex w-fit items-center gap-2 rounded-full bg-[#9b6dff]/12 px-2.5 py-1 text-[12px] font-semibold text-[#9b6dff]",
+            },
+            [
+              h(
+                "span",
+                {
+                  class:
+                    "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#9b6dff]/18 text-[12px] leading-none text-[#9b6dff]",
+                },
+                "↑",
+              ),
+              h("span", {}, formatCurrency(value?.retail)),
+            ],
+          ),
         ]);
       },
       meta: {

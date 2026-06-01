@@ -166,7 +166,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useHead, useRoute, useRouter } from "#imports";
+import { navigateTo, useHead, useRoute, useRouter } from "#imports";
 import { useProductImport, type ImportSession } from "~/composables/useProductImport";
 
 const route = useRoute();
@@ -376,7 +376,7 @@ async function cancelImport() {
 }
 
 function goBack() {
-  router.push("/products/import");
+  return navigateTo("/products/import", { replace: true });
 }
 
 onMounted(async () => {

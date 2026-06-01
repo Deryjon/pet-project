@@ -1,14 +1,14 @@
 ﻿<template>
   <div class="bg-[#262626] text-white">
     <section
-      class="relative flex min-h-[100vh] flex-col gap-4 px-3 pb-28 pt-2 sm:gap-5 sm:px-4 sm:pb-32 xl:min-h-[calc(100vh-24px)] xl:h-[calc(100vh-24px)] xl:flex-row xl:items-stretch xl:gap-6 xl:bg-[#262626] xl:px-3 xl:pb-0 xl:pt-2"
+      class="relative flex min-h-[100vh] flex-col gap-4 pb-28 pt-2 sm:gap-5 sm:px-4 sm:pb-32 xl:min-h-[calc(100vh-24px)] xl:h-[calc(100vh-24px)] xl:flex-row xl:items-stretch xl:gap-6 xl:bg-[#262626] xl:px-3 xl:pb-0 xl:pt-2"
     >
       <div
         v-if="searchLoadingOverlay"
         class="pointer-events-none absolute inset-0 z-30 bg-white/8 backdrop-blur-[3px]"
       />
 
-      <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] bg-[#2f2f2f]/35 p-3 xl:h-full xl:rounded-none xl:bg-transparent xl:p-2">
+      <div class="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden  xl:h-full  xl:p-2">
         <SearchBar />
         <div
           v-if="cartStore.lastCartError"
@@ -34,7 +34,7 @@
       />
 
       <div
-        class="flex w-full shrink-0 flex-col gap-4 rounded-[24px] bg-[#2f2f2f]/35 p-3 xl:h-full xl:w-[350px] xl:justify-end xl:gap-5 xl:rounded-[28px] xl:bg-transparent xl:p-0 xl:ml-0"
+        class="flex w-full shrink-0 flex-col gap-4  p-3 xl:h-full xl:w-[350px] xl:justify-end xl:gap-5 xl:rounded-[28px] xl:p-0 xl:ml-0"
       >
         <div class="flex flex-col gap-4 xl:gap-5">
           <ClientForm />
