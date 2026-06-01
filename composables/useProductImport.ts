@@ -18,8 +18,16 @@ export interface ImportOnMatchPolicy {
   brand: ImportMatchPolicy;
   category: ImportMatchPolicy;
   description: ImportMatchPolicy;
-  measurementUnit: ImportMatchPolicy;
+  measurement_unit: ImportMatchPolicy;
   supplier: ImportMatchPolicy;
+  supply_price: ImportMatchPolicy;
+  retail_price: ImportMatchPolicy;
+}
+
+export interface ImportValidationIssue {
+  code: string;
+  field: string;
+  message: string;
 }
 
 export interface ImportProperty {
@@ -91,6 +99,7 @@ export interface ImportPreviewItem {
   difference: boolean;
   different_fields: string[];
   old_product: Record<string, unknown> | null;
+  validation_issues: ImportValidationIssue[];
   error?: string;
   raw: {
     name: string;
@@ -111,6 +120,8 @@ export interface ImportDryRunSummary {
   create_count: number;
   update_count: number;
   error_count: number;
+  blocking_error_count: number;
+  conflicted_count: number;
   conflict_fields: Record<string, number>;
 }
 
@@ -222,8 +233,10 @@ const DEFAULT_ON_MATCH_POLICY: ImportOnMatchPolicy = {
   brand: "keep_store",
   category: "keep_store",
   description: "from_file",
-  measurementUnit: "keep_store",
+  measurement_unit: "keep_store",
   supplier: "keep_store",
+  supply_price: "keep_store",
+  retail_price: "keep_store",
 };
 
 function unwrapPayload<T = any>(response: any): T {
@@ -392,11 +405,19 @@ function normalizeOnMatchPolicy(raw: any): ImportOnMatchPolicy {
     brand: raw?.brand === "from_file" ? "from_file" : "keep_store",
     category: raw?.category === "from_file" ? "from_file" : "keep_store",
     description: raw?.description === "keep_store" ? "keep_store" : "from_file",
-    measurementUnit:
+    measurement_unit:
       raw?.measurementUnit === "from_file" || raw?.measurement_unit === "from_file"
         ? "from_file"
         : "keep_store",
     supplier: raw?.supplier === "from_file" ? "from_file" : "keep_store",
+    supply_price:
+      raw?.supply_price === "from_file" || raw?.supplyPrice === "from_file"
+        ? "from_file"
+        : "keep_store",
+    retail_price:
+      raw?.retail_price === "from_file" || raw?.retailPrice === "from_file"
+        ? "from_file"
+        : "keep_store",
   };
 }
 
@@ -411,9 +432,24 @@ function buildOnMatchPayload(policy?: Partial<ImportOnMatchPolicy>) {
     brand: resolved.brand,
     category: resolved.category,
     description: resolved.description,
-    measurementUnit: resolved.measurementUnit,
+    measurementUnit: resolved.measurement_unit,
     supplier: resolved.supplier,
+    supplyPrice: resolved.supply_price,
+    retailPrice: resolved.retail_price,
   };
+}
+
+function normalizeValidationIssues(raw: any): ImportValidationIssue[] {
+  const parsed = Array.isArray(raw) ? raw : parseJsonIfNeeded<any[]>(raw);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .map((issue: any) => ({
+      code: String(issue?.code ?? "").trim(),
+      field: String(issue?.field ?? "").trim(),
+      message: String(issue?.message ?? issue?.error ?? "").trim(),
+    }))
+    .filter((issue) => issue.code || issue.field || issue.message);
 }
 
 function normalizeDryRunSummary(raw: any): ImportDryRunSummary | null {
@@ -428,6 +464,8 @@ function normalizeDryRunSummary(raw: any): ImportDryRunSummary | null {
     create_count: toNumber(payload?.create_count),
     update_count: toNumber(payload?.update_count),
     error_count: toNumber(payload?.error_count),
+    blocking_error_count: toNumber(payload?.blocking_error_count),
+    conflicted_count: toNumber(payload?.conflicted_count),
     conflict_fields: Object.fromEntries(
       Object.entries(sourceFields).map(([field, count]) => [field, toNumber(count)]),
     ),
@@ -460,6 +498,12 @@ function normalizeAuditRows(raw: any): ImportAuditRow[] {
 function normalizeCommitResult(raw: any): ImportCommitResult {
   const payload = resolveImportPayload(raw);
   const parsedErrors = parseJsonIfNeeded<any[]>(payload?.errors);
+  const committedBy =
+    typeof payload?.committed_by === "object" && payload?.committed_by
+      ? String(payload.committed_by.full_name ?? payload.committed_by.name ?? payload.committed_by.user_id ?? "").trim()
+      : payload?.committed_by
+        ? String(payload.committed_by).trim()
+        : "";
 
   return {
     created_count: toNumber(payload?.created_count),
@@ -478,7 +522,7 @@ function normalizeCommitResult(raw: any): ImportCommitResult {
         : [],
     audit_rows: normalizeAuditRows(payload?.audit_rows),
     committed_at: payload?.committed_at ? String(payload.committed_at) : undefined,
-    committed_by: payload?.committed_by ? String(payload.committed_by) : undefined,
+    committed_by: committedBy || undefined,
     idempotent: payload?.idempotent === true,
   };
 }
@@ -575,7 +619,12 @@ function normalizePreviewItem(raw: any, importId: string): ImportPreviewItem {
     retail_price: toNumber(raw?.retail_price),
     supply_currency: String(raw?.supply_currency ?? ""),
     retail_currency: String(raw?.retail_currency ?? ""),
-    measurement_type: String(raw?.measurement_type ?? ""),
+    measurement_type: String(
+      raw?.measurement_type ??
+      raw?.measurement_unit?.short_name ??
+      raw?.measurement_unit?.name ??
+      "",
+    ),
     product_info:
       raw?.product_info && typeof raw.product_info === "object" ? raw.product_info : null,
     free_price: Boolean(raw?.free_price),
@@ -586,6 +635,7 @@ function normalizePreviewItem(raw: any, importId: string): ImportPreviewItem {
       : [],
     old_product:
       raw?.old_product && typeof raw.old_product === "object" ? raw.old_product : null,
+    validation_issues: normalizeValidationIssues(raw?.validation_issues),
     error: raw?.error ? String(raw.error) : undefined,
     raw: {
       name: String(rawPayload?.name ?? raw?.product_name ?? ""),
@@ -608,6 +658,10 @@ function normalizePreviewItem(raw: any, importId: string): ImportPreviewItem {
         ? String(rawPayload.measurementUnit)
         : rawPayload?.measurement_unit
           ? String(rawPayload.measurement_unit)
+          : raw?.measurement_unit?.short_name
+            ? String(raw.measurement_unit.short_name)
+            : raw?.measurement_unit?.name
+              ? String(raw.measurement_unit.name)
           : undefined,
       supplier: rawPayload?.supplier ? String(rawPayload.supplier) : undefined,
       description: rawPayload?.description ? String(rawPayload.description) : undefined,
@@ -995,11 +1049,12 @@ export function useProductImport() {
     }
   }
 
-  async function commitImportSession(id: string) {
+  async function commitImportSession(id: string, options?: { onMatch?: Partial<ImportOnMatchPolicy> }) {
     try {
       const importId = ensureImportId(id);
       const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}/commit`, {
         method: "POST",
+        body: options?.onMatch ? { on_match: buildOnMatchPayload(options.onMatch) } : undefined,
       });
 
       return normalizeCommitResult(response);

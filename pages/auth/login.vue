@@ -8,6 +8,8 @@ import { useUserStore } from "~/store/useUserStore";
 
 definePageMeta({ layout: "auth" });
 
+useHead({ title: "Konkurent CRM" });
+
 interface ConfirmedCompany {
   login: string;
   name: string;
@@ -247,7 +249,7 @@ async function handleSubmitAction() {
     <div class="brand-row">
       <div class="brand-mark" aria-hidden="true">K</div>
       <div class="brand-text">
-        <span class="brand-eyebrow">Konkurent.cases</span>
+        <span class="brand-eyebrow">Konkurent CRM</span>
         <span class="brand-subtitle">Рабочий кабинет</span>
       </div>
     </div>
