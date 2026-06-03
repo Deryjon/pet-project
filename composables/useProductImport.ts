@@ -981,6 +981,39 @@ export function useProductImport() {
     }
   }
 
+  async function validateExcelImport(id: string, payload: ValidateImportPayload) {
+    try {
+      const importId = ensureImportId(id);
+      const response = await apiFetch<any>("/v2/excel/validate-import", {
+        method: "POST",
+        body: {
+          import_id: importId,
+          ...buildValidateBody({
+            ...payload,
+            autoCommit: false,
+          }),
+        },
+      });
+
+      const resolved = unwrapPayload(response);
+      const resolvedJobId = String(
+        resolved?.job_id ??
+          resolved?.correlation_id ??
+          resolved?.message ??
+          resolved?.import_id ??
+          "",
+      ).trim();
+
+      return {
+        jobId: resolvedJobId,
+        importId: String(resolved?.import_id ?? resolved?.correlation_id ?? importId).trim(),
+        correlationId: String(resolved?.correlation_id ?? resolved?.import_id ?? importId).trim(),
+      };
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   async function getImportProgress(jobId: string) {
     try {
       const response = await apiFetch<ImportProgressResponse>(
@@ -1102,6 +1135,7 @@ export function useProductImport() {
     listImportSessions,
     getImportSession,
     validateImportSession,
+    validateExcelImport,
     getImportProgress,
     waitForImport,
     getImportPreview,

@@ -1,4 +1,4 @@
-import { useRouter } from "#app";
+import { useRouter } from "vue-router";
 import { defineStore } from "pinia";
 import { computed, h, ref, watch } from "vue";
 import {

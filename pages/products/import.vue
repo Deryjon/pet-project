@@ -13,293 +13,285 @@
       panelClass="bg-[#2b2b2b] text-white"
     >
       <div class="flex items-start justify-between gap-4 px-4 py-4 sm:px-8 sm:py-6">
-            <div>
-              <p class="text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]">
-                Шаг {{ modalStep }} из 2
-              </p>
-              <h3 class="mt-2 text-[30px] font-bold">
-                {{ modalStep === 1 ? "Новый импорт" : "Параметры импорта" }}
-              </h3>
-              <p class="mt-1 text-[15px] text-[#bdbdbd]">
-                {{
-                  modalStep === 1
-                    ? "Загрузите файл и проверьте базовые ошибки перед созданием серверного импорта."
-                    : "Выберите режим и создайте import session на сервере."
-                }}
-              </p>
-            </div>
+        <div>
+          <h3 class="mt-2 text-[30px] font-bold">
+            {{ modalStep === 1 ? "Новый импорт" : "Подтверждение импорта" }}
+          </h3>
+          <p class="mt-1 text-[15px] text-[#bdbdbd]">
+            {{
+              modalStep === 1
+                ? "Загрузите файл и проверьте базовые ошибки перед созданием серверного импорта."
+                : "Проверьте файл и параметры импорта перед продолжением."
+            }}
+          </p>
+        </div>
 
-            <button
-              type="button"
-              class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#404040] transition-colors duration-200 hover:bg-[#5e5e5e]"
-              @click="closeImportModal"
-            >
-              <Icon name="heroicons:x-mark-20-solid" class="h-6 w-6" />
-            </button>
+        <button
+          type="button"
+          class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#404040] transition-colors duration-200 hover:bg-[#5e5e5e]"
+          @click="closeImportModal"
+        >
+          <Icon name="heroicons:x-mark-20-solid" class="h-6 w-6" />
+        </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
+      <div class="import-slideover-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-8">
         <div v-if="modalStep === 1" class="space-y-6">
-              <div class="space-y-2">
-                <label class="text-[16px] font-bold text-white">Наименование</label>
-                <input
-                  v-model="form.name"
-                  type="text"
-                  class="w-full rounded-[18px] border border-transparent bg-[#404040] px-4 py-3 text-[15px] text-white outline-none transition-colors duration-200 placeholder:text-[#9f9f9f] focus:border-[#4993dd] sm:px-5 sm:py-4 sm:text-[16px]"
-                  placeholder="Импорт 13.04.2026 01:37"
-                />
-              </div>
+          <div class="space-y-2">
+            <label class="text-[16px] font-bold text-white">Наименование</label>
+            <input
+              v-model="form.name"
+              type="text"
+              class="w-full rounded-[18px] border border-transparent bg-[#404040] px-4 py-3 text-[15px] text-white outline-none transition-colors duration-200 placeholder:text-[#9f9f9f] focus:border-[#4993dd] sm:px-5 sm:py-4 sm:text-[16px]"
+              :placeholder="createDefaultImportName()"
+            />
+          </div>
 
-              <CustomSelect
-                v-model="form.shopId"
-                label="Магазин"
-                :options="shopOptions"
-                placeholder="Выберите магазин"
+          <CustomSelect
+            v-model="form.shopId"
+            label="Филиал"
+            :options="shopOptions"
+            placeholder="Выберите филиал"
+          />
+
+          <div
+            v-if="bootstrapLoading"
+            class="rounded-[20px] bg-[#363636] px-5 py-4 text-[14px] text-[#bdbdbd]"
+          >
+            Загружаем филиалы и свойства импорта...
+          </div>
+
+          <div
+            v-else-if="bootstrapError"
+            class="rounded-[20px] border border-[#7f3d3d] bg-[#442f2f] px-5 py-4 text-[14px] text-[#ffd7d7]"
+          >
+            {{ bootstrapError }}
+          </div>
+
+          <div class="space-y-2">
+            <span class="block text-[16px] font-bold text-white">Файл</span>
+            <label
+              class="block cursor-pointer rounded-[24px] border border-dashed p-4 transition-colors duration-200 sm:p-6"
+              :class="isDragging ? 'border-[#4993dd] bg-[#24384f]' : 'border-[#5e5e5e] bg-[#363636]'"
+              @dragenter.prevent="isDragging = true"
+              @dragover.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="onFileDrop"
+            >
+              <input
+                ref="fileInputRef"
+                type="file"
+                class="hidden"
+                accept=".xls,.xlsx,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                @change="onFileChange"
               />
 
-              <div v-if="bootstrapLoading" class="rounded-[20px] bg-[#363636] px-5 py-4 text-[14px] text-[#bdbdbd]">
-                Загружаем магазины и свойства импорта...
-              </div>
-
-              <div v-else-if="bootstrapError" class="rounded-[20px] border border-[#7f3d3d] bg-[#442f2f] px-5 py-4 text-[14px] text-[#ffd7d7]">
-                {{ bootstrapError }}
-              </div>
-
-              <div class="space-y-2">
-                <span class="block text-[16px] font-bold text-white">Файл</span>
-                <label
-                  class="block cursor-pointer rounded-[24px] border border-dashed p-4 transition-colors duration-200 sm:p-6"
-                  :class="isDragging ? 'border-[#4993dd] bg-[#24384f]' : 'border-[#5e5e5e] bg-[#363636]'"
-                  @dragenter.prevent="isDragging = true"
-                  @dragover.prevent="isDragging = true"
-                  @dragleave.prevent="isDragging = false"
-                  @drop.prevent="onFileDrop"
-                >
-                  <input
-                    ref="fileInputRef"
-                    type="file"
-                    class="hidden"
-                    accept=".xls,.xlsx,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    @change="onFileChange"
-                  />
-
-                  <div class="flex flex-col items-center justify-center gap-3 text-center">
-                    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-[#404040]">
-                      <Icon
-                        name="heroicons:document-arrow-up-20-solid"
-                        class="h-7 w-7 text-[#4993dd]"
-                      />
-                    </div>
-                    <div class="space-y-1">
-                      <p class="text-[17px] font-bold text-white">
-                        Перетащите файл сюда или нажмите для выбора
-                      </p>
-                      <p class="text-[14px] text-[#bdbdbd]">
-                        Поддерживаются `.xlsx`, `.xls` и `.csv`.
-                      </p>
-                    </div>
-                  </div>
-                </label>
-
-                <div
-                  v-if="selectedFile"
-                  class="flex flex-col gap-3 rounded-[18px] bg-[#363636] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-                >
-                  <div>
-                    <p class="text-[16px] font-bold text-white">{{ selectedFile.name }}</p>
-                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      {{ formatFileSize(selectedFile.size) }} • {{ parsedRows.length }} строк
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    class="cursor-pointer text-[14px] font-bold text-[#ff8c8c] transition-colors duration-200 hover:text-[#ffb0b0]"
-                    @click="removeFile"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              </div>
-
-              <div class="rounded-[24px] border border-[#4d4d4d] bg-[#343434] p-5">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-[16px] font-bold text-white">Шаблон</p>
-                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Используйте готовый шаблон, если файл еще не подготовлен.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-[16px] bg-[#1f78ff] px-5 py-3 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9]"
-                    @click="downloadTemplate"
-                  >
-                    <Icon name="heroicons:arrow-down-tray-20-solid" class="mr-2 h-5 w-5" />
-                    Скачать шаблон
-                  </button>
-                </div>
-              </div>
-
-              <div
-                v-if="selectedFile && !errors.length && parsedRows.length"
-                class="rounded-[24px] border border-[#2f5f3d] bg-[#23362a] p-5"
-              >
-                <div class="flex items-center gap-2">
-                  <Icon name="heroicons:check-badge-20-solid" class="h-5 w-5 text-[#6fd48f]" />
-                  <p class="text-[16px] font-bold text-white">Файл проверен</p>
-                </div>
-                <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div class="rounded-[16px] bg-black/10 px-4 py-3">
-                    <p class="text-[#bdbdbd]">Строк</p>
-                    <p class="mt-1 text-[18px] font-bold text-white">{{ parsedRows.length }}</p>
-                  </div>
-                  <div class="rounded-[16px] bg-black/10 px-4 py-3">
-                    <p class="text-[#bdbdbd]">Количество</p>
-                    <p class="mt-1 text-[18px] font-bold text-white">{{ totalQuantity }}</p>
-                  </div>
-                  <div class="rounded-[16px] bg-black/10 px-4 py-3">
-                    <p class="text-[#bdbdbd]">Сумма продажи</p>
-                    <p class="mt-1 text-[18px] font-bold text-white">{{ formatCurrency(totalAmount) }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="isParsing" class="rounded-[24px] bg-[#363636] p-5 text-[14px] text-[#bdbdbd]">
-                Проверяем структуру файла и строки импорта...
-              </div>
-
-              <div v-if="errors.length" class="rounded-[24px] border border-[#7f3d3d] bg-[#442f2f] p-5">
-                <div class="flex items-center gap-2">
+              <div class="flex flex-col items-center justify-center gap-3 text-center">
+                <div class="flex h-14 w-14 items-center justify-center rounded-full bg-[#404040]">
                   <Icon
-                    name="heroicons:exclamation-circle-20-solid"
-                    class="h-5 w-5 text-[#ff8c8c]"
+                    name="heroicons:document-arrow-up-20-solid"
+                    class="h-7 w-7 text-[#4993dd]"
                   />
-                  <p class="text-[16px] font-bold text-white">Ошибки</p>
                 </div>
-                <ul class="mt-3 space-y-2 text-[14px] text-[#ffd7d7]">
-                  <li v-for="error in errors" :key="error">{{ error }}</li>
-                </ul>
+                <div class="space-y-1">
+                  <p class="text-[17px] font-bold text-white">
+                    Перетащите файл сюда или нажмите для выбора
+                  </p>
+                  <p class="text-[14px] text-[#bdbdbd]">
+                    Поддерживаются `.xlsx`, `.xls` и `.csv`.
+                  </p>
+                </div>
               </div>
+            </label>
+
+            <div
+              v-if="selectedFile"
+              class="flex flex-col gap-3 rounded-[18px] bg-[#363636] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+            >
+              <div>
+                <p class="text-[16px] font-bold text-white">{{ selectedFile.name }}</p>
+                <p class="mt-1 text-[14px] text-[#bdbdbd]">{{ formatFileSize(selectedFile.size) }}</p>
+              </div>
+
+              <button
+                type="button"
+                class="cursor-pointer text-[14px] font-bold text-[#ff8c8c] transition-colors duration-200 hover:text-[#ffb0b0]"
+                @click="removeFile"
+              >
+                Удалить
+              </button>
             </div>
+          </div>
 
-            <div v-else class="space-y-6">
-              <div class="rounded-[24px] bg-[#363636] p-5">
-                <p class="text-[16px] font-bold text-white">Подготовленный файл</p>
-                <p class="mt-2 text-[14px] text-[#bdbdbd]">
-                  {{ selectedFile?.name }} • {{ parsedRows.length }} строк
+          <div class="rounded-[24px] border border-[#4d4d4d] bg-[#343434] p-5">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="text-[16px] font-bold text-white">Шаблон</p>
+                <p class="mt-1 text-[14px] text-[#bdbdbd]">
+                  Используйте готовый шаблон, если файл еще не подготовлен.
                 </p>
               </div>
 
-              <div class="rounded-[24px] bg-[#363636] p-5">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-[16px] font-bold text-white">Режим импорта</p>
-                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Оба режима создают import session, после чего можно открыть общую таблицу товаров перед загрузкой.
-                    </p>
-                  </div>
-                  <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
-                    <button
-                      v-for="option in modeOptions"
-                      :key="option.value"
-                      type="button"
-                      class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
-                      :class="form.mode === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
-                      @click="form.mode = option.value"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-[16px] bg-[#1f78ff] px-5 py-3 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9]"
+                @click="downloadTemplate"
+              >
+                <Icon name="heroicons:arrow-down-tray-20-solid" class="mr-2 h-5 w-5" />
+                Скачать шаблон
+              </button>
+            </div>
+          </div>
 
-              <div class="rounded-[24px] bg-[#363636] p-5">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-[16px] font-bold text-white">Генерировать штрихкоды</p>
-                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Если barcode пустой, backend сможет подставить новый.
-                    </p>
-                  </div>
-                  <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
-                    <button
-                      v-for="option in booleanOptions"
-                      :key="`barcode-${option.value}`"
-                      type="button"
-                      class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
-                      :class="form.generateBarcodes === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
-                      @click="form.generateBarcodes = option.value"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div
+            v-if="isParsing"
+            class="rounded-[24px] bg-[#363636] p-5 text-[14px] text-[#bdbdbd]"
+          >
+            Проверяем структуру файла и строки импорта...
+          </div>
 
-              <div class="rounded-[24px] bg-[#363636] p-5">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-[16px] font-bold text-white">Генерировать SKU</p>
-                    <p class="mt-1 text-[14px] text-[#bdbdbd]">
-                      Если SKU пустой, backend сможет сгенерировать значение.
-                    </p>
-                  </div>
-                  <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
-                    <button
-                      v-for="option in booleanOptions"
-                      :key="`sku-${option.value}`"
-                      type="button"
-                      class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
-                      :class="form.generateArticles === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
-                      @click="form.generateArticles = option.value"
-                    >
-                      {{ option.label }}
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div
+            v-if="errors.length"
+            class="rounded-[24px] border border-[#7f3d3d] bg-[#442f2f] p-5"
+          >
+            <div class="flex items-center gap-2">
+              <Icon
+                name="heroicons:exclamation-circle-20-solid"
+                class="h-5 w-5 text-[#ff8c8c]"
+              />
+              <p class="text-[16px] font-bold text-white">Ошибки</p>
+            </div>
+            <ul class="mt-3 space-y-2 text-[14px] text-[#ffd7d7]">
+              <li v-for="error in errors" :key="error">{{ error }}</li>
+            </ul>
+          </div>
+        </div>
 
-              <div class="rounded-[24px] border border-[#3c4f69] bg-[#24384f] p-5">
-                <p class="text-[16px] font-bold text-white">Что создадим на сервере</p>
-                <p class="mt-2 text-[14px] text-[#c9d9ee]">
-                  Магазин: {{ selectedShopName || "не выбран" }} • режим:
-                  {{ form.mode === "with_check" ? "с проверкой" : "без проверки" }}
+        <div v-else class="space-y-6">
+          <div class="rounded-[24px] border border-[#3c4f69] bg-[#24384f] p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="break-all text-[18px] font-bold text-white">
+                  {{ selectedFile?.name || "Файл не выбран" }}
                 </p>
+                <div class="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div class="h-full w-full rounded-full bg-[#1f78ff]" />
+                </div>
+                <div class="mt-3 flex items-center gap-3 text-[14px] text-[#c9d9ee]">
+                  <span>100%</span>
+                  <span>{{ selectedFile ? formatFileSize(selectedFile.size) : "0 KB" }}</span>
+                </div>
+                <p class="mt-3 text-[15px] font-semibold text-white">Файл загружен</p>
               </div>
             </div>
           </div>
 
-      <div class="px-4 py-4 sm:px-8 sm:py-6">
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                class="flex-1 cursor-pointer rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
-                @click="modalStep === 1 ? closeImportModal() : goToPreviousStep()"
-              >
-                {{ modalStep === 1 ? "Отмена" : "Назад" }}
-              </button>
-              <button
-                type="button"
-                class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
-                :disabled="isParsing || bootstrapLoading || creatingImport || Boolean(bootstrapError)"
-                @click="modalStep === 1 ? continueToSettings() : submitImport()"
-              >
-                {{ modalStep === 1 ? "Дальше" : creatingImport ? "Создаем..." : "Создать импорт" }}
-              </button>
+          <div class="rounded-[24px] bg-[#363636] p-5">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="text-[16px] font-bold text-white">Генерировать баркоды</p>
+              </div>
+              <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
+                <button
+                  v-for="option in booleanOptions"
+                  :key="`barcode-${option.value}`"
+                  type="button"
+                  class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
+                  :class="form.generateBarcodes === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
+                  @click="form.generateBarcodes = option.value"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div class="rounded-[24px] bg-[#363636] p-5">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="text-[16px] font-bold text-white">Генерировать артикул</p>
+              </div>
+              <div class="flex w-full rounded-[14px] bg-[#2b2b2b] p-1 sm:w-auto">
+                <button
+                  v-for="option in booleanOptions"
+                  :key="`article-${option.value}`"
+                  type="button"
+                  class="flex-1 rounded-[10px] px-4 py-2 text-[13px] font-bold transition-colors duration-200 sm:flex-none sm:text-[14px]"
+                  :class="form.generateArticles === option.value ? 'bg-[#1f78ff] text-white' : 'text-[#bdbdbd]'"
+                  @click="form.generateArticles = option.value"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-[24px] bg-[#363636] p-5">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p class="text-[16px] font-bold text-white">Тип импорта</p>
+              </div>
+              <div class="w-full sm:w-[240px]">
+                <CustomSelect
+                  v-model="form.importType"
+                  :options="importTypeOptions"
+                  placeholder="Выберите тип импорта"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-4 py-4 sm:px-8 sm:py-6">
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            class="flex-1 cursor-pointer rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b]"
+            @click="modalStep === 1 ? closeImportModal() : goToFirstStep()"
+          >
+            {{ modalStep === 1 ? "Отмена" : "Назад" }}
+          </button>
+          <button
+            type="button"
+            class="flex-1 cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8] disabled:text-white/70"
+            :disabled="primaryButtonDisabled"
+            @click="modalStep === 1 ? continueToPreview() : submitImport()"
+          >
+            {{
+              modalStep === 1
+                ? "Дальше"
+                : creatingImport
+                  ? "Создаем..."
+                  : "Продолжить"
+            }}
+          </button>
+        </div>
       </div>
     </AppSlideover>
+
+    <FieldMappingOverlay
+      :open="fieldMappingOpen"
+      :loading="fieldMappingLoading"
+      :submitting="fieldMappingSubmitting"
+      :error="fieldMappingError"
+      :progress-percent="fieldMappingProgressPercent"
+      :progress-message="fieldMappingProgressMessage"
+      :session="createdSession"
+      :available-properties="availableProperties"
+      @close="closeFieldMapping"
+      @continue="handleFieldMappingContinue"
+    />
   </section>
 
-  <NuxtPage v-else />
+  <NuxtPage v-if="isChildRoute" />
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { useHead, useRoute, useRouter } from "#imports";
+import { navigateTo, useHead, useRoute } from "#imports";
 import DataTable from "@/components/ImportDataTable.vue";
+import FieldMappingOverlay from "@/components/import/FieldMappingOverlay.vue";
 import CustomSelect from "@/components/ui/CustomSelect.vue";
 import { useImportDataTableStore } from "@/store/DataTables/importDataTableStore";
 import {
@@ -307,6 +299,7 @@ import {
   type ImportDraftMappingPayload,
   type ImportMode,
   type ImportProperty,
+  type ImportSession,
   type ImportShopOption,
   type ParsedImportRow,
 } from "~/composables/useProductImport";
@@ -317,6 +310,17 @@ interface ImportFormState {
   mode: ImportMode;
   generateBarcodes: boolean;
   generateArticles: boolean;
+  importType: string;
+}
+
+interface ImportSessionDraftState {
+  name: string;
+  shopId: string;
+  mode: ImportMode;
+  generateBarcodes: boolean;
+  generateArticles: boolean;
+  importType: string;
+  mappings: ImportDraftMappingPayload[];
 }
 
 const HEADER_ALIASES: Record<string, keyof ParsedImportRow> = {
@@ -374,19 +378,15 @@ const booleanOptions = [
   { label: "Нет", value: false },
 ];
 
-const modeOptions: Array<{ label: string; value: ImportMode }> = [
-  { label: "С проверкой", value: "with_check" },
-  { label: "Без проверки", value: "without_check" },
-];
+const importTypeOptions = [{ label: "Поступление", value: "Поступление" }];
 
 const importStore = useImportDataTableStore();
-const router = useRouter();
 const route = useRoute();
 const {
   getAllowedShops,
   getImportProperties,
   createImportSession,
-  validateImportSession,
+  validateExcelImport,
   waitForImport,
 } = useProductImport();
 
@@ -404,6 +404,12 @@ const isImportModalOpen = ref(false);
 const modalStep = ref<1 | 2>(1);
 const isDragging = ref(false);
 const isParsing = ref(false);
+const fieldMappingOpen = ref(false);
+const fieldMappingLoading = ref(false);
+const fieldMappingSubmitting = ref(false);
+const fieldMappingError = ref("");
+const fieldMappingProgressPercent = ref(0);
+const fieldMappingProgressMessage = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const parsedRows = ref<ParsedImportRow[]>([]);
@@ -411,24 +417,42 @@ const mappings = ref<ImportDraftMappingPayload[]>([]);
 const errors = ref<string[]>([]);
 const availableProperties = ref<ImportProperty[]>([]);
 const shops = ref<ImportShopOption[]>([]);
-const toast = useToast();
-
+const createdSession = ref<ImportSession | null>(null);
 const form = ref<ImportFormState>({
   name: "",
   shopId: "",
   mode: "with_check",
   generateBarcodes: true,
   generateArticles: true,
+  importType: "Поступление",
 });
 
 const shopOptions = computed(() =>
   shops.value.map((shop) => ({ label: shop.name, value: shop.id })),
 );
-const selectedShopName = computed(
-  () => shops.value.find((shop) => shop.id === form.value.shopId)?.name || form.value.shopId,
-);
-const totalQuantity = computed(() => parsedRows.value.reduce((sum, row) => sum + row.quantity, 0));
-const totalAmount = computed(() => parsedRows.value.reduce((sum, row) => sum + row.quantity * row.retailPrice, 0));
+
+const primaryButtonDisabled = computed(() => {
+  if (modalStep.value === 1) {
+    return (
+      isParsing.value ||
+      bootstrapLoading.value ||
+      creatingImport.value ||
+      Boolean(bootstrapError.value) ||
+      !selectedFile.value ||
+      !form.value.shopId
+    );
+  }
+
+  return creatingImport.value;
+});
+
+function parsePositiveInteger(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const resolvedPage = computed(() => parsePositiveInteger(route.query.page, 1));
+const resolvedLimit = computed(() => parsePositiveInteger(route.query.limit, 10));
 
 function createDefaultImportName() {
   const now = new Date();
@@ -447,14 +471,19 @@ function createDefaultImportName() {
 
 function formatFileSize(size: number) {
   if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024).toFixed(2)} KB`;
   }
 
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function formatCurrency(value: number) {
-  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value)} UZS`;
+function getImportDraftStorageKey(importId: string) {
+  return `product-import-draft:${importId}`;
+}
+
+function saveImportDraft(importId: string, draft: ImportSessionDraftState) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(getImportDraftStorageKey(importId), JSON.stringify(draft));
 }
 
 function downloadTemplate() {
@@ -505,6 +534,7 @@ function resetForm() {
     mode: "with_check",
     generateBarcodes: true,
     generateArticles: true,
+    importType: "Поступление",
   };
   modalStep.value = 1;
   selectedFile.value = null;
@@ -532,7 +562,7 @@ async function loadBootstrapData() {
     availableProperties.value = propertyResponse;
 
     if (!shops.value.length) {
-      bootstrapError.value = "Сервер не вернул доступные магазины.";
+      bootstrapError.value = "Сервер не вернул доступные филиалы.";
     }
   } catch (error: any) {
     shops.value = [];
@@ -553,6 +583,44 @@ function closeImportModal() {
   isImportModalOpen.value = false;
   isDragging.value = false;
   modalStep.value = 1;
+}
+
+function closeFieldMapping() {
+  if (fieldMappingSubmitting.value) return;
+  fieldMappingOpen.value = false;
+  fieldMappingLoading.value = false;
+  fieldMappingSubmitting.value = false;
+  fieldMappingError.value = "";
+  fieldMappingProgressPercent.value = 0;
+  fieldMappingProgressMessage.value = "";
+}
+
+function buildPreviewSession(): ImportSession {
+  return {
+    id: "",
+    shop_id: form.value.shopId,
+    name: form.value.name.trim() || createDefaultImportName(),
+    mode: form.value.mode,
+    status: "draft",
+    rows_count: parsedRows.value.length,
+    fields: [],
+    rows: parsedRows.value,
+    preview_items: [],
+    result: null,
+    on_match: {
+      name: "keep_store",
+      brand: "keep_store",
+      category: "keep_store",
+      description: "from_file",
+      measurement_unit: "keep_store",
+      supplier: "keep_store",
+      supply_price: "keep_store",
+      retail_price: "keep_store",
+    },
+    dry_run_summary: null,
+    created_at: "",
+    shop_name: shops.value.find((shop) => shop.id === form.value.shopId)?.name,
+  };
 }
 
 async function parseFile(file: File) {
@@ -707,11 +775,11 @@ function removeFile() {
   }
 }
 
-function validateStepOne() {
+function validateForm() {
   const nextErrors = [...errors.value];
 
   if (!form.value.name.trim()) nextErrors.push("Укажите наименование импорта.");
-  if (!form.value.shopId) nextErrors.push("Выберите магазин.");
+  if (!form.value.shopId) nextErrors.push("Выберите филиал.");
   if (!selectedFile.value) nextErrors.push("Загрузите файл для импорта.");
   if (selectedFile.value && !parsedRows.value.length && !isParsing.value) {
     nextErrors.push("В файле нет корректных строк для импорта.");
@@ -721,26 +789,30 @@ function validateStepOne() {
   return errors.value.length === 0;
 }
 
-function continueToSettings() {
-  if (!validateStepOne()) return;
+function continueToPreview() {
+  if (!validateForm()) return;
   modalStep.value = 2;
 }
 
-function goToPreviousStep() {
+function goToFirstStep() {
   modalStep.value = 1;
 }
 
 async function submitImport() {
   if (!selectedFile.value || !parsedRows.value.length) return;
 
-  const selectedShop = shops.value.find((shop) => shop.id === form.value.shopId);
-  if (!selectedShop) {
-    errors.value = ["Не удалось определить выбранный магазин."];
-    modalStep.value = 1;
-    return;
-  }
-
   creatingImport.value = true;
+
+  closeImportModal();
+  createdSession.value = buildPreviewSession();
+  fieldMappingOpen.value = true;
+  fieldMappingLoading.value = false;
+  fieldMappingSubmitting.value = false;
+  fieldMappingError.value = "";
+  fieldMappingProgressPercent.value = 0;
+  fieldMappingProgressMessage.value = "";
+  creatingImport.value = false;
+  return;
 
   try {
     const payload = {
@@ -753,54 +825,149 @@ async function submitImport() {
       mappings: mappings.value,
       availableProperties: availableProperties.value,
     };
+
     const created = await createImportSession(payload);
-    let resolvedImportId = String(created?.id ?? "").trim();
+    const resolvedImportId = String(created?.id ?? "").trim();
     if (!resolvedImportId) {
       throw new Error("Сервер создал импорт, но не вернул его ID");
     }
-    const validated = await validateImportSession(resolvedImportId, {
-      ...payload,
-      autoCommit: false,
+
+    saveImportDraft(resolvedImportId, {
+      name: payload.name,
+      shopId: payload.shopId,
+      mode: payload.mode,
+      generateBarcodes: payload.generateBarcodes,
+      generateArticles: payload.generateArticles,
+      importType: form.value.importType,
+      mappings: payload.mappings,
     });
-    if (validated.jobId) {
-      const completed = await waitForImport(validated.jobId);
-      resolvedImportId = completed.importId || resolvedImportId;
-    } else if (validated.importId) {
-      resolvedImportId = validated.importId;
-    }
 
     closeImportModal();
     await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
+    fieldMappingOpen.value = true;
+    fieldMappingLoading.value = true;
+    fieldMappingSubmitting.value = false;
+    fieldMappingError.value = "";
+    fieldMappingProgressPercent.value = 0;
+    fieldMappingProgressMessage.value = "";
 
-    if (!resolvedImportId) {
-      resolvedImportId =
-        importStore.rawData.find(
-          (item) => item.name === payload.name && (item.status === "draft" || item.status === "validating"),
-        )?.id ||
-        importStore.rawData.find((item) => item.name === payload.name)?.id ||
-        "";
+    try {
+      createdSession.value = await getImportSession(resolvedImportId);
+    } catch (sessionError: any) {
+      fieldMappingError.value =
+        sessionError?.message || "Не удалось загрузить экран настройки полей.";
+    } finally {
+      fieldMappingLoading.value = false;
     }
-
-    if (!resolvedImportId) {
-      throw new Error("Сервер создал импорт, но не вернул его ID");
-    }
-
-    toast.add({ title: "Импорт создан", color: "success" });
-    await router.push(`/products/import/list/${resolvedImportId}?limit=1000&page=1`);
   } catch (error: any) {
     errors.value = [error?.message || "Не удалось создать импорт."];
-    modalStep.value = 2;
   } finally {
     creatingImport.value = false;
   }
 }
 
+async function handleFieldMappingContinue(nextMappings: ImportDraftMappingPayload[]) {
+  if (!createdSession.value) return;
+
+  fieldMappingSubmitting.value = true;
+  fieldMappingError.value = "";
+  fieldMappingProgressPercent.value = 0;
+  fieldMappingProgressMessage.value = "Запускаем проверку импорта...";
+
+  const payload = {
+    name: form.value.name.trim(),
+    shopId: form.value.shopId,
+    mode: form.value.mode,
+    generateBarcodes: form.value.generateBarcodes,
+    generateArticles: form.value.generateArticles,
+    rows: parsedRows.value,
+    mappings: nextMappings,
+    availableProperties: availableProperties.value,
+  };
+
+  try {
+    const created = await createImportSession(payload);
+    const resolvedImportId = String(created?.id ?? "").trim();
+    if (!resolvedImportId) {
+      throw new Error("Сервер создал импорт, но не вернул его ID");
+    }
+
+    saveImportDraft(resolvedImportId, {
+      name: payload.name,
+      shopId: payload.shopId,
+      mode: payload.mode,
+      generateBarcodes: payload.generateBarcodes,
+      generateArticles: payload.generateArticles,
+      importType: form.value.importType,
+      mappings: nextMappings,
+    });
+
+    await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
+    const result = await validateExcelImport(resolvedImportId, payload);
+
+    if (result.jobId) {
+      const completed = await waitForImport(result.jobId, (progress) => {
+        fieldMappingProgressPercent.value = Number(progress.percent ?? 0);
+        fieldMappingProgressMessage.value = String(progress.message ?? "Проверяем импорт...");
+      });
+
+      const nextImportId = completed.importId || result.importId || resolvedImportId;
+      await navigateTo(`/products/import/edit/${nextImportId}?page=1`, { replace: true });
+      return;
+    }
+
+    await navigateTo(`/products/import/edit/${result.importId || resolvedImportId}?page=1`, {
+      replace: true,
+    });
+  } catch (error: any) {
+    fieldMappingError.value = error?.message || "Не удалось запустить проверку импорта.";
+    fieldMappingSubmitting.value = false;
+    return;
+  }
+
+  fieldMappingSubmitting.value = false;
+}
+
 onMounted(async () => {
-  await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
+  if (!route.query.page || !route.query.limit) {
+    await navigateTo("/products/import?limit=10&page=1", { replace: true });
+  }
+
+  await importStore.fetchData({
+    page: resolvedPage.value,
+    pageSize: resolvedLimit.value,
+  });
   resetForm();
+});
+
+watch(isChildRoute, async (value, previousValue) => {
+  if (value) {
+    isImportModalOpen.value = false;
+    return;
+  }
+
+  if (previousValue === undefined) {
+    return;
+  }
+
+  await importStore.fetchData({
+    page: resolvedPage.value,
+    pageSize: resolvedLimit.value,
+  });
 });
 
 useHead({
   title: "Импорт | Konkurent",
 });
 </script>
+
+<style scoped>
+.import-slideover-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.import-slideover-scroll::-webkit-scrollbar {
+  display: none;
+}
+</style>
