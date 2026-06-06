@@ -1,4 +1,4 @@
-  <template>
+<template>
   <section v-if="loading" class="rounded-[28px] bg-[#2b2b2b] p-8 text-white">
     Загружаем импорт...
   </section>
@@ -20,100 +20,325 @@
   </section>
 
   <section v-else-if="session" class="space-y-6">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="hidden">
       <div>
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-[14px] bg-[#363636] px-4 py-3 text-[14px] font-bold text-white transition-colors duration-200 hover:bg-[#4a4a4a]"
+          class="rounded-[14px] bg-[#363636] px-4 py-3 text-[14px] font-bold text-white transition-colors duration-200 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="actionLoading"
           @click="goBack"
         >
-          <Icon name="heroicons:arrow-left-20-solid" class="h-5 w-5 text-[#4993dd]" />
-          Назад
+          Назад к импортам
         </button>
-
-        <h1 class="mt-5 text-[34px] font-bold text-white">{{ session.name }}</h1>
-        <p class="mt-2 text-[16px] text-[#bdbdbd]">
-          {{ importTypeLabel }} • {{ session.shop_name || session.shop_id || "—" }}
+        <p
+          class="mt-5 text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]"
+        >
+          Предпросмотр
+        </p>
+        <h1 class="mt-2 text-[34px] font-bold text-white">
+          {{ session.name }}
+        </h1>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <span
+            class="rounded-[12px] px-3 py-2 text-[13px] font-bold"
+            :class="importStatusMeta.badgeClass"
+          >
+            {{ importStatusMeta.label }}
+          </span>
+          <span
+            v-if="importStatusMeta.description"
+            class="text-[14px] text-[#bdbdbd]"
+          >
+            {{ importStatusMeta.description }}
+          </span>
+        </div>
+        <p class="mt-2 text-[15px] text-[#bdbdbd]">
+          {{ importTypeLabel }} •
+          {{ session.branch_name || session.shop_name || "—" }} •
+          {{ formatDate(session.created_at) }}
         </p>
       </div>
+    </div>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <button
+          type="button"
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#404040] transition-colors duration-200 hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="actionLoading"
+          @click="goBack"
+        >
+          <Icon name="heroicons:arrow-left-20-solid" class="h-6 w-6" />
+        </button>
+        <div class="flex flex-col">
+          <h1 class="text-[34px] font-bold text-white">
+            {{ session.name }}
+          </h1>
+          <p class="text-[16px] text-[#bdbdbd] text-left">
+            {{ importTypeLabel }} •
+            {{ session.branch_name || "—" }}
+          </p>
+        </div>
+      </div>
+      <div class="buttons flex items-center gap-4">
+        <button
+          v-if="canCancelImport"
+          type="button"
+          class="rounded-[16px] bg-[#4a3030] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#5a3838] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="actionLoading"
+          @click="cancelCurrentImport"
+        >
+          {{
+            actionLoading && currentAction === "cancel"
+              ? "Отменяем..."
+              : "Отменить"
+          }}
+        </button>
 
-      <div class="rounded-[24px] border border-white/8 bg-[#2b2b2b] px-5 py-4">
-        <p class="text-[12px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]">Настройки</p>
-        <div class="mt-3 space-y-2 text-[14px] text-white">
-          <p>Генерировать баркоды: {{ draft.generateBarcodes ? "Да" : "Нет" }}</p>
-          <p>Генерировать артикул: {{ draft.generateArticles ? "Да" : "Нет" }}</p>
-          <p>Тип импорта: {{ importTypeLabel }}</p>
+        <div class="relative">
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8]"
+            :disabled="actionLoading"
+            @click="loadMenuOpen = !loadMenuOpen"
+          >
+            {{ actionLoading ? "Обрабатываем..." : "Загрузить" }}
+            <Icon name="heroicons:chevron-down-20-solid" class="h-5 w-5" />
+          </button>
+
+          <div
+            v-if="loadMenuOpen"
+            class="absolute right-0 top-[calc(100%+12px)] z-20 min-w-[340px] rounded-[20px] border border-white/10 bg-[#363636] p-2 shadow-2xl"
+          >
+            <button
+              v-if="canShowLoadActions"
+              type="button"
+              class="flex w-full flex-col items-start rounded-[14px] px-4 py-3 text-left transition-colors duration-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/50"
+              :disabled="actionLoading || !canDirectCommit"
+              @click="handleMenuAction('commit')"
+            >
+              <span class="text-[15px] font-bold text-white">
+                {{ importMode === "with_check" ? "Принять и загрузить" : "Загрузить" }}
+              </span>
+              <span class="mt-1 text-[13px] text-white/70">
+                {{
+                  importMode === "with_check"
+                    ? "Принять импорт и загрузить товары"
+                    : "Загрузить все товары из списка"
+                }}
+              </span>
+            </button>
+            <button
+              v-if="canShowLoadActions"
+              type="button"
+              class="mt-1 flex w-full flex-col items-start rounded-[14px] px-4 py-3 text-left transition-colors duration-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/50"
+              :disabled="actionLoading || !canValidateAndUpload"
+              @click="handleMenuAction('validate')"
+            >
+              <span class="text-[15px] font-bold text-white">Проверить и загрузить</span>
+              <span class="mt-1 text-[13px] text-white/70">
+                Проверить инвентаризацию перед загрузкой
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="rounded-[24px] bg-[#2b2b2b] p-5">
+      <div
+        v-for="card in summaryCards"
+        :key="card.label"
+        class="rounded-[24px] bg-[#2b2b2b] p-5"
+      >
         <p class="text-[13px] font-bold text-[#a7a7a7]">{{ card.label }}</p>
         <p class="mt-3 text-[28px] font-bold text-white">{{ card.value }}</p>
       </div>
     </div>
-    <section class="rounded-[28px] bg-[#2b2b2b] p-6">
+    <section class="space-y-5 rounded-[28px] bg-[#2b2b2b] p-6">
       <div class="flex flex-col gap-2">
-        <p class="text-[12px] font-bold uppercase tracking-[0.22em] text-[#7ba9d8]">
+        <p
+          class="text-[12px] font-bold uppercase tracking-[0.22em] text-[#7ba9d8]"
+        >
           Артикул, баркод, наименование
         </p>
         <h2 class="text-[28px] font-bold text-white">Товары из файла</h2>
       </div>
 
-      <div v-if="tableRows.length" class="mt-5 overflow-x-auto">
-        <table class="min-w-[1450px] w-full border-separate border-spacing-y-2 text-left">
-          <thead>
-            <tr class="text-[13px] uppercase tracking-[0.12em] text-[#8f8f8f]">
-              <th class="px-4 py-3">Наименование</th>
-              <th class="px-4 py-3">Артикул</th>
-              <th class="px-4 py-3">Баркод</th>
-              <th class="px-4 py-3">Кол-во</th>
-              <th class="px-4 py-3">Цена поставки</th>
-              <th class="px-4 py-3">Цена продажи</th>
-              <th class="px-4 py-3">Категория</th>
-              <th class="px-4 py-3">Бренд</th>
-              <th class="px-4 py-3">Единица измерения</th>
-              <th class="px-4 py-3">Поставщик</th>
-              <th class="px-4 py-3">Описание</th>
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <label
+          class="flex w-full items-center gap-3 rounded-[18px] bg-[#262626] px-4 py-3 text-white lg:max-w-[420px]"
+        >
+          <Icon name="heroicons:magnifying-glass-20-solid" class="h-5 w-5 text-[#7ba9d8]" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Поиск по товарам из файла"
+            class="w-full bg-transparent text-[15px] text-white placeholder:text-[#8f8f8f]"
+          />
+        </label>
+
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#363636] px-5 py-4 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="!filteredTableRows.length"
+          @click="printPriceTags"
+        >
+          <Icon name="heroicons:printer-20-solid" class="h-5 w-5 text-[#7ba9d8]" />
+          Печать ценников
+        </button>
+      </div>
+
+      <div v-if="filteredTableRows.length" class="overflow-hidden">
+        <div class="overflow-x-auto">
+        <table
+          class="min-w-[1450px] w-full border-separate border-spacing-y-2 text-left text-sm text-[#bdbdbd] sm:text-[17px]"
+        >
+          <thead class="border-t border-b border-white/10">
+            <tr class="text-[#8f8f8f]">
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Наименование
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Артикул
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Баркод
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Кол-во
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Цена поставки
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Цена продажи
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Категория
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Бренд
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Единица измерения
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Поставщик
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Описание
+              </th>
             </tr>
           </thead>
 
           <tbody>
-            <tr v-for="(row, index) in tableRows" :key="`${row.article}-${row.barcode}-${index}`">
-              <td class="rounded-l-[18px] bg-[#363636] px-4 py-4 text-[15px] font-bold text-white">{{ row.name || "Отсутствует" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.article || "Отсутствует" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.barcode || "Отсутствует" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ formatQuantity(row.quantity) }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ formatMoney(row.supplyPrice) }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ formatMoney(row.retailPrice) }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.category || "Отсутствует" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.brand || "Отсутствует" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.unit || "Штука" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.supplier || "Отсутствует" }}</td>
-              <td class="rounded-r-[18px] bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.description || "" }}</td>
+            <tr
+              v-for="(row, index) in filteredTableRows"
+              :key="`${row.article}-${row.barcode}-${index}`"
+            >
+              <td
+                class="whitespace-nowrap rounded-l-[20px] px-3 py-4 text-left text-[14px] font-normal text-[#4993dd] sm:px-[20px] sm:py-[25px] sm:text-[15px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.name || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.article || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.barcode || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ formatQuantity(row.quantity) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ formatMoney(row.supplyPrice) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ formatMoney(row.retailPrice) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.category || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.brand || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.unit || "Штука" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.supplier || "Отсутствует" }}
+              </td>
+              <td
+                class="rounded-r-[20px] px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.description || "" }}
+              </td>
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div
         v-else
         class="mt-5 rounded-[20px] border border-[#5b4a1f] bg-[#3b321d] p-6 text-white"
       >
-        Backend вернул import session без массива `rows`.
+        {{
+          tableRows.length
+            ? "По вашему запросу товары не найдены."
+            : "Backend вернул import session без массива `rows`."
+        }}
       </div>
     </section>
 
-    <section v-if="errorMessage" class="rounded-[22px] border border-[#7f3d3d] bg-[#442f2f] p-5 text-[#ffd7d7]">
+    <section
+      v-if="errorMessage"
+      class="rounded-[22px] border border-[#7f3d3d] bg-[#442f2f] p-5 text-[#ffd7d7]"
+    >
       {{ errorMessage }}
     </section>
 
     <section
-      v-if="progressPercent > 0 && (session.status === 'validating' || actionLoading)"
+      v-if="
+        progressPercent > 0 &&
+        (sessionStatusCode === 'validating' || actionLoading)
+      "
       class="rounded-[28px] bg-[#2b2b2b] p-6 text-white"
     >
-      <p class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]">Прогресс</p>
+      <p
+        class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]"
+      >
+        Прогресс
+      </p>
       <p class="mt-3 text-[16px] text-[#bdbdbd]">{{ progressMessage }}</p>
       <div class="mt-6 rounded-full bg-[#404040] p-1">
         <div
@@ -122,37 +347,6 @@
         />
       </div>
       <p class="mt-3 text-[22px] font-bold">{{ progressPercent }}%</p>
-    </section>
-
-    <section class="rounded-[28px] bg-[#2b2b2b] p-6">
-      <label class="flex items-center gap-3 text-[15px] text-white">
-        <input
-          v-model="inventoryBeforeImport"
-          type="checkbox"
-          class="h-5 w-5 rounded border border-white/10 bg-[#363636]"
-        />
-        Провести инвентаризацию перед загрузкой
-      </label>
-
-      <div class="mt-5 grid gap-3 md:grid-cols-2">
-        <button
-          type="button"
-          class="rounded-[16px] bg-[#404040] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#4b4b4b] disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="actionLoading || !tableRows.length"
-          @click="importAllProducts"
-        >
-          {{ actionLoading && currentAction === 'import-all' ? "Загружаем..." : "Загрузить все товары из списка" }}
-        </button>
-
-        <button
-          type="button"
-          class="rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8]"
-          :disabled="actionLoading || !tableRows.length"
-          @click="validateAndUpload"
-        >
-          {{ actionLoading && currentAction === 'validate' ? "Проверяем..." : "Проверить и загрузить" }}
-        </button>
-      </div>
     </section>
   </section>
 </template>
@@ -169,6 +363,8 @@ import {
   type ImportSession,
   type ParsedImportRow,
 } from "~/composables/useProductImport";
+
+definePageMeta({ layout: "empty" });
 
 type ImportFieldKey =
   | "name"
@@ -191,6 +387,7 @@ type DraftState = {
   generateArticles: boolean;
   importType: string;
   mappings: ImportDraftMappingPayload[];
+  rows: ParsedImportRow[];
 };
 
 type MappingOption = {
@@ -212,7 +409,12 @@ const FIELD_TO_SYSTEM_NAME: Record<ImportFieldKey, string> = {
   description: "DESCRIPTION",
 };
 
-const REQUIRED_FIELDS: ImportFieldKey[] = ["name", "quantity", "supplyPrice", "retailPrice"];
+const REQUIRED_FIELDS: ImportFieldKey[] = [
+  "name",
+  "quantity",
+  "supplyPrice",
+  "retailPrice",
+];
 
 const fieldConfigs: Array<{ key: ImportFieldKey; label: string }> = [
   { key: "name", label: "НАИМЕНОВАНИЕ" },
@@ -236,6 +438,7 @@ const defaultDraft: DraftState = {
   generateArticles: true,
   importType: "Поступление",
   mappings: [],
+  rows: [],
 };
 
 const route = useRoute();
@@ -246,8 +449,13 @@ const {
   getImportPreview,
   getImportItems,
   getImportProgress,
-  validateImportSession,
   importWithoutCheck,
+  validateImportSession,
+  commitImportSession,
+  cancelImportSession,
+  createImportInventory,
+  getStocktaking,
+  acceptStocktaking,
 } = useProductImport();
 const toast = useToast();
 
@@ -255,8 +463,12 @@ const importId = computed(() => String(route.params.id ?? "").trim());
 const session = ref<ImportSession | null>(null);
 const availableProperties = ref<ImportProperty[]>([]);
 const draft = ref<DraftState>({ ...defaultDraft });
-const mappingChoices = ref<Record<ImportFieldKey, string>>(createDefaultChoiceState());
-const newPropertyNames = ref<Record<ImportFieldKey, string>>(createDefaultTextState());
+const mappingChoices = ref<Record<ImportFieldKey, string>>(
+  createDefaultChoiceState(),
+);
+const newPropertyNames = ref<Record<ImportFieldKey, string>>(
+  createDefaultTextState(),
+);
 const inventoryBeforeImport = ref(false);
 const loading = ref(true);
 const actionLoading = ref(false);
@@ -264,20 +476,114 @@ const error = ref("");
 const errorMessage = ref("");
 const progressPercent = ref(0);
 const progressMessage = ref("");
-const currentAction = ref<"validate" | "import-all" | "">("");
+const searchQuery = ref("");
+const currentAction = ref<
+  "validate" | "import-all" | "cancel" | "commit" | "inventory" | ""
+>("");
+const loadMenuOpen = ref(false);
 const previewRows = ref<ParsedImportRow[]>([]);
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
 const importTypeLabel = computed(() => draft.value.importType || "Поступление");
-const tableRows = computed(() => (previewRows.value.length ? previewRows.value : session.value?.rows ?? []));
-const sampleRow = computed<ParsedImportRow | null>(() => tableRows.value[0] ?? null);
+const importMode = computed<ImportMode>(
+  () => session.value?.mode || draft.value.mode || "without_check",
+);
+const sessionStatusCode = computed(
+  () => session.value?.status_code || session.value?.status || "draft",
+);
+const importStatusMeta = computed(() => {
+  const badgeClass =
+    sessionStatusCode.value === "completed"
+      ? "bg-[#1f5f3a] text-[#d8ffe7]"
+      : sessionStatusCode.value === "cancelled" ||
+          sessionStatusCode.value === "failed"
+        ? "bg-[#6b2d31] text-[#ffd9dc]"
+        : sessionStatusCode.value === "preview_ready"
+          ? "bg-[#37516f] text-[#d9ebff]"
+          : sessionStatusCode.value === "draft"
+            ? "bg-[#4b4b4b] text-white"
+            : "bg-[#5b4a1f] text-[#ffe9bf]";
+
+  const description =
+    sessionStatusCode.value === "draft"
+      ? "Импорт создан, но еще не проверен."
+      : sessionStatusCode.value === "preview_ready"
+        ? "Проверка завершена, импорт ждет подтверждения."
+        : sessionStatusCode.value === "validating"
+          ? "Идет проверка файла."
+          : sessionStatusCode.value === "importing"
+            ? "Идет реальная загрузка товаров в базу."
+            : sessionStatusCode.value === "completed"
+              ? "Импорт полностью завершен."
+              : sessionStatusCode.value === "cancelled"
+                ? "Импорт отменен."
+                : sessionStatusCode.value === "failed"
+                  ? "Импорт завершился с ошибкой или проблемой."
+                  : "";
+
+  return {
+    label:
+      session.value?.status_label ||
+      (sessionStatusCode.value === "preview_ready"
+        ? "В Ожидании"
+        : sessionStatusCode.value === "validating"
+          ? "Проверяется"
+          : sessionStatusCode.value === "importing"
+            ? "Загружается"
+            : sessionStatusCode.value === "completed"
+              ? "Завершен"
+              : sessionStatusCode.value === "cancelled"
+                ? "Отменен"
+                : sessionStatusCode.value === "failed"
+                  ? "Проверка"
+                  : "Новый"),
+    description,
+    badgeClass,
+  };
+});
+const tableRows = computed(() => {
+  if (previewRows.value.length) return previewRows.value;
+  if (session.value?.rows?.length) return session.value.rows;
+  return draft.value.rows ?? [];
+});
+const filteredTableRows = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return tableRows.value;
+
+  return tableRows.value.filter((row) =>
+    [
+      row.name,
+      row.article,
+      row.barcode,
+      row.category,
+      row.brand,
+      row.unit,
+      row.supplier,
+      row.description,
+    ].some((value) => String(value || "").toLowerCase().includes(query)),
+  );
+});
+const sampleRow = computed<ParsedImportRow | null>(
+  () => tableRows.value[0] ?? null,
+);
 
 const summaryCards = computed(() => {
   const rows = tableRows.value;
   const namesCount = rows.length;
-  const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
-  const totalSupply = rows.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.supplyPrice || 0), 0);
-  const totalRetail = rows.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.retailPrice || 0), 0);
+  const totalQuantity = rows.reduce(
+    (sum, row) => sum + Number(row.quantity || 0),
+    0,
+  );
+  const totalSupply = rows.reduce(
+    (sum, row) =>
+      sum + Number(row.quantity || 0) * Number(row.supplyPrice || 0),
+    0,
+  );
+  const totalRetail = rows.reduce(
+    (sum, row) =>
+      sum + Number(row.quantity || 0) * Number(row.retailPrice || 0),
+    0,
+  );
 
   return [
     { label: "Наименований", value: `${namesCount} шт` },
@@ -286,6 +592,34 @@ const summaryCards = computed(() => {
     { label: "Сумма по цене продажи", value: formatCompactMoney(totalRetail) },
   ];
 });
+
+const canCancelImport = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled",
+);
+const canValidateAndUpload = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled" &&
+    sessionStatusCode.value !== "importing",
+);
+const canShowLoadActions = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled" &&
+    sessionStatusCode.value !== "importing",
+);
+const canDirectCommit = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled" &&
+    sessionStatusCode.value !== "importing",
+);
 
 function createDefaultChoiceState() {
   return {
@@ -345,8 +679,12 @@ function writeDraftState() {
   const payload: DraftState = {
     ...draft.value,
     mappings,
+    rows: tableRows.value.length ? [...tableRows.value] : [...draft.value.rows],
   };
-  window.sessionStorage.setItem(getDraftStorageKey(importId.value), JSON.stringify(payload));
+  window.sessionStorage.setItem(
+    getDraftStorageKey(importId.value),
+    JSON.stringify(payload),
+  );
 }
 
 function normalizeSystemName(value: string) {
@@ -358,11 +696,26 @@ function normalizeSystemName(value: string) {
 }
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value || 0);
+  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(
+    value || 0,
+  );
 }
 
 function formatMoney(value: number) {
   return `${formatNumber(Number(value || 0))} UZS`;
+}
+
+function formatDate(value: string) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return value || "—";
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function formatCompactMoney(value: number) {
@@ -389,7 +742,8 @@ function getFieldSample(field: ImportFieldKey) {
 
   const value = row[field];
   if (field === "quantity") return String(value ?? "0");
-  if (field === "supplyPrice" || field === "retailPrice") return String(value ?? "0");
+  if (field === "supplyPrice" || field === "retailPrice")
+    return String(value ?? "0");
 
   return String(value ?? "").trim() || "Отсутствует";
 }
@@ -467,7 +821,9 @@ function buildMappings(showErrors = true) {
     }
 
     if (choice === "new") {
-      const normalizedName = normalizeSystemName(newPropertyNames.value[field.key]);
+      const normalizedName = normalizeSystemName(
+        newPropertyNames.value[field.key],
+      );
       if (!normalizedName) {
         if (showErrors) {
           errorMessage.value = `Укажите название нового свойства для поля "${field.label}".`;
@@ -483,7 +839,8 @@ function buildMappings(showErrors = true) {
       continue;
     }
 
-    const targetField = choice.replace(/^map:/, "") || FIELD_TO_SYSTEM_NAME[field.key];
+    const targetField =
+      choice.replace(/^map:/, "") || FIELD_TO_SYSTEM_NAME[field.key];
     nextMappings.push({
       key: field.key,
       targetField,
@@ -527,18 +884,25 @@ function mapPreviewItemToRow(item: any): ParsedImportRow {
     retailPrice: Number(item?.raw?.retailPrice ?? item?.retail_price ?? 0) || 0,
     category: String(item?.raw?.categoryName ?? "").trim(),
     brand: String(item?.raw?.brandName ?? "").trim(),
-    unit: String(item?.raw?.measurementUnit ?? item?.measurement_type ?? "").trim(),
+    unit: String(
+      item?.raw?.measurementUnit ?? item?.measurement_type ?? "",
+    ).trim(),
     supplier: String(item?.raw?.supplier ?? "").trim(),
-    description: String(item?.raw?.description ?? item?.description ?? "").trim(),
+    description: String(
+      item?.raw?.description ?? item?.description ?? "",
+    ).trim(),
   };
 }
 
-async function loadPreviewRowsWithRetry() {
+async function loadPreviewRowsWithRetry(fallbackRows: ParsedImportRow[] = []) {
   previewRows.value = [];
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const preview = await getImportPreview(importId.value, { page: 1, limit: 1000 });
+      const preview = await getImportPreview(importId.value, {
+        page: 1,
+        limit: 1000,
+      });
       if (preview.items.length) {
         previewRows.value = preview.items.map(mapPreviewItemToRow);
         return;
@@ -546,7 +910,10 @@ async function loadPreviewRowsWithRetry() {
     } catch {}
 
     try {
-      const items = await getImportItems(importId.value, { page: 1, limit: 1000 });
+      const items = await getImportItems(importId.value, {
+        page: 1,
+        limit: 1000,
+      });
       if (items.items.length) {
         previewRows.value = items.items.map(mapPreviewItemToRow);
         return;
@@ -556,6 +923,10 @@ async function loadPreviewRowsWithRetry() {
     if (attempt < 2) {
       await new Promise((resolve) => setTimeout(resolve, 1200));
     }
+  }
+
+  if (fallbackRows.length) {
+    previewRows.value = [...fallbackRows];
   }
 }
 
@@ -582,8 +953,10 @@ async function loadSession() {
           mode: sessionResponse.mode,
         };
 
-    applyStoredMappings(storedDraft?.mappings?.length ? storedDraft.mappings : []);
-    await loadPreviewRowsWithRetry();
+    applyStoredMappings(
+      storedDraft?.mappings?.length ? storedDraft.mappings : [],
+    );
+    await loadPreviewRowsWithRetry(storedDraft?.rows ?? []);
   } catch (err: any) {
     error.value = err?.message || "Не удалось загрузить import session.";
     session.value = null;
@@ -610,22 +983,49 @@ async function pollProgress(jobId: string, nextImportId?: string) {
 
       if (progress.is_finished) {
         const resolvedImportId = String(
-          progress.import_id ?? progress.correlation_id ?? nextImportId ?? importId.value,
+          progress.import_id ??
+            progress.correlation_id ??
+            nextImportId ??
+            importId.value,
         );
 
         stopPolling();
-        await router.replace(`/products/import/edit/${resolvedImportId}?page=1`);
+        await router.replace(
+          `/products/import/edit/${resolvedImportId}?page=1`,
+        );
         return;
       }
 
       pollTimer = setTimeout(tick, 1200);
     } catch (err: any) {
-      errorMessage.value = err?.message || "Не удалось получить прогресс импорта.";
+      errorMessage.value =
+        err?.message || "Не удалось получить прогресс импорта.";
       stopPolling();
     }
   };
 
   await tick();
+}
+
+async function waitForProgressCompletion(jobId: string, nextImportId?: string) {
+  stopPolling();
+
+  while (true) {
+    const progress = await getImportProgress(jobId);
+    progressPercent.value = Number(progress.percent ?? 0);
+    progressMessage.value = String(progress.message ?? "Обработка");
+
+    if (progress.is_finished) {
+      return String(
+        progress.import_id ??
+          progress.correlation_id ??
+          nextImportId ??
+          importId.value,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
 }
 
 async function validateAndUpload() {
@@ -647,12 +1047,38 @@ async function validateAndUpload() {
 
     toast.add({ title: "Проверка импорта запущена", color: "success" });
 
-    if (result.jobId) {
-      await pollProgress(result.jobId, result.importId);
+    const resolvedImportId = result.jobId
+      ? await waitForProgressCompletion(result.jobId, result.importId)
+      : result.importId || session.value.id;
+
+    session.value = await getImportSession(resolvedImportId);
+
+    if (
+      session.value.mode === "without_check" &&
+      session.value.status_code === "preview_ready" &&
+      session.value.can_commit
+    ) {
+      currentAction.value = "commit";
+      await commitImportSession(resolvedImportId, {
+        onMatch: session.value.on_match,
+      });
+      await router.replace(
+        `/products/import/list/${resolvedImportId}?limit=5&page=1`,
+      );
       return;
     }
 
-    await router.replace(`/products/import/list/${result.importId || session.value.id}?limit=1000&page=1`);
+    if (
+      session.value.mode === "with_check" &&
+      session.value.status_code === "preview_ready"
+    ) {
+      await runInventoryBeforeImport();
+      return;
+    }
+
+    await router.replace(
+      `/products/import/edit/${resolvedImportId}?limit=5&page=1`,
+    );
   } catch (err: any) {
     errorMessage.value = err?.message || "Не удалось запустить проверку.";
   } finally {
@@ -661,37 +1087,157 @@ async function validateAndUpload() {
   }
 }
 
+async function ensurePreviewReadySession() {
+  if (!session.value) return null;
+
+  if (session.value.status_code === "preview_ready" && session.value.can_commit) {
+    return session.value;
+  }
+
+  const payload = buildPayload("with_check");
+  if (!payload) return null;
+
+  currentAction.value = "validate";
+  writeDraftState();
+
+  const result = await validateImportSession(session.value.id, {
+    ...payload,
+    autoCommit: false,
+  });
+
+  const resolvedImportId = result.jobId
+    ? await waitForProgressCompletion(result.jobId, result.importId)
+    : result.importId || session.value.id;
+
+  session.value = await getImportSession(resolvedImportId);
+
+  if (!(session.value.status_code === "preview_ready" && session.value.can_commit)) {
+    throw new Error("Импорт не готов к подтверждению после проверки.");
+  }
+
+  return session.value;
+}
+
+async function getOrCreateStocktakingId(importSession: ImportSession) {
+  const existingId = String(importSession.stocktaking_id || "").trim();
+  if (existingId) {
+    return existingId;
+  }
+
+  const created = await createImportInventory(importSession.id, {
+    use_old_prices: false,
+    use_import_properties: true,
+  });
+
+  return created.id;
+}
+
 async function importAllProducts() {
-  if (!session.value) return;
+  if (!session.value || !canDirectCommit.value) return;
 
   const payload = buildPayload("without_check");
   if (!payload) return;
 
   errorMessage.value = "";
   actionLoading.value = true;
-  currentAction.value = "import-all";
-  writeDraftState();
+  currentAction.value = "commit";
 
   try {
     const result = await importWithoutCheck(payload);
+    const resolvedImportId = result.id || session.value.id;
     toast.add({ title: "Импорт запущен", color: "success" });
-    await router.replace(`/products/import/list/${result.id || session.value.id}?limit=1000&page=1`);
+    await router.replace(
+      `/products/import/list/${resolvedImportId}?limit=5&page=1`,
+    );
   } catch (err: any) {
-    errorMessage.value = err?.message || "Не удалось загрузить товары без проверки.";
+    errorMessage.value =
+      err?.message || "Не удалось загрузить товары без проверки.";
   } finally {
     actionLoading.value = false;
     currentAction.value = "";
   }
 }
 
+async function cancelCurrentImport() {
+  if (!session.value || !canCancelImport.value) return;
+
+  errorMessage.value = "";
+  actionLoading.value = true;
+  currentAction.value = "cancel";
+
+  try {
+    session.value = await cancelImportSession(session.value.id);
+    loadMenuOpen.value = false;
+    toast.add({ title: "Импорт отменен", color: "success" });
+  } catch (err: any) {
+    errorMessage.value = err?.message || "Не удалось отменить импорт.";
+  } finally {
+    actionLoading.value = false;
+    currentAction.value = "";
+  }
+}
+
+async function runInventoryBeforeImport() {
+  if (!session.value) return;
+
+  errorMessage.value = "";
+  actionLoading.value = true;
+
+  try {
+    const readySession = await ensurePreviewReadySession();
+    if (!readySession) return;
+
+    currentAction.value = "inventory";
+
+    const stocktakingId = await getOrCreateStocktakingId(readySession);
+    await getStocktaking(stocktakingId);
+    await acceptStocktaking(stocktakingId);
+    toast.add({ title: "Инвентаризация проведена", color: "success" });
+    await router.replace(`/products/import/list/${readySession.id}?limit=5&page=1`);
+  } catch (err: any) {
+    errorMessage.value =
+      err?.message || "Не удалось провести инвентаризацию перед загрузкой.";
+  } finally {
+    actionLoading.value = false;
+    currentAction.value = "";
+  }
+}
+
+async function handleMenuAction(action: "commit" | "validate") {
+  loadMenuOpen.value = false;
+
+  if (action === "commit") {
+    await importAllProducts();
+    return;
+  }
+
+  await validateAndUpload();
+}
+
 function goBack() {
   return navigateTo("/products/import", { replace: true });
 }
 
-watch([mappingChoices, newPropertyNames], () => {
-  if (!session.value) return;
-  writeDraftState();
-}, { deep: true });
+function printPriceTags() {
+  if (!filteredTableRows.value.length) {
+    toast.add({ title: "Нет товаров для печати", color: "warning" });
+    return;
+  }
+
+  toast.add({
+    title: `Подготовлено ${filteredTableRows.value.length} товаров для печати ценников`,
+    color: "primary",
+  });
+}
+
+watch(
+  [mappingChoices, newPropertyNames],
+  () => {
+    if (!session.value) return;
+    writeDraftState();
+  },
+  { deep: true },
+);
 
 onMounted(loadSession);
 
@@ -700,6 +1246,8 @@ onBeforeUnmount(() => {
 });
 
 useHead({
-  title: computed(() => (session.value ? `${session.value.name} | Импорт` : "Импорт")),
+  title: computed(() =>
+    session.value ? `${session.value.name} | Импорт` : "Импорт",
+  ),
 });
 </script>

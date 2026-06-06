@@ -39,6 +39,14 @@ function formatCurrency(value?: number) {
 }
 
 function getStatusLabel(status: string) {
+  if (status === "preview_ready") return "В Ожидании";
+  if (status === "importing") return "Загружается";
+  if (status === "validating") return "Проверяется";
+  if (status === "draft") return "Новый";
+  if (status === "completed") return "Завершен";
+  if (status === "cancelled") return "Отменен";
+  if (status === "failed") return "Проверка";
+
   switch (status) {
     case "draft":
       return "Черновик";
@@ -240,13 +248,13 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
     {
       accessorKey: "status",
       header: "Статус",
-      cell: ({ getValue }: any) =>
+      cell: ({ getValue, row }: any) =>
         h(
           "span",
           {
             class: `inline-flex rounded-[12px] px-3 py-2 text-[14px] font-bold ${getStatusClasses(String(getValue()))}`,
           },
-          getStatusLabel(String(getValue())),
+          row.original.status_label || getStatusLabel(String(getValue())),
         ),
     },
     {
@@ -333,10 +341,12 @@ export const useImportDataTableStore = defineStore("importDataTableStore", () =>
       return router.push("/products/import");
     }
 
-    if (importRow.status === "draft" || importRow.status === "validating") {
+    const statusCode = importRow.status_code || importRow.status;
+
+    if (statusCode !== "completed") {
       return router.push({
         path: `/products/import/edit/${importRow.id}`,
-        query: { page: "1" },
+        query: { limit: "5", page: "1" },
       });
     }
 

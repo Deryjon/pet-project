@@ -177,6 +177,7 @@ function buildMappings(): ImportDraftMappingPayload[] | null {
 }
 
 const resolvedMappings = computed(() => buildMappings());
+const showProgressState = computed(() => props.submitting || props.progressPercent > 0);
 const continueDisabled = computed(
   () =>
     props.loading ||
@@ -236,7 +237,7 @@ function handleContinue() {
       </div>
 
       <div
-        v-if="submitting || progressPercent > 0"
+        v-if="showProgressState"
         class="mt-6 rounded-[24px] bg-[#2b2b2b] p-5 text-white"
       >
         <p class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]">Прогресс</p>
@@ -261,7 +262,10 @@ function handleContinue() {
         {{ error }}
       </div>
 
-      <div v-else class="mt-8 grid gap-8 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        v-else-if="!showProgressState"
+        class="mt-8 grid gap-8 md:grid-cols-2 xl:grid-cols-4"
+      >
         <div v-for="field in fieldConfigs" :key="field.key" class="flex flex-col gap-3">
           <p class="text-[12px] font-bold uppercase tracking-[0.14em] text-[#8f8f8f]">
             {{ field.label }}

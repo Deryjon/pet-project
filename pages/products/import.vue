@@ -321,6 +321,7 @@ interface ImportSessionDraftState {
   generateArticles: boolean;
   importType: string;
   mappings: ImportDraftMappingPayload[];
+  rows: ParsedImportRow[];
 }
 
 const HEADER_ALIASES: Record<string, keyof ParsedImportRow> = {
@@ -386,7 +387,9 @@ const {
   getAllowedShops,
   getImportProperties,
   createImportSession,
-  validateExcelImport,
+  getImportSession,
+  importWithoutCheck,
+  validateImportSession,
   waitForImport,
 } = useProductImport();
 
@@ -602,6 +605,11 @@ function buildPreviewSession(): ImportSession {
     name: form.value.name.trim() || createDefaultImportName(),
     mode: form.value.mode,
     status: "draft",
+    status_code: "draft",
+    status_label: "Новый",
+    requires_approval: false,
+    can_commit: false,
+    is_finished: false,
     rows_count: parsedRows.value.length,
     fields: [],
     rows: parsedRows.value,
@@ -803,16 +811,18 @@ async function submitImport() {
 
   creatingImport.value = true;
 
-  closeImportModal();
-  createdSession.value = buildPreviewSession();
-  fieldMappingOpen.value = true;
-  fieldMappingLoading.value = false;
-  fieldMappingSubmitting.value = false;
-  fieldMappingError.value = "";
-  fieldMappingProgressPercent.value = 0;
-  fieldMappingProgressMessage.value = "";
-  creatingImport.value = false;
-  return;
+  if (form.value.mode === "without_check") {
+    closeImportModal();
+    createdSession.value = buildPreviewSession();
+    fieldMappingOpen.value = true;
+    fieldMappingLoading.value = false;
+    fieldMappingSubmitting.value = false;
+    fieldMappingError.value = "";
+    fieldMappingProgressPercent.value = 0;
+    fieldMappingProgressMessage.value = "";
+    creatingImport.value = false;
+    return;
+  }
 
   try {
     const payload = {
@@ -840,6 +850,7 @@ async function submitImport() {
       generateArticles: payload.generateArticles,
       importType: form.value.importType,
       mappings: payload.mappings,
+      rows: payload.rows,
     });
 
     closeImportModal();
@@ -886,8 +897,38 @@ async function handleFieldMappingContinue(nextMappings: ImportDraftMappingPayloa
   };
 
   try {
-    const created = await createImportSession(payload);
-    const resolvedImportId = String(created?.id ?? "").trim();
+    if (form.value.mode === "without_check") {
+      fieldMappingProgressMessage.value = "Запускаем импорт без проверки...";
+
+      const result = await importWithoutCheck(payload);
+      const nextImportId = String(result.id ?? "").trim();
+      if (!nextImportId) {
+        throw new Error("Сервер не вернул ID импорта.");
+      }
+
+      saveImportDraft(nextImportId, {
+        name: payload.name,
+        shopId: payload.shopId,
+        mode: payload.mode,
+        generateBarcodes: payload.generateBarcodes,
+        generateArticles: payload.generateArticles,
+        importType: form.value.importType,
+        mappings: nextMappings,
+        rows: payload.rows,
+      });
+
+      fieldMappingOpen.value = false;
+      await importStore.fetchData({
+        page: 1,
+        pageSize: importStore.pagination.pageSize,
+      });
+      await navigateTo(`/products/import/list/${nextImportId}?page=1`, {
+        replace: true,
+      });
+      return;
+    }
+
+    const resolvedImportId = String(createdSession.value?.id ?? "").trim();
     if (!resolvedImportId) {
       throw new Error("Сервер создал импорт, но не вернул его ID");
     }
@@ -900,10 +941,11 @@ async function handleFieldMappingContinue(nextMappings: ImportDraftMappingPayloa
       generateArticles: payload.generateArticles,
       importType: form.value.importType,
       mappings: nextMappings,
+      rows: payload.rows,
     });
 
     await importStore.fetchData({ page: 1, pageSize: importStore.pagination.pageSize });
-    const result = await validateExcelImport(resolvedImportId, payload);
+    const result = await validateImportSession(resolvedImportId, payload);
 
     if (result.jobId) {
       const completed = await waitForImport(result.jobId, (progress) => {
