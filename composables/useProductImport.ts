@@ -168,9 +168,14 @@ export interface ImportSessionListItem {
   id: string;
   name: string;
   status: ImportStatus;
+  status_code: ImportStatus;
+  status_label?: string;
   mode: ImportMode;
   shop_id: string;
   shop_name?: string;
+  requires_approval: boolean;
+  can_commit: boolean;
+  is_finished: boolean;
   created_at: string;
   finished_at?: string;
   created_by?: string;
@@ -189,9 +194,16 @@ export interface ImportSession {
   company_id?: string;
   shop_id: string;
   branch_code?: string;
+  branch_name?: string;
+  import_type?: string;
   name: string;
   mode: ImportMode;
   status: ImportStatus;
+  status_code: ImportStatus;
+  status_label?: string;
+  requires_approval: boolean;
+  can_commit: boolean;
+  is_finished: boolean;
   rows_count: number;
   fields: unknown[];
   rows: ParsedImportRow[];
@@ -228,6 +240,10 @@ export interface ImportSessionActionResult {
   result: ImportCommitResult | null;
 }
 
+export interface ImportInventoryCreateResult {
+  id: string;
+}
+
 const DEFAULT_ON_MATCH_POLICY: ImportOnMatchPolicy = {
   name: "keep_store",
   brand: "keep_store",
@@ -240,7 +256,10 @@ const DEFAULT_ON_MATCH_POLICY: ImportOnMatchPolicy = {
 };
 
 function unwrapPayload<T = any>(response: any): T {
-  return response?.data ?? response?.result ?? response?.item ?? response;
+  if (response?.data && typeof response.data === "object") return response.data;
+  if (response?.result && typeof response.result === "object") return response.result;
+  if (response?.item && typeof response.item === "object") return response.item;
+  return response;
 }
 
 function resolveImportPayload(raw: any) {
@@ -293,6 +312,15 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function toBoolean(value: unknown, fallback = false) {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (["true", "1", "yes"].includes(normalized)) return true;
+  if (["false", "0", "no"].includes(normalized)) return false;
+  return fallback;
+}
+
 function isImportStatus(value: string): value is ImportStatus {
   return [
     "draft",
@@ -305,8 +333,40 @@ function isImportStatus(value: string): value is ImportStatus {
   ].includes(value);
 }
 
-function normalizeImportStatus(raw: any, fallback: ImportStatus = "draft"): ImportStatus {
+const LEGACY_COMPLETED_STATUS_ID = "31cd30a7-46ae-460c-9530-7c2df1356b62";
+const LEGACY_IN_PROGRESS_STATUS_ID = "f5e9f7df-9d5a-4b28-9b97-6c436caf3bf2";
+const LEGACY_WITH_CHECK_TYPE_ID = "a230b02b-46f8-42f4-885e-d81813c297d6";
+const LEGACY_WITHOUT_CHECK_TYPE_ID = "fd152773-2e12-4c1a-8fb5-a7d5c9955750";
+
+function statusLabelFromCode(status: ImportStatus) {
+  switch (status) {
+    case "draft":
+      return "Новый";
+    case "preview_ready":
+      return "В Ожидании";
+    case "validating":
+      return "Проверяется";
+    case "importing":
+      return "Загружается";
+    case "completed":
+      return "Завершен";
+    case "cancelled":
+      return "Отменен";
+    case "failed":
+      return "Проверка";
+    default:
+      return status;
+  }
+}
+
+function normalizeImportStatus(
+  raw: any,
+  fallback: ImportStatus = "draft",
+  options?: { allowPreviewHeuristic?: boolean },
+): ImportStatus {
+  const allowPreviewHeuristic = options?.allowPreviewHeuristic ?? true;
   const directCandidates = [
+    raw?.status_code,
     raw?.status,
     raw?.status_name,
     raw?.status_code,
@@ -349,6 +409,18 @@ function normalizeImportStatus(raw: any, fallback: ImportStatus = "draft"): Impo
     }
   }
 
+  const legacyStatusId = String(
+    raw?.import_status_id ?? raw?.importStatusId ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  if (legacyStatusId === LEGACY_COMPLETED_STATUS_ID) {
+    return "completed";
+  }
+  if (legacyStatusId === LEGACY_IN_PROGRESS_STATUS_ID) {
+    return "importing";
+  }
+
   if (raw?.finished_at) {
     return "completed";
   }
@@ -361,16 +433,47 @@ function normalizeImportStatus(raw: any, fallback: ImportStatus = "draft"): Impo
     return "importing";
   }
 
-  const previewItemsCount = toArray(raw?.preview_items ?? raw?.items_preview, [
-    "preview_items",
-    "items_preview",
-    "previewItems",
-  ]).length;
-  if (previewItemsCount > 0) {
-    return "preview_ready";
+  if (allowPreviewHeuristic) {
+    const previewItemsCount = toArray(raw?.preview_items ?? raw?.items_preview, [
+      "preview_items",
+      "items_preview",
+      "previewItems",
+    ]).length;
+    if (previewItemsCount > 0) {
+      return "preview_ready";
+    }
   }
 
   return fallback;
+}
+
+function normalizeStatusLabel(raw: any, statusCode: ImportStatus) {
+  const rawLabel = String(raw?.status ?? raw?.status_name ?? "").trim();
+  return rawLabel || statusLabelFromCode(statusCode);
+}
+
+function normalizeRequiresApproval(raw: any, statusCode: ImportStatus) {
+  if (raw?.requires_approval != null) {
+    return toBoolean(raw.requires_approval);
+  }
+
+  return statusCode === "preview_ready";
+}
+
+function normalizeCanCommit(raw: any, statusCode: ImportStatus) {
+  if (raw?.can_commit != null) {
+    return toBoolean(raw.can_commit);
+  }
+
+  return statusCode === "preview_ready";
+}
+
+function normalizeIsFinished(raw: any, statusCode: ImportStatus) {
+  if (raw?.is_finished != null) {
+    return toBoolean(raw.is_finished);
+  }
+
+  return ["completed", "cancelled", "failed"].includes(statusCode);
 }
 
 function ensureImportId(value: unknown) {
@@ -551,9 +654,15 @@ function normalizeImportRow(raw: any): ParsedImportRow {
     quantity: toNumber(raw?.quantity ?? raw?.measurement_value),
     supplyPrice: toNumber(raw?.supply_price ?? raw?.supplyPrice),
     retailPrice: toNumber(raw?.retail_price ?? raw?.retailPrice),
-    category: String(raw?.category_name ?? raw?.category ?? "").trim(),
-    brand: String(raw?.brand_name ?? raw?.brand ?? "").trim(),
-    unit: String(raw?.measurement_unit ?? raw?.unit ?? "").trim(),
+    category: String(raw?.category_name ?? raw?.category ?? raw?.categoryName ?? "").trim(),
+    brand: String(raw?.brand_name ?? raw?.brand ?? raw?.brandName ?? "").trim(),
+    unit: String(
+      raw?.measurement_unit ??
+        raw?.measurementUnit ??
+        raw?.unit ??
+        raw?.measurement_type ??
+        "",
+    ).trim(),
     supplier: String(raw?.supplier ?? "").trim(),
     description: String(raw?.description ?? "").trim(),
   };
@@ -701,7 +810,7 @@ function normalizePreviewResult(raw: any, importId: string): ImportPreviewResult
 }
 
 function normalizeImportSession(raw: any): ImportSession {
-  const payload = resolveImportPayload(raw);
+  const payload = raw?.import ?? raw?.session ?? raw?.import_session ?? raw?.importSession ?? raw;
   const nestedShop = payload?.shop && typeof payload.shop === "object" ? payload.shop : null;
   const parsedResult = parseJsonIfNeeded<any>(payload?.result);
   const id = String(payload?.id ?? payload?.import_id ?? payload?.uuid ?? "");
@@ -729,15 +838,23 @@ function normalizeImportSession(raw: any): ImportSession {
         ? parsedResult
         : null;
 
+  const statusCode = normalizeImportStatus(payload);
+
   return {
     id,
     job_id: payload?.job_id ? String(payload.job_id) : undefined,
     company_id: payload?.company_id ? String(payload.company_id) : undefined,
     shop_id: String(payload?.shop_id ?? nestedShop?.id ?? nestedShop?.shop_id ?? ""),
     branch_code: payload?.branch_code ? String(payload.branch_code) : undefined,
+    branch_name: String(payload?.branch_name ?? nestedShop?.branch_name ?? "").trim() || undefined,
     name: String(payload?.name ?? payload?.import_name ?? ""),
     mode: payload?.mode === "without_check" ? "without_check" : "with_check",
-    status: normalizeImportStatus(payload),
+    status: statusCode,
+    status_code: statusCode,
+    status_label: normalizeStatusLabel(payload, statusCode),
+    requires_approval: normalizeRequiresApproval(payload, statusCode),
+    can_commit: normalizeCanCommit(payload, statusCode),
+    is_finished: normalizeIsFinished(payload, statusCode),
     rows_count: fallbackRowsCount,
     fields: toArray(payload?.fields),
     rows: normalizedRows,
@@ -789,6 +906,22 @@ function buildValidateBody(payload: ValidateImportPayload) {
   };
 }
 
+function buildNoCacheQuery(query?: Record<string, unknown>) {
+  return {
+    ...(query ?? {}),
+    _ts: Date.now(),
+  };
+}
+
+function buildNoCacheHeaders(headers?: Record<string, string>) {
+  return {
+    ...(headers ?? {}),
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  };
+}
+
 function normalizeActionResult(raw: any, fallbackId = ""): ImportSessionActionResult {
   const payload = resolveImportPayload(raw);
   const id = String(
@@ -811,6 +944,9 @@ function normalizeActionResult(raw: any, fallbackId = ""): ImportSessionActionRe
 
 function normalizeImportSessionListItem(raw: any): ImportSessionListItem {
   const shopName = String(raw?.shop_name ?? raw?.shop?.name ?? "").trim();
+  const statusCode = normalizeImportStatus(raw, "draft", {
+    allowPreviewHeuristic: false,
+  });
   const createdByName = String(
     raw?.created_by?.name ?? raw?.created_by_name ?? raw?.created_by ?? "",
   ).trim();
@@ -824,10 +960,20 @@ function normalizeImportSessionListItem(raw: any): ImportSessionListItem {
   return {
     id: String(raw?.id ?? raw?.import_id ?? raw?.uuid ?? ""),
     name: String(raw?.name ?? raw?.import_name ?? ""),
-    status: normalizeImportStatus(raw),
-    mode: raw?.mode === "without_check" ? "without_check" : "with_check",
+    status: statusCode,
+    status_code: statusCode,
+    status_label: normalizeStatusLabel(raw, statusCode),
+    mode:
+      raw?.mode === "without_check" ||
+      String(raw?.import_type_id ?? "").trim().toLowerCase() ===
+        LEGACY_WITHOUT_CHECK_TYPE_ID
+        ? "without_check"
+        : "with_check",
     shop_id: String(raw?.shop_id ?? shopName ?? ""),
     shop_name: shopName || undefined,
+    requires_approval: normalizeRequiresApproval(raw, statusCode),
+    can_commit: normalizeCanCommit(raw, statusCode),
+    is_finished: normalizeIsFinished(raw, statusCode),
     created_at: String(raw?.created_at ?? raw?.createdAt ?? ""),
     finished_at: raw?.finished_at ? String(raw.finished_at) : undefined,
     created_by: createdByName || undefined,
@@ -934,22 +1080,27 @@ export function useProductImport() {
     }
   }
 
-  async function getImportSession(id: string) {
-    try {
-      const importId = ensureImportId(id);
-      const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}`, {
-        method: "GET",
-      });
+ async function getImportSession(id: string) {
+  try {
+    const importId = ensureImportId(id);
+    const response = await apiFetch<any>(`/v2/imports/${encodeURIComponent(importId)}`, {
+      method: "GET",
+      query: buildNoCacheQuery(),
+      headers: buildNoCacheHeaders(),
+    });
 
-      const session = normalizeImportSession(response);
-      return {
-        ...session,
-        id: session.id || importId,
-      };
-    } catch (error: any) {
-      throw new Error(normalizeApiError(error));
-    }
+    console.log("RAW RESPONSE:", JSON.stringify(response)); // ← добавь это
+
+    const session = normalizeImportSession(response);
+    console.log("NORMALIZED SESSION:", JSON.stringify(session)); // ← и это
+    return {
+      ...session,
+      id: session.id || importId,
+    };
+  } catch (error: any) {
+    throw new Error(normalizeApiError(error));
   }
+}
 
   async function validateImportSession(id: string, payload: ValidateImportPayload) {
     try {
@@ -981,11 +1132,48 @@ export function useProductImport() {
     }
   }
 
+  async function validateExcelImport(id: string, payload: ValidateImportPayload) {
+    try {
+      const importId = ensureImportId(id);
+      const response = await apiFetch<any>("/v2/excel/validate-import", {
+        method: "POST",
+        body: {
+          import_id: importId,
+          ...buildValidateBody({
+            ...payload,
+            autoCommit: false,
+          }),
+        },
+      });
+
+      const resolved = unwrapPayload(response);
+      const resolvedJobId = String(
+        resolved?.job_id ??
+          resolved?.correlation_id ??
+          resolved?.message ??
+          resolved?.import_id ??
+          "",
+      ).trim();
+
+      return {
+        jobId: resolvedJobId,
+        importId: String(resolved?.import_id ?? resolved?.correlation_id ?? importId).trim(),
+        correlationId: String(resolved?.correlation_id ?? resolved?.import_id ?? importId).trim(),
+      };
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   async function getImportProgress(jobId: string) {
     try {
       const response = await apiFetch<ImportProgressResponse>(
         `/v2/import-progress/${encodeURIComponent(jobId)}`,
-        { method: "GET" },
+        {
+          method: "GET",
+          query: buildNoCacheQuery(),
+          headers: buildNoCacheHeaders(),
+        },
       );
 
       return unwrapPayload<ImportProgressResponse>(response);
@@ -1019,11 +1207,12 @@ export function useProductImport() {
       const resolvedImportId = ensureImportId(importId);
       const response = await apiFetch<any>(`/v2/import-search/${encodeURIComponent(resolvedImportId)}`, {
         method: "GET",
-        query: {
+        query: buildNoCacheQuery({
           page: options?.page ?? 1,
           limit: options?.limit ?? 20,
           ...(options?.difference ? { difference: true } : {}),
-        },
+        }),
+        headers: buildNoCacheHeaders(),
       });
 
       return normalizePreviewResult(response, resolvedImportId);
@@ -1037,10 +1226,11 @@ export function useProductImport() {
       const resolvedImportId = ensureImportId(importId);
       const response = await apiFetch<any>(`/v2/import-items-dp/${encodeURIComponent(resolvedImportId)}`, {
         method: "GET",
-        query: {
+        query: buildNoCacheQuery({
           page: options?.page ?? 1,
           limit: options?.limit ?? 10000,
-        },
+        }),
+        headers: buildNoCacheHeaders(),
       });
 
       return normalizePreviewResult(response, resolvedImportId);
@@ -1095,6 +1285,69 @@ export function useProductImport() {
     }
   }
 
+  async function createImportInventory(
+    importId: string,
+    options?: { use_old_prices?: boolean; use_import_properties?: boolean },
+  ) {
+    try {
+      const resolvedImportId = ensureImportId(importId);
+      const response = await apiFetch<any>("/v2/import/inventory", {
+        method: "POST",
+        body: {
+          import_id: resolvedImportId,
+          use_old_prices: options?.use_old_prices ?? false,
+          use_import_properties: options?.use_import_properties ?? true,
+        },
+      });
+
+      const payload = unwrapPayload(response);
+      const id = String(
+        payload?.data?.id ??
+          payload?.id ??
+          payload?.stocktaking_id ??
+          payload?.data?.stocktaking_id ??
+          payload?.inventory_id ??
+          payload?.data?.inventory_id ??
+          payload?.item?.id ??
+          "",
+      ).trim();
+
+      if (!id) {
+        throw new Error("Сервер не вернул ID инвентаризации");
+      }
+
+      return { id } satisfies ImportInventoryCreateResult;
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function getStocktaking(id: string) {
+    try {
+      const stocktakingId = ensureImportId(id);
+      const response = await apiFetch<any>(`/v2/stocktaking/${encodeURIComponent(stocktakingId)}`, {
+        method: "GET",
+      });
+
+      return unwrapPayload(response);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function acceptStocktaking(id: string) {
+    try {
+      const stocktakingId = ensureImportId(id);
+      const response = await apiFetch<any>(`/v2/stocktaking/${encodeURIComponent(stocktakingId)}/accept`, {
+        method: "POST",
+      });
+
+      return unwrapPayload(response);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   return {
     getImportProperties,
     getAllowedShops,
@@ -1102,6 +1355,7 @@ export function useProductImport() {
     listImportSessions,
     getImportSession,
     validateImportSession,
+    validateExcelImport,
     getImportProgress,
     waitForImport,
     getImportPreview,
@@ -1109,6 +1363,9 @@ export function useProductImport() {
     commitImportSession,
     cancelImportSession,
     importWithoutCheck,
+    createImportInventory,
+    getStocktaking,
+    acceptStocktaking,
     defaultOnMatchPolicy: DEFAULT_ON_MATCH_POLICY,
   };
 }

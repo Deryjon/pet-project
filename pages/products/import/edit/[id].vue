@@ -7,151 +7,338 @@
     v-else-if="error"
     class="rounded-[28px] border border-[#7f3d3d] bg-[#442f2f] p-8 text-white"
   >
-    <h1 class="text-[28px] font-bold">Не удалось загрузить импорт</h1>
+    <button
+      type="button"
+      class="inline-flex items-center gap-2 rounded-[14px] bg-[#5a3838] px-4 py-3 text-[14px] font-bold"
+      @click="goBack"
+    >
+      <Icon name="heroicons:arrow-left-20-solid" class="h-5 w-5" />
+      Назад
+    </button>
+    <h1 class="mt-5 text-[28px] font-bold">Не удалось загрузить импорт</h1>
     <p class="mt-3 text-[#ffd7d7]">{{ error }}</p>
   </section>
 
-  <section v-else-if="session" class="space-y-8">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+  <section v-else-if="session" class="space-y-6">
+    <div class="hidden">
       <div>
         <button
           type="button"
-          class="inline-flex cursor-pointer items-center gap-2 rounded-[14px] bg-[#363636] px-4 py-3 text-[14px] font-bold text-white transition-colors duration-200 hover:bg-[#4a4a4a]"
+          class="rounded-[14px] bg-[#363636] px-4 py-3 text-[14px] font-bold text-white transition-colors duration-200 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="actionLoading"
           @click="goBack"
         >
-          <Icon name="heroicons:arrow-left-20-solid" class="h-5 w-5 text-[#4993dd]" />
-          Назад
+          Назад к импортам
         </button>
-
-        <p class="mt-5 text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]">
-          Серверный import session
+        <p
+          class="mt-5 text-[12px] font-bold uppercase tracking-[0.24em] text-[#7ba9d8]"
+        >
+          Предпросмотр
         </p>
-        <h1 class="mt-2 text-[34px] font-bold text-white">{{ session.name }}</h1>
+        <h1 class="mt-2 text-[34px] font-bold text-white">
+          {{ session.name }}
+        </h1>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <span
+            class="rounded-[12px] px-3 py-2 text-[13px] font-bold"
+            :class="importStatusMeta.badgeClass"
+          >
+            {{ importStatusMeta.label }}
+          </span>
+          <span
+            v-if="importStatusMeta.description"
+            class="text-[14px] text-[#bdbdbd]"
+          >
+            {{ importStatusMeta.description }}
+          </span>
+        </div>
         <p class="mt-2 text-[15px] text-[#bdbdbd]">
-          ID: {{ session.id }} • статус: {{ statusLabel }}
+          {{ importTypeLabel }} •
+          {{ session.branch_name || session.shop_name || "—" }} •
+          {{ formatDate(session.created_at) }}
         </p>
       </div>
-
-      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+    </div>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
         <button
-          v-if="canCancel"
           type="button"
-          class="cursor-pointer rounded-[16px] bg-[#4a3030] px-5 py-4 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#613b3b] disabled:cursor-not-allowed disabled:opacity-60"
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#404040] transition-colors duration-200 hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="actionLoading"
-          @click="cancelImport"
+          @click="goBack"
         >
-          Отменить
+          <Icon name="heroicons:arrow-left-20-solid" class="h-6 w-6" />
+        </button>
+        <div class="flex flex-col">
+          <h1 class="text-[34px] font-bold text-white">
+            {{ session.name }}
+          </h1>
+          <p class="text-[16px] text-[#bdbdbd] text-left">
+            {{ importTypeLabel }} •
+            {{ session.branch_name || "—" }}
+          </p>
+        </div>
+      </div>
+      <div class="buttons flex items-center gap-4">
+        <button
+          v-if="canCancelImport"
+          type="button"
+          class="rounded-[16px] bg-[#4a3030] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#5a3838] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="actionLoading"
+          @click="cancelCurrentImport"
+        >
+          {{
+            actionLoading && currentAction === "cancel"
+              ? "Отменяем..."
+              : "Отменить"
+          }}
         </button>
 
-        <button
-          v-if="showValidateButton"
-          type="button"
-          class="cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8]"
-          :disabled="actionLoading"
-          @click="validateImport"
-        >
-          {{ actionLoading ? "Запускаем..." : "К проверке" }}
-        </button>
+        <div class="relative">
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[16px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8]"
+            :disabled="actionLoading"
+            @click="loadMenuOpen = !loadMenuOpen"
+          >
+            {{ actionLoading ? "Обрабатываем..." : "Загрузить" }}
+            <Icon name="heroicons:chevron-down-20-solid" class="h-5 w-5" />
+          </button>
 
-        <button
-          v-if="showCommitButton"
-          type="button"
-          class="cursor-pointer rounded-[16px] bg-[#1f78ff] px-5 py-4 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#2a6ed9] disabled:cursor-not-allowed disabled:bg-[#3764a8]"
-          :disabled="actionLoading"
-          @click="commitImport"
-        >
-          {{ actionLoading ? "Загружаем..." : "Загрузить" }}
-        </button>
+          <div
+            v-if="loadMenuOpen"
+            class="absolute right-0 top-[calc(100%+12px)] z-20 min-w-[340px] rounded-[20px] border border-white/10 bg-[#363636] p-2 shadow-2xl"
+          >
+            <button
+              v-if="canShowLoadActions"
+              type="button"
+              class="flex w-full flex-col items-start rounded-[14px] px-4 py-3 text-left transition-colors duration-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/50"
+              :disabled="actionLoading || !canDirectCommit"
+              @click="handleMenuAction('commit')"
+            >
+              <span class="text-[15px] font-bold text-white">
+                {{ importMode === "with_check" ? "Принять и загрузить" : "Загрузить" }}
+              </span>
+              <span class="mt-1 text-[13px] text-white/70">
+                {{
+                  importMode === "with_check"
+                    ? "Принять импорт и загрузить товары"
+                    : "Загрузить все товары из списка"
+                }}
+              </span>
+            </button>
+            <button
+              v-if="canShowLoadActions"
+              type="button"
+              class="mt-1 flex w-full flex-col items-start rounded-[14px] px-4 py-3 text-left transition-colors duration-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/50"
+              :disabled="actionLoading || !canValidateAndUpload"
+              @click="handleMenuAction('validate')"
+            >
+              <span class="text-[15px] font-bold text-white">Проверить и загрузить</span>
+              <span class="mt-1 text-[13px] text-white/70">
+                Проверить инвентаризацию перед загрузкой
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="stat in summaryStats" :key="stat.label" class="rounded-[24px] bg-[#2b2b2b] p-5">
-        <p class="text-[13px] font-bold text-[#a7a7a7]">{{ stat.label }}</p>
-        <p class="mt-3 text-[28px] font-bold text-white">{{ stat.value }}</p>
+      <div
+        v-for="card in summaryCards"
+        :key="card.label"
+        class="rounded-[24px] bg-[#2b2b2b] p-5"
+      >
+        <p class="text-[13px] font-bold text-[#a7a7a7]">{{ card.label }}</p>
+        <p class="mt-3 text-[28px] font-bold text-white">{{ card.value }}</p>
       </div>
     </div>
-
-    <section class="rounded-[28px] bg-[#2b2b2b] p-6">
-      <p class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]">
-        Параметры
-      </p>
-      <div class="mt-4 grid gap-4 md:grid-cols-2">
-        <div class="rounded-[18px] bg-[#363636] px-4 py-4">
-          <p class="text-[#a7a7a7]">Режим</p>
-          <p class="mt-1 font-bold text-white">{{ session.mode === "with_check" ? "С проверкой" : "Без проверки" }}</p>
-        </div>
-        <div class="rounded-[18px] bg-[#363636] px-4 py-4">
-          <p class="text-[#a7a7a7]">Магазин</p>
-          <p class="mt-1 font-bold text-white">{{ session.shop_name || session.shop_id || "—" }}</p>
-        </div>
-        <div class="rounded-[18px] bg-[#363636] px-4 py-4">
-          <p class="text-[#a7a7a7]">Создан</p>
-          <p class="mt-1 font-bold text-white">{{ formatDate(session.created_at) }}</p>
-        </div>
-        <div class="rounded-[18px] bg-[#363636] px-4 py-4">
-          <p class="text-[#a7a7a7]">Строк</p>
-          <p class="mt-1 font-bold text-white">{{ rowsCount }}</p>
-        </div>
-      </div>
-    </section>
-
-    <section
-      v-if="session.rows.length"
-      class="rounded-[28px] bg-[#2b2b2b] p-6"
-    >
-      <div class="mb-4">
-        <p class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]">
-          File Rows
+    <section class="space-y-5 rounded-[28px] bg-[#2b2b2b] p-6">
+      <div class="flex flex-col gap-2">
+        <p
+          class="text-[12px] font-bold uppercase tracking-[0.22em] text-[#7ba9d8]"
+        >
+          Артикул, баркод, наименование
         </p>
-        <h2 class="mt-2 text-[24px] font-bold text-white">Imported products from file</h2>
+        <h2 class="text-[28px] font-bold text-white">Товары из файла</h2>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="min-w-[920px] w-full border-separate border-spacing-y-2 text-left">
-          <thead>
-            <tr class="text-[13px] uppercase tracking-[0.12em] text-[#8f8f8f]">
-              <th class="px-4 py-3">Название</th>
-              <th class="px-4 py-3">SKU</th>
-              <th class="px-4 py-3">Штрихкод</th>
-              <th class="px-4 py-3">Qty</th>
-              <th class="px-4 py-3">Supply</th>
-              <th class="px-4 py-3">Retail</th>
-              <th class="px-4 py-3">Category</th>
-              <th class="px-4 py-3">Brand</th>
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <label
+          class="flex w-full items-center gap-3 rounded-[18px] bg-[#262626] px-4 py-3 text-white lg:max-w-[420px]"
+        >
+          <Icon name="heroicons:magnifying-glass-20-solid" class="h-5 w-5 text-[#7ba9d8]" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Поиск по товарам из файла"
+            class="w-full bg-transparent text-[15px] text-white placeholder:text-[#8f8f8f]"
+          />
+        </label>
+
+        <button
+          type="button"
+          class="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#363636] px-5 py-4 text-[15px] font-bold text-white transition-colors duration-200 hover:bg-[#4a4a4a] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="!filteredTableRows.length"
+          @click="printPriceTags"
+        >
+          <Icon name="heroicons:printer-20-solid" class="h-5 w-5 text-[#7ba9d8]" />
+          Печать ценников
+        </button>
+      </div>
+
+      <div v-if="filteredTableRows.length" class="overflow-hidden">
+        <div class="overflow-x-auto">
+        <table
+          class="min-w-[1450px] w-full border-separate border-spacing-y-2 text-left text-sm text-[#bdbdbd] sm:text-[17px]"
+        >
+          <thead class="border-t border-b border-white/10">
+            <tr class="text-[#8f8f8f]">
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Наименование
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Артикул
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Баркод
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Кол-во
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Цена поставки
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Цена продажи
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Категория
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Бренд
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Единица измерения
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Поставщик
+              </th>
+              <th class="whitespace-nowrap px-3 py-4 text-[13px] font-bold uppercase tracking-[0.12em] sm:px-[20px] sm:py-[25px] sm:text-base">
+                Описание
+              </th>
             </tr>
           </thead>
 
           <tbody>
-            <tr v-for="(row, index) in session.rows" :key="`${row.article}-${row.barcode}-${index}`">
-              <td class="rounded-l-[18px] bg-[#363636] px-4 py-4 text-[15px] font-bold text-white">
-                {{ row.name || "—" }}
+            <tr
+              v-for="(row, index) in filteredTableRows"
+              :key="`${row.article}-${row.barcode}-${index}`"
+            >
+              <td
+                class="whitespace-nowrap rounded-l-[20px] px-3 py-4 text-left text-[14px] font-normal text-[#4993dd] sm:px-[20px] sm:py-[25px] sm:text-[15px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.name || "Отсутствует" }}
               </td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.article || "—" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.barcode || "—" }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.quantity }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ formatMoney(row.supplyPrice) }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ formatMoney(row.retailPrice) }}</td>
-              <td class="bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.category || "—" }}</td>
-              <td class="rounded-r-[18px] bg-[#363636] px-4 py-4 text-[15px] text-white">{{ row.brand || "—" }}</td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.article || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.barcode || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ formatQuantity(row.quantity) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ formatMoney(row.supplyPrice) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ formatMoney(row.retailPrice) }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.category || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.brand || "Отсутствует" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.unit || "Штука" }}
+              </td>
+              <td
+                class="whitespace-nowrap px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.supplier || "Отсутствует" }}
+              </td>
+              <td
+                class="rounded-r-[20px] px-3 py-4 text-left text-[13px] font-normal text-white sm:px-[20px] sm:py-[25px] sm:text-[17px]"
+                :class="index % 2 === 0 ? 'bg-[#262626]' : 'bg-[#404040]'"
+              >
+                {{ row.description || "" }}
+              </td>
             </tr>
           </tbody>
         </table>
+        </div>
+      </div>
+
+      <div
+        v-else
+        class="mt-5 rounded-[20px] border border-[#5b4a1f] bg-[#3b321d] p-6 text-white"
+      >
+        {{
+          tableRows.length
+            ? "По вашему запросу товары не найдены."
+            : "Backend вернул import session без массива `rows`."
+        }}
       </div>
     </section>
 
     <section
-      v-else-if="rowsCount > 0"
-      class="rounded-[28px] border border-[#5b4a1f] bg-[#3b321d] p-6 text-white"
+      v-if="errorMessage"
+      class="rounded-[22px] border border-[#7f3d3d] bg-[#442f2f] p-5 text-[#ffd7d7]"
     >
-      <p class="text-[16px] font-bold">Backend returned a row count, but did not return the `rows` array.</p>
+      {{ errorMessage }}
     </section>
 
     <section
-      v-if="progressPercent > 0 && (session.status === 'validating' || session.status === 'importing')"
+      v-if="
+        progressPercent > 0 &&
+        (sessionStatusCode === 'validating' || actionLoading)
+      "
       class="rounded-[28px] bg-[#2b2b2b] p-6 text-white"
     >
-      <p class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]">Прогресс</p>
+      <p
+        class="text-[13px] font-bold uppercase tracking-[0.18em] text-[#7ba9d8]"
+      >
+        Прогресс
+      </p>
       <p class="mt-3 text-[16px] text-[#bdbdbd]">{{ progressMessage }}</p>
       <div class="mt-6 rounded-full bg-[#404040] p-1">
         <div
@@ -165,87 +352,363 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { navigateTo, useHead, useRoute, useRouter } from "#imports";
-import { useProductImport, type ImportSession } from "~/composables/useProductImport";
+import {
+  useProductImport,
+  type CreateImportPayload,
+  type ImportDraftMappingPayload,
+  type ImportMode,
+  type ImportProperty,
+  type ImportSession,
+  type ParsedImportRow,
+} from "~/composables/useProductImport";
+
+definePageMeta({ layout: "empty" });
+
+type ImportFieldKey =
+  | "name"
+  | "article"
+  | "barcode"
+  | "quantity"
+  | "supplyPrice"
+  | "retailPrice"
+  | "category"
+  | "brand"
+  | "unit"
+  | "supplier"
+  | "description";
+
+type DraftState = {
+  name: string;
+  shopId: string;
+  mode: ImportMode;
+  generateBarcodes: boolean;
+  generateArticles: boolean;
+  importType: string;
+  mappings: ImportDraftMappingPayload[];
+  rows: ParsedImportRow[];
+};
+
+type MappingOption = {
+  label: string;
+  value: string;
+};
+
+const FIELD_TO_SYSTEM_NAME: Record<ImportFieldKey, string> = {
+  name: "NAME",
+  article: "SKU",
+  barcode: "BARCODE",
+  quantity: "QUANTITY",
+  supplyPrice: "SUPPLY_PRICE",
+  retailPrice: "RETAIL_PRICE",
+  category: "CATEGORY_NAME",
+  brand: "BRAND_NAME",
+  unit: "MEASUREMENT_UNIT",
+  supplier: "SUPPLIER",
+  description: "DESCRIPTION",
+};
+
+const REQUIRED_FIELDS: ImportFieldKey[] = [
+  "name",
+  "quantity",
+  "supplyPrice",
+  "retailPrice",
+];
+
+const fieldConfigs: Array<{ key: ImportFieldKey; label: string }> = [
+  { key: "name", label: "НАИМЕНОВАНИЕ" },
+  { key: "article", label: "АРТИКУЛ" },
+  { key: "barcode", label: "БАРКОД" },
+  { key: "quantity", label: "КОЛ-ВО" },
+  { key: "supplyPrice", label: "ЦЕНА ПОСТАВКИ (UZS)" },
+  { key: "retailPrice", label: "РОЗНИЧНАЯ ЦЕНА (UZS)" },
+  { key: "category", label: "КАТЕГОРИЯ" },
+  { key: "brand", label: "БРЕНД" },
+  { key: "unit", label: "ЕДИНИЦА ИЗМЕРЕНИЯ" },
+  { key: "supplier", label: "ПОСТАВЩИК" },
+  { key: "description", label: "ОПИСАНИЕ" },
+];
+
+const defaultDraft: DraftState = {
+  name: "",
+  shopId: "",
+  mode: "with_check",
+  generateBarcodes: true,
+  generateArticles: true,
+  importType: "Поступление",
+  mappings: [],
+  rows: [],
+};
 
 const route = useRoute();
 const router = useRouter();
 const {
   getImportSession,
-  validateImportSession,
+  getImportProperties,
+  getImportPreview,
+  getImportItems,
   getImportProgress,
+  importWithoutCheck,
+  validateImportSession,
   commitImportSession,
   cancelImportSession,
+  createImportInventory,
+  getStocktaking,
+  acceptStocktaking,
 } = useProductImport();
+const toast = useToast();
 
-const importId = computed(() => String(route.params.id ?? ""));
+const importId = computed(() => String(route.params.id ?? "").trim());
 const session = ref<ImportSession | null>(null);
+const availableProperties = ref<ImportProperty[]>([]);
+const draft = ref<DraftState>({ ...defaultDraft });
+const mappingChoices = ref<Record<ImportFieldKey, string>>(
+  createDefaultChoiceState(),
+);
+const newPropertyNames = ref<Record<ImportFieldKey, string>>(
+  createDefaultTextState(),
+);
+const inventoryBeforeImport = ref(false);
 const loading = ref(true);
 const actionLoading = ref(false);
 const error = ref("");
-const toast = useToast();
+const errorMessage = ref("");
 const progressPercent = ref(0);
 const progressMessage = ref("");
+const searchQuery = ref("");
+const currentAction = ref<
+  "validate" | "import-all" | "cancel" | "commit" | "inventory" | ""
+>("");
+const loadMenuOpen = ref(false);
+const previewRows = ref<ParsedImportRow[]>([]);
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-const statusLabel = computed(() => {
-  switch (session.value?.status) {
-    case "draft":
-      return "Черновик";
-    case "validating":
-      return "Проверяется";
-    case "preview_ready":
-      return "Preview готов";
-    case "importing":
-      return "Импортируется";
-    case "completed":
-      return "Завершен";
-    case "cancelled":
-      return "Отменен";
-    case "failed":
-      return "Ошибка";
-    default:
-      return "—";
-  }
-});
-
-const showValidateButton = computed(
-  () => session.value?.mode === "with_check" && session.value?.status === "draft",
+const importTypeLabel = computed(() => draft.value.importType || "Поступление");
+const importMode = computed<ImportMode>(
+  () => session.value?.mode || draft.value.mode || "without_check",
 );
-const showCommitButton = computed(() => {
-  if (!session.value) return false;
-
-  return session.value.status === "preview_ready";
-});
-const canCancel = computed(
-  () => session.value?.status === "draft" || session.value?.status === "preview_ready",
+const sessionStatusCode = computed(
+  () => session.value?.status_code || session.value?.status || "draft",
 );
-const rowsCount = computed(() => {
-  if (!session.value) return 0;
+const importStatusMeta = computed(() => {
+  const badgeClass =
+    sessionStatusCode.value === "completed"
+      ? "bg-[#1f5f3a] text-[#d8ffe7]"
+      : sessionStatusCode.value === "cancelled" ||
+          sessionStatusCode.value === "failed"
+        ? "bg-[#6b2d31] text-[#ffd9dc]"
+        : sessionStatusCode.value === "preview_ready"
+          ? "bg-[#37516f] text-[#d9ebff]"
+          : sessionStatusCode.value === "draft"
+            ? "bg-[#4b4b4b] text-white"
+            : "bg-[#5b4a1f] text-[#ffe9bf]";
 
-  return (
-    session.value.rows_count ||
-    session.value.rows.length ||
-    session.value.preview_items.length ||
-    0
+  const description =
+    sessionStatusCode.value === "draft"
+      ? "Импорт создан, но еще не проверен."
+      : sessionStatusCode.value === "preview_ready"
+        ? "Проверка завершена, импорт ждет подтверждения."
+        : sessionStatusCode.value === "validating"
+          ? "Идет проверка файла."
+          : sessionStatusCode.value === "importing"
+            ? "Идет реальная загрузка товаров в базу."
+            : sessionStatusCode.value === "completed"
+              ? "Импорт полностью завершен."
+              : sessionStatusCode.value === "cancelled"
+                ? "Импорт отменен."
+                : sessionStatusCode.value === "failed"
+                  ? "Импорт завершился с ошибкой или проблемой."
+                  : "";
+
+  return {
+    label:
+      session.value?.status_label ||
+      (sessionStatusCode.value === "preview_ready"
+        ? "В Ожидании"
+        : sessionStatusCode.value === "validating"
+          ? "Проверяется"
+          : sessionStatusCode.value === "importing"
+            ? "Загружается"
+            : sessionStatusCode.value === "completed"
+              ? "Завершен"
+              : sessionStatusCode.value === "cancelled"
+                ? "Отменен"
+                : sessionStatusCode.value === "failed"
+                  ? "Проверка"
+                  : "Новый"),
+    description,
+    badgeClass,
+  };
+});
+const tableRows = computed(() => {
+  if (previewRows.value.length) return previewRows.value;
+  if (session.value?.rows?.length) return session.value.rows;
+  return draft.value.rows ?? [];
+});
+const filteredTableRows = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return tableRows.value;
+
+  return tableRows.value.filter((row) =>
+    [
+      row.name,
+      row.article,
+      row.barcode,
+      row.category,
+      row.brand,
+      row.unit,
+      row.supplier,
+      row.description,
+    ].some((value) => String(value || "").toLowerCase().includes(query)),
   );
 });
+const sampleRow = computed<ParsedImportRow | null>(
+  () => tableRows.value[0] ?? null,
+);
 
-const summaryStats = computed(() => {
-  if (!session.value) return [];
+const summaryCards = computed(() => {
+  const rows = tableRows.value;
+  const namesCount = rows.length;
+  const totalQuantity = rows.reduce(
+    (sum, row) => sum + Number(row.quantity || 0),
+    0,
+  );
+  const totalSupply = rows.reduce(
+    (sum, row) =>
+      sum + Number(row.quantity || 0) * Number(row.supplyPrice || 0),
+    0,
+  );
+  const totalRetail = rows.reduce(
+    (sum, row) =>
+      sum + Number(row.quantity || 0) * Number(row.retailPrice || 0),
+    0,
+  );
 
   return [
-    { label: "Строк", value: `${rowsCount.value}` },
-    { label: "Статус", value: statusLabel.value },
-    { label: "Режим", value: session.value.mode === "with_check" ? "С проверкой" : "Без проверки" },
-    { label: "Магазин", value: session.value.shop_name || session.value.shop_id || "—" },
+    { label: "Наименований", value: `${namesCount} шт` },
+    { label: "Товарных единиц", value: `${formatNumber(totalQuantity)} ед.` },
+    { label: "Сумма по цене поставки", value: formatCompactMoney(totalSupply) },
+    { label: "Сумма по цене продажи", value: formatCompactMoney(totalRetail) },
   ];
 });
+
+const canCancelImport = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled",
+);
+const canValidateAndUpload = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled" &&
+    sessionStatusCode.value !== "importing",
+);
+const canShowLoadActions = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled" &&
+    sessionStatusCode.value !== "importing",
+);
+const canDirectCommit = computed(
+  () =>
+    Boolean(session.value) &&
+    sessionStatusCode.value !== "completed" &&
+    sessionStatusCode.value !== "cancelled" &&
+    sessionStatusCode.value !== "importing",
+);
+
+function createDefaultChoiceState() {
+  return {
+    name: `map:${FIELD_TO_SYSTEM_NAME.name}`,
+    article: `map:${FIELD_TO_SYSTEM_NAME.article}`,
+    barcode: `map:${FIELD_TO_SYSTEM_NAME.barcode}`,
+    quantity: `map:${FIELD_TO_SYSTEM_NAME.quantity}`,
+    supplyPrice: `map:${FIELD_TO_SYSTEM_NAME.supplyPrice}`,
+    retailPrice: `map:${FIELD_TO_SYSTEM_NAME.retailPrice}`,
+    category: `map:${FIELD_TO_SYSTEM_NAME.category}`,
+    brand: `map:${FIELD_TO_SYSTEM_NAME.brand}`,
+    unit: `map:${FIELD_TO_SYSTEM_NAME.unit}`,
+    supplier: `map:${FIELD_TO_SYSTEM_NAME.supplier}`,
+    description: `map:${FIELD_TO_SYSTEM_NAME.description}`,
+  } satisfies Record<ImportFieldKey, string>;
+}
+
+function createDefaultTextState() {
+  return {
+    name: "",
+    article: "",
+    barcode: "",
+    quantity: "",
+    supplyPrice: "",
+    retailPrice: "",
+    category: "",
+    brand: "",
+    unit: "",
+    supplier: "",
+    description: "",
+  } satisfies Record<ImportFieldKey, string>;
+}
+
+function getDraftStorageKey(id: string) {
+  return `product-import-draft:${id}`;
+}
+
+function readDraftState(id: string) {
+  if (typeof window === "undefined") return null;
+
+  const raw = window.sessionStorage.getItem(getDraftStorageKey(id));
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as DraftState;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraftState() {
+  if (typeof window === "undefined" || !importId.value) return;
+
+  const mappings = buildMappings(false);
+  if (!mappings) return;
+
+  const payload: DraftState = {
+    ...draft.value,
+    mappings,
+    rows: tableRows.value.length ? [...tableRows.value] : [...draft.value.rows],
+  };
+  window.sessionStorage.setItem(
+    getDraftStorageKey(importId.value),
+    JSON.stringify(payload),
+  );
+}
+
+function normalizeSystemName(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9А-ЯЁ]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(
+    value || 0,
+  );
+}
+
+function formatMoney(value: number) {
+  return `${formatNumber(Number(value || 0))} UZS`;
+}
 
 function formatDate(value: string) {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return value || "—";
+
   return new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "2-digit",
@@ -255,8 +718,216 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function formatMoney(value: number) {
-  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(value)} UZS`;
+function formatCompactMoney(value: number) {
+  if (!Number.isFinite(value)) return "0 UZS";
+
+  if (value >= 1000) {
+    const compact = new Intl.NumberFormat("ru-RU", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+    return `${compact} UZS`;
+  }
+
+  return `${formatNumber(value)} UZS`;
+}
+
+function formatQuantity(value: number) {
+  return `${formatNumber(Number(value || 0))} шт`;
+}
+
+function getFieldSample(field: ImportFieldKey) {
+  const row = sampleRow.value;
+  if (!row) return "Отсутствует";
+
+  const value = row[field];
+  if (field === "quantity") return String(value ?? "0");
+  if (field === "supplyPrice" || field === "retailPrice")
+    return String(value ?? "0");
+
+  return String(value ?? "").trim() || "Отсутствует";
+}
+
+function getMappingOptions(field: ImportFieldKey): MappingOption[] {
+  const defaultOption = {
+    label: `Подставлять в ${fieldConfigs.find((item) => item.key === field)?.label ?? field}`,
+    value: `map:${FIELD_TO_SYSTEM_NAME[field]}`,
+  };
+
+  const dynamicOptions = availableProperties.value.map((property) => ({
+    label: property.name,
+    value: `map:${property.system_name}`,
+  }));
+
+  return [
+    defaultOption,
+    ...dynamicOptions,
+    { label: "Добавить новое свойство", value: "new" },
+    { label: "Не загружать", value: "skip" },
+  ];
+}
+
+function applyStoredMappings(mappings: ImportDraftMappingPayload[]) {
+  const nextChoices = createDefaultChoiceState();
+  const nextNames = createDefaultTextState();
+
+  for (const mapping of mappings) {
+    const key = mapping.key as ImportFieldKey;
+    if (!(key in nextChoices)) continue;
+
+    if (mapping.action === "skip") {
+      nextChoices[key] = "skip";
+      continue;
+    }
+
+    const isDefaultTarget = mapping.targetField === FIELD_TO_SYSTEM_NAME[key];
+    const isKnownProperty = availableProperties.value.some(
+      (property) => property.system_name === mapping.targetField,
+    );
+
+    if (mapping.action === "new" || (!isDefaultTarget && !isKnownProperty)) {
+      nextChoices[key] = "new";
+      nextNames[key] = mapping.targetField;
+      continue;
+    }
+
+    nextChoices[key] = `map:${mapping.targetField}`;
+  }
+
+  mappingChoices.value = nextChoices;
+  newPropertyNames.value = nextNames;
+}
+
+function buildMappings(showErrors = true) {
+  const nextMappings: ImportDraftMappingPayload[] = [];
+
+  for (const field of fieldConfigs) {
+    const choice = mappingChoices.value[field.key];
+
+    if (choice === "skip") {
+      if (REQUIRED_FIELDS.includes(field.key)) {
+        if (showErrors) {
+          errorMessage.value = `Поле "${field.label}" обязательно для загрузки.`;
+        }
+        return null;
+      }
+
+      nextMappings.push({
+        key: field.key,
+        targetField: FIELD_TO_SYSTEM_NAME[field.key],
+        action: "skip",
+      });
+      continue;
+    }
+
+    if (choice === "new") {
+      const normalizedName = normalizeSystemName(
+        newPropertyNames.value[field.key],
+      );
+      if (!normalizedName) {
+        if (showErrors) {
+          errorMessage.value = `Укажите название нового свойства для поля "${field.label}".`;
+        }
+        return null;
+      }
+
+      nextMappings.push({
+        key: field.key,
+        targetField: normalizedName,
+        action: "new",
+      });
+      continue;
+    }
+
+    const targetField =
+      choice.replace(/^map:/, "") || FIELD_TO_SYSTEM_NAME[field.key];
+    nextMappings.push({
+      key: field.key,
+      targetField,
+      action: "map",
+    });
+  }
+
+  return nextMappings;
+}
+
+function buildPayload(mode: ImportMode): CreateImportPayload | null {
+  const rows = tableRows.value;
+  if (!rows.length) {
+    errorMessage.value = "В import session нет строк для загрузки.";
+    return null;
+  }
+
+  const mappings = buildMappings();
+  if (!mappings) return null;
+
+  return {
+    name: draft.value.name || session.value?.name || "",
+    shopId: draft.value.shopId || session.value?.shop_id || "",
+    mode,
+    generateBarcodes: draft.value.generateBarcodes,
+    generateArticles: draft.value.generateArticles,
+    rows,
+    mappings,
+    availableProperties: availableProperties.value,
+    onMatch: session.value?.on_match,
+  };
+}
+
+function mapPreviewItemToRow(item: any): ParsedImportRow {
+  return {
+    name: String(item?.raw?.name ?? item?.product_name ?? "").trim(),
+    article: String(item?.raw?.sku ?? item?.product_sku ?? "").trim(),
+    barcode: String(item?.raw?.barcode ?? item?.product_barcode ?? "").trim(),
+    quantity: Number(item?.raw?.quantity ?? item?.measurement_value ?? 0) || 0,
+    supplyPrice: Number(item?.raw?.supplyPrice ?? item?.supply_price ?? 0) || 0,
+    retailPrice: Number(item?.raw?.retailPrice ?? item?.retail_price ?? 0) || 0,
+    category: String(item?.raw?.categoryName ?? "").trim(),
+    brand: String(item?.raw?.brandName ?? "").trim(),
+    unit: String(
+      item?.raw?.measurementUnit ?? item?.measurement_type ?? "",
+    ).trim(),
+    supplier: String(item?.raw?.supplier ?? "").trim(),
+    description: String(
+      item?.raw?.description ?? item?.description ?? "",
+    ).trim(),
+  };
+}
+
+async function loadPreviewRowsWithRetry(fallbackRows: ParsedImportRow[] = []) {
+  previewRows.value = [];
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const preview = await getImportPreview(importId.value, {
+        page: 1,
+        limit: 1000,
+      });
+      if (preview.items.length) {
+        previewRows.value = preview.items.map(mapPreviewItemToRow);
+        return;
+      }
+    } catch {}
+
+    try {
+      const items = await getImportItems(importId.value, {
+        page: 1,
+        limit: 1000,
+      });
+      if (items.items.length) {
+        previewRows.value = items.items.map(mapPreviewItemToRow);
+        return;
+      }
+    } catch {}
+
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+  }
+
+  if (fallbackRows.length) {
+    previewRows.value = [...fallbackRows];
+  }
 }
 
 async function loadSession() {
@@ -264,7 +935,28 @@ async function loadSession() {
   error.value = "";
 
   try {
-    session.value = await getImportSession(importId.value);
+    const [sessionResponse, propertiesResponse] = await Promise.all([
+      getImportSession(importId.value),
+      getImportProperties(),
+    ]);
+
+    session.value = sessionResponse;
+    availableProperties.value = propertiesResponse;
+
+    const storedDraft = readDraftState(importId.value);
+    draft.value = storedDraft
+      ? { ...defaultDraft, ...storedDraft }
+      : {
+          ...defaultDraft,
+          name: sessionResponse.name,
+          shopId: sessionResponse.shop_id,
+          mode: sessionResponse.mode,
+        };
+
+    applyStoredMappings(
+      storedDraft?.mappings?.length ? storedDraft.mappings : [],
+    );
+    await loadPreviewRowsWithRetry(storedDraft?.rows ?? []);
   } catch (err: any) {
     error.value = err?.message || "Не удалось загрузить import session.";
     session.value = null;
@@ -291,17 +983,23 @@ async function pollProgress(jobId: string, nextImportId?: string) {
 
       if (progress.is_finished) {
         const resolvedImportId = String(
-          progress.import_id ?? progress.correlation_id ?? nextImportId ?? importId.value,
+          progress.import_id ??
+            progress.correlation_id ??
+            nextImportId ??
+            importId.value,
         );
 
         stopPolling();
-        await router.replace(`/products/import/list/${resolvedImportId}?limit=20&page=1`);
+        await router.replace(
+          `/products/import/edit/${resolvedImportId}?page=1`,
+        );
         return;
       }
 
       pollTimer = setTimeout(tick, 1200);
     } catch (err: any) {
-      error.value = err?.message || "Не удалось получить прогресс импорта.";
+      errorMessage.value =
+        err?.message || "Не удалось получить прогресс импорта.";
       stopPolling();
     }
   };
@@ -309,79 +1007,239 @@ async function pollProgress(jobId: string, nextImportId?: string) {
   await tick();
 }
 
-async function validateImport() {
+async function waitForProgressCompletion(jobId: string, nextImportId?: string) {
+  stopPolling();
+
+  while (true) {
+    const progress = await getImportProgress(jobId);
+    progressPercent.value = Number(progress.percent ?? 0);
+    progressMessage.value = String(progress.message ?? "Обработка");
+
+    if (progress.is_finished) {
+      return String(
+        progress.import_id ??
+          progress.correlation_id ??
+          nextImportId ??
+          importId.value,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
+}
+
+async function validateAndUpload() {
   if (!session.value) return;
 
+  const payload = buildPayload("with_check");
+  if (!payload) return;
+
+  errorMessage.value = "";
   actionLoading.value = true;
-  error.value = "";
+  currentAction.value = "validate";
+  writeDraftState();
 
   try {
     const result = await validateImportSession(session.value.id, {
-      name: session.value.name,
-      shopId: session.value.shop_id,
-      mode: session.value.mode,
-      generateBarcodes: false,
-      generateArticles: false,
-      rows: session.value.rows,
-      mappings: [],
-      onMatch: session.value.on_match,
+      ...payload,
+      autoCommit: false,
     });
-    await loadSession();
-    if (result.jobId) {
-      toast.add({ title: "Проверка импорта запущена", color: "success" });
-      await pollProgress(result.jobId, result.importId);
+
+    toast.add({ title: "Проверка импорта запущена", color: "success" });
+
+    const resolvedImportId = result.jobId
+      ? await waitForProgressCompletion(result.jobId, result.importId)
+      : result.importId || session.value.id;
+
+    session.value = await getImportSession(resolvedImportId);
+
+    if (
+      session.value.mode === "without_check" &&
+      session.value.status_code === "preview_ready" &&
+      session.value.can_commit
+    ) {
+      currentAction.value = "commit";
+      await commitImportSession(resolvedImportId, {
+        onMatch: session.value.on_match,
+      });
+      await router.replace(
+        `/products/import/list/${resolvedImportId}?limit=5&page=1`,
+      );
       return;
     }
 
-    toast.add({ title: "Импорт проверен", color: "success" });
-    await router.replace(`/products/import/list/${result.importId}?limit=20&page=1`);
+    if (
+      session.value.mode === "with_check" &&
+      session.value.status_code === "preview_ready"
+    ) {
+      await runInventoryBeforeImport();
+      return;
+    }
+
+    await router.replace(
+      `/products/import/edit/${resolvedImportId}?limit=5&page=1`,
+    );
   } catch (err: any) {
-    error.value = err?.message || "Не удалось запустить проверку.";
+    errorMessage.value = err?.message || "Не удалось запустить проверку.";
   } finally {
     actionLoading.value = false;
+    currentAction.value = "";
   }
 }
 
-async function commitImport() {
-  if (!session.value) return;
+async function ensurePreviewReadySession() {
+  if (!session.value) return null;
 
+  if (session.value.status_code === "preview_ready" && session.value.can_commit) {
+    return session.value;
+  }
+
+  const payload = buildPayload("with_check");
+  if (!payload) return null;
+
+  currentAction.value = "validate";
+  writeDraftState();
+
+  const result = await validateImportSession(session.value.id, {
+    ...payload,
+    autoCommit: false,
+  });
+
+  const resolvedImportId = result.jobId
+    ? await waitForProgressCompletion(result.jobId, result.importId)
+    : result.importId || session.value.id;
+
+  session.value = await getImportSession(resolvedImportId);
+
+  if (!(session.value.status_code === "preview_ready" && session.value.can_commit)) {
+    throw new Error("Импорт не готов к подтверждению после проверки.");
+  }
+
+  return session.value;
+}
+
+async function getOrCreateStocktakingId(importSession: ImportSession) {
+  const existingId = String(importSession.stocktaking_id || "").trim();
+  if (existingId) {
+    return existingId;
+  }
+
+  const created = await createImportInventory(importSession.id, {
+    use_old_prices: false,
+    use_import_properties: true,
+  });
+
+  return created.id;
+}
+
+async function importAllProducts() {
+  if (!session.value || !canDirectCommit.value) return;
+
+  const payload = buildPayload("without_check");
+  if (!payload) return;
+
+  errorMessage.value = "";
   actionLoading.value = true;
-  error.value = "";
+  currentAction.value = "commit";
 
   try {
-    await commitImportSession(session.value.id);
-    toast.add({ title: "Импорт подтвержден", color: "success" });
-    await router.replace(`/products/import/list/${session.value.id}?limit=20&page=1`);
+    const result = await importWithoutCheck(payload);
+    const resolvedImportId = result.id || session.value.id;
+    toast.add({ title: "Импорт запущен", color: "success" });
+    await router.replace(
+      `/products/import/list/${resolvedImportId}?limit=5&page=1`,
+    );
   } catch (err: any) {
-    error.value = err?.message || "Не удалось подтвердить импорт.";
+    errorMessage.value =
+      err?.message || "Не удалось загрузить товары без проверки.";
   } finally {
     actionLoading.value = false;
+    currentAction.value = "";
   }
 }
 
-async function cancelImport() {
-  if (!session.value) return;
+async function cancelCurrentImport() {
+  if (!session.value || !canCancelImport.value) return;
 
+  errorMessage.value = "";
   actionLoading.value = true;
-  error.value = "";
+  currentAction.value = "cancel";
 
   try {
     session.value = await cancelImportSession(session.value.id);
+    loadMenuOpen.value = false;
     toast.add({ title: "Импорт отменен", color: "success" });
   } catch (err: any) {
-    error.value = err?.message || "Не удалось отменить импорт.";
+    errorMessage.value = err?.message || "Не удалось отменить импорт.";
   } finally {
     actionLoading.value = false;
+    currentAction.value = "";
   }
+}
+
+async function runInventoryBeforeImport() {
+  if (!session.value) return;
+
+  errorMessage.value = "";
+  actionLoading.value = true;
+
+  try {
+    const readySession = await ensurePreviewReadySession();
+    if (!readySession) return;
+
+    currentAction.value = "inventory";
+
+    const stocktakingId = await getOrCreateStocktakingId(readySession);
+    await getStocktaking(stocktakingId);
+    await acceptStocktaking(stocktakingId);
+    toast.add({ title: "Инвентаризация проведена", color: "success" });
+    await router.replace(`/products/import/list/${readySession.id}?limit=5&page=1`);
+  } catch (err: any) {
+    errorMessage.value =
+      err?.message || "Не удалось провести инвентаризацию перед загрузкой.";
+  } finally {
+    actionLoading.value = false;
+    currentAction.value = "";
+  }
+}
+
+async function handleMenuAction(action: "commit" | "validate") {
+  loadMenuOpen.value = false;
+
+  if (action === "commit") {
+    await importAllProducts();
+    return;
+  }
+
+  await validateAndUpload();
 }
 
 function goBack() {
   return navigateTo("/products/import", { replace: true });
 }
 
-onMounted(async () => {
-  await loadSession();
-});
+function printPriceTags() {
+  if (!filteredTableRows.value.length) {
+    toast.add({ title: "Нет товаров для печати", color: "warning" });
+    return;
+  }
+
+  toast.add({
+    title: `Подготовлено ${filteredTableRows.value.length} товаров для печати ценников`,
+    color: "primary",
+  });
+}
+
+watch(
+  [mappingChoices, newPropertyNames],
+  () => {
+    if (!session.value) return;
+    writeDraftState();
+  },
+  { deep: true },
+);
+
+onMounted(loadSession);
 
 onBeforeUnmount(() => {
   stopPolling();
