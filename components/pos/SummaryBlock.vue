@@ -232,7 +232,7 @@
 
             <label class="block">
               <span class="mb-2 block text-sm font-semibold text-white">Срок погашения</span>
-              <input v-model="dueDateInput" type="date" class="w-full rounded-[18px] border border-white/10 bg-[#303030] px-4 py-4 text-white outline-none" />
+              <AppDatePicker v-model="dueDateInput" class="w-full" />
             </label>
 
             <label class="block">

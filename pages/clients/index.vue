@@ -529,8 +529,8 @@ onMounted(async () => {
             <div class="space-y-2">
               <span class="text-sm font-semibold text-white">Дата рождения</span>
               <div class="grid grid-cols-2 gap-3">
-                <input v-model="filterState.birthDateFrom" type="date" class="filter-field" />
-                <input v-model="filterState.birthDateTo" type="date" class="filter-field" />
+                <AppDatePicker v-model="filterState.birthDateFrom" clearable class="w-full" />
+                <AppDatePicker v-model="filterState.birthDateTo" clearable class="w-full" />
               </div>
             </div>
 
@@ -545,8 +545,8 @@ onMounted(async () => {
             <div class="space-y-2">
               <span class="text-sm font-semibold text-white">Дата последней покупки</span>
               <div class="grid grid-cols-2 gap-3">
-                <input v-model="filterState.lastPurchaseFrom" type="date" class="filter-field" />
-                <input v-model="filterState.lastPurchaseTo" type="date" class="filter-field" />
+                <AppDatePicker v-model="filterState.lastPurchaseFrom" clearable class="w-full" />
+                <AppDatePicker v-model="filterState.lastPurchaseTo" clearable class="w-full" />
               </div>
             </div>
 
@@ -563,8 +563,8 @@ onMounted(async () => {
             <div class="space-y-2">
               <span class="text-sm font-semibold text-white">Дата регистрации</span>
               <div class="grid grid-cols-2 gap-3">
-                <input v-model="filterState.registeredFrom" type="date" class="filter-field" />
-                <input v-model="filterState.registeredTo" type="date" class="filter-field" />
+                <AppDatePicker v-model="filterState.registeredFrom" clearable class="w-full" />
+                <AppDatePicker v-model="filterState.registeredTo" clearable class="w-full" />
               </div>
             </div>
 

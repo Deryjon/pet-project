@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Аудит | Konkurent" });
@@ -9,21 +10,22 @@ useHead({ title: "Аудит | Konkurent" });
 const search = ref("");
 const userFilter = ref("all");
 const entityFilter = ref("all");
+const { softInputUi, softSelectUi } = usePlatformFormUi();
 
 const logs = ref([
   { user: "Администратор", action: "СОЗДАНИЕ", entity: "Компания", date: "2026-05-05 12:43" },
-  { user: "Support", action: "UPDATE", entity: "User", date: "2026-05-05 11:20" },
+  { user: "Support", action: "ОБНОВЛЕНИЕ", entity: "Пользователь", date: "2026-05-05 11:20" },
   { user: "Администратор", action: "УДАЛЕНИЕ", entity: "Филиал", date: "2026-05-05 10:02" },
   { user: "Менеджер", action: "ВХОД", entity: "Платформа", date: "2026-05-04 18:10" },
 ]);
 
 const userOptions = computed(() => [
-  { label: "All users", value: "all" },
+  { label: "Все пользователи", value: "all" },
   ...Array.from(new Set(logs.value.map((log) => log.user))).map((user) => ({ label: user, value: user })),
 ]);
 
 const entityOptions = computed(() => [
-  { label: "All entities", value: "all" },
+  { label: "Все сущности", value: "all" },
   ...Array.from(new Set(logs.value.map((log) => log.entity))).map((entity) => ({ label: entity, value: entity })),
 ]);
 
@@ -46,10 +48,10 @@ const filteredLogs = computed(() =>
       <template #toolbar>
         <div class="flex flex-1 flex-wrap items-center gap-3">
           <div class="min-w-[240px] flex-1">
-            <UInput v-model="search" type="text" placeholder="Поиск по user, action, entity" />
+            <UInput v-model="search" type="text" placeholder="Поиск по пользователю, действию и сущности" :ui="softInputUi" />
           </div>
-          <USelect v-model="userFilter" :items="userOptions" value-key="value" class="min-w-[180px]" />
-          <USelect v-model="entityFilter" :items="entityOptions" value-key="value" class="min-w-[180px]" />
+          <USelect v-model="userFilter" :items="userOptions" value-key="value" :ui="softSelectUi" class="min-w-[180px]" />
+          <USelect v-model="entityFilter" :items="entityOptions" value-key="value" :ui="softSelectUi" class="min-w-[180px]" />
         </div>
       </template>
 
@@ -57,10 +59,10 @@ const filteredLogs = computed(() =>
         <table class="min-w-full border-separate border-spacing-y-3">
           <thead>
             <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              <th class="px-4 py-2">User</th>
+              <th class="px-4 py-2">Пользователь</th>
               <th class="px-4 py-2">Действие</th>
-              <th class="px-4 py-2">Entity</th>
-              <th class="px-4 py-2">Date</th>
+              <th class="px-4 py-2">Сущность</th>
+              <th class="px-4 py-2">Дата</th>
             </tr>
           </thead>
           <tbody>

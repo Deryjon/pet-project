@@ -361,7 +361,7 @@ onMounted(loadRoles);
 
             <div class="flex flex-col gap-2">
               <label class="text-sm font-medium text-[#d6d6d6]">Дата рождения</label>
-              <input v-model="birth_date" type="text" placeholder="10.10.2002" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+              <AppDatePicker v-model="birth_date" clearable class="w-full" />
             </div>
 
             <div class="flex flex-col gap-2">

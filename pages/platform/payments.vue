@@ -96,7 +96,7 @@ onMounted(loadPayments);
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата оплаты</span>
-          <UInput v-model="form.paid_at" type="date" required />
+          <AppDatePicker v-model="form.paid_at" class="w-full" />
         </label>
         <label class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Комментарий</span>

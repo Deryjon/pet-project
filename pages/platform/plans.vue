@@ -5,6 +5,7 @@ import DataTable from "@/components/platform/DataTable.vue";
 import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 import { formatPlatformMoney, usePlatformAdminApi, type PlatformPlan, type PlatformPlanPayload } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
@@ -12,6 +13,7 @@ useHead({ title: "Тарифы | Konkurent" });
 
 const toast = useToast();
 const api = usePlatformAdminApi();
+const { softInputUi, softSelectUi } = usePlatformFormUi();
 const plans = ref<PlatformPlan[]>([]);
 const modalOpen = ref(false);
 const editing = ref<PlatformPlan | null>(null);
@@ -118,27 +120,27 @@ onMounted(loadPlans);
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="savePlan">
         <label class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Название тарифа</span>
-          <UInput v-model="form.name" required />
+          <UInput v-model="form.name" required :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Цена за месяц</span>
-          <UInput v-model.number="form.price_monthly" type="number" min="0" required />
+          <UInput v-model.number="form.price_monthly" type="number" min="0" required :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Статус</span>
-          <USelect v-model="form.status" :items="['active', 'inactive']" />
+          <USelect v-model="form.status" :items="['active', 'inactive']" :ui="softSelectUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Лимит магазинов</span>
-          <UInput v-model.number="form.max_shops" type="number" min="0" required />
+          <UInput v-model.number="form.max_shops" type="number" min="0" required :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Лимит сотрудников</span>
-          <UInput v-model.number="form.max_users" type="number" min="0" required />
+          <UInput v-model.number="form.max_users" type="number" min="0" required :ui="softInputUi" />
         </label>
         <label class="space-y-2 md:col-span-2">
           <span class="text-[13px] font-semibold text-slate-700">Лимит товаров</span>
-          <UInput v-model.number="form.max_products" type="number" min="0" required />
+          <UInput v-model.number="form.max_products" type="number" min="0" required :ui="softInputUi" />
         </label>
         <div class="flex justify-end gap-3 md:col-span-2">
           <UButton type="button" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700" @click="modalOpen = false">Отмена</UButton>
