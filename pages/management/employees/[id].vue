@@ -633,11 +633,11 @@ async function saveSalaryData() {
               <div class="flex flex-wrap gap-3">
                 <label class="space-y-1">
                   <span class="text-xs font-medium text-[#bdbdbd]">Период от</span>
-                  <input v-model="salaryPeriod.from" type="date" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+                  <AppDatePicker v-model="salaryPeriod.from" class="w-full" />
                 </label>
                 <label class="space-y-1">
                   <span class="text-xs font-medium text-[#bdbdbd]">Период до</span>
-                  <input v-model="salaryPeriod.to" type="date" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+                  <AppDatePicker v-model="salaryPeriod.to" class="w-full" />
                 </label>
                 <button class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10" @click="loadSalaryData">
                   Обновить отчет

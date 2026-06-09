@@ -5,6 +5,7 @@ import DataTable from "@/components/platform/DataTable.vue";
 import DateBadge from "@/components/platform/DateBadge.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 import { daysLeft, usePlatformAdminApi, type PlatformCompany } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
@@ -13,6 +14,7 @@ useHead({ title: "Компании | Konkurent" });
 const router = useRouter();
 const toast = useToast();
 const api = usePlatformAdminApi();
+const { softInputUi, softSelectUi } = usePlatformFormUi();
 const companies = ref<PlatformCompany[]>([]);
 const renewingSubscriptionId = ref("");
 const renewingCompanyId = ref("");
@@ -100,8 +102,8 @@ async function renewWithPayment(company: PlatformCompany) {
   try {
     resolvedSubscription = await resolveSubscriptionForPayment(company);
   } catch (error: any) {
-    const message = error?.data?.message ?? error?.response?._data?.message ?? error?.message ?? "РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РїРѕРґРїРёСЃРєСѓ РєРѕРјРїР°РЅРёРё";
-    toast.add({ title: "РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕРґР»РёС‚СЊ РїРѕРґРїРёСЃРєСѓ", description: Array.isArray(message) ? message.join(", ") : message, color: "error" });
+    const message = error?.data?.message ?? error?.response?._data?.message ?? error?.message ?? "Не удалось найти подписку компании";
+    toast.add({ title: "Не удалось продлить подписку", description: Array.isArray(message) ? message.join(", ") : message, color: "error" });
     renewingCompanyId.value = "";
     return;
   }
@@ -148,10 +150,10 @@ onMounted(loadCompanies);
     <DataPanel title="Список компаний" description="Фильтруйте клиентов по названию, статусу, тарифу и состоянию подписки.">
       <template #toolbar>
         <div class="grid w-full gap-3 md:grid-cols-4">
-          <UInput v-model="search" placeholder="Поиск по названию" />
-          <USelect v-model="status" :items="statusOptions" value-key="value" />
-          <USelect v-model="plan" :items="planOptions" value-key="value" />
-          <USelect v-model="subscription" :items="subscriptionOptions" value-key="value" />
+          <UInput v-model="search" placeholder="Поиск по названию" :ui="softInputUi" />
+          <USelect v-model="status" :items="statusOptions" value-key="value" :ui="softSelectUi" />
+          <USelect v-model="plan" :items="planOptions" value-key="value" :ui="softSelectUi" />
+          <USelect v-model="subscription" :items="subscriptionOptions" value-key="value" :ui="softSelectUi" />
         </div>
       </template>
 
@@ -191,15 +193,15 @@ onMounted(loadCompanies);
                   <Icon name="heroicons:calendar-days" class="mr-1.5 h-4 w-4" />
                   Продлить
                 </UButton>
-              <ActionMenu
-                :items="[
-                  { label: 'Открыть', icon: 'heroicons:arrow-top-right-on-square', onSelect: () => router.push(`/platform/companies/${company.id}`) },
-                  { label: 'Редактировать', icon: 'heroicons:pencil-square', onSelect: () => router.push(`/platform/companies/${company.id}`) },
-                  { label: 'Заблокировать', icon: 'heroicons:lock-closed', onSelect: () => runAction(() => api.blockCompany(company.id), 'Компания заблокирована', company.name) },
-                  { label: 'Разблокировать', icon: 'heroicons:lock-open', onSelect: () => runAction(() => api.unblockCompany(company.id), 'Компания разблокирована', company.name) },
-                  { label: 'Удалить', icon: 'heroicons:trash', color: 'error', onSelect: () => runAction(() => api.deleteCompany(company.id), 'Компания удалена', company.name) },
-                ]"
-              />
+                <ActionMenu
+                  :items="[
+                    { label: 'Открыть', icon: 'heroicons:arrow-top-right-on-square', onSelect: () => router.push(`/platform/companies/${company.id}`) },
+                    { label: 'Редактировать', icon: 'heroicons:pencil-square', onSelect: () => router.push(`/platform/companies/${company.id}`) },
+                    { label: 'Заблокировать', icon: 'heroicons:lock-closed', onSelect: () => runAction(() => api.blockCompany(company.id), 'Компания заблокирована', company.name) },
+                    { label: 'Разблокировать', icon: 'heroicons:lock-open', onSelect: () => runAction(() => api.unblockCompany(company.id), 'Компания разблокирована', company.name) },
+                    { label: 'Удалить', icon: 'heroicons:trash', color: 'error', onSelect: () => runAction(() => api.deleteCompany(company.id), 'Компания удалена', company.name) },
+                  ]"
+                />
               </div>
             </td>
           </tr>

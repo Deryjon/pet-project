@@ -6,6 +6,7 @@ import DataPanel from "@/components/platform/DataPanel.vue";
 import EmptyState from "@/components/platform/EmptyState.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import { usePlatformCompanies } from "@/composables/usePlatformCompanies";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 import { usePlatformUsers } from "@/composables/usePlatformUsers";
 
 definePageMeta({ layout: "platform" });
@@ -14,6 +15,7 @@ useHead({ title: "Журнал компании | Konkurent" });
 const route = useRoute();
 const companyId = computed(() => String(route.params.id || "").trim());
 const { getCompany, getCompanyShops } = usePlatformCompanies();
+const { softInputUi } = usePlatformFormUi();
 const { getCompanyUsers } = usePlatformUsers();
 
 const loading = ref(true);
@@ -50,13 +52,13 @@ async function loadData() {
       ...shops.map((shop, index) => ({
         user: "Администратор платформы",
         action: index % 2 === 0 ? "UPDATE" : "CREATE",
-        entity: `Shop: ${shop.name}`,
+        entity: `Филиал: ${shop.name}`,
         date: shop.updatedAt || shop.createdAt || "—",
       })),
       ...users.map((user, index) => ({
-        user: user.fullName || "System",
+        user: user.fullName || "Система",
         action: index % 2 === 0 ? "LOGIN" : "UPDATE",
-        entity: `User: ${user.roleName || user.roleId || "Employee"}`,
+        entity: `Пользователь: ${user.roleName || user.roleId || 'Сотрудник'}`,
         date: user.updatedAt || user.createdAt || "—",
       })),
       {
@@ -87,10 +89,10 @@ watch(companyId, () => {
 
     <div v-if="errorMessage" class="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-[14px] text-rose-600">{{ errorMessage }}</div>
 
-    <DataPanel title="Activity Log" description="Быстрый просмотр действий внутри компании.">
+    <DataPanel title="Журнал активности" description="Быстрый просмотр действий внутри компании.">
       <template #toolbar>
         <div class="min-w-[260px]">
-          <UInput v-model="search" type="text" placeholder="Поиск по user, action или entity" />
+          <UInput v-model="search" type="text" placeholder="Поиск по пользователю, действию или сущности" :ui="softInputUi" />
         </div>
       </template>
 
@@ -104,10 +106,10 @@ watch(companyId, () => {
         <table class="min-w-full border-separate border-spacing-y-3">
           <thead>
             <tr class="text-left text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-              <th class="px-4 py-2">User</th>
+              <th class="px-4 py-2">Пользователь</th>
               <th class="px-4 py-2">Действие</th>
-              <th class="px-4 py-2">Entity</th>
-              <th class="px-4 py-2">Date</th>
+              <th class="px-4 py-2">Сущность</th>
+              <th class="px-4 py-2">Дата</th>
             </tr>
           </thead>
           <tbody>

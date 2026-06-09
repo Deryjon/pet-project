@@ -15,10 +15,19 @@ const form = reactive({
 const loading = ref(false);
 const showPassword = ref(false);
 const serverError = ref("");
+const redirectTarget = "/platform/dashboard";
 const errors = reactive({
   phone: "",
   password: "",
 });
+
+async function goToPlatform() {
+  await navigateTo(redirectTarget, { replace: true });
+
+  if (import.meta.client && window.location.pathname !== redirectTarget) {
+    window.location.replace(redirectTarget);
+  }
+}
 
 function formatPhone(input = "") {
   const digits = input.replace(/\D/g, "").slice(0, 9);
@@ -44,7 +53,7 @@ watch(
 
 restore().then((hasAccess) => {
   if (hasAccess || authenticated.value) {
-    navigateTo("/platform", { replace: true });
+    goToPlatform();
   }
 });
 
@@ -71,7 +80,7 @@ async function submit() {
     if (!restored && !authenticated.value) {
       throw new Error("Не удалось восстановить сессию платформы");
     }
-    await navigateTo("/platform", { replace: true });
+    await goToPlatform();
   } catch (error: any) {
     const message = error?.data?.message;
     serverError.value = Array.isArray(message)

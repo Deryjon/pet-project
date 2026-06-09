@@ -114,6 +114,24 @@ async function logout() {
   outline: none;
 }
 
+.platform-main input::placeholder,
+.platform-main textarea::placeholder {
+  color: #94a3b8;
+}
+
+.platform-main button {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.platform-main button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
 .platform-main ::selection {
   background: rgba(20, 184, 166, 0.18);
 }

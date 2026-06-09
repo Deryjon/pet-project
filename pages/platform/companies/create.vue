@@ -99,11 +99,11 @@ onMounted(async () => {
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата начала подписки</span>
-          <UInput v-model="form.subscriptionStart" type="date" required />
+          <AppDatePicker v-model="form.subscriptionStart" class="w-full" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Дата окончания подписки</span>
-          <UInput v-model="form.subscriptionEnd" type="date" required />
+          <AppDatePicker v-model="form.subscriptionEnd" class="w-full" />
         </label>
         <div class="flex justify-end gap-3 md:col-span-2">
           <UButton type="button" to="/platform/companies" color="neutral" variant="soft" class="rounded-2xl bg-slate-100 text-slate-700">Отмена</UButton>

@@ -138,6 +138,12 @@ function normalizeBirthDateForPayload(value: string) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return "";
 
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${day}.${month}.${year}`;
+  }
+
   const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (!match) {
     return trimmed;
@@ -145,6 +151,23 @@ function normalizeBirthDateForPayload(value: string) {
 
   const [, day, month, year] = match;
   return `${day.padStart(2, "0")}.${month.padStart(2, "0")}.${year}`;
+}
+
+function normalizeBirthDateForPicker(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) {
+    return "";
+  }
+
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function buildPayload(overrides: Partial<PlatformUserPayload> = {}): PlatformUserPayload {
@@ -208,7 +231,7 @@ function openEdit(user: PlatformUser) {
   form.phone = normalizePhoneForInput(user.phone);
   form.password = "";
   form.role = user.crmRoleId || user.roleId || companyRoleOptions.value[0]?.value || "";
-  form.birthDate = user.birthDate || "";
+  form.birthDate = normalizeBirthDateForPicker(user.birthDate || "");
   form.currentShopId = user.currentShopId || shops.value[0]?.id || "";
   form.allowedShopIds = user.allowedShopIds.length ? [...user.allowedShopIds] : form.currentShopId ? [form.currentShopId] : [];
   form.canSwitchShops = user.canSwitchShops;
@@ -430,7 +453,7 @@ watch(companyId, () => {
         <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Телефон</span><div class="flex items-center rounded-2xl bg-slate-50 px-4 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-teal-400/60"><span class="pr-3 text-[14px] font-medium text-slate-500">+998</span><UInput v-model="form.phone" type="tel" inputmode="numeric" required placeholder="90 123 45 67" :ui="{ root: 'w-full', base: 'w-full border-0 bg-transparent px-0 py-2.5 text-[14px] text-slate-700 ring-0 outline-none placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0' }" /></div></label>
         <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Пароль</span><UInput v-model="form.password" type="password" :required="!editing" placeholder="Введите пароль" :ui="softInputUi" /></label>
         <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Роль</span><USelect v-model="form.role" :items="companyRoleOptions" value-key="value" :ui="softSelectUi" :loading="rolesLoading || loading" /></label>
-        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Дата рождения</span><UInput v-model="form.birthDate" type="text" placeholder="15.10.1998" :ui="softInputUi" /></label>
+        <label class="space-y-1.5"><span class="text-[13px] font-semibold text-slate-700">Дата рождения</span><AppDatePicker v-model="form.birthDate" class="w-full" clearable /></label>
         <label class="space-y-1.5 md:col-span-2"><span class="text-[13px] font-semibold text-slate-700">Текущий филиал</span><USelect v-model="form.currentShopId" :items="shopOptions" value-key="value" :ui="softSelectUi" /></label>
         <label class="md:col-span-2 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-2.5 text-[14px] text-slate-700 ring-1 ring-slate-200"><input v-model="form.canSwitchShops" type="checkbox" class="h-4 w-4 accent-teal-600" />Может переключать филиалы</label>
         <div class="space-y-2.5 md:col-span-2"><p class="text-[13px] font-semibold text-slate-700">Доступные филиалы</p><div class="grid gap-2 sm:grid-cols-2"><label v-for="shop in shops" :key="shop.id" class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-2.5 text-[14px] text-slate-700 ring-1 ring-slate-200"><input :checked="form.allowedShopIds.includes(shop.id)" type="checkbox" class="h-4 w-4 accent-teal-600" @change="toggleAllowedShop(shop.id)" /><span>{{ shop.name }}</span></label></div></div>

@@ -632,8 +632,8 @@ onMounted(async () => {
             <option value="bonus">bonus</option>
           </select>
           <input v-model="newCardForm.number" type="text" class="field" placeholder="Номер карты" />
-          <input v-model="newCardForm.issued_at" type="date" class="field" />
-          <input v-model="newCardForm.expires_at" type="date" class="field" />
+          <AppDatePicker v-model="newCardForm.issued_at" clearable class="w-full" />
+          <AppDatePicker v-model="newCardForm.expires_at" clearable class="w-full" />
           <label class="flex items-center gap-3 text-sm text-white">
             <input v-model="newCardForm.is_active" type="checkbox" class="h-4 w-4 accent-[#4993dd]" />
             Активная карта

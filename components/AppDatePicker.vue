@@ -25,10 +25,20 @@ const emit = defineEmits<{
 }>();
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-const monthFormatter = new Intl.DateTimeFormat("ru-RU", {
-  month: "long",
-  year: "numeric",
-});
+const monthNames = [
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
+];
 
 const todayDate = new Date();
 const visibleMonth = ref(startOfMonth(resolveInitialDate()));
@@ -44,6 +54,29 @@ watch(
 const selectedDate = computed(() => parseSingleValue(props.modelValue));
 const selectedRange = computed(() => parseRangeValue(props.modelValue));
 const isRangeMode = computed(() => props.selectionMode === "range");
+
+const yearOptions = computed(() => {
+  const currentYear = todayDate.getFullYear();
+  return Array.from({ length: 131 }, (_, index) => currentYear + 5 - index);
+});
+
+const monthOptions = computed(() =>
+  monthNames.map((label, value) => ({ label, value })),
+);
+
+const monthValue = computed({
+  get: () => visibleMonth.value.getMonth(),
+  set: (value: number) => {
+    visibleMonth.value = new Date(visibleMonth.value.getFullYear(), Number(value), 1);
+  },
+});
+
+const yearValue = computed({
+  get: () => visibleMonth.value.getFullYear(),
+  set: (value: number) => {
+    visibleMonth.value = new Date(Number(value), visibleMonth.value.getMonth(), 1);
+  },
+});
 
 const label = computed(() => {
   if (isRangeMode.value) {
@@ -63,11 +96,6 @@ const label = computed(() => {
 
   if (!selectedDate.value) return props.placeholder;
   return selectedDate.value.toLocaleDateString("ru-RU");
-});
-
-const monthLabel = computed(() => {
-  const labelValue = monthFormatter.format(visibleMonth.value);
-  return labelValue.charAt(0).toUpperCase() + labelValue.slice(1);
 });
 
 const calendarDays = computed(() => {
@@ -268,34 +296,59 @@ function clearDate() {
 
       <template #content>
         <div class="p-4">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-2">
             <button
               type="button"
               aria-label="Предыдущий месяц"
-              class="flex h-10 w-10 items-center justify-center rounded-[14px] text-slate-300 transition hover:bg-white/10 hover:text-white"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-slate-300 transition hover:bg-white/10 hover:text-white"
               @click="previousMonth"
             >
               <Icon name="heroicons:chevron-left" class="h-5 w-5" />
             </button>
 
-            <div class="text-center">
-              <p class="text-[16px] font-bold text-white">
-                {{ monthLabel }}
-              </p>
-              <p v-if="isRangeMode" class="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                Выберите начало и конец периода
-              </p>
+            <div class="grid flex-1 grid-cols-[1fr_96px] gap-2">
+              <select
+                v-model="monthValue"
+                class="h-10 rounded-[14px] border border-white/10 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none transition hover:bg-white/[0.09] focus:border-[#1f78ff]"
+              >
+                <option
+                  v-for="month in monthOptions"
+                  :key="month.value"
+                  :value="month.value"
+                  class="bg-[#1f1f1f] text-white"
+                >
+                  {{ month.label }}
+                </option>
+              </select>
+
+              <select
+                v-model="yearValue"
+                class="h-10 rounded-[14px] border border-white/10 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none transition hover:bg-white/[0.09] focus:border-[#1f78ff]"
+              >
+                <option
+                  v-for="year in yearOptions"
+                  :key="year"
+                  :value="year"
+                  class="bg-[#1f1f1f] text-white"
+                >
+                  {{ year }}
+                </option>
+              </select>
             </div>
 
             <button
               type="button"
               aria-label="Следующий месяц"
-              class="flex h-10 w-10 items-center justify-center rounded-[14px] text-slate-300 transition hover:bg-white/10 hover:text-white"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-slate-300 transition hover:bg-white/10 hover:text-white"
               @click="nextMonth"
             >
               <Icon name="heroicons:chevron-right" class="h-5 w-5" />
             </button>
           </div>
+
+          <p v-if="isRangeMode" class="mt-3 text-center text-[11px] uppercase tracking-[0.14em] text-slate-500">
+            Выберите начало и конец периода
+          </p>
 
           <div class="mt-4 grid grid-cols-7 gap-1 text-center">
             <div
@@ -350,7 +403,7 @@ function clearDate() {
               class="rounded-[14px] border border-white/10 bg-white/[0.06] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
               @click="setToday"
             >
-              {{ isRangeMode ? "Сегодня" : "Сегодня" }}
+              Сегодня
             </button>
 
             <button
