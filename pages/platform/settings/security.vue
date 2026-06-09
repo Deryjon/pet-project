@@ -3,12 +3,14 @@ import { onMounted } from "vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import SettingsTabs from "@/components/platform/settings/SettingsTabs.vue";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 import { usePlatformSettingsState } from "@/composables/usePlatformSettingsState";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Настройки безопасности | Konkurent" });
 
 const { state, load, save } = usePlatformSettingsState();
+const { softInputUi } = usePlatformFormUi();
 const toast = useToast();
 
 function submit() {
@@ -28,11 +30,11 @@ onMounted(load);
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submit">
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Min Password Length</span>
-          <UInput v-model="state.minPasswordLength" type="number" min="6" />
+          <UInput v-model="state.minPasswordLength" type="number" min="6" :ui="softInputUi" />
         </label>
         <label class="space-y-2">
           <span class="text-[13px] font-semibold text-slate-700">Session Timeout (minutes)</span>
-          <UInput v-model="state.sessionTimeout" type="number" min="5" />
+          <UInput v-model="state.sessionTimeout" type="number" min="5" :ui="softInputUi" />
         </label>
         <div class="md:col-span-2 flex justify-end">
           <UButton type="submit" color="neutral" class="rounded-2xl bg-slate-950 text-white hover:bg-slate-800">Сохранить</UButton>

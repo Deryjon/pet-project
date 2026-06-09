@@ -19,7 +19,7 @@ function isCrmLoginRoute(path: string) {
 
 function getHomeRoute(userStore: ReturnType<typeof useUserStore>) {
   if (userStore.isPlatformUser && userStore.hasPlatformAccess) {
-    return "/platform";
+    return "/platform/dashboard";
   }
 
   if (userStore.isCompanyUser) {
@@ -78,7 +78,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (!authRoute && !hasCrmAccess) {
-    return navigateTo(hasPlatformAccess ? "/platform" : "/auth/login");
+    return navigateTo(hasPlatformAccess ? "/platform/dashboard" : "/auth/login");
   }
 
   if (!authRoute && hasCrmAccess) {

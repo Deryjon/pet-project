@@ -35,9 +35,7 @@ const form = reactive({
   firstName: String(route.query.first_name || "").trim(),
   lastName: "",
   middleName: "",
-  birthDay: "",
-  birthMonth: "",
-  birthYear: "",
+  birthDate: "",
   gender: "male" as ClientGender,
   phone: String(route.query.phone || "").trim(),
   maritalStatus: "single",
@@ -63,26 +61,8 @@ const filteredTags = computed(() => {
   return tags.value.filter((tag) => tag.name.toLowerCase().includes(query));
 });
 
-function normalizeNumericPart(value: string, size: number) {
-  const normalized = String(value || "").replace(/\D/g, "");
-  if (!normalized) return "";
-  return normalized.padStart(size, "0").slice(0, size);
-}
-
 function buildBirthDate() {
-  if (!form.birthDay || !form.birthMonth || !form.birthYear) {
-    return undefined;
-  }
-
-  const day = normalizeNumericPart(form.birthDay, 2);
-  const month = normalizeNumericPart(form.birthMonth, 2);
-  const year = normalizeNumericPart(form.birthYear, 4);
-
-  if (day.length !== 2 || month.length !== 2 || year.length !== 4) {
-    return undefined;
-  }
-
-  return `${year}-${month}-${day}`;
+  return form.birthDate || undefined;
 }
 
 function splitLines(value: string) {
@@ -121,11 +101,7 @@ function buildPayload(): ClientUpsertPayload {
 }
 
 function applyBirthDate(value: string | null) {
-  if (!value) return;
-  const [year, month, day] = value.split("-");
-  form.birthYear = year || "";
-  form.birthMonth = month || "";
-  form.birthDay = day || "";
+  form.birthDate = value || "";
 }
 
 function applySocialLinks(links: string[]) {

@@ -96,11 +96,11 @@ function reset() {
     <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <label class="space-y-2">
         <span class="text-sm font-medium text-[#d3d3d3]">Дата от</span>
-        <input v-model="draft.from" type="date" class="w-full rounded-2xl border border-white/10 bg-[#2a2a2a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6]" @change="pushUpdate" />
+        <AppDatePicker v-model="draft.from" clearable class="w-full" @update:model-value="pushUpdate" />
       </label>
       <label class="space-y-2">
         <span class="text-sm font-medium text-[#d3d3d3]">Дата до</span>
-        <input v-model="draft.to" type="date" class="w-full rounded-2xl border border-white/10 bg-[#2a2a2a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6]" @change="pushUpdate" />
+        <AppDatePicker v-model="draft.to" clearable class="w-full" @update:model-value="pushUpdate" />
       </label>
       <label class="space-y-2">
         <span class="text-sm font-medium text-[#d3d3d3]">Магазин</span>

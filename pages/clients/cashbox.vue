@@ -207,8 +207,8 @@ onMounted(async () => {
         <input v-model="searchClientId" type="text" class="field" placeholder="client_id" />
         <input v-model="searchShopId" type="text" class="field" placeholder="shop_id" />
         <div class="grid grid-cols-2 gap-3">
-          <input v-model="dueFrom" type="date" class="field" />
-          <input v-model="dueTo" type="date" class="field" />
+          <AppDatePicker v-model="dueFrom" clearable class="w-full" />
+          <AppDatePicker v-model="dueTo" clearable class="w-full" />
         </div>
       </div>
 
