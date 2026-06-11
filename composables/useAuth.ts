@@ -1,5 +1,6 @@
 import { useApi } from "~/composables/useApi";
 import { useUserStore } from "~/store/useUserStore";
+import { normalizeBirthDateForPayload } from "@/utils/birthDate";
 
 export interface LoginPayload {
   phone_number: string;
@@ -49,7 +50,7 @@ export function useAuth() {
       body: {
         first_name: String(payload.first_name),
         last_name: String(payload.last_name),
-        birth_date: String(payload.birth_date),
+        birth_date: normalizeBirthDateForPayload(payload.birth_date),
         phone_number: String(payload.phone_number),
         role: String(payload.role),
         branch_location: String(payload.branch_location),

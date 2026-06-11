@@ -48,31 +48,34 @@ const selectedPageSize = computed({
 </script>
 
 <template>
-  <div class="mt-5 flex gap-3 items-center justify-between">
+  <div class="mt-5 flex items-center justify-between gap-4">
     <div class="order-2 flex items-center sm:order-1">
-      <div class="flex min-w-[132px] items-center justify-between gap-3">
-        <UButton
-          icon="i-heroicons-chevron-left-20-solid"
-          color="neutral"
-          variant="ghost"
+      <div class="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#2f2f2f] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+        <button
+          type="button"
           :disabled="isPreviousDisabled"
-          :ui="{ icon: { base: 'h-6 w-6 text-[#1f78ff]' } }"
+          class="flex h-10 w-10 items-center justify-center rounded-xl text-[#1f78ff] transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-35"
           @click="emit('previous')"
-        />
+        >
+          <Icon name="heroicons:chevron-left-20-solid" class="h-5 w-5" />
+        </button>
 
-        <span class="min-w-[52px] text-center text-[14px] font-medium text-white/70">
-          {{ currentPage }} <span class="mx-1 opacity-40">/</span> {{ totalPages }}
-        </span>
+        <div class="min-w-[82px] px-2 text-center">
+          <span class="block text-[11px] uppercase tracking-[0.14em] text-white/35">Page</span>
+          <span class="text-[14px] font-semibold text-white/80">
+            {{ currentPage }} <span class="mx-1 text-white/30">/</span> {{ totalPages }}
+          </span>
+        </div>
 
-        <UButton
-          icon="i-heroicons-chevron-right-20-solid"
-          color="neutral"
-          variant="ghost"
+        <button
+          type="button"
           :disabled="isNextDisabled"
-          :ui="{ icon: { base: 'h-6 w-6 text-[#1f78ff]' } }"
+          class="flex h-10 w-10 items-center justify-center rounded-xl text-[#1f78ff] transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-35"
           @click="emit('next')"
-        />
-      </div>
+        >
+          <Icon name="heroicons:chevron-right-20-solid" class="h-5 w-5" />
+        </button>
+щл
     </div>
 
     <div class="order-1 flex items-center justify-between gap-2 sm:order-2 sm:justify-end">

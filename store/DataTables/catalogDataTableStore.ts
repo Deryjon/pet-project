@@ -397,6 +397,18 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     ];
   });
 
+  const totalMeasurementUnits = computed(() =>
+    formatQuantityStat(
+      getStatisticValue(statisticsByStatus.value ?? {}, ["measurement_value", "active_measurement_value"]) ??
+        getStatisticValue(statistics.value ?? {}, [
+          "total_quantity",
+          "quantity",
+          "total_measurement_value",
+          "items_count",
+        ]),
+    ),
+  );
+
   const placeholderImgUrl = new URL(
     "../../assets/images/placeholder_img.svg",
     import.meta.url,
@@ -506,16 +518,25 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
 
   function previousPage() {
     if (pagination.value.pageIndex <= 0 || loading.value) return;
-    fetchData({ page: pagination.value.pageIndex });
+    pagination.value = {
+      ...pagination.value,
+      pageIndex: pagination.value.pageIndex - 1,
+    };
   }
 
   function nextPage() {
     if (pagination.value.pageIndex + 1 >= totalPages.value || loading.value) return;
-    fetchData({ page: pagination.value.pageIndex + 2 });
+    pagination.value = {
+      ...pagination.value,
+      pageIndex: pagination.value.pageIndex + 1,
+    };
   }
 
   function setPageSize(pageSize: number) {
-    fetchData({ page: 1, pageSize });
+    pagination.value = {
+      pageIndex: 0,
+      pageSize,
+    };
   }
 
   return {
@@ -541,6 +562,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     totalPages,
     statusFilters,
     statsCards,
+    totalMeasurementUnits,
     canViewSupplyPrice,
     table,
     selectedProduct,
