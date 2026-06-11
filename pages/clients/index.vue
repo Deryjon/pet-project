@@ -9,6 +9,7 @@ import BaseDataTableHeader from "@/components/BaseDataTableHeader.vue";
 import BaseDataTablePagination from "@/components/BaseDataTablePagination.vue";
 import type { ClientGender, ClientListItem, ClientListQuery, NamedEntity } from "@/composables/useClients";
 import { useClients } from "@/composables/useClients";
+import { normalizeBirthDateForPayload } from "@/utils/birthDate";
 
 useHead({ title: "Все клиенты | Konkurent" });
 
@@ -138,8 +139,8 @@ function buildListQuery(): ClientListQuery {
     search: searchQuery.value.trim() || undefined,
     group_ids: filterState.value.groupId ? [filterState.value.groupId] : undefined,
     tag_ids: filterState.value.tagId ? [filterState.value.tagId] : undefined,
-    birth_date_from: filterState.value.birthDateFrom || undefined,
-    birth_date_to: filterState.value.birthDateTo || undefined,
+    birth_date_from: normalizeBirthDateForPayload(filterState.value.birthDateFrom) || undefined,
+    birth_date_to: normalizeBirthDateForPayload(filterState.value.birthDateTo) || undefined,
     registered_from: filterState.value.registeredFrom || undefined,
     registered_to: filterState.value.registeredTo || undefined,
     registration_shop_ids: filterState.value.registrationShopId ? [filterState.value.registrationShopId] : undefined,

@@ -228,7 +228,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         pageIndex: Math.max(0, (params?.page ?? pagination.value.pageIndex + 1) - 1),
         pageSize: params?.pageSize ?? pagination.value.pageSize,
       };
-      totalItems.value = result.total;
+      totalItems.value = result.total || result.count;
       count.value = result.count;
       fields.value = Array.isArray(result.fields) ? (result.fields as CatalogField[]) : [];
       statistics.value = result.statistics;
@@ -335,17 +335,17 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
   const paginatedProducts = computed(() => rawData.value);
 
   const totalPages = computed(() =>
-    Math.max(1, Math.ceil(totalItems.value / pagination.value.pageSize)),
+    Math.max(1, Math.ceil((totalItems.value || count.value) / pagination.value.pageSize)),
   );
 
   const statusFilters = computed(() => {
     const source = statisticsByStatus.value ?? {};
     return [
-      { key: "all", label: "Все", count: totalItems.value || count.value || rawData.value.length },
-      { key: "active", label: "Активные", count: getStatusCount(source, "active") },
-      { key: "inactive", label: "Неактивные", count: getStatusCount(source, "inactive") },
-      { key: "small_left", label: "Малый остаток", count: getStatusCount(source, "small_left") },
-      { key: "zero_left", label: "Нулевой остаток", count: getStatusCount(source, "zero_left") },
+      { key: "all", label: "Все", count: getStatusMeasurementValue(source, "all") },
+      { key: "active", label: "Активные", count: getStatusMeasurementValue(source, "active") },
+      { key: "inactive", label: "Неактивные", count: getStatusMeasurementValue(source, "inactive") },
+      { key: "small_left", label: "Малый остаток", count: getStatusMeasurementValue(source, "small_left") },
+      { key: "zero_left", label: "Нулевой остаток", count: getStatusMeasurementValue(source, "zero_left") },
     ];
   });
 
@@ -506,16 +506,29 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
 
   function previousPage() {
     if (pagination.value.pageIndex <= 0 || loading.value) return;
-    fetchData({ page: pagination.value.pageIndex });
+    fetchData({
+      page: pagination.value.pageIndex,
+      pageSize: pagination.value.pageSize,
+    });
   }
 
   function nextPage() {
     if (pagination.value.pageIndex + 1 >= totalPages.value || loading.value) return;
-    fetchData({ page: pagination.value.pageIndex + 2 });
+    fetchData({
+      page: pagination.value.pageIndex + 2,
+      pageSize: pagination.value.pageSize,
+    });
   }
 
   function setPageSize(pageSize: number) {
-    fetchData({ page: 1, pageSize });
+    if (!Number.isFinite(pageSize) || pageSize <= 0) {
+      return;
+    }
+
+    fetchData({
+      page: 1,
+      pageSize,
+    });
   }
 
   return {
@@ -963,6 +976,28 @@ function isSupplyPriceFieldName(value: unknown) {
   return String(value ?? "").trim() === "Цена поставки";
 }
 
+function getStatusMeasurementValue(source: Record<string, unknown>, key: string) {
+  const directMeasurementKeys: Record<string, string[]> = {
+    all: ["total_measurement_value", "measurement_value"],
+    active: ["total_active_measurement_value", "active_measurement_value"],
+    inactive: ["total_inactive_measurement_value", "inactive_measurement_value"],
+    small_left: ["small_left_measurement_value", "low_stock_measurement_value", "low_measurement_value"],
+    zero_left: ["zero_left_measurement_value", "zero_stock_measurement_value", "zero_measurement_value"],
+  };
+
+  const measurementKeys = directMeasurementKeys[key] ?? [];
+  for (const measurementKey of measurementKeys) {
+    const value = source[measurementKey];
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+
+  return getStatusCount(source, key);
+}
+
 function getStatusCount(source: Record<string, unknown>, key: string) {
   if (key === "small_left" && source["low_stock"] != null) {
     return getStatusCount(source, "low_stock");
@@ -1064,5 +1099,3 @@ function formatMoneyStat(value: unknown) {
   if (!Number.isFinite(num)) return "-";
   return `${new Intl.NumberFormat("ru-RU").format(num)} UZS`;
 }
-
-

@@ -4,6 +4,7 @@ import { useHead } from "#imports";
 import { useRoute, useRouter } from "vue-router";
 import type { ClientGender, ClientUpsertPayload, NamedEntity } from "@/composables/useClients";
 import { useClients } from "@/composables/useClients";
+import { normalizeBirthDateForPayload, normalizeBirthDateForPicker } from "@/utils/birthDate";
 
 const POS_CREATED_CLIENT_STORAGE_KEY = "pos:selected-client";
 
@@ -62,7 +63,7 @@ const filteredTags = computed(() => {
 });
 
 function buildBirthDate() {
-  return form.birthDate || undefined;
+  return normalizeBirthDateForPayload(form.birthDate) || undefined;
 }
 
 function splitLines(value: string) {
@@ -101,7 +102,7 @@ function buildPayload(): ClientUpsertPayload {
 }
 
 function applyBirthDate(value: string | null) {
-  form.birthDate = value || "";
+  form.birthDate = normalizeBirthDateForPicker(value);
 }
 
 function applySocialLinks(links: string[]) {
