@@ -464,11 +464,15 @@ export function useProducts() {
 
       const items = Array.isArray(productsResponse?.products) ? productsResponse.products : [];
       const normalized = items.map((item) => normalizeCatalogProduct(item, apiBase));
+      const resolvedCount = Number(productsResponse?.count ?? normalized.length ?? 0);
+      const resolvedTotal = Number(
+        productsResponse?.total ?? productsResponse?.count ?? normalized.length ?? 0,
+      );
       products.value = normalized;
       return {
         products: normalized,
-        count: Number(productsResponse?.count ?? normalized.length ?? 0),
-        total: Number(productsResponse?.total ?? normalized.length ?? 0),
+        count: resolvedCount,
+        total: resolvedTotal,
         fields: Array.isArray(productsResponse?.fields) ? productsResponse.fields : [],
         statistics: extractStatistics(statsResponse, productsResponse),
         statisticsByStatus: extractStatisticsByStatus(statsResponse, productsResponse)
@@ -489,11 +493,13 @@ export function useProducts() {
 
       const items = Array.isArray(res?.products) ? res.products : [];
       const normalized = items.map((item) => normalizeCatalogProduct(item, apiBase));
+      const resolvedCount = Number(res?.count ?? normalized.length ?? 0);
+      const resolvedTotal = Number(res?.total ?? res?.count ?? normalized.length ?? 0);
       products.value = normalized;
       return {
         products: normalized,
-        count: Number(res?.count ?? normalized.length ?? 0),
-        total: Number(res?.total ?? normalized.length ?? 0),
+        count: resolvedCount,
+        total: resolvedTotal,
         fields: Array.isArray(res?.fields) ? res.fields : [],
         statistics: extractStatistics(statsRes, res),
         statisticsByStatus: extractStatisticsByStatus(statsRes, res) ?? null,

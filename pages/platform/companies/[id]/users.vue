@@ -12,6 +12,7 @@ import { usePlatformCompanies } from "@/composables/usePlatformCompanies";
 import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
 import { usePlatformRoles } from "@/composables/usePlatformRoles";
 import { usePlatformUsers } from "@/composables/usePlatformUsers";
+import { normalizeBirthDateForPayload, normalizeBirthDateForPicker } from "@/utils/birthDate";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Пользователи компании | Konkurent" });
@@ -132,42 +133,6 @@ function normalizePhoneForInput(phone: string) {
   const normalized = localDigits.slice(0, 9);
   const parts = [normalized.slice(0, 2), normalized.slice(2, 5), normalized.slice(5, 7), normalized.slice(7, 9)].filter(Boolean);
   return parts.join(" ");
-}
-
-function normalizeBirthDateForPayload(value: string) {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return "";
-
-  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    const [, year, month, day] = isoMatch;
-    return `${day}.${month}.${year}`;
-  }
-
-  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) {
-    return trimmed;
-  }
-
-  const [, day, month, year] = match;
-  return `${day.padStart(2, "0")}.${month.padStart(2, "0")}.${year}`;
-}
-
-function normalizeBirthDateForPicker(value: string) {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return "";
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) {
-    return "";
-  }
-
-  const [, day, month, year] = match;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function buildPayload(overrides: Partial<PlatformUserPayload> = {}): PlatformUserPayload {

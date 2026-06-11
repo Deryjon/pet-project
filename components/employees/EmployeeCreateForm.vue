@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
+import { normalizeBirthDateForPayload } from "@/utils/birthDate";
 import { useUserStore } from "@/store/useUserStore";
 import { useRolePermissionsApi, type RoleSelectItem } from "@/composables/useRolePermissions";
 
@@ -224,7 +225,7 @@ const preparedData = computed(() => {
     company_id: userStore.userState.companyId || undefined,
     first_name: first_name.value.trim(),
     last_name: last_name.value.trim(),
-    birth_date: birth_date.value.trim() || undefined,
+    birth_date: normalizeBirthDateForPayload(birth_date.value) || undefined,
     phone_number: `${code}${digits}`,
     password: password.value,
     role: selectedRoleCode(),
