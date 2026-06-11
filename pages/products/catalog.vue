@@ -3,9 +3,6 @@
     <div class="top flex flex-col gap-4 xl:flex-row xl:items-center justify-between">
       <div class="flex flex-col gap-2">
         <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
-        <p class="text-sm text-[#b5b4b4]">
-          Общих товарных единиц: <span class="font-semibold text-white">{{ store.totalMeasurementUnits }}</span>
-        </p>
       </div>
       <div class="flex justify-between gap-4  items-center">
         <div
