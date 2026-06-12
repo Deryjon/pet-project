@@ -3,9 +3,11 @@ import ActionMenu from "@/components/platform/ActionMenu.vue";
 import DataPanel from "@/components/platform/DataPanel.vue";
 import DataTable from "@/components/platform/DataTable.vue";
 import DateBadge from "@/components/platform/DateBadge.vue";
+import ModalForm from "@/components/platform/ModalForm.vue";
 import PageHeader from "@/components/platform/PageHeader.vue";
 import StatusBadge from "@/components/platform/StatusBadge.vue";
-import { daysLeft, usePlatformAdminApi, type PlatformSubscription } from "@/composables/usePlatformAdmin";
+import { usePlatformFormUi } from "@/composables/usePlatformFormUi";
+import { daysLeft, usePlatformAdminApi, type PlatformPlan, type PlatformSubscription } from "@/composables/usePlatformAdmin";
 
 definePageMeta({ layout: "platform" });
 useHead({ title: "Подписки | Konkurent" });
@@ -13,8 +15,16 @@ useHead({ title: "Подписки | Konkurent" });
 const router = useRouter();
 const toast = useToast();
 const api = usePlatformAdminApi();
+const { softSelectUi } = usePlatformFormUi();
+
 const subscriptions = ref<PlatformSubscription[]>([]);
 const renewingSubscriptionId = ref("");
+
+const changePlanModalOpen = ref(false);
+const changePlanTarget = ref<PlatformSubscription | null>(null);
+const changePlanSelectedId = ref("");
+const changePlanLoading = ref(false);
+const availablePlans = ref<PlatformPlan[]>([]);
 
 async function loadSubscriptions() {
   subscriptions.value = await api.getSubscriptions();
@@ -49,6 +59,36 @@ async function block(subscription: PlatformSubscription) {
   toast.add({ title: "Компания заблокирована", description: subscription.companyName, color: "success" });
   await loadSubscriptions();
 }
+
+async function openChangePlan(subscription: PlatformSubscription) {
+  changePlanTarget.value = subscription;
+  changePlanSelectedId.value = subscription.planId ?? "";
+  changePlanModalOpen.value = true;
+  if (availablePlans.value.length === 0) {
+    availablePlans.value = await api.getPlans();
+  }
+}
+
+async function confirmChangePlan() {
+  if (!changePlanTarget.value?.id || !changePlanSelectedId.value) return;
+
+  changePlanLoading.value = true;
+  try {
+    await api.changePlan(changePlanTarget.value.id, changePlanSelectedId.value);
+    toast.add({ title: "Тариф изменён", description: changePlanTarget.value.companyName, color: "success" });
+    changePlanModalOpen.value = false;
+    await loadSubscriptions();
+  } catch (error: any) {
+    const message = error?.data?.message ?? error?.message ?? "Не удалось сменить тариф";
+    toast.add({ title: "Ошибка", description: Array.isArray(message) ? message.join(", ") : message, color: "error" });
+  } finally {
+    changePlanLoading.value = false;
+  }
+}
+
+const planOptions = computed(() =>
+  availablePlans.value.map((p) => ({ label: `${p.name} — ${p.priceMonthly} ₽/мес`, value: p.id }))
+);
 
 onMounted(loadSubscriptions);
 </script>
@@ -96,6 +136,7 @@ onMounted(loadSubscriptions);
                 </UButton>
               <ActionMenu
                 :items="[
+                  { label: 'Сменить тариф', icon: 'heroicons:arrow-path-rounded-square', onSelect: () => openChangePlan(subscription) },
                   { label: 'Заблокировать компанию', icon: 'heroicons:lock-closed', onSelect: () => block(subscription) },
                   { label: 'Открыть компанию', icon: 'heroicons:arrow-top-right-on-square', onSelect: () => router.push(`/platform/companies/${subscription.companyId}`) },
                 ]"
@@ -106,5 +147,45 @@ onMounted(loadSubscriptions);
         </tbody>
       </DataTable>
     </DataPanel>
+
+    <ModalForm
+      :open="changePlanModalOpen"
+      title="Сменить тариф"
+      :description="changePlanTarget ? `Компания: ${changePlanTarget.companyName}` : ''"
+      @close="changePlanModalOpen = false"
+    >
+      <div class="space-y-5 pb-2">
+        <div class="space-y-2">
+          <label class="text-[13px] font-semibold text-slate-600">Новый тариф</label>
+          <USelect
+            v-model="changePlanSelectedId"
+            :items="planOptions"
+            value-key="value"
+            placeholder="Выберите тариф"
+            :ui="softSelectUi"
+          />
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <UButton
+            color="neutral"
+            variant="soft"
+            class="rounded-2xl"
+            @click="changePlanModalOpen = false"
+          >
+            Отмена
+          </UButton>
+          <UButton
+            color="neutral"
+            class="rounded-2xl bg-slate-950 text-white"
+            :loading="changePlanLoading"
+            :disabled="!changePlanSelectedId"
+            @click="confirmChangePlan"
+          >
+            Применить
+          </UButton>
+        </div>
+      </div>
+    </ModalForm>
   </div>
 </template>

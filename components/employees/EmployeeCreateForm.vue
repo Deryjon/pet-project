@@ -267,8 +267,8 @@ async function submit() {
     errorMessage.value = "Телефон должен быть в формате +998 XX XXX XX XX.";
     return;
   }
-  if (password.value.length < 6) {
-    errorMessage.value = "Пароль должен содержать минимум 6 символов.";
+  if (password.value.length < 8) {
+    errorMessage.value = "Пароль должен содержать минимум 8 символов.";
     return;
   }
   if (!preparedData.value.crm_role_id) {
@@ -390,7 +390,7 @@ onMounted(loadRoles);
 
           <div class="mt-4 flex flex-col gap-2">
             <label class="text-sm font-medium text-[#d6d6d6]">Пароль</label>
-            <input v-model="password" type="password" placeholder="Минимум 6 символов" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
+            <input v-model="password" type="password" placeholder="Минимум 8 символов" class="rounded-2xl border border-transparent bg-[#3a3a3a] px-4 py-3 text-white outline-none transition focus:border-[#2f6ed6] focus:bg-[#434343]" />
           </div>
 
           <label class="mt-4 flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm text-white">

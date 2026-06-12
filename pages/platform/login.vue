@@ -82,10 +82,15 @@ async function submit() {
     }
     await goToPlatform();
   } catch (error: any) {
-    const message = error?.data?.message;
-    serverError.value = Array.isArray(message)
-      ? message.join(", ")
-      : message || error?.message || "Не удалось войти в панель платформы";
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    if (status === 429) {
+      serverError.value = "Слишком много попыток входа. Подождите 1 минуту.";
+    } else {
+      const message = error?.data?.message;
+      serverError.value = Array.isArray(message)
+        ? message.join(", ")
+        : message || error?.message || "Не удалось войти в панель платформы";
+    }
   } finally {
     loading.value = false;
   }

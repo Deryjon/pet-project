@@ -199,7 +199,10 @@ export const useUserStore = defineStore("user", {
           : [],
       })),
     can(): (slug: string) => boolean {
-      return (slug: string) => this.user?.userType === "platform" || this.activeSlugs.has(slug);
+      return (slug: string) =>
+        this.user?.userType === "platform" ||
+        Boolean(this.user?.crmRole?.isAdmin) ||
+        this.activeSlugs.has(slug);
     },
   },
 
