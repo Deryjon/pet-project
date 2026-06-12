@@ -66,6 +66,16 @@ export interface PlatformSubscription {
   company: Partial<PlatformCompany> | null;
 }
 
+export interface PlatformProduct {
+  id: string;
+  name: string;
+  price: number;
+  barcode: string;
+  category: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface PlatformPayment {
   id: string;
   companyId: string;
@@ -305,6 +315,18 @@ function normalizeShop(raw: any, company?: Partial<PlatformCompany>): PlatformSh
     status: toStatus(pickValue(raw, ["is_active", "isActive", "status"]) ?? pickValue(nestedShop, ["is_active", "isActive", "status"])),
     createdAt: toDate(pickValue(raw, ["created_at", "createdAt"]) ?? pickValue(nestedShop, ["created_at", "createdAt"])),
     updatedAt: toDate(pickValue(raw, ["updated_at", "updatedAt"]) ?? pickValue(nestedShop, ["updated_at", "updatedAt"])),
+  };
+}
+
+function normalizeProduct(raw: any): PlatformProduct {
+  return {
+    id: String(pickValue(raw, ["publicId", "public_id", "uuid"]) ?? pickValue(raw, ["id", "product_id"]) ?? ""),
+    name: String(pickValue(raw, ["name"]) ?? ""),
+    price: toNumber(pickValue(raw, ["price", "sell_price", "selling_price"])),
+    barcode: String(pickValue(raw, ["barcode", "bar_code"]) ?? ""),
+    category: String(pickValue(raw, ["category", "category_name"]) ?? ""),
+    status: String(pickValue(raw, ["status"]) ?? "active"),
+    createdAt: toDate(pickValue(raw, ["createdAt", "created_at"])),
   };
 }
 
@@ -561,6 +583,10 @@ export function usePlatformAdminApi() {
   }
   const deleteShop = (companyId: string, shopId: string) => apiFetch(`/platform/companies/${pathId(companyId)}/shops/${pathId(shopId)}`, { method: "DELETE" });
 
+  const getCompanyProducts = (companyId: string) => list(`/platform/companies/${pathId(companyId)}/products`, normalizeProduct, ["products", "items", "data"]);
+  const deleteCompanyProduct = (companyId: string, productId: string) => apiFetch(`/platform/companies/${pathId(companyId)}/products/${pathId(productId)}`, { method: "DELETE" });
+  const deleteAllCompanyProducts = (companyId: string) => apiFetch(`/platform/companies/${pathId(companyId)}/products`, { method: "DELETE" });
+
   const getPlans = () => list("/platform/plans", normalizePlan, ["plans", "items", "data"]);
   async function createPlan(payload: PlatformPlanPayload) {
     const response = await apiFetch<any>("/platform/plans", { method: "POST", body: payload });
@@ -575,6 +601,13 @@ export function usePlatformAdminApi() {
   const getSubscriptions = () => list("/platform/subscriptions", normalizeSubscription, ["subscriptions", "items", "data"]);
   const renewSubscription = (id: string) => apiFetch(`/platform/subscriptions/${pathId(id)}/renew`, { method: "POST" });
   const checkExpiredSubscriptions = () => apiFetch<{ expired_count: number }>("/platform/subscriptions/check-expired", { method: "POST" });
+  async function changePlan(subscriptionId: string, planId: string) {
+    const response = await apiFetch<any>(`/platform/subscriptions/${pathId(subscriptionId)}/plan`, {
+      method: "PATCH",
+      body: { plan_id: planId },
+    });
+    return normalizeSubscription(pickObject(response, ["subscription", "data"]) ?? response);
+  }
 
   const getPayments = () => list("/platform/payments", normalizePayment, ["payments", "items", "data"]);
   async function createPayment(payload: PlatformPaymentPayload) {
@@ -643,6 +676,7 @@ export function usePlatformAdminApi() {
     getSubscriptions,
     renewSubscription,
     checkExpiredSubscriptions,
+    changePlan,
     getPayments,
     createPayment,
     getPlatformUsers,
@@ -663,6 +697,9 @@ export function usePlatformAdminApi() {
     updateShop,
     updateShopStatus,
     deleteShop,
+    getCompanyProducts,
+    deleteCompanyProduct,
+    deleteAllCompanyProducts,
     createPlatformUser,
     createUser: createPlatformUser,
     createCompanyUser,

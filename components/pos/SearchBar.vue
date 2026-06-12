@@ -61,69 +61,87 @@
       v-if="showDropdown"
       class="absolute top-full z-20 mt-3 flex max-h-[50vh] w-full flex-col gap-2 overflow-y-auto rounded-[20px] border border-white/8 bg-[rgba(31,31,31,0.98)] p-2 shadow-[0_26px_60px_rgba(0,0,0,0.28)] sm:max-h-[320px]"
     >
-      <div v-if="store.productsLoading" class="flex flex-col gap-2">
-        <div
-          v-for="item in 3"
-          :key="item"
-          class="flex flex-col gap-3 rounded-[12px] bg-[#262626] p-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div class="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div
-              class="h-[20px] w-[20px] shrink-0 animate-pulse rounded bg-[#404040]"
-            />
-            <div class="min-w-0 space-y-2">
+      <!-- Нет права на каталог -->
+      <div
+        v-if="!canSearchProducts"
+        class="rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
+      >
+        Нет доступа к каталогу
+      </div>
+
+      <!-- Магазин не выбран -->
+      <div
+        v-else-if="needsShopSelection"
+        class="rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
+      >
+        Выберите магазин для поиска товаров
+      </div>
+
+      <template v-else>
+        <div v-if="store.productsLoading" class="flex flex-col gap-2">
+          <div
+            v-for="item in 3"
+            :key="item"
+            class="flex flex-col gap-3 rounded-[12px] bg-[#262626] p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="flex min-w-0 items-center gap-3 sm:gap-4">
               <div
-                class="h-4 w-48 max-w-[55vw] animate-pulse rounded-full bg-[#404040]"
+                class="h-[20px] w-[20px] shrink-0 animate-pulse rounded bg-[#404040]"
               />
+              <div class="min-w-0 space-y-2">
+                <div
+                  class="h-4 w-48 max-w-[55vw] animate-pulse rounded-full bg-[#404040]"
+                />
+                <div
+                  class="text-[12px] font-bold uppercase tracking-[0.1em] text-[#777] sm:text-[14px]"
+                >
+                  #SKU-{{ item }} / 000{{ item }}000{{ item }}
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 sm:items-end">
+              <div class="h-4 w-24 animate-pulse rounded-full bg-[#404040]" />
               <div
-                class="text-[12px] font-bold uppercase tracking-[0.1em] text-[#777] sm:text-[14px]"
+                class="text-[12px] font-bold uppercase tracking-[0.1em] text-[#777]"
               >
-                #SKU-{{ item }} / 000{{ item }}000{{ item }}
+                #QTY-{{ item }}
               </div>
             </div>
           </div>
-          <div class="flex flex-col gap-2 sm:items-end">
-            <div class="h-4 w-24 animate-pulse rounded-full bg-[#404040]" />
-            <div
-              class="text-[12px] font-bold uppercase tracking-[0.1em] text-[#777]"
-            >
-              #QTY-{{ item }}
+        </div>
+
+        <div
+          v-else-if="filteredProducts.length === 0"
+          class="rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
+        >
+          Нет товаров в доступных магазинах
+        </div>
+
+        <button
+          v-for="product in filteredProducts"
+          :key="product.id"
+          type="button"
+          :disabled="store.isItemBusy(product.id) || store.addingItem"
+          class="flex cursor-pointer items-start gap-3 rounded-[12px] bg-[#262626] p-3 text-left text-[14px] font-semibold transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[16px]"
+          @click="addToCart(product)"
+        >
+          <div class="flex w-full min-w-0 items-center gap-3 sm:gap-4">
+            <div class="h-[20px] w-[20px] shrink-0 bg-[#404040]" />
+            <div class="flex min-w-0 flex-col">
+              <span class="truncate text-[#4993dd]">{{ product.name }}</span>
+              <span class="break-all text-[12px] sm:text-[14px]"
+                >{{ product.barcode }} / {{ product.article }}</span
+              >
             </div>
           </div>
-        </div>
-      </div>
-
-      <div
-        v-else-if="filteredProducts.length === 0"
-        class="rounded-[12px] bg-[#262626] p-4 text-[14px] font-semibold text-[#bdbdbd] sm:text-[16px]"
-      >
-        Ничего не найдено
-      </div>
-
-      <button
-        v-for="product in filteredProducts"
-        :key="product.id"
-        type="button"
-        :disabled="store.isItemBusy(product.id) || store.addingItem"
-        class="flex cursor-pointer items-start gap-3 rounded-[12px] bg-[#262626] p-3 text-left text-[14px] font-semibold transition hover:bg-[#303030] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[16px]"
-        @click="addToCart(product)"
-      >
-        <div class="flex w-full min-w-0 items-center gap-3 sm:gap-4">
-          <div class="h-[20px] w-[20px] shrink-0 bg-[#404040]" />
-          <div class="flex min-w-0 flex-col">
-            <span class="truncate text-[#4993dd]">{{ product.name }}</span>
-            <span class="break-all text-[12px] sm:text-[14px]"
-              >{{ product.barcode }} / {{ product.article }}</span
+          <div class="ml-auto flex shrink-0 flex-col items-end whitespace-nowrap text-right">
+            <span>{{ formatPrice(product.price) }} UZS</span>
+            <span class="text-[#999]"
+              >Кол-во: {{ Number(product.availableQuantity ?? 0) }} {{ resolveMeasurementUnitLabel(product) }}</span
             >
           </div>
-        </div>
-        <div class="ml-auto flex shrink-0 flex-col items-end whitespace-nowrap text-right">
-          <span>{{ formatPrice(product.price) }} UZS</span>
-          <span class="text-[#999]"
-            >Кол-во: {{ Number(product.availableQuantity ?? 0) }} {{ resolveMeasurementUnitLabel(product) }}</span
-          >
-        </div>
-      </button>
+        </button>
+      </template>
     </div>
 
     <AppSlideover
@@ -426,6 +444,8 @@ import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { resolveMeasurementUnitLabel } from "@/composables/useMeasurementUnitLabel";
 import { useCartStore } from "~/store/cart";
+
+const { canSearchProducts, needsShopSelection } = useShopAccess();
 
 type PickerMode = "return" | "exchange" | "draft" | "parked";
 type PickerGroup = "sale-actions" | "resume-actions";

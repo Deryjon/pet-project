@@ -29,7 +29,7 @@ const schema = yup.object({
   password: yup
     .string()
     .required("Пароль обязателен")
-    .min(6, "Минимум 6 символов"),
+    .min(8, "Минимум 8 символов"),
 });
 
 const { handleSubmit, setFieldError, setFieldValue } = useForm({
@@ -127,6 +127,11 @@ onBeforeUnmount(() => {
 });
 
 function resolveServerMessage(error: unknown, fallback: string) {
+  const status = (error as any)?.statusCode ?? (error as any)?.status ?? (error as any)?.response?.status;
+  if (status === 429) {
+    return "Слишком много попыток входа. Подождите 1 минуту.";
+  }
+
   const message = (error as any)?.data?.message;
 
   if (Array.isArray(message)) {

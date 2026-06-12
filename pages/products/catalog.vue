@@ -1,61 +1,97 @@
 <template>
   <section class="catalog">
-    <div class="top flex flex-col gap-4 xl:flex-row xl:items-center justify-between">
-      <div class="flex flex-col gap-2">
-        <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
-      </div>
-      <div class="flex justify-between gap-4  items-center">
-        <div
-          v-if="can('catalog-statistics')"
-          class="flex cursor-pointer items-center gap-[10px] text-[#b5b4b4]"
-          @click="toggleStats"
-        >
-          <Icon
-            name="tabler:chevron-down"
-            class="h-5 w-5 text-muted-foreground transition-transform duration-200"
-            :class="{ 'rotate-180': showStats }"
-          />
-          <p class="text-[17px] font-normal">
-            {{ statsToggleLabel }}
+    <!-- Shop selection guard: catalog-operations есть, но магазин не выбран -->
+    <template v-if="needsShopSelection">
+      <div class="flex min-h-105 flex-col items-center justify-center gap-6 text-center">
+        <div class="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#404040]">
+          <Icon name="heroicons:building-storefront" class="h-8 w-8 text-[#bdbdbd]" />
+        </div>
+
+        <div>
+          <h3 class="text-[22px] font-semibold text-white">Выберите магазин</h3>
+          <p class="mt-1 text-sm text-[#9a9a9a]">
+            Для просмотра каталога необходимо выбрать магазин
           </p>
         </div>
 
-        <div class="buttons flex items-center gap-2">
-          <UTooltip
-            v-for="action in actions"
-            :key="action.tooltip"
-            :text="action.tooltip"
+        <div v-if="!hasAvailableShops" class="text-sm text-[#9a9a9a]">
+          Нет доступных магазинов
+        </div>
+
+        <div v-else class="flex w-full max-w-xs flex-col gap-3">
+          <button
+            v-for="shop in locations"
+            :key="shop.id"
+            type="button"
+            :disabled="isSwitching"
+            class="w-full rounded-[16px] bg-[#404040] px-5 py-4 text-left text-[16px] font-semibold text-white transition hover:bg-[#505050] disabled:cursor-not-allowed disabled:opacity-60"
+            @click="setLocation(shop)"
           >
-            <UButton
-              color="neutral"
-              variant="ghost"
-              :class="[actionButtonClass, action.buttonClass]"
-              :aria-label="action.tooltip"
-              :title="action.tooltip"
-              @click="action.onClick"
-            >
-              <Icon :name="action.icon" :class="action.iconClass" />
-            </UButton>
-          </UTooltip>
+            {{ shop.name }}
+          </button>
         </div>
       </div>
-    </div>
+    </template>
 
-    <transition name="fade">
-      <div
-        v-if="showStats"
-        class="mt-[10px] grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <StatsBox
-          v-for="item in statsItems"
-          :key="item.label"
-          :label="item.label"
-          :value="item.value"
-        />
+    <!-- Основной каталог -->
+    <template v-else>
+      <div class="top flex flex-col gap-4 xl:flex-row xl:items-center justify-between">
+        <div class="flex flex-col gap-2">
+          <h2 class="text-[28px] font-bold text-white sm:text-[36px]">Каталог</h2>
+        </div>
+        <div class="flex justify-between gap-4  items-center">
+          <div
+            v-if="can('catalog-statistics')"
+            class="flex cursor-pointer items-center gap-2.5 text-[#b5b4b4]"
+            @click="toggleStats"
+          >
+            <Icon
+              name="tabler:chevron-down"
+              class="h-5 w-5 text-muted-foreground transition-transform duration-200"
+              :class="{ 'rotate-180': showStats }"
+            />
+            <p class="text-[17px] font-normal">
+              {{ statsToggleLabel }}
+            </p>
+          </div>
+
+          <div class="buttons flex items-center gap-2">
+            <UTooltip
+              v-for="action in actions"
+              :key="action.tooltip"
+              :text="action.tooltip"
+            >
+              <UButton
+                color="neutral"
+                variant="ghost"
+                :class="[actionButtonClass, action.buttonClass]"
+                :aria-label="action.tooltip"
+                :title="action.tooltip"
+                @click="action.onClick"
+              >
+                <Icon :name="action.icon" :class="action.iconClass" />
+              </UButton>
+            </UTooltip>
+          </div>
+        </div>
       </div>
-    </transition>
 
-    <DataTable class="mt-[40px]" />
+      <transition name="fade">
+        <div
+          v-if="showStats"
+          class="mt-2.5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          <StatsBox
+            v-for="item in statsItems"
+            :key="item.label"
+            :label="item.label"
+            :value="item.value"
+          />
+        </div>
+      </transition>
+
+      <DataTable class="mt-10" />
+    </template>
   </section>
 </template>
 
@@ -77,6 +113,13 @@ const route = useRoute();
 const router = useRouter();
 const locationStore = useLocationStore();
 const { can } = useAccessControl();
+const {
+  needsShopSelection,
+  hasAvailableShops,
+  locations,
+  isSwitching,
+  setLocation,
+} = useShopAccess();
 const { selectedLocation } = storeToRefs(locationStore);
 const showStats = ref(false);
 const statsItems = computed(() => store.statsCards);
@@ -208,12 +251,14 @@ watch(
   () => selectedLocation.value?.id,
   async (next, prev) => {
     if (next && next !== prev) {
+      syncStoreFromRoute();
       await refreshCatalog();
     }
   },
 );
 
 onMounted(() => {
+  if (needsShopSelection.value) return;
   syncStoreFromRoute();
   syncRouteFromStore();
   refreshCatalog();
