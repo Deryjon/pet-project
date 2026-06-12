@@ -13,6 +13,7 @@ const items = computed(() => [
   { label: "Обзор", to: `/platform/companies/${props.companyId}/overview` },
   { label: "Пользователи", to: `/platform/companies/${props.companyId}/users` },
   { label: "Филиалы", to: `/platform/companies/${props.companyId}/shops` },
+  { label: "Товары", to: `/platform/companies/${props.companyId}/products` },
   { label: "Роли", to: `/platform/companies/${props.companyId}/roles` },
   { label: "Журнал", to: `/platform/companies/${props.companyId}/logs` },
   { label: "Настройки", to: `/platform/companies/${props.companyId}/settings` },

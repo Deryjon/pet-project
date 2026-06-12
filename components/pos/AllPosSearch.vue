@@ -65,8 +65,15 @@ const store = useCartStore();
 const { formatPrice } = useFormatPrice();
 const { searchQuery, filteredProducts } = storeToRefs(store);
 const { addToCart } = store;
+const { canSearchProducts, needsShopSelection } = useShopAccess();
+
+// показываем результаты только если есть право на каталог, выбран магазин и есть товары
 const showResults = computed(
-  () => Boolean(searchQuery.value) && filteredProducts.value.length > 0
+  () =>
+    Boolean(searchQuery.value) &&
+    canSearchProducts.value &&
+    !needsShopSelection.value &&
+    filteredProducts.value.length > 0,
 );
 
 
