@@ -154,6 +154,38 @@
         <p class="mt-3 text-[28px] font-bold text-white">{{ card.value }}</p>
       </div>
     </div>
+    <section
+      v-if="errorItems.length"
+      class="space-y-3 rounded-[24px] border border-[#7f3d3d] bg-[#442f2f] p-5"
+    >
+      <div class="flex items-center gap-2">
+        <Icon name="heroicons:exclamation-circle-20-solid" class="h-5 w-5 text-[#ff8c8c]" />
+        <p class="text-[16px] font-bold text-white">{{ errorItems.length }} строк с ошибками</p>
+      </div>
+      <div class="max-h-[240px] space-y-2 overflow-y-auto">
+        <div
+          v-for="item in errorItems"
+          :key="item.id"
+          class="rounded-[12px] bg-[#5a3838] px-4 py-3"
+        >
+          <p class="text-[13px] font-bold text-white">
+            <span v-if="item.row_number">Строка {{ item.row_number }}:</span>
+            {{ item.product_name || "—" }}
+          </p>
+          <p v-if="item.error" class="mt-1 text-[12px] text-[#ffd7d7]">{{ item.error }}</p>
+          <ul v-if="item.validation_issues.length" class="mt-1 space-y-1">
+            <li
+              v-for="issue in item.validation_issues"
+              :key="issue.code"
+              class="text-[12px] text-[#ffd7d7]"
+            >
+              {{ issue.message || issue.code }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <section class="space-y-5 rounded-[28px] bg-[#2b2b2b] p-6">
       <div class="flex flex-col gap-2">
         <p
@@ -348,6 +380,25 @@
       </div>
       <p class="mt-3 text-[22px] font-bold">{{ progressPercent }}%</p>
     </section>
+
+    <ImportConflictResolutionSlideover
+      :open="conflictSlideoverOpen"
+      :items="previewItems"
+      :initial-policy="
+        session?.on_match ?? {
+          name: 'keep_store',
+          brand: 'keep_store',
+          category: 'keep_store',
+          description: 'from_file',
+          measurement_unit: 'keep_store',
+          supplier: 'keep_store',
+          supply_price: 'from_file',
+          retail_price: 'keep_store',
+        }
+      "
+      @close="conflictSlideoverOpen = false"
+      @confirm="handleConflictConfirm"
+    />
   </section>
 </template>
 
@@ -358,7 +409,10 @@ import {
   useProductImport,
   type CreateImportPayload,
   type ImportDraftMappingPayload,
+  type ImportMatchPolicy,
   type ImportMode,
+  type ImportOnMatchPolicy,
+  type ImportPreviewItem,
   type ImportProperty,
   type ImportSession,
   type ParsedImportRow,
@@ -482,6 +536,8 @@ const currentAction = ref<
 >("");
 const loadMenuOpen = ref(false);
 const previewRows = ref<ParsedImportRow[]>([]);
+const previewItems = ref<ImportPreviewItem[]>([]);
+const conflictSlideoverOpen = ref(false);
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
 const importTypeLabel = computed(() => draft.value.importType || "Поступление");
@@ -874,28 +930,25 @@ function buildPayload(mode: ImportMode): CreateImportPayload | null {
   };
 }
 
-function mapPreviewItemToRow(item: any): ParsedImportRow {
+function mapPreviewItemToRow(item: ImportPreviewItem): ParsedImportRow {
   return {
-    name: String(item?.raw?.name ?? item?.product_name ?? "").trim(),
-    article: String(item?.raw?.sku ?? item?.product_sku ?? "").trim(),
-    barcode: String(item?.raw?.barcode ?? item?.product_barcode ?? "").trim(),
-    quantity: Number(item?.raw?.quantity ?? item?.measurement_value ?? 0) || 0,
-    supplyPrice: Number(item?.raw?.supplyPrice ?? item?.supply_price ?? 0) || 0,
-    retailPrice: Number(item?.raw?.retailPrice ?? item?.retail_price ?? 0) || 0,
-    category: String(item?.raw?.categoryName ?? "").trim(),
-    brand: String(item?.raw?.brandName ?? "").trim(),
-    unit: String(
-      item?.raw?.measurementUnit ?? item?.measurement_type ?? "",
-    ).trim(),
-    supplier: String(item?.raw?.supplier ?? "").trim(),
-    description: String(
-      item?.raw?.description ?? item?.description ?? "",
-    ).trim(),
+    name: String(item.raw?.name ?? item.product_name ?? "").trim(),
+    article: String(item.raw?.sku ?? item.product_sku ?? "").trim(),
+    barcode: String(item.raw?.barcode ?? item.product_barcode ?? "").trim(),
+    quantity: Number(item.raw?.quantity ?? item.measurement_value ?? 0) || 0,
+    supplyPrice: Number(item.raw?.supplyPrice ?? item.supply_price ?? 0) || 0,
+    retailPrice: Number(item.raw?.retailPrice ?? item.retail_price ?? 0) || 0,
+    category: String(item.raw?.categoryName ?? "").trim(),
+    brand: String(item.raw?.brandName ?? "").trim(),
+    unit: String(item.raw?.measurementUnit ?? item.measurement_type ?? "").trim(),
+    supplier: String(item.raw?.supplier ?? "").trim(),
+    description: String(item.raw?.description ?? item.description ?? "").trim(),
   };
 }
 
 async function loadPreviewRowsWithRetry(fallbackRows: ParsedImportRow[] = []) {
   previewRows.value = [];
+  previewItems.value = [];
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
@@ -904,6 +957,7 @@ async function loadPreviewRowsWithRetry(fallbackRows: ParsedImportRow[] = []) {
         limit: 1000,
       });
       if (preview.items.length) {
+        previewItems.value = preview.items;
         previewRows.value = preview.items.map(mapPreviewItemToRow);
         return;
       }
@@ -915,6 +969,7 @@ async function loadPreviewRowsWithRetry(fallbackRows: ParsedImportRow[] = []) {
         limit: 1000,
       });
       if (items.items.length) {
+        previewItems.value = items.items;
         previewRows.value = items.items.map(mapPreviewItemToRow);
         return;
       }
@@ -928,6 +983,93 @@ async function loadPreviewRowsWithRetry(fallbackRows: ParsedImportRow[] = []) {
   if (fallbackRows.length) {
     previewRows.value = [...fallbackRows];
   }
+}
+
+const errorItems = computed(() =>
+  previewItems.value.filter(
+    (item) => item.action === "error" || item.validation_issues.length > 0,
+  ),
+);
+
+const conflictItems = computed(() =>
+  previewItems.value.filter((item) => item.action === "update" && item.difference),
+);
+
+function getOldProductStock(old: Record<string, unknown> | null): { qty: number; price: number } {
+  if (!old) return { qty: 0, price: 0 };
+  return {
+    qty: Number(old.measurement_value ?? old.quantity ?? old.stock_quantity ?? old.total_quantity ?? 0),
+    price: Number(old.supply_price ?? old.purchase_price ?? old.supplyPrice ?? 0),
+  };
+}
+
+function calcWeightedAvgPrice(
+  oldQty: number,
+  oldPrice: number,
+  newQty: number,
+  newPrice: number,
+): number {
+  const total = oldQty + newQty;
+  if (total <= 0) return newPrice;
+  return Math.round((oldQty * oldPrice + newQty * newPrice) / total);
+}
+
+function applyWeightedAverages() {
+  if (!previewItems.value.length) return;
+  previewRows.value = previewItems.value.map((item) => {
+    const row = mapPreviewItemToRow(item);
+    if (item.action !== "update") return row;
+    const { qty: oldQty, price: oldPrice } = getOldProductStock(item.old_product);
+    if (oldQty <= 0 || oldPrice <= 0) return row;
+    row.supplyPrice = calcWeightedAvgPrice(oldQty, oldPrice, item.measurement_value, item.supply_price);
+    return row;
+  });
+}
+
+async function doFinalCommit(policy: ImportOnMatchPolicy, useWeightedAvg: boolean) {
+  if (!session.value) return;
+
+  errorMessage.value = "";
+  actionLoading.value = true;
+  currentAction.value = "commit";
+
+  try {
+    if (useWeightedAvg) {
+      // Re-validate with recalculated prices so the server stores the new supplyPrice
+      const payload = buildPayload("with_check");
+      if (!payload) return;
+      payload.onMatch = { ...policy, supply_price: "from_file" };
+
+      progressMessage.value = "Пересчитываем средневзвешенные цены...";
+      const result = await validateImportSession(session.value.id, {
+        ...payload,
+        autoCommit: false,
+      });
+
+      const resolvedImportId = result.jobId
+        ? await waitForProgressCompletion(result.jobId, result.importId)
+        : result.importId || session.value.id;
+
+      session.value = await getImportSession(resolvedImportId);
+      progressMessage.value = "";
+    }
+
+    await commitImportSession(session.value.id, { onMatch: policy });
+    toast.add({ title: "Импорт принят", color: "success" });
+    await router.replace(`/products/import/list/${session.value.id}?limit=5&page=1`);
+  } catch (err: any) {
+    errorMessage.value = err?.message || "Не удалось принять импорт.";
+  } finally {
+    actionLoading.value = false;
+    currentAction.value = "";
+    progressMessage.value = "";
+  }
+}
+
+async function handleConflictConfirm(policy: ImportOnMatchPolicy, useWeightedAvg: boolean) {
+  conflictSlideoverOpen.value = false;
+  if (useWeightedAvg) applyWeightedAverages();
+  await doFinalCommit(policy, useWeightedAvg);
 }
 
 async function loadSession() {
@@ -1135,23 +1277,24 @@ async function getOrCreateStocktakingId(importSession: ImportSession) {
 async function importAllProducts() {
   if (!session.value || !canDirectCommit.value) return;
 
-  errorMessage.value = "";
-  actionLoading.value = true;
-  currentAction.value = "commit";
-
-  try {
-    await commitImportSession(session.value.id, { onMatch: session.value.on_match });
-    toast.add({ title: "Импорт принят", color: "success" });
-    await router.replace(
-      `/products/import/list/${session.value.id}?limit=5&page=1`,
-    );
-  } catch (err: any) {
-    errorMessage.value =
-      err?.message || "Не удалось принять импорт.";
-  } finally {
-    actionLoading.value = false;
-    currentAction.value = "";
+  if (conflictItems.value.length > 0) {
+    conflictSlideoverOpen.value = true;
+    return;
   }
+
+  await doFinalCommit(
+    session.value.on_match ?? {
+      name: "keep_store",
+      brand: "keep_store",
+      category: "keep_store",
+      description: "from_file",
+      measurement_unit: "keep_store",
+      supplier: "keep_store",
+      supply_price: "from_file",
+      retail_price: "keep_store",
+    },
+    false,
+  );
 }
 
 async function cancelCurrentImport() {
