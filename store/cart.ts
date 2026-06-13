@@ -177,32 +177,33 @@ export const useCartStore = defineStore("cart", () => {
     const { apiFetch } = useApi();
     productsLoading.value = true;
     try {
-      const res = await apiFetch<any>("/v2/product-search-with-filters", {
-        method: "POST",
-        body: {
-          search: q,
-          field_search_key: q,
-          limit: 20,
+      const res = await apiFetch<any>("/new-sale/products", {
+        method: "GET",
+        query: {
           page: 1,
-          shop_ids: shopId ? [shopId] : [],
+          limit: 20,
+          search: q,
+          ...(shopId ? { shop_id: shopId } : {}),
         },
       });
 
-      const items = Array.isArray(res?.products) ? res.products : [];
+      const items = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.products)
+          ? res.products
+          : Array.isArray(res?.data)
+            ? res.data
+            : [];
       filteredProducts.value = items.map((item: any) => {
         const shopMV = Array.isArray(item?.shop_measurement_values)
           ? item.shop_measurement_values
           : [];
-        const shopPrices = Array.isArray(item?.shop_prices)
-          ? item.shop_prices
-          : [];
         return {
-          id: item?.public_id ?? item?.id ?? "",
-          name: String(item?.name ?? item?.base_name ?? ""),
+          id: item?.id ?? "",
+          name: String(item?.name ?? ""),
           price: Number(
-            shopPrices[0]?.retail_price ??
+            item?.retail_price ??
               item?.sale_price ??
-              item?.retail_price ??
               item?.price ??
               0,
           ),
@@ -216,7 +217,6 @@ export const useCartStore = defineStore("cart", () => {
           ),
           shopId: String(
             shopMV[0]?.shop_id ??
-              shopPrices[0]?.shop_id ??
               item?.shop_id ??
               shopId ??
               "",
@@ -890,7 +890,7 @@ export const useCartStore = defineStore("cart", () => {
     creatingSale.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch("/new-sale", {
+      const res: any = await apiFetch("new-sale", {
         method: "POST",
       });
       applyOrderState(res);
