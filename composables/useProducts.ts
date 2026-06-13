@@ -527,6 +527,16 @@ export function useProducts() {
     return String(res?.barcode || "");
   }
 
+  async function clearAllArchivedProducts() {
+    try {
+      return await apiFetch<{ deleted_count: number }>("/v2/products/archived", {
+        method: "DELETE",
+      });
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   return {
     createProduct,
     updateProduct,
@@ -538,6 +548,7 @@ export function useProducts() {
     fetchAllowedShops,
     loadProductCard,
     bulkArchiveProducts,
+    clearAllArchivedProducts,
     listProducts,
     generateSku,
     generateBarcode,
@@ -707,8 +718,8 @@ function normalizeBillzProduct(raw: any, apiBase?: string): ProductDTO {
     unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "piece"),
     markup_percent: 0,
     quantity: totalActiveQuantity,
-    purchase_price: Number(primaryShopPrice?.supply_price ?? 0),
-    sale_price: Number(primaryShopPrice?.retail_price ?? 0),
+    purchase_price: Number(primaryShopPrice?.supply_price ?? raw?.purchase_price ?? 0),
+    sale_price: Number(primaryShopPrice?.retail_price ?? raw?.sale_price ?? 0),
     branch_code: primaryStock?.shop_id ?? undefined,
     category: normalizeNamedEntity(raw?.category_name),
     brand: normalizeNamedEntity(raw?.brand_name),

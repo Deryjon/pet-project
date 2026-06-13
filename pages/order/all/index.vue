@@ -336,6 +336,10 @@
                 <Icon name="heroicons:printer" class="h-5 w-5" />
                 Печать чека
               </button>
+              <button type="button" class="drawer-action drawer-action--secondary" @click="openChangePayment(drawerSale)">
+                <Icon name="heroicons:credit-card" class="h-5 w-5" />
+                Изменить оплату
+              </button>
               <button type="button" class="drawer-action drawer-action--secondary" @click="editSale(drawerSale)">
                 <Icon name="heroicons:pencil-square" class="h-5 w-5" />
                 Изменить
@@ -347,6 +351,51 @@
             </footer>
         </template>
       </AppSlideover>
+
+      <Teleport to="body">
+        <Transition name="cpay">
+          <div v-if="changePaymentOpen" class="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="changePaymentOpen = false" />
+            <div class="relative w-full max-w-[420px] rounded-[28px] border border-white/10 bg-[#262626] p-7 text-white shadow-2xl">
+              <h3 class="text-[20px] font-bold">Изменить способ оплаты</h3>
+              <p class="mt-1 text-[13px] text-[#9a9a9a]">
+                Продажа #{{ changePaymentSale ? saleNumberValue(changePaymentSale) : '' }}
+              </p>
+              <div v-if="paymentTypesLoading" class="mt-5 text-[14px] text-[#9a9a9a]">Загрузка...</div>
+              <div v-else class="mt-5 flex flex-col gap-2">
+                <button
+                  v-for="pt in paymentTypesList"
+                  :key="pt.id"
+                  type="button"
+                  class="flex items-center gap-3 rounded-[14px] px-4 py-3 text-left text-[14px] font-semibold transition"
+                  :class="selectedNewPaymentTypeId === pt.id ? 'bg-[#1f78ff] text-white' : 'bg-[#404040] text-white hover:bg-[#505050]'"
+                  @click="selectedNewPaymentTypeId = pt.id"
+                >
+                  <Icon :name="pt.isCash ? 'heroicons:banknotes' : 'heroicons:credit-card'" class="h-4 w-4 shrink-0" />
+                  {{ pt.name }}
+                </button>
+              </div>
+              <div class="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  class="rounded-[14px] bg-[#404040] px-5 py-3 text-[14px] font-semibold text-white transition hover:bg-[#505050]"
+                  @click="changePaymentOpen = false"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  :disabled="!selectedNewPaymentTypeId || changingPayment"
+                  class="rounded-[14px] bg-[#1f78ff] px-5 py-3 text-[14px] font-semibold text-white transition hover:bg-[#4993dd] disabled:cursor-not-allowed disabled:opacity-50"
+                  @click="confirmChangePayment"
+                >
+                  {{ changingPayment ? 'Сохраняем...' : 'Сохранить' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </div>
   </section>
 </template>
@@ -355,6 +404,7 @@
 import { computed, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useFormatPrice } from "~/composables/useFormatPrice";
+import { useUserStore } from "~/store/useUserStore";
 
 useHead({ title: "Все продажи | Konkurent" });
 
@@ -394,6 +444,7 @@ interface SaleView {
 
 const { apiFetch } = useApi();
 const { formatPrice } = useFormatPrice();
+const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -423,6 +474,13 @@ const detailsOpen = ref(false);
 const saleDetails = ref<SaleView | null>(null);
 const saleDetailsLoading = ref(false);
 const saleDetailsError = ref("");
+
+const changePaymentOpen = ref(false);
+const changePaymentSale = ref<SaleView | null>(null);
+const changingPayment = ref(false);
+const paymentTypesLoading = ref(false);
+const paymentTypesList = ref<Array<{ id: string; name: string; isCash: boolean }>>([]);
+const selectedNewPaymentTypeId = ref("");
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const saleScopeOptions = [
@@ -793,6 +851,54 @@ function formatOriginalAmountLabel(item: any) {
   return original && original !== current ? formatUzs(original) : "";
 }
 
+async function fetchPaymentTypes() {
+  paymentTypesLoading.value = true;
+  try {
+    const companyId = userStore.currentTenantId;
+    const res: any = await apiFetch("/company-payment-type", {
+      method: "GET",
+      query: companyId ? { company_id: companyId } : undefined,
+    });
+    const list: any[] = res?.company_payment_types ?? (Array.isArray(res) ? res : []);
+    paymentTypesList.value = list
+      .filter((pt: any) => !pt?.dont_show_in_make_payment)
+      .map((pt: any) => ({ id: String(pt.id), name: String(pt.name), isCash: !!pt.is_cash_payment_type }));
+  } catch {
+    paymentTypesList.value = [];
+  } finally {
+    paymentTypesLoading.value = false;
+  }
+}
+
+function openChangePayment(sale: SaleView) {
+  changePaymentSale.value = sale;
+  selectedNewPaymentTypeId.value = "";
+  changePaymentOpen.value = true;
+  if (!paymentTypesList.value.length) fetchPaymentTypes();
+}
+
+async function confirmChangePayment() {
+  if (!changePaymentSale.value || !selectedNewPaymentTypeId.value || changingPayment.value) return;
+  changingPayment.value = true;
+  try {
+    await apiFetch(`/order/${changePaymentSale.value.id}/payment-method`, {
+      method: "PATCH",
+      body: { payment_method: selectedNewPaymentTypeId.value },
+    });
+    changePaymentOpen.value = false;
+    const refreshedDetails = await fetchSaleDetails(changePaymentSale.value.id);
+    if (saleDetails.value?.id === changePaymentSale.value.id) {
+      saleDetails.value = refreshedDetails;
+    }
+    await fetchSales();
+  } catch (e: any) {
+    const message = e?.data?.message ?? e?.message ?? "Не удалось изменить способ оплаты";
+    alert(message);
+  } finally {
+    changingPayment.value = false;
+  }
+}
+
 function printSale(_sale: SaleView) {
   if (import.meta.client) window.print();
 }
@@ -1048,4 +1154,6 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 @media (max-width: 1180px) { .filters-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .filter-actions { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel, .sales-footer { padding: 16px; border-radius: 20px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-controls, .filters-grid, .filter-actions { grid-template-columns: 1fr; } .header-meta { min-width: 0; align-items: stretch; } .scope-select { width: 100%; min-width: 0; } .scope-menu { min-width: 100%; } .scope-trigger { font-size: clamp(24px,8vw,32px); } .count-inline { justify-content: center; white-space: normal; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .footer-actions { width: 100%; } .limit-box { justify-content: space-between; } .sale-card { gap: 14px; padding: 16px; border-radius: 18px; } .header-controls { grid-template-columns: 1fr; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
 @media (max-width: 520px) { .sales-header, .sales-list, .sales-footer { padding: 14px; border-radius: 18px; } .sale-card { padding: 14px; } .sale-amount { font-size: 17px; } .sale-number { font-size: 16px; } .drawer-header h2, .drawer-header strong { font-size: 20px; } .toolbar-btn, .report-btn { min-height: 48px; } }
+.cpay-enter-active, .cpay-leave-active { transition: opacity 0.18s ease; }
+.cpay-enter-from, .cpay-leave-to { opacity: 0; }
 </style>
