@@ -50,51 +50,76 @@
           </div>
 
           <div v-if="filtersOpen" class="filters-panel">
-            <label class="filter-field">
-              <span>Магазин</span>
-              <select v-model="shopFilter">
-                <option value="all">Выберите магазин</option>
-                <option v-for="option in shopOptions" :key="option" :value="option">{{ option }}</option>
-              </select>
-            </label>
-
-            <label class="filter-field">
-              <span>Тип оплаты</span>
-              <select v-model="paymentFilter">
-                <option value="all">Выберите тип оплаты</option>
-                <option v-for="option in dynamicPaymentOptions.filter((item) => item.value !== 'all')" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
-
-            <div class="filter-field filter-field--range">
-              <span>Сумма чека</span>
-              <div class="range-inputs">
-                <input v-model="amountFrom" type="number" min="0" placeholder="от" />
-                <input v-model="amountTo" type="number" min="0" placeholder="до" />
-              </div>
+            <div class="filters-panel-header">
+              <Icon name="heroicons:adjustments-horizontal" class="h-4 w-4" />
+              <span>Фильтры</span>
             </div>
 
-            <label class="filter-field">
-              <span>Продавец</span>
-              <select v-model="sellerFilter">
-                <option value="all">Выберите продавца</option>
-                <option v-for="option in sellerOptions" :key="option" :value="option">{{ option }}</option>
-              </select>
-            </label>
+            <div class="filters-grid">
+              <label class="filter-field">
+                <span class="filter-label">Магазин</span>
+                <div class="filter-select-wrap">
+                  <select v-model="shopFilter">
+                    <option value="all">Все магазины</option>
+                    <option v-for="option in shopOptions" :key="option" :value="option">{{ option }}</option>
+                  </select>
+                  <Icon name="heroicons:chevron-down-20-solid" class="filter-select-icon" />
+                </div>
+              </label>
 
-            <label class="filter-field">
-              <span>Кассир</span>
-              <select v-model="cashierFilter">
-                <option value="all">Выберите кассира</option>
-                <option v-for="option in cashierOptions" :key="option" :value="option">{{ option }}</option>
-              </select>
-            </label>
+              <label class="filter-field">
+                <span class="filter-label">Тип оплаты</span>
+                <div class="filter-select-wrap">
+                  <select v-model="paymentFilter">
+                    <option value="all">Все типы</option>
+                    <option v-for="option in dynamicPaymentOptions.filter((item) => item.value !== 'all')" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                  <Icon name="heroicons:chevron-down-20-solid" class="filter-select-icon" />
+                </div>
+              </label>
+
+              <div class="filter-field">
+                <span class="filter-label">Сумма чека</span>
+                <div class="range-inputs">
+                  <input v-model="amountFrom" type="number" min="0" placeholder="от" />
+                  <input v-model="amountTo" type="number" min="0" placeholder="до" />
+                </div>
+              </div>
+
+              <label class="filter-field">
+                <span class="filter-label">Продавец</span>
+                <div class="filter-select-wrap">
+                  <select v-model="sellerFilter">
+                    <option value="all">Все продавцы</option>
+                    <option v-for="option in sellerOptions" :key="option" :value="option">{{ option }}</option>
+                  </select>
+                  <Icon name="heroicons:chevron-down-20-solid" class="filter-select-icon" />
+                </div>
+              </label>
+
+              <label class="filter-field">
+                <span class="filter-label">Кассир</span>
+                <div class="filter-select-wrap">
+                  <select v-model="cashierFilter">
+                    <option value="all">Все кассиры</option>
+                    <option v-for="option in cashierOptions" :key="option" :value="option">{{ option }}</option>
+                  </select>
+                  <Icon name="heroicons:chevron-down-20-solid" class="filter-select-icon" />
+                </div>
+              </label>
+            </div>
 
             <div class="filter-actions">
-              <UButton color="neutral" variant="soft" class="toolbar-btn" @click="resetFilters">Сбросить</UButton>
-              <UButton color="primary" variant="solid" class="report-btn" @click="filtersOpen = false">Применить</UButton>
+              <UButton color="neutral" variant="soft" class="toolbar-btn" @click="resetFilters">
+                <Icon name="heroicons:arrow-uturn-left" class="h-4 w-4" />
+                Сбросить
+              </UButton>
+              <UButton color="primary" variant="solid" class="report-btn" @click="filtersOpen = false">
+                <Icon name="heroicons:check" class="h-4 w-4" />
+                Применить
+              </UButton>
             </div>
           </div>
         </header>
@@ -373,7 +398,8 @@ const route = useRoute();
 const router = useRouter();
 
 const search = ref("");
-const selectedDate = ref(String(route.query.start_date ?? route.query.date ?? ""));
+const todayDate = new Date().toISOString().slice(0, 10);
+const selectedDate = ref(String(route.query.start_date ?? route.query.date ?? "") || todayDate);
 const filtersOpen = ref(false);
 const saleScope = ref("all");
 const scopeOpen = ref(false);
@@ -703,7 +729,7 @@ function formatUzs(value: number) {
 
 function resetFilters() {
   search.value = "";
-  selectedDate.value = "";
+  selectedDate.value = todayDate;
   saleScope.value = "all";
   statusFilter.value = "all";
   paymentFilter.value = "all";
@@ -935,12 +961,22 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .toolbar-btn:hover, .icon-btn:hover { background: #505050; }
 .report-btn { background: #1f78ff; color: #fff; border-color: transparent; }
 .report-btn:hover { background: #4993dd; }
-.filters-panel { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 12px; border-top: 1px solid #404040; padding-top: 18px; }
-.filter-field { display: grid; gap: 8px; min-width: 0; }
-.filter-field span { color: #bdbdbd; font-size: 13px; font-weight: 800; }
-.filter-field select, .filter-field input { width: 100%; min-height: 46px; border: 0; border-radius: 14px; background: #404040; padding: 0 12px; color: #fff; font-size: 14px; font-weight: 700; outline: none; }
+.filters-panel { display: grid; gap: 16px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 18px; }
+.filters-panel-header { display: flex; align-items: center; gap: 8px; color: #78b3ff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+.filters-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 12px; }
+.filter-field { display: grid; gap: 7px; min-width: 0; }
+.filter-label { color: #9ca3af; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; padding-left: 2px; }
+.filter-select-wrap { position: relative; }
+.filter-select-wrap select { appearance: none; -webkit-appearance: none; width: 100%; min-height: 48px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: #353535; padding: 0 40px 0 14px; color: #fff; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease; }
+.filter-select-wrap select:hover { border-color: rgba(120,179,255,.3); background: #404040; }
+.filter-select-wrap select:focus { border-color: rgba(120,179,255,.5); background: #404040; box-shadow: 0 0 0 3px rgba(120,179,255,.1); }
+.filter-select-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #9ca3af; width: 16px; height: 16px; flex-shrink: 0; }
 .range-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.filter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-self: end; }
+.range-inputs input, .filter-field > input { width: 100%; min-height: 48px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: #353535; padding: 0 14px; color: #fff; font-size: 14px; font-weight: 700; outline: none; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease; }
+.range-inputs input:hover, .filter-field > input:hover { border-color: rgba(120,179,255,.3); background: #404040; }
+.range-inputs input:focus, .filter-field > input:focus { border-color: rgba(120,179,255,.5); background: #404040; box-shadow: 0 0 0 3px rgba(120,179,255,.1); }
+.range-inputs input::placeholder, .filter-field > input::placeholder { color: #6b7280; }
+.filter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .sales-list { margin-top: 0; padding: 20px; border: 1px solid rgba(255,255,255,.06); border-radius: 24px; background: linear-gradient(180deg,rgba(38,38,38,.98),rgba(32,32,32,.98)); box-shadow: 0 24px 60px rgba(0,0,0,.16); }
 .group + .group { margin-top: 18px; }
 .group-label { margin-bottom: 12px; padding: 0 2px; font-size: 14px; font-weight: 800; }
@@ -1009,7 +1045,7 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .drawer-action--secondary:hover { background: #505050; }
 .drawer-action--danger { background: transparent; color: #ff9a9a; }
 .drawer-action--danger:hover { background: rgba(239,68,68,.16); }
-@media (max-width: 1180px) { .filters-panel { grid-template-columns: repeat(2,minmax(0,1fr)); } .filter-actions { grid-column: span 2; } }
-@media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel, .sales-footer { padding: 16px; border-radius: 20px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-controls, .filters-panel, .filter-actions { grid-template-columns: 1fr; } .header-meta { min-width: 0; align-items: stretch; } .scope-select { width: 100%; min-width: 0; } .scope-menu { min-width: 100%; } .scope-trigger { font-size: clamp(24px,8vw,32px); } .count-inline { justify-content: center; white-space: normal; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .footer-actions { width: 100%; } .limit-box { justify-content: space-between; } .sale-card { gap: 14px; padding: 16px; border-radius: 18px; } .header-controls { grid-template-columns: 1fr; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
+@media (max-width: 1180px) { .filters-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .filter-actions { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .sales-page { padding: 0 0 24px; } .sales-header, .sales-list, .stats-panel, .total-panel, .sales-footer { padding: 16px; border-radius: 20px; } .header-top, .sales-footer, .sale-card, .sale-right { flex-direction: column; align-items: stretch; } .header-controls, .filters-grid, .filter-actions { grid-template-columns: 1fr; } .header-meta { min-width: 0; align-items: stretch; } .scope-select { width: 100%; min-width: 0; } .scope-menu { min-width: 100%; } .scope-trigger { font-size: clamp(24px,8vw,32px); } .count-inline { justify-content: center; white-space: normal; } .filter-actions { grid-column: auto; } .sale-right { min-width: 0; } .sale-amount, .sale-shop { text-align: left; justify-content: flex-start; } .footer-actions { width: 100%; } .limit-box { justify-content: space-between; } .sale-card { gap: 14px; padding: 16px; border-radius: 18px; } .header-controls { grid-template-columns: 1fr; } .sale-drawer { padding: 20px; } .drawer-actions { bottom: -20px; margin: 0 -20px -20px; padding: 14px 20px 20px; } }
 @media (max-width: 520px) { .sales-header, .sales-list, .sales-footer { padding: 14px; border-radius: 18px; } .sale-card { padding: 14px; } .sale-amount { font-size: 17px; } .sale-number { font-size: 16px; } .drawer-header h2, .drawer-header strong { font-size: 20px; } .toolbar-btn, .report-btn { min-height: 48px; } }
 </style>
