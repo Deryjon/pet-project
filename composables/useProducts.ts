@@ -527,6 +527,16 @@ export function useProducts() {
     return String(res?.barcode || "");
   }
 
+  async function clearAllArchivedProducts() {
+    try {
+      return await apiFetch<{ deleted_count: number }>("/v2/products/archived", {
+        method: "DELETE",
+      });
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   return {
     createProduct,
     updateProduct,
@@ -538,6 +548,7 @@ export function useProducts() {
     fetchAllowedShops,
     loadProductCard,
     bulkArchiveProducts,
+    clearAllArchivedProducts,
     listProducts,
     generateSku,
     generateBarcode,
