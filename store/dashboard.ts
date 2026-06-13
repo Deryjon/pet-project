@@ -30,6 +30,7 @@ type DashboardGranularity =
 type DashboardShop = {
   id: string;
   name: string;
+  branchCode?: string;
 };
 
 type DashboardReport = {
@@ -202,6 +203,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
           .map((shop: any) => ({
             id: String(shop?.id ?? ""),
             name: String(shop?.name ?? ""),
+            branchCode: shop?.branchCode ? String(shop.branchCode) : undefined,
           }))
           .filter((shop: DashboardShop) => Boolean(shop.id && shop.name))
       : [];
@@ -215,6 +217,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
           .map((shop: any) => ({
             id: String(shop?.shop_id ?? shop?.shop_name ?? ""),
             name: String(shop?.shop_name ?? ""),
+            branchCode: shop?.branch_code ? String(shop.branch_code) : undefined,
           }))
           .filter((shop: DashboardShop) => Boolean(shop.id && shop.name))
       : [];
@@ -373,6 +376,11 @@ export const useDashboardStore = defineStore("dashboard", () => {
     error.value = "";
 
     try {
+      const selectedShop = selectedShopId.value
+        ? shops.value.find((s) => s.id === selectedShopId.value)
+        : null;
+      const branchCode = selectedShop?.branchCode ?? undefined;
+
       const data: any = await apiFetch("/v1/dashboard-report", {
         method: "GET",
         query: {
@@ -383,6 +391,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
           currency: reportCurrency.value || "UZS",
           product_group_field: "name",
           product_field: "net_sales",
+          ...(branchCode ? { branch_code: branchCode } : {}),
         },
       });
 
@@ -412,6 +421,14 @@ export const useDashboardStore = defineStore("dashboard", () => {
     () => [selectedPeriod.value, selectedGranularity.value],
     async () => {
       await saveSettings();
+      await fetchDashboardReport();
+    },
+    { immediate: false },
+  );
+
+  watch(
+    () => selectedShopId.value,
+    async () => {
       await fetchDashboardReport();
     },
     { immediate: false },
