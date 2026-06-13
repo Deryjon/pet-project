@@ -537,6 +537,17 @@ export function useProducts() {
     }
   }
 
+  async function bulkDeleteProducts(productIds: Array<string | number>) {
+    try {
+      return await apiFetch<{ deleted_count: number }>("/v2/products/bulk/delete", {
+        method: "DELETE",
+        body: { ids: productIds },
+      });
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   return {
     createProduct,
     updateProduct,
@@ -549,6 +560,7 @@ export function useProducts() {
     loadProductCard,
     bulkArchiveProducts,
     clearAllArchivedProducts,
+    bulkDeleteProducts,
     listProducts,
     generateSku,
     generateBarcode,

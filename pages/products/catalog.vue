@@ -57,6 +57,18 @@
 
           <div class="buttons flex items-center gap-2">
             <UButton
+              v-if="store.archivedOnly && store.selectedProducts.length > 0"
+              color="error"
+              variant="solid"
+              :loading="deletingSelected"
+              class="rounded-[15px] px-4 py-2 text-[14px] font-semibold"
+              @click="deleteSelectedConfirmOpen = true"
+            >
+              <Icon name="heroicons:trash" class="h-4 w-4 mr-1" />
+              Удалить выбранные ({{ store.selectedProducts.length }})
+            </UButton>
+
+            <UButton
               v-if="store.archivedOnly"
               color="error"
               variant="soft"
@@ -115,6 +127,36 @@
               </div>
             </template>
           </UModal>
+
+          <UModal v-model:open="deleteSelectedConfirmOpen" :ui="{ content: 'max-w-[480px] rounded-[28px] bg-[#262626] p-0 text-white border border-white/10' }">
+            <template #content>
+              <div class="p-7">
+                <h3 class="text-[22px] font-bold">Удалить выбранные товары?</h3>
+                <p class="mt-3 text-[15px] text-[#d1d5db]">
+                  Будет удалено {{ store.selectedProducts.length }} товаров безвозвратно. Это действие нельзя отменить.
+                </p>
+                <div class="mt-7 flex items-center justify-end gap-3">
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    class="rounded-[14px] bg-[#404040] px-5 py-3 text-white hover:bg-[#505050]"
+                    @click="deleteSelectedConfirmOpen = false"
+                  >
+                    Отмена
+                  </UButton>
+                  <UButton
+                    color="error"
+                    variant="solid"
+                    :loading="deletingSelected"
+                    class="rounded-[14px] px-5 py-3"
+                    @click="confirmDeleteSelected"
+                  >
+                    Удалить навсегда
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UModal>
         </div>
       </div>
 
@@ -164,12 +206,14 @@ const {
   isSwitching,
   setLocation,
 } = useShopAccess();
-const { clearAllArchivedProducts } = useProducts();
+const { clearAllArchivedProducts, bulkDeleteProducts } = useProducts();
 const { selectedLocation } = storeToRefs(locationStore);
 const showStats = ref(false);
 const statsItems = computed(() => store.statsCards);
 const clearingArchive = ref(false);
 const clearArchiveConfirmOpen = ref(false);
+const deletingSelected = ref(false);
+const deleteSelectedConfirmOpen = ref(false);
 
 const actions = computed(() => [
   {
@@ -281,6 +325,22 @@ async function confirmClearArchive() {
     toast.add({ title: "Не удалось очистить архив", description: normalizeApiError(error), color: "error" });
   } finally {
     clearingArchive.value = false;
+  }
+}
+
+async function confirmDeleteSelected() {
+  if (deletingSelected.value) return;
+  deletingSelected.value = true;
+  deleteSelectedConfirmOpen.value = false;
+  try {
+    const ids = store.selectedProducts;
+    const result = await bulkDeleteProducts(ids);
+    toast.add({ title: `Удалено товаров: ${result?.deleted_count ?? 0}`, color: "success" });
+    await store.fetchData();
+  } catch (error: any) {
+    toast.add({ title: "Не удалось удалить товары", description: normalizeApiError(error), color: "error" });
+  } finally {
+    deletingSelected.value = false;
   }
 }
 

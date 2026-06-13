@@ -293,32 +293,22 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
   const branchesSales = computed(() => {
     const responseShops = Array.isArray(report.value?.shops) ? report.value!.shops! : [];
-    const totalsByName = new Map(
-      responseShops.map((shop: any) => [
-        String(shop?.shop_name ?? ""),
-        Number(shop?.total_price ?? 0),
-      ]),
-    );
 
-    const list = responseShops.length > 0
-      ? responseShops.map((shop: any, index: number) => ({
-          id: String(shop?.shop_id ?? shop?.shop_name ?? index),
-          name: String(shop?.shop_name ?? ""),
-          total: Number(shop?.total_price ?? 0),
-          color: colorByIndex(index),
-        }))
-      : shops.value.map((shop, index) => ({
-          id: shop.id,
-          name: shop.name,
-          total: Number(totalsByName.get(shop.name) ?? 0),
-          color: colorByIndex(index),
-        }));
-
-    if (!selectedShopId.value) {
-      return list;
+    if (responseShops.length > 0) {
+      return responseShops.map((shop: any, index: number) => ({
+        id: String(shop?.shop_id ?? shop?.shop_name ?? index),
+        name: String(shop?.shop_name ?? ""),
+        total: Number(shop?.total_price ?? 0),
+        color: colorByIndex(index),
+      }));
     }
 
-    return list.filter((shop) => shop.id === selectedShopId.value);
+    return shops.value.map((shop, index) => ({
+      id: shop.id,
+      name: shop.name,
+      total: 0,
+      color: colorByIndex(index),
+    }));
   });
 
   const chartData = computed(() => {
@@ -346,13 +336,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
     return { labels, datasets };
   });
 
-  const filteredTotalSales = computed(() => {
-    if (!selectedShopId.value) {
-      return Number(report.value?.total_orders_price ?? 0);
-    }
-
-    return Number(branchesSales.value[0]?.total ?? 0);
-  });
+  const filteredTotalSales = computed(() =>
+    Number(report.value?.total_orders_price ?? 0),
+  );
 
   async function saveSettings() {
     settingsSaving.value = true;
