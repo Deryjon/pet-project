@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import { usePanelStore } from "@/store/usePanelStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useLocationStore } from "@/store/useLocationStore";
@@ -14,8 +15,14 @@ defineProps<{
 }>();
 
 const panel = usePanelStore();
+const router = useRouter();
 const { userState, fullName } = storeToRefs(useUserStore());
 const { selectedLocation, locations } = storeToRefs(useLocationStore());
+
+function goToNotifications() {
+  panel.closeAll();
+  router.push("/settings/notifications");
+}
 
 const displayName = computed(() => {
   return fullName.value || userState.value.name || formatUzPhoneDisplay(userState.value.phone) || "Пользователь";
@@ -100,7 +107,18 @@ const canChangeShop = computed(() => {
           </div>
         </div>
 
-        <BaseButton color="red" class="mt-6" @click="panel.openQuit">
+        <button
+          class="mt-6 flex w-full cursor-pointer items-center justify-between rounded-[20px] bg-[#404040] px-5 py-3 font-semibold transition-colors duration-300 hover:bg-[#5e5e5e]"
+          @click="goToNotifications"
+        >
+          <div class="flex items-center gap-2">
+            <Icon name="heroicons:bell" class="h-4 w-4 text-[#229ED9]" />
+            Уведомления
+          </div>
+          <Icon name="heroicons:arrow-right" class="h-4 w-4" />
+        </button>
+
+        <BaseButton color="red" class="mt-4" @click="panel.openQuit">
           Выйти из аккаунта
         </BaseButton>
 
