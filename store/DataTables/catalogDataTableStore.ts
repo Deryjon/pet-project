@@ -249,6 +249,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
             ? p.suppliers.map((s) => s.name).join(", ")
             : "",
         quantity: p.quantity,
+        is_service: !!((p as any)._original?.is_service),
         purchase_price: p.purchase_price,
         sale_price: p.sale_price,
         wholesale_price: Number(
@@ -857,6 +858,7 @@ function createQuantityColumn(accessorKey: string, header: string) {
       tdStyle: getCatalogColumnStyle(header),
     },
     cell: ({ getValue, row }: any) => {
+      if (row?.original?.is_service) return "—";
       const unit = String(row?.original?.unit ?? "").trim();
       const value = getValue() ?? 0;
       return unit ? `${value} ${unit}` : String(value);
