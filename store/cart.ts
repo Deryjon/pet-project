@@ -33,6 +33,7 @@ type CompanyPaymentMethod = {
 type SalePaymentPayload = {
   paymentMethodId: string;
   clientId?: string | null;
+  payments?: { payment_method: string; amount: number }[] | null;
   debt?: {
     amount_uzs?: number | null;
     due_date?: string | null;
@@ -198,23 +199,30 @@ export const useCartStore = defineStore("cart", () => {
         const shopMV = Array.isArray(item?.shop_measurement_values)
           ? item.shop_measurement_values
           : [];
+        const stockIsNull = item?.stock === null;
         return {
           id: item?.id ?? "",
+          publicId: item?.publicId ?? item?.public_id ?? "",
           name: String(item?.name ?? ""),
           price: Number(
-            item?.retail_price ??
+            item?.sellPrice ??
+              item?.retail_price ??
               item?.sale_price ??
               item?.price ??
               0,
           ),
           barcode: String(item?.barcode ?? ""),
           article: String(item?.sku ?? item?.article ?? ""),
-          availableQuantity: Number(
-            shopMV[0]?.total_active_measurement_value ??
-              item?.measurement_values?.total_active_measurement_value ??
-              item?.quantity ??
-              0,
-          ),
+          product_type: item?.product_type ?? "goods",
+          availableQuantity: stockIsNull
+            ? Infinity
+            : Number(
+                item?.stock ??
+                  shopMV[0]?.total_active_measurement_value ??
+                  item?.measurement_values?.total_active_measurement_value ??
+                  item?.quantity ??
+                  0,
+              ),
           shopId: String(
             shopMV[0]?.shop_id ??
               item?.shop_id ??
@@ -1078,15 +1086,17 @@ export const useCartStore = defineStore("cart", () => {
       setItemBusy(productId, true);
       addingItem.value = true;
       lastCartError.value = "";
-      const availableQuantity = Math.max(0, Number(product?.availableQuantity ?? 0));
+      const rawAvailable = product?.availableQuantity;
+      const isUnlimited = rawAvailable === Infinity || rawAvailable === null;
+      const availableQuantity = isUnlimited ? Infinity : Math.max(0, Number(rawAvailable ?? 0));
       const currentQuantity = getCartItemQuantity(product.id);
 
-      if (availableQuantity <= 0) {
+      if (!isUnlimited && availableQuantity <= 0) {
         lastCartError.value = "В выбранном филиале нет остатка";
         return;
       }
 
-      if (currentQuantity >= availableQuantity) {
+      if (!isUnlimited && currentQuantity >= availableQuantity) {
         lastCartError.value = "Недостаточно остатка в выбранном филиале";
         return;
       }
@@ -1475,6 +1485,11 @@ export const useCartStore = defineStore("cart", () => {
         payment_method: payload.paymentMethodId,
         branch_code: resolveBranchCode() || undefined,
       };
+
+      if (payload.payments && payload.payments.length > 0) {
+        body.payments = payload.payments;
+        body.payment_method = payload.payments[0]?.payment_method ?? payload.paymentMethodId;
+      }
 
       if (clientId) {
         body.client_id = clientId;

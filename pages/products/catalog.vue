@@ -56,6 +56,18 @@
           </div>
 
           <div class="buttons flex items-center gap-2">
+            <UButton
+              v-if="store.archivedOnly"
+              color="error"
+              variant="soft"
+              :loading="clearingArchive"
+              class="rounded-[15px] px-4 py-2 text-[14px] font-semibold"
+              @click="clearArchiveConfirmOpen = true"
+            >
+              <Icon name="heroicons:trash" class="h-4 w-4 mr-1" />
+              Очистить архив
+            </UButton>
+
             <UTooltip
               v-for="action in actions"
               :key="action.tooltip"
@@ -73,6 +85,36 @@
               </UButton>
             </UTooltip>
           </div>
+
+          <UModal v-model:open="clearArchiveConfirmOpen" :ui="{ content: 'max-w-[480px] rounded-[28px] bg-[#262626] p-0 text-white border border-white/10' }">
+            <template #content>
+              <div class="p-7">
+                <h3 class="text-[22px] font-bold">Очистить архив?</h3>
+                <p class="mt-3 text-[15px] text-[#d1d5db]">
+                  Все архивированные товары будут удалены безвозвратно. Это действие нельзя отменить.
+                </p>
+                <div class="mt-7 flex items-center justify-end gap-3">
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    class="rounded-[14px] bg-[#404040] px-5 py-3 text-white hover:bg-[#505050]"
+                    @click="clearArchiveConfirmOpen = false"
+                  >
+                    Отмена
+                  </UButton>
+                  <UButton
+                    color="error"
+                    variant="solid"
+                    :loading="clearingArchive"
+                    class="rounded-[14px] px-5 py-3"
+                    @click="confirmClearArchive"
+                  >
+                    Удалить всё
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UModal>
         </div>
       </div>
 
@@ -104,6 +146,7 @@ import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { useLocationStore } from "@/store/useLocationStore";
+import { normalizeApiError, useProducts } from "~/composables/useProducts";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
@@ -112,6 +155,7 @@ const store = useCatalogDataTableStore();
 const route = useRoute();
 const router = useRouter();
 const locationStore = useLocationStore();
+const toast = useToast();
 const { can } = useAccessControl();
 const {
   needsShopSelection,
@@ -120,9 +164,12 @@ const {
   isSwitching,
   setLocation,
 } = useShopAccess();
+const { clearAllArchivedProducts } = useProducts();
 const { selectedLocation } = storeToRefs(locationStore);
 const showStats = ref(false);
 const statsItems = computed(() => store.statsCards);
+const clearingArchive = ref(false);
+const clearArchiveConfirmOpen = ref(false);
 
 const actions = computed(() => [
   {
@@ -220,6 +267,21 @@ function toggleArchivedProducts() {
 
 function openCatalogManagement() {
   void router.push("/products/settings");
+}
+
+async function confirmClearArchive() {
+  if (clearingArchive.value) return;
+  clearingArchive.value = true;
+  clearArchiveConfirmOpen.value = false;
+  try {
+    const result = await clearAllArchivedProducts();
+    toast.add({ title: `Удалено товаров из архива: ${result?.deleted_count ?? 0}`, color: "success" });
+    await store.fetchData();
+  } catch (error: any) {
+    toast.add({ title: "Не удалось очистить архив", description: normalizeApiError(error), color: "error" });
+  } finally {
+    clearingArchive.value = false;
+  }
 }
 
 async function refreshCatalog() {

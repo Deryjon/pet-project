@@ -67,6 +67,7 @@
         </div>
 
         <div class="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <!-- Left: Order Summary -->
           <div class="rounded-[26px] border border-white/8 bg-[#2a2a2a] p-5">
             <div class="mb-4 flex items-center justify-between">
               <span class="text-sm font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">Заказ</span>
@@ -81,33 +82,65 @@
                 <span>{{ totalQuantity }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span>Промежуточно</span>
-                <span>{{ formatPrice(subtotal) }} UZS</span>
+                <span>Итого</span>
+                <span>{{ formatPrice(totalAmount) }} UZS</span>
               </div>
               <div class="flex items-center justify-between">
                 <span>Скидка</span>
                 <span>{{ formatPrice(totalDiscount) }} UZS</span>
               </div>
               <div class="flex items-center justify-between">
-                <span>Оплачено</span>
-                <span>{{ formatPrice(paidAmount) }} UZS</span>
+                <span>Добавлено</span>
+                <span :class="pendingTotal > 0 ? 'text-emerald-400' : ''">{{ formatPrice(pendingTotal) }} UZS</span>
               </div>
             </div>
 
             <div class="my-5 h-px bg-white/10" />
 
-            <div class="rounded-[18px] bg-[#303030] px-4 py-4">
-              <div class="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">Остаток к оплате</div>
-              <div class="mt-2 text-[28px] font-bold leading-none" :class="remainingDebtAmount > 0 ? 'text-[#ffcf80]' : 'text-white'">
-                {{ formatPrice(remainingDebtAmount) }} UZS
+            <div class="rounded-[18px] px-4 py-4" :class="pendingRemaining <= 0 ? 'bg-emerald-900/40' : 'bg-[#303030]'">
+              <div class="text-xs font-semibold uppercase tracking-[0.12em] text-white/60">
+                {{ pendingRemaining <= 0 ? 'Покрыто' : 'Остаток к оплате' }}
+              </div>
+              <div
+                class="mt-2 text-[28px] font-bold leading-none"
+                :class="pendingRemaining <= 0 ? 'text-emerald-400' : 'text-[#ffcf80]'"
+              >
+                {{ formatPrice(Math.abs(pendingRemaining)) }} UZS
+                <span v-if="pendingRemaining < 0" class="text-[14px] font-normal text-white/40"> сдача</span>
+              </div>
+            </div>
+
+            <!-- Pending payments list -->
+            <div v-if="pendingPayments.length > 0" class="mt-4 space-y-2">
+              <div class="text-xs font-semibold uppercase tracking-[0.12em] text-[#8f8f8f]">Оплаты</div>
+              <div
+                v-for="(p, idx) in pendingPayments"
+                :key="idx"
+                class="flex items-center justify-between rounded-[14px] bg-[#303030] px-3 py-2.5 text-[13px]"
+              >
+                <div class="flex items-center gap-2 text-[#d0d0d0]">
+                  <Icon :name="p.isCash ? 'heroicons:banknotes' : 'heroicons:credit-card'" class="h-4 w-4 text-[#8f8f8f]" />
+                  <span class="font-semibold">{{ p.methodName }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-white">{{ formatPrice(p.amount) }}</span>
+                  <button
+                    type="button"
+                    class="flex h-5 w-5 items-center justify-center rounded-full text-[#8f8f8f] hover:bg-white/10 hover:text-white"
+                    @click="removePendingPayment(idx)"
+                  >
+                    <Icon name="mingcute:close-fill" class="h-3 w-3" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
+          <!-- Right: Add payment -->
           <div class="rounded-[26px] border border-white/8 bg-[#262626] p-5">
             <div class="mb-5">
               <h4 class="text-[20px] font-semibold">Добавить оплату</h4>
-              <p class="mt-1 text-sm text-[#8f8f8f]">Выберите способ оплаты и сумму. Можно добавлять несколько оплат.</p>
+              <p class="mt-1 text-sm text-[#8f8f8f]">Выберите способ и введите сумму. Можно добавить несколько.</p>
             </div>
 
             <div
@@ -124,35 +157,69 @@
               Для компании не настроены способы оплаты.
             </div>
 
-            <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <button
-                v-for="method in singlePaymentMethods"
-                :key="method.value"
-                type="button"
-                :disabled="method.requiresCustomer && !hasCustomerAttached"
-                class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
-                :class="
-                  selectedPaymentMethod === method.value
-                    ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
-                    : 'border-white/8 bg-[#303030] text-white hover:border-white/15 hover:bg-[#353535]'
-                "
-                @click="selectPaymentMethod(method)"
-              >
-                <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-11 w-11 items-center justify-center rounded-[16px]"
-                    :class="selectedPaymentMethod === method.value ? 'bg-[#1f78ff] text-white' : 'bg-[#404040] text-[#bdbdbd]'"
-                  >
-                    <Icon :name="method.icon" class="h-5 w-5" />
+            <template v-else>
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <button
+                  v-for="method in singlePaymentMethods"
+                  :key="method.value"
+                  type="button"
+                  :disabled="method.requiresCustomer && !hasCustomerAttached"
+                  class="flex items-center justify-between rounded-[20px] border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
+                  :class="
+                    selectedPaymentMethod === method.value
+                      ? 'border-[#1f78ff] bg-[#1f78ff]/12 text-white'
+                      : 'border-white/8 bg-[#303030] text-white hover:border-white/15 hover:bg-[#353535]'
+                  "
+                  @click="selectPaymentMethod(method)"
+                >
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex h-11 w-11 items-center justify-center rounded-[16px]"
+                      :class="selectedPaymentMethod === method.value ? 'bg-[#1f78ff] text-white' : 'bg-[#404040] text-[#bdbdbd]'"
+                    >
+                      <Icon :name="method.icon" class="h-5 w-5" />
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-[16px] font-semibold">{{ method.label }}</span>
+                      <span class="text-[12px] uppercase tracking-[0.08em] text-[#8f8f8f]">{{ method.hint }}</span>
+                    </div>
                   </div>
-                  <div class="flex flex-col">
-                    <span class="text-[16px] font-semibold">{{ method.label }}</span>
-                    <span class="text-[12px] uppercase tracking-[0.08em] text-[#8f8f8f]">{{ method.hint }}</span>
-                  </div>
-                </div>
-              </button>
-            </div>
+                </button>
+              </div>
 
+              <!-- Amount input row -->
+              <div class="mt-5 flex gap-3">
+                <div class="relative flex-1">
+                  <input
+                    v-model="paymentAmountInput"
+                    type="number"
+                    min="1"
+                    placeholder="Сумма"
+                    class="w-full rounded-[16px] border border-white/10 bg-[#303030] px-4 py-3.5 text-[16px] font-semibold text-white placeholder-[#666] outline-none focus:border-[#1f78ff] focus:ring-1 focus:ring-[#1f78ff]"
+                    @keydown.enter="addPendingPayment"
+                  />
+                  <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#666]">UZS</span>
+                </div>
+                <button
+                  type="button"
+                  :disabled="!canAddPendingPayment"
+                  class="flex items-center gap-2 rounded-[16px] bg-[#1f78ff] px-5 py-3.5 text-[15px] font-semibold text-white transition hover:bg-[#1a69e0] disabled:cursor-not-allowed disabled:opacity-40"
+                  @click="addPendingPayment"
+                >
+                  <Icon name="heroicons:plus" class="h-5 w-5" />
+                  Добавить
+                </button>
+              </div>
+
+              <button
+                v-if="pendingRemaining > 0 && selectedPaymentMethod"
+                type="button"
+                class="mt-2 text-xs text-[#8f8f8f] underline underline-offset-2 hover:text-white"
+                @click="fillRemainingAmount"
+              >
+                Подставить остаток ({{ formatPrice(pendingRemaining) }} UZS)
+              </button>
+            </template>
           </div>
         </div>
 
@@ -187,7 +254,7 @@
             @click="completePaidOrder"
           >
             <Icon v-if="cartStore.payLoading" name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
-            Завершить продажу
+            {{ pendingPayments.length > 0 ? `Завершить (${formatPrice(pendingTotal)} UZS)` : 'Завершить продажу' }}
           </UButton>
         </div>
       </div>
@@ -456,8 +523,13 @@ const debtConfirmation = ref(false);
 const completionCustomerId = ref("");
 const completionDebt = ref<any | null>(null);
 
+type PendingPayment = { methodId: string; methodName: string; amount: number; isCash: boolean };
+const pendingPayments = ref<PendingPayment[]>([]);
+
 const showSummarySkeleton = computed(() => cartStore.addingItem || cartStore.discountLoading);
 const isReturnFlow = computed(() => saleFlowMode.value === "return");
+const pendingTotal = computed(() => pendingPayments.value.reduce((s, p) => s + p.amount, 0));
+const pendingRemaining = computed(() => totalAmount.value - pendingTotal.value);
 
 function paymentMethodIcon(method: { isCash?: boolean }) {
   return method.isCash ? "heroicons:banknotes" : "heroicons:credit-card";
@@ -509,15 +581,17 @@ const selectedPaymentMethodMeta = computed(
   () => singlePaymentMethods.value.find((method) => method.value === selectedPaymentMethod.value) ?? null,
 );
 const isDebtPaymentSelected = computed(() => Boolean(selectedPaymentMethodMeta.value?.isDebt));
-const canCompletePaidOrder = computed(
+const canAddPendingPayment = computed(
   () =>
-    !isReturnFlow.value &&
-    cart.value.length > 0 &&
     Boolean(selectedPaymentMethod.value) &&
     !isDebtPaymentSelected.value &&
-    !cartStore.payLoading &&
-    !cartStore.completingOrder,
+    Number(paymentAmountInput.value) > 0,
 );
+const canCompletePaidOrder = computed(() => {
+  if (isReturnFlow.value || cart.value.length === 0 || cartStore.payLoading || cartStore.completingOrder) return false;
+  if (pendingPayments.value.length > 0) return pendingTotal.value > 0;
+  return Boolean(selectedPaymentMethod.value) && !isDebtPaymentSelected.value;
+});
 const canShowDebtAction = computed(
   () =>
     !isReturnFlow.value &&
@@ -555,8 +629,32 @@ function selectPaymentMethod(method: { value: string; label: string; requiresCus
     });
     return;
   }
-
   selectedPaymentMethod.value = method.value;
+}
+
+function addPendingPayment() {
+  if (!canAddPendingPayment.value) return;
+  const amount = Math.max(0, Number(paymentAmountInput.value));
+  if (amount <= 0) return;
+  const meta = singlePaymentMethods.value.find((m) => m.value === selectedPaymentMethod.value);
+  if (!meta) return;
+  pendingPayments.value.push({
+    methodId: meta.value,
+    methodName: meta.label,
+    amount,
+    isCash: meta.isCash,
+  });
+  paymentAmountInput.value = pendingRemaining.value > 0 ? String(pendingRemaining.value) : "";
+}
+
+function removePendingPayment(idx: number) {
+  pendingPayments.value.splice(idx, 1);
+}
+
+function fillRemainingAmount() {
+  if (pendingRemaining.value > 0) {
+    paymentAmountInput.value = String(pendingRemaining.value);
+  }
 }
 
 function resetDebtModalState() {
@@ -584,11 +682,15 @@ function openCompletionState(result: any) {
 function syncReceipt(result: any) {
   const firstPayment = currentPayments.value[0];
   const methodName =
-    currentPayments.value.length === 1 && firstPayment
-      ? paymentTypeLabel(firstPayment.paymentTypeId)
-      : currentPayments.value.length > 1
-        ? "Смешанная оплата"
-        : paymentTypeLabel(selectedPaymentMethod.value);
+    pendingPayments.value.length > 1
+      ? "Смешанная оплата"
+      : pendingPayments.value.length === 1
+        ? pendingPayments.value[0]!.methodName
+        : currentPayments.value.length === 1 && firstPayment
+          ? paymentTypeLabel(firstPayment.paymentTypeId)
+          : currentPayments.value.length > 1
+            ? "Смешанная оплата"
+            : paymentTypeLabel(selectedPaymentMethod.value);
 
   const receiptSnapshot: SaleReceiptSnapshot = {
     saleId: cartStore.saleId,
@@ -621,13 +723,16 @@ async function openPaymentPanel() {
   if (!canStartCheckout.value) return;
   await cartStore.loadPaymentMethods();
   const defaultMethod = singlePaymentMethods.value.find((method) => method.isCash) ?? singlePaymentMethods.value[0];
-  selectedPaymentMethod.value = selectedPaymentMethod.value || defaultMethod?.value || "";
-  paymentAmountInput.value = "";
+  selectedPaymentMethod.value = defaultMethod?.value || "";
+  pendingPayments.value = [];
+  paymentAmountInput.value = String(totalAmount.value);
   paymentPanelOpen.value = true;
 }
 
 function closePaymentPanel() {
   paymentPanelOpen.value = false;
+  pendingPayments.value = [];
+  paymentAmountInput.value = "";
 }
 
 function openDebtModal() {
@@ -681,9 +786,21 @@ async function removePayment(paymentId: string) {
 }
 
 async function completePaidOrder() {
+  let payments: { payment_method: string; amount: number }[] | undefined;
+  let primaryMethodId = selectedPaymentMethod.value;
+
+  if (pendingPayments.value.length > 0) {
+    payments = pendingPayments.value.map((p) => ({
+      payment_method: p.methodId,
+      amount: p.amount,
+    }));
+    primaryMethodId = payments[0]!.payment_method;
+  }
+
   const result = await cartStore.paySale({
-    paymentMethodId: selectedPaymentMethod.value,
+    paymentMethodId: primaryMethodId,
     clientId: cartStore.currentOrder?.customerId ?? null,
+    payments: payments ?? null,
   });
   if (!result) {
     toast.add({
