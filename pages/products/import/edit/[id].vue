@@ -1135,23 +1135,19 @@ async function getOrCreateStocktakingId(importSession: ImportSession) {
 async function importAllProducts() {
   if (!session.value || !canDirectCommit.value) return;
 
-  const payload = buildPayload("without_check");
-  if (!payload) return;
-
   errorMessage.value = "";
   actionLoading.value = true;
   currentAction.value = "commit";
 
   try {
-    const result = await importWithoutCheck(payload);
-    const resolvedImportId = result.id || session.value.id;
-    toast.add({ title: "Импорт запущен", color: "success" });
+    await commitImportSession(session.value.id, { onMatch: session.value.on_match });
+    toast.add({ title: "Импорт принят", color: "success" });
     await router.replace(
-      `/products/import/list/${resolvedImportId}?limit=5&page=1`,
+      `/products/import/list/${session.value.id}?limit=5&page=1`,
     );
   } catch (err: any) {
     errorMessage.value =
-      err?.message || "Не удалось загрузить товары без проверки.";
+      err?.message || "Не удалось принять импорт.";
   } finally {
     actionLoading.value = false;
     currentAction.value = "";

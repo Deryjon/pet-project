@@ -175,6 +175,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const selectedPeriod = ref<DashboardPeriod>("today");
   const selectedGranularity = ref<DashboardGranularity>("hour");
   const selectedShopId = ref<string | null>(null);
+  const customStartDate = ref<string | null>(null);
+  const customEndDate = ref<string | null>(null);
 
   // Вычисляем доступные варианты детализации для текущего периода
   const availableGranularities = computed(() => {
@@ -370,8 +372,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
       const data: any = await apiFetch("/v1/dashboard-report", {
         method: "GET",
         query: {
-          start_date: startDateForPeriod(selectedPeriod.value),
-          end_date: endDateForPeriod(selectedPeriod.value),
+          start_date: customStartDate.value ?? startDateForPeriod(selectedPeriod.value),
+          end_date: customEndDate.value ?? endDateForPeriod(selectedPeriod.value),
           detalization: selectedGranularity.value,
           seller_field: "sales_sum",
           currency: reportCurrency.value || "UZS",
@@ -396,7 +398,19 @@ export const useDashboardStore = defineStore("dashboard", () => {
   }
 
   function setPeriod(value: DashboardPeriod) {
+    customStartDate.value = null;
+    customEndDate.value = null;
     selectedPeriod.value = value;
+  }
+
+  function setCustomDateRange(start: string, end: string) {
+    customStartDate.value = start;
+    customEndDate.value = end;
+  }
+
+  function clearCustomDateRange() {
+    customStartDate.value = null;
+    customEndDate.value = null;
   }
 
   function setGranularity(value: DashboardGranularity) {
@@ -420,6 +434,16 @@ export const useDashboardStore = defineStore("dashboard", () => {
     { immediate: false },
   );
 
+  watch(
+    () => [customStartDate.value, customEndDate.value],
+    async ([start, end]) => {
+      if (start && end) {
+        await fetchDashboardReport();
+      }
+    },
+    { immediate: false },
+  );
+
   return {
     shops,
     periods,
@@ -439,6 +463,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
     selectShop,
     setPeriod,
     setGranularity,
+    setCustomDateRange,
+    clearCustomDateRange,
     saveSettings,
     fetchDashboardReport,
     availableGranularities,
