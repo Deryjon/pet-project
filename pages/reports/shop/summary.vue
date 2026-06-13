@@ -20,7 +20,7 @@ const reportsApi = useReportsApi();
 const userStore = useUserStore();
 
 const activeTab = ref<"dashboard" | "table">("dashboard");
-const selectedDate = ref(formatDateInput(new Date()));
+const selectedDateRange = ref({ from: formatDateInput(new Date()), to: formatDateInput(new Date()) });
 const selectedBranch = ref("all");
 const selectedSalesField = ref("net_gross_sales");
 const selectedProductField = ref("sold_qty");
@@ -240,10 +240,10 @@ watch([page, limit], () => {
   void loadTable();
 });
 
-watch([selectedDate, selectedBranch], () => {
+watch([selectedDateRange, selectedBranch], () => {
   if (!initialized.value) return;
   applyFilters();
-});
+}, { deep: true });
 
 function goBack() {
   router.back();
@@ -289,6 +289,13 @@ function humanDate(value: string) {
   return `${day}.${month}.${year}`;
 }
 
+function humanDateRange(range: { from?: string | null; to?: string | null }) {
+  const from = range.from ? humanDate(range.from) : "";
+  const to = range.to ? humanDate(range.to) : "";
+  if (from && to && from !== to) return `${from} – ${to}`;
+  return from || to || "Не выбрано";
+}
+
 function shortDate(value: string) {
   if (!value) return "";
   const normalized = value.slice(0, 10);
@@ -324,8 +331,11 @@ function formatCustomerMetric(value: unknown, total: unknown) {
 }
 
 function buildBaseQuery(overrides: Partial<ReportFilterQuery> = {}): ReportFilterQuery {
+  const startDate = selectedDateRange.value.from || selectedDateRange.value.to;
+  const endDate = selectedDateRange.value.to || selectedDateRange.value.from;
   return {
-    startDate: selectedDate.value,
+    startDate,
+    endDate,
     shopIds: [...selectedShopIds.value],
     plotShopIds: [...selectedShopIds.value],
     page: page.value,
@@ -406,7 +416,8 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  selectedDate.value = formatDateInput(new Date());
+  const today = formatDateInput(new Date());
+  selectedDateRange.value = { from: today, to: today };
   selectedBranch.value = "all";
   selectedSalesField.value = "gross_sales";
   selectedProductField.value = "sold_with_discount";
@@ -438,9 +449,10 @@ function resetFilters() {
 
       <div class="flex justify-between gap-3 flex-wrap">
         <AppDatePicker
-          v-model="selectedDate"
-          placeholder="Выберите дату"
-          class="w-[200px]"
+          v-model="selectedDateRange"
+          placeholder="Выберите период"
+          selection-mode="range"
+          class="w-[280px]"
         />
 
         <label class="relative">
@@ -459,8 +471,8 @@ function resetFilters() {
             </option>
           </select>
           <Icon
-            name="heroicons:building-storefront"
-            class="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-sky-300"
+            name="heroicons:chevron-down"
+            class="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
           />
         </label>
       </div>
@@ -516,7 +528,7 @@ function resetFilters() {
             <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div>
                 <h3 class="text-[22px] font-semibold">Статистика продаж</h3>
-                <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • {{ selectedBranchLabel }}</p>
+                <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • {{ selectedBranchLabel }}</p>
               </div>
               <div class="grid gap-2 sm:grid-cols-2">
                 <div class="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -576,7 +588,7 @@ function resetFilters() {
                   <div class="flex flex-col justify-between">
 
                     <div class="mt-2 text-sm text-[#a3a3a3]">Выбранный период</div>
-                    <div class=" text-sm text-white">{{ humanDate(selectedDate) }}</div>
+                    <div class=" text-sm text-white">{{ humanDateRange(selectedDateRange) }}</div>
                   </div>
                 </div>
 
@@ -602,7 +614,7 @@ function resetFilters() {
           <section class="rounded-[28px] border border-white/10 bg-[#202020] p-5 shadow-[0_18px_50px_rgba(2,6,23,0.18)]">
             <div>
               <h3 class="text-[20px] font-semibold">Показатели продаж</h3>
-              <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • {{ selectedBranchLabel }}</p>
+              <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • {{ selectedBranchLabel }}</p>
             </div>
 
             <div class="mt-5 overflow-x-auto">
@@ -642,7 +654,7 @@ function resetFilters() {
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <h3 class="text-[22px] font-semibold">Статистика продуктов</h3>
-            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • Все магазины</p>
+            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • Все магазины</p>
           </div>
           <div class="grid gap-2 sm:grid-cols-2">
             <div class="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -698,7 +710,7 @@ function resetFilters() {
           <section class="rounded-[24px] border border-white/10 bg-[#181818] p-5">
             <h3 class="text-[20px] font-semibold">Магазин</h3>
             <div class="mt-2 text-sm text-[#a3a3a3]">Выбранный период</div>
-            <div class="mt-1 text-sm text-white">{{ humanDate(selectedDate) }}</div>
+            <div class="mt-1 text-sm text-white">{{ humanDateRange(selectedDateRange) }}</div>
 
             <div class="mt-5 space-y-3">
               <div
@@ -723,7 +735,7 @@ function resetFilters() {
         <section class="rounded-[28px] border border-white/10 bg-[#202020] p-5 shadow-[0_18px_50px_rgba(2,6,23,0.18)]">
           <div>
             <h3 class="text-[20px] font-semibold">Топ-10 продуктов</h3>
-            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • {{ selectedBranchLabel }}</p>
+            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • {{ selectedBranchLabel }}</p>
           </div>
 
           <div class="mt-5 space-y-3">
@@ -748,7 +760,7 @@ function resetFilters() {
         <section class="rounded-[28px] border border-white/10 bg-[#202020] p-5 shadow-[0_18px_50px_rgba(2,6,23,0.18)]">
           <div>
             <h3 class="text-[20px] font-semibold">Топ-10 категорий</h3>
-            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • {{ selectedBranchLabel }}</p>
+            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • {{ selectedBranchLabel }}</p>
           </div>
 
           <div class="mt-5 space-y-3">
@@ -774,7 +786,7 @@ function resetFilters() {
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <h3 class="text-[22px] font-semibold">Статистика клиентов</h3>
-            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • Все магазины</p>
+            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • Все магазины</p>
           </div>
           <div class="grid gap-2 sm:grid-cols-2">
             <div class="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -830,7 +842,7 @@ function resetFilters() {
           <section class="rounded-[24px] border border-white/10 bg-[#181818] p-5">
             <h3 class="text-[20px] font-semibold">Магазин</h3>
             <div class="mt-2 text-sm text-[#a3a3a3]">Выбранный период</div>
-            <div class="mt-1 text-sm text-white">{{ humanDate(selectedDate) }}</div>
+            <div class="mt-1 text-sm text-white">{{ humanDateRange(selectedDateRange) }}</div>
 
             <div class="mt-5 space-y-3">
               <div
@@ -853,7 +865,7 @@ function resetFilters() {
         <div class="mt-6 overflow-x-auto">
           <div class="mb-4">
             <h3 class="text-[20px] font-semibold">Новые и возвращающиеся клиенты</h3>
-            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDate(selectedDate) }} • {{ selectedBranchLabel }}</p>
+            <p class="mt-2 text-sm text-[#a3a3a3]">{{ humanDateRange(selectedDateRange) }} • {{ selectedBranchLabel }}</p>
           </div>
           <table class="min-w-full text-sm">
             <thead>

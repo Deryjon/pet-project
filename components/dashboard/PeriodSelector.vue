@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useDashboardStore } from "@/store/dashboard";
 
 const store = useDashboardStore();
@@ -89,6 +89,12 @@ function nextMonth() {
   visibleMonth.value = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() + 1, 1);
 }
 
+watch(rangeEnd, (end) => {
+  if (rangeStart.value && end) {
+    store.setCustomDateRange(rangeStart.value, end);
+  }
+});
+
 function selectDate(date: Date) {
   const selected = toIsoDate(date);
   const start = parseModelDate(rangeStart.value);
@@ -118,6 +124,7 @@ function setToday() {
 function clearRange() {
   rangeStart.value = "";
   rangeEnd.value = "";
+  store.clearCustomDateRange();
 }
 </script>
 
