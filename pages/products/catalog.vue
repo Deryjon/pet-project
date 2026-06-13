@@ -177,6 +177,8 @@
       <DataTable class="mt-10" />
     </template>
   </section>
+
+  <BulkSkuBarcodeEditor v-model:open="bulkFixOpen" />
 </template>
 
 <script setup lang="ts">
@@ -186,6 +188,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useHead } from "#imports";
 import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
+import BulkSkuBarcodeEditor from "@/components/BulkSkuBarcodeEditor.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { useLocationStore } from "@/store/useLocationStore";
 import { normalizeApiError, useProducts } from "~/composables/useProducts";
@@ -214,6 +217,7 @@ const clearingArchive = ref(false);
 const clearArchiveConfirmOpen = ref(false);
 const deletingSelected = ref(false);
 const deleteSelectedConfirmOpen = ref(false);
+const bulkFixOpen = ref(false);
 
 const actions = computed(() => [
   {
@@ -222,6 +226,13 @@ const actions = computed(() => [
     iconClass: store.archivedOnly ? "h-4 w-4 text-white" : "h-4 w-4 text-[#3b82f6]",
     buttonClass: store.archivedOnly ? "bg-[#1f78ff] hover:bg-[#2a6ed9]" : "",
     onClick: toggleArchivedProducts,
+  },
+  {
+    tooltip: "Исправить артикулы и баркоды",
+    icon: "tabler:barcode",
+    iconClass: "h-5 w-5 text-[#f59e0b]",
+    buttonClass: "",
+    onClick: () => { bulkFixOpen.value = true; },
   },
   {
     tooltip: "Управление каталогом",
