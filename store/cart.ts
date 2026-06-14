@@ -1491,6 +1491,10 @@ export const useCartStore = defineStore("cart", () => {
         body.payment_method = payload.payments[0]?.payment_method ?? payload.paymentMethodId;
       }
 
+      if (selectedSellerId.value) {
+        body.user_id = selectedSellerId.value;
+      }
+
       if (clientId) {
         body.client_id = clientId;
       }
