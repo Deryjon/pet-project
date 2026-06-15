@@ -6,7 +6,7 @@ import type { CreateProductApiPayload, ProductType } from "~/types/product-creat
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ "update:open": [value: boolean] }>();
 
-const { listProducts, generateBarcode, generateSku, updateProduct } = useProducts();
+const { listProducts, generateBarcode, generateSku, patchProductIdentifiers } = useProducts();
 const toast = useToast();
 
 interface EditableProduct {
@@ -64,13 +64,15 @@ async function generateAll() {
   generating.value = true;
   progress.value = 0;
   progressTotal.value = items.value.length;
+  const reservedBarcodes: string[] = [];
   for (const item of items.value) {
     try {
       if (item.hasSkuIssue) {
         item.newSku = await generateSku({ name: item.name });
       }
       if (item.hasBarcodeIssue) {
-        item.newBarcode = await generateBarcode();
+        item.newBarcode = await generateBarcode(reservedBarcodes);
+        if (item.newBarcode) reservedBarcodes.push(item.newBarcode);
       }
     } catch {
       // Keep existing value on error
@@ -117,7 +119,9 @@ function buildPayload(raw: any, sku: string, barcode: string): CreateProductApiP
     ),
     measurement_unit_id: raw?.measurement_unit_id
       ? String(raw.measurement_unit_id)
-      : undefined,
+      : raw?.measurement_unit?.id
+        ? String(raw.measurement_unit.id)
+        : undefined,
     description: raw?.description || undefined,
     brand_name: raw?.brand_name || raw?.brand?.name || undefined,
     supplier_ids: supplierIds,
@@ -140,12 +144,14 @@ async function saveAll() {
   let ok = 0;
   let fail = 0;
   for (const item of items.value) {
-    const changed =
-      item.newSku !== item.currentSku || item.newBarcode !== item.currentBarcode;
-    if (changed) {
+    const skuChanged = item.newSku !== item.currentSku;
+    const barcodeChanged = item.newBarcode !== item.currentBarcode;
+    if (skuChanged || barcodeChanged) {
       try {
-        const payload = buildPayload(item._raw, item.newSku, item.newBarcode);
-        await updateProduct(item.id, payload);
+        await patchProductIdentifiers(item.id, {
+          ...(skuChanged ? { sku: item.newSku } : {}),
+          ...(barcodeChanged ? { barcode: item.newBarcode } : {}),
+        });
         ok++;
       } catch {
         fail++;

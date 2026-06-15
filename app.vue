@@ -1,44 +1,30 @@
 ﻿<script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
-import { useLocationStore } from "./store/useLocationStore"; // РїСѓС‚СЊ РїРѕРїСЂР°РІСЊ РµСЃР»Рё РЅСѓР¶РЅРѕ
+import { onMounted } from "vue";
+import { useLocationStore } from "./store/useLocationStore";
 
 const locationStore = useLocationStore();
-const router = useRouter();
-const { startRouteLoading, stopRouteLoading } = usePageLoader();
 
-let removeBeforeEach: (() => void) | null = null;
-let removeAfterEach: (() => void) | null = null;
-let removeOnError: (() => void) | null = null;
+const pageTransition = {
+  name: "page",
+  mode: "out-in",
+};
 
 onMounted(() => {
   locationStore.init();
-  removeBeforeEach = router.beforeEach((to, from) => {
-    if (to.fullPath !== from.fullPath) {
-      startRouteLoading();
-    }
-  });
-  removeAfterEach = router.afterEach(() => {
-    stopRouteLoading();
-  });
-  removeOnError = router.onError(() => {
-    stopRouteLoading();
-  });
-});
-
-onBeforeUnmount(() => {
-  removeBeforeEach?.();
-  removeAfterEach?.();
-  removeOnError?.();
 });
 </script>
 
 <template>
   <UApp>
-    <div>
-      <NuxtLayout>
-        <NuxtPage />
-      </NuxtLayout>
-    </div>
+    <NuxtLoadingIndicator
+      :height="3"
+      color="linear-gradient(90deg, #1f78ff, #38bdf8)"
+      :duration="2500"
+      :throttle="100"
+    />
+    <NuxtLayout>
+      <NuxtPage :transition="pageTransition" />
+    </NuxtLayout>
   </UApp>
 </template>
 <style>

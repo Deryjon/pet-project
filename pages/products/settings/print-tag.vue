@@ -1,227 +1,295 @@
 <template>
-  <section class="operations h-screen flex flex-col bg-[#1a1a1a] text-white">
+  <section class="h-screen flex flex-col bg-[#141414] text-white overflow-hidden">
+
     <!-- Top bar -->
-    <div class="border-b border-gray-700 flex-none">
-      <div class="flex items-center justify-between gap-4 py-6 px-8">
-        <div class="flex items-center gap-4">
-          <div
-            class="exit bg-[#404040] px-[15px] py-[12px] rounded-[25px] flex items-center gap-2 cursor-pointer font-bold text-[16px] hover:bg-[#5e5e5e] transition-colors"
+    <div class="flex-none border-b border-white/8 bg-[#1a1a1a]">
+      <div class="flex items-center justify-between gap-4 px-6 py-4">
+        <div class="flex items-center gap-3">
+          <button
+            class="flex items-center gap-2 px-4 py-2 rounded-[14px] bg-[#2a2a2a] hover:bg-[#333] transition-colors text-sm font-medium"
             @click="router.back()"
           >
-            <Icon name="heroicons:chevron-left" class="w-5 h-5" />
+            <Icon name="heroicons:chevron-left" class="w-4 h-4" />
             Назад
+          </button>
+          <div>
+            <h1 class="text-[18px] font-bold leading-tight">Ценники</h1>
+            <p class="text-[11px] text-[#666] leading-tight mt-0.5">Создание и печать шаблонов</p>
           </div>
-          <h2 class="text-[24px] font-bold">Печать ценников</h2>
-          <span v-if="saving" class="text-xs text-gray-400 animate-pulse">Сохранение...</span>
         </div>
-        <div class="flex items-center gap-3">
-          <button class="btn-dark" @click="printTest">Тест печати</button>
-          <button class="btn-primary" :disabled="!selectedTemplate" @click="printAll">
+
+        <div class="flex items-center gap-2">
+          <Transition name="fade">
+            <span v-if="saving" class="text-[11px] text-[#666] mr-1">Сохранение...</span>
+          </Transition>
+          <button
+            class="px-4 py-2 rounded-[14px] bg-[#2a2a2a] hover:bg-[#333] text-sm font-medium transition-colors"
+            :disabled="!selectedTemplate"
+            @click="printTest"
+          >
+            Тест
+          </button>
+          <button
+            class="px-5 py-2 rounded-[14px] bg-[#1f78ff] hover:bg-[#3d8bff] text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="!selectedTemplate"
+            @click="printAll"
+          >
             Печатать{{ printCount > 1 ? ` (${printCount})` : '' }}
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Main content -->
-    <div class="flex-1 overflow-hidden flex">
+    <!-- Body -->
+    <div class="flex-1 flex overflow-hidden">
 
-      <!-- Left panel: Templates + Settings -->
-      <div class="w-72 flex-none border-r border-gray-700 overflow-y-auto flex flex-col">
-        <!-- Templates list -->
-        <div class="p-4 border-b border-gray-700">
-          <div class="flex items-center justify-between mb-3">
-            <span class="font-semibold text-sm text-gray-300">Шаблоны</span>
-            <button @click="createTemplate" class="text-[#1f78ff] text-sm hover:text-blue-400 transition-colors flex items-center gap-1">
-              <Icon name="heroicons:plus" class="w-4 h-4" />
-              Новый
-            </button>
+      <!-- ── Left: templates + settings ── -->
+      <div class="w-64 flex-none flex flex-col border-r border-white/8 bg-[#191919]">
+
+        <!-- Templates header -->
+        <div class="flex items-center justify-between px-4 pt-4 pb-3">
+          <span class="text-[13px] font-semibold text-[#aaa]">Шаблоны</span>
+          <button
+            class="flex items-center gap-1 text-[12px] text-[#1f78ff] hover:text-[#5a9eff] transition-colors font-medium"
+            @click="createTemplate"
+          >
+            <Icon name="heroicons:plus" class="w-3.5 h-3.5" />
+            Новый
+          </button>
+        </div>
+
+        <!-- Template list -->
+        <div class="px-3 pb-3">
+          <div v-if="loadingTemplates" class="text-center py-8 text-[12px] text-[#555]">
+            <Icon name="heroicons:arrow-path" class="w-5 h-5 animate-spin mx-auto mb-2" />
+            Загрузка...
           </div>
-          <div v-if="loadingTemplates" class="text-xs text-gray-400 py-4 text-center">Загрузка...</div>
-          <div v-else-if="!templates.length" class="text-xs text-gray-400 py-4 text-center">Нет шаблонов</div>
-          <div v-else class="space-y-1.5">
+          <div v-else-if="!templates.length" class="text-center py-8 text-[12px] text-[#555]">
+            <Icon name="heroicons:tag" class="w-8 h-8 mx-auto mb-2 opacity-30" />
+            Нет шаблонов
+          </div>
+          <div v-else class="space-y-1">
             <div
               v-for="tpl in templates"
               :key="tpl.id"
               @click="selectTemplate(tpl)"
-              class="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors group"
-              :class="selectedTemplate?.id === tpl.id ? 'bg-[#1f78ff]' : 'bg-[#2e2e2e] hover:bg-[#3a3a3a]'"
+              class="group flex items-center gap-2.5 px-3 py-2.5 rounded-[12px] cursor-pointer transition-all"
+              :class="selectedTemplate?.id === tpl.id
+                ? 'bg-[#1f78ff]/15 border border-[#1f78ff]/30'
+                : 'hover:bg-white/5 border border-transparent'"
             >
+              <div
+                class="w-7 h-7 rounded-[8px] flex-none flex items-center justify-center"
+                :class="selectedTemplate?.id === tpl.id ? 'bg-[#1f78ff]/20' : 'bg-white/5'"
+              >
+                <Icon name="heroicons:tag" class="w-3.5 h-3.5" :class="selectedTemplate?.id === tpl.id ? 'text-[#1f78ff]' : 'text-[#666]'" />
+              </div>
               <div class="min-w-0 flex-1">
-                <div class="text-sm font-medium truncate">{{ tpl.name }}</div>
-                <div class="text-xs opacity-60 mt-0.5">{{ tpl.width }}×{{ tpl.length }} мм · {{ tpl.barcode_type }}</div>
+                <div class="text-[13px] font-medium truncate" :class="selectedTemplate?.id === tpl.id ? 'text-white' : 'text-[#ccc]'">{{ tpl.name }}</div>
+                <div class="text-[10px] text-[#555] mt-0.5">{{ tpl.width }}×{{ tpl.length }} мм</div>
               </div>
               <button
                 @click.stop="deleteTemplate(tpl.id)"
-                class="ml-2 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                class="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 text-[#666] transition-all"
               >
-                <Icon name="heroicons:trash" class="w-4 h-4" />
+                <Icon name="heroicons:trash" class="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Template settings -->
-        <div v-if="selectedTemplate" class="p-4 space-y-4 flex-1 overflow-y-auto">
-          <div>
-            <span class="font-semibold text-sm text-gray-300 block mb-3">Настройки шаблона</span>
-            <label class="block mb-3">
+        <!-- Divider -->
+        <div v-if="selectedTemplate" class="h-px bg-white/8 mx-3" />
+
+        <!-- Settings -->
+        <div v-if="selectedTemplate" class="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+
+          <!-- Template name & size -->
+          <div class="space-y-3">
+            <p class="text-[11px] font-semibold text-[#555] uppercase tracking-wider">Настройки</p>
+            <div>
               <span class="label">Название</span>
-              <input v-model="editName" class="input text-sm" @blur="saveTemplate" />
-            </label>
-            <div class="flex gap-2 mb-3">
-              <label class="block flex-1">
-                <span class="label">Ширина (мм)</span>
-                <input type="number" min="10" max="200" v-model.number="editWidth" class="input text-sm" @blur="saveTemplate" />
-              </label>
-              <label class="block flex-1">
-                <span class="label">Высота (мм)</span>
-                <input type="number" min="10" max="200" v-model.number="editLength" class="input text-sm" @blur="saveTemplate" />
-              </label>
+              <input v-model="editName" class="input" @blur="saveTemplate" />
             </div>
-            <label class="block">
-              <span class="label">Тип штрих-кода</span>
-              <select v-model="editBarcodeType" class="input text-sm" @change="saveTemplate">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="label">Ширина мм</span>
+                <input type="number" min="10" max="200" v-model.number="editWidth" class="input" @blur="saveTemplate" />
+              </div>
+              <div>
+                <span class="label">Высота мм</span>
+                <input type="number" min="10" max="200" v-model.number="editLength" class="input" @blur="saveTemplate" />
+              </div>
+            </div>
+            <div>
+              <span class="label">Штрих-код</span>
+              <select v-model="editBarcodeType" class="input" @change="saveTemplate">
                 <option value="CODE128">CODE128</option>
                 <option value="EAN13">EAN13</option>
                 <option value="EAN8">EAN8</option>
                 <option value="UPC">UPC-A</option>
               </select>
-            </label>
+            </div>
           </div>
 
-          <!-- Elements list with visibility toggle -->
-          <div>
-            <span class="font-semibold text-sm text-gray-300 block mb-3">Элементы</span>
-            <div class="space-y-1">
+          <!-- Elements -->
+          <div class="space-y-2">
+            <p class="text-[11px] font-semibold text-[#555] uppercase tracking-wider">Элементы</p>
+            <div class="space-y-0.5">
               <div
                 v-for="el in elements"
                 :key="el.id"
-                class="flex items-center justify-between py-2 px-2 rounded-lg cursor-pointer transition-colors"
-                :class="selectedEl?.id === el.id ? 'bg-[#3a3a3a]' : 'hover:bg-[#2e2e2e]'"
+                class="flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] cursor-pointer transition-colors"
+                :class="selectedEl?.id === el.id ? 'bg-white/8' : 'hover:bg-white/4'"
                 @click="selectedEl = el"
               >
-                <label class="flex items-center gap-2 cursor-pointer flex-1" @click.stop>
-                  <input
-                    type="checkbox"
-                    v-model="el.visible"
-                    class="w-3.5 h-3.5 accent-[#1f78ff]"
-                    @change="saveTemplate"
-                  />
-                  <span class="text-sm">{{ el.label }}</span>
-                </label>
-                <span class="text-xs text-gray-500 ml-2">{{ el.x.toFixed(0) }},{{ el.y.toFixed(0) }}</span>
+                <input
+                  type="checkbox"
+                  v-model="el.visible"
+                  class="w-3.5 h-3.5 accent-[#1f78ff] flex-none"
+                  @click.stop
+                  @change="saveTemplate"
+                />
+                <span class="text-[12px] flex-1" :class="el.visible ? 'text-[#ccc]' : 'text-[#555]'">{{ el.label }}</span>
+                <span v-if="selectedEl?.id === el.id" class="w-1.5 h-1.5 rounded-full bg-[#1f78ff] flex-none" />
               </div>
             </div>
           </div>
 
-          <!-- Print settings -->
-          <div>
-            <span class="font-semibold text-sm text-gray-300 block mb-3">Параметры печати</span>
-            <label class="block mb-3">
+          <!-- Print options -->
+          <div class="space-y-2">
+            <p class="text-[11px] font-semibold text-[#555] uppercase tracking-wider">Печать</p>
+            <div>
               <span class="label">Количество копий</span>
-              <input type="number" min="1" max="999" v-model.number="printCount" class="input text-sm" />
+              <input type="number" min="1" max="999" v-model.number="printCount" class="input" />
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer py-1">
+              <input type="checkbox" v-model="printOnA4" class="w-3.5 h-3.5 accent-[#1f78ff]" />
+              <span class="text-[12px] text-[#aaa]">Формат A4</span>
             </label>
-            <label class="checkbox mb-2">
-              <input type="checkbox" v-model="printOnA4" class="w-4 h-4 accent-[#1f78ff]" />
-              <span class="text-sm">Печать на A4</span>
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" v-model="showDiscount" class="w-4 h-4 accent-[#1f78ff]" />
-              <span class="text-sm">Показать скидку</span>
+            <label class="flex items-center gap-2 cursor-pointer py-1">
+              <input type="checkbox" v-model="showDiscount" class="w-3.5 h-3.5 accent-[#1f78ff]" />
+              <span class="text-[12px] text-[#aaa]">Показать скидку</span>
             </label>
           </div>
         </div>
       </div>
 
-      <!-- Center: Visual editor -->
-      <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <!-- ── Center: editor ── -->
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#141414]">
+
+        <!-- Empty state -->
         <div v-if="!selectedTemplate" class="flex-1 flex items-center justify-center">
-          <div class="text-center text-gray-500">
-            <Icon name="heroicons:tag" class="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>Выберите шаблон или создайте новый</p>
+          <div class="text-center">
+            <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
+              <Icon name="heroicons:tag" class="w-8 h-8 text-[#444]" />
+            </div>
+            <p class="text-[#555] text-sm">Выберите шаблон или создайте новый</p>
           </div>
         </div>
+
         <template v-else>
           <!-- Toolbar -->
-          <div class="flex items-center gap-4 px-6 py-3 border-b border-gray-700 flex-none flex-wrap">
-            <span class="text-sm text-gray-400 font-medium">Редактор</span>
-            <div class="flex items-center gap-1 bg-[#2e2e2e] rounded-lg p-1">
-              <button @click="zoom = Math.max(3, zoom - 1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-[#404040] transition-colors">−</button>
-              <span class="text-xs text-gray-300 w-10 text-center">{{ zoom }}×</span>
-              <button @click="zoom = Math.min(15, zoom + 1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-[#404040] transition-colors">+</button>
+          <div class="flex items-center gap-3 px-5 py-3 border-b border-white/8 flex-none flex-wrap bg-[#191919]">
+            <!-- Zoom -->
+            <div class="flex items-center gap-0.5 bg-[#242424] rounded-[10px] p-0.5">
+              <button
+                @click="zoom = Math.max(3, zoom - 1)"
+                class="w-7 h-7 flex items-center justify-center rounded-[8px] hover:bg-white/10 transition-colors text-[#aaa] text-sm"
+              >−</button>
+              <span class="text-[12px] text-[#888] w-8 text-center font-mono">{{ zoom }}×</span>
+              <button
+                @click="zoom = Math.min(15, zoom + 1)"
+                class="w-7 h-7 flex items-center justify-center rounded-[8px] hover:bg-white/10 transition-colors text-[#aaa] text-sm"
+              >+</button>
             </div>
-            <span class="text-xs text-gray-500">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм · Тащите элементы мышью</span>
+
+            <span class="text-[11px] text-[#444]">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм</span>
 
             <!-- Selected element controls -->
             <template v-if="selectedEl">
-              <div class="ml-auto flex items-center gap-3 flex-wrap">
-                <span class="text-xs text-gray-400 font-medium">{{ selectedEl.label }}:</span>
-                <label class="flex items-center gap-1 text-xs text-gray-300">
-                  X: <input type="number" step="0.5" v-model.number="selectedEl.x" class="input-sm w-16" @change="saveTemplate" /> мм
+              <div class="h-4 w-px bg-white/10" />
+              <span class="text-[12px] text-[#888] font-medium">{{ selectedEl.label }}</span>
+
+              <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+                X
+                <input type="number" step="0.5" v-model.number="selectedEl.x" class="input-sm w-14" @change="saveTemplate" />
+                мм
+              </label>
+              <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+                Y
+                <input type="number" step="0.5" v-model.number="selectedEl.y" class="input-sm w-14" @change="saveTemplate" />
+                мм
+              </label>
+
+              <template v-if="selectedEl.id !== 'barcode'">
+                <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+                  Размер
+                  <input type="number" min="4" max="72" v-model.number="selectedEl.fontSize" class="input-sm w-12" @change="saveTemplate" />
+                  pt
                 </label>
-                <label class="flex items-center gap-1 text-xs text-gray-300">
-                  Y: <input type="number" step="0.5" v-model.number="selectedEl.y" class="input-sm w-16" @change="saveTemplate" /> мм
+                <label class="flex items-center gap-1.5 text-[11px] text-[#777] cursor-pointer">
+                  <input type="checkbox" :checked="selectedEl.fontWeight === 'bold'" @change="toggleBold" class="w-3 h-3 accent-[#1f78ff]" />
+                  Жирный
                 </label>
-                <template v-if="selectedEl.id !== 'barcode'">
-                  <label class="flex items-center gap-1 text-xs text-gray-300">
-                    Размер: <input type="number" min="4" max="72" v-model.number="selectedEl.fontSize" class="input-sm w-14" @change="saveTemplate" /> pt
-                  </label>
-                  <label class="flex items-center gap-1 text-xs text-gray-300 cursor-pointer">
-                    <input type="checkbox" :checked="selectedEl.fontWeight === 'bold'" @change="toggleBold" class="accent-[#1f78ff]" />
-                    Жирный
-                  </label>
-                </template>
-                <template v-else>
-                  <label class="flex items-center gap-1 text-xs text-gray-300">
-                    Высота: <input type="number" min="3" max="40" v-model.number="selectedEl.barcodeHeight" class="input-sm w-14" @change="saveTemplate" /> мм
-                  </label>
-                </template>
-              </div>
+              </template>
+              <template v-else>
+                <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+                  Высота
+                  <input type="number" min="3" max="40" v-model.number="selectedEl.barcodeHeight" class="input-sm w-12" @change="saveTemplate" />
+                  мм
+                </label>
+              </template>
             </template>
+
+            <span v-else class="text-[11px] text-[#444] ml-1">Кликните на элемент для редактирования</span>
           </div>
 
-          <!-- Canvas -->
-          <div class="flex-1 overflow-auto p-8 flex items-start justify-center">
+          <!-- Canvas area -->
+          <div class="flex-1 overflow-auto p-10 flex items-start justify-center">
             <div
               ref="canvasRef"
-              class="relative border-2 border-dashed border-gray-400 bg-white shadow-2xl select-none"
-              :style="{ width: tagW + 'px', height: tagH + 'px', minWidth: tagW + 'px', minHeight: tagH + 'px' }"
+              class="relative bg-white shadow-2xl select-none"
+              style="border: 2px dashed #d0d0d0;"
+              :style="{
+                width: tagW + 'px',
+                height: tagH + 'px',
+                minWidth: tagW + 'px',
+                minHeight: tagH + 'px',
+              }"
               @mousemove.prevent="onCanvasMouseMove"
               @mouseup="stopDrag"
               @mouseleave="stopDrag"
             >
               <!-- Grid -->
-              <div class="absolute inset-0 pointer-events-none opacity-10" :style="gridStyle" />
+              <div class="absolute inset-0 pointer-events-none opacity-[0.08]" :style="gridStyle" />
 
-              <!-- Draggable elements -->
+              <!-- Elements -->
               <div
                 v-for="el in visibleElements"
                 :key="el.id"
                 class="absolute select-none"
                 :class="[
                   dragging?.id === el.id ? 'cursor-grabbing' : 'cursor-grab',
-                  selectedEl?.id === el.id ? 'ring-1 ring-blue-500 ring-offset-1 ring-offset-white' : '',
                 ]"
-                :style="{ left: el.x * zoom + 'px', top: el.y * zoom + 'px' }"
+                :style="{
+                  left: el.x * zoom + 'px',
+                  top: el.y * zoom + 'px',
+                  outline: selectedEl?.id === el.id ? '1.5px solid #1f78ff' : 'none',
+                  outlineOffset: '2px',
+                }"
                 @mousedown.prevent="startDrag($event, el)"
               >
-                <!-- Name -->
                 <span v-if="el.id === 'name'" :style="textStyle(el, 8)">{{ sampleProduct.name }}</span>
-                <!-- Price -->
                 <span v-else-if="el.id === 'price'" :style="textStyle(el, 14)">{{ formatPrice(sampleProduct.price) }} UZS</span>
-                <!-- Barcode -->
                 <div v-else-if="el.id === 'barcode'" style="display:flex;flex-direction:column;align-items:center;line-height:1;">
                   <span :style="barcodeStyle(el)">{{ sampleProduct.barcode || '000000000000' }}</span>
                   <span :style="{ fontSize: Math.max(6, (el.fontSize || 6) * zoom * 0.35) + 'px', color: '#111', fontFamily: 'monospace', marginTop: '1px' }">
                     {{ sampleProduct.barcode || '000000000000' }}
                   </span>
                 </div>
-                <!-- SKU -->
                 <span v-else-if="el.id === 'sku'" :style="textStyle(el, 6)">Арт: {{ sampleProduct.sku }}</span>
-                <!-- Shop -->
                 <span v-else-if="el.id === 'shop'" :style="textStyle(el, 6)">{{ sampleProduct.shop }}</span>
-                <!-- Discount -->
                 <span v-else-if="el.id === 'discount'" :style="{ ...textStyle(el, 7), color: '#e00' }">Скидка: -10%</span>
               </div>
             </div>
@@ -229,27 +297,26 @@
         </template>
       </div>
 
-      <!-- Right: Preview panel -->
-      <div class="w-60 flex-none border-l border-gray-700 overflow-y-auto p-4">
-        <div class="mb-4">
-          <span class="font-semibold text-sm text-gray-300">Предпросмотр</span>
+      <!-- ── Right: preview ── -->
+      <div class="w-56 flex-none border-l border-white/8 bg-[#191919] flex flex-col">
+        <div class="px-4 pt-4 pb-3">
+          <span class="text-[13px] font-semibold text-[#aaa]">Предпросмотр</span>
         </div>
 
-        <div v-if="selectedTemplate" class="space-y-4">
-          <!-- Product info -->
-          <div class="bg-[#2e2e2e] rounded-xl p-3 text-xs space-y-1.5">
-            <div class="font-semibold text-white text-sm">{{ sampleProduct.name }}</div>
-            <div class="text-gray-400">Арт: {{ sampleProduct.sku || '—' }}</div>
-            <div class="text-gray-400">Баркод: {{ sampleProduct.barcode || '—' }}</div>
-            <div class="text-gray-400">Цена: {{ formatPrice(sampleProduct.price) }} UZS</div>
-            <div v-if="sampleProduct.shop" class="text-gray-400">Магазин: {{ sampleProduct.shop }}</div>
+        <div v-if="selectedTemplate" class="px-4 pb-4 space-y-4 flex-1 overflow-y-auto">
+          <!-- Info card -->
+          <div class="bg-[#222] rounded-[14px] p-3 space-y-1.5 border border-white/5">
+            <div class="text-[13px] font-semibold text-white truncate">{{ sampleProduct.name }}</div>
+            <div class="text-[11px] text-[#666]">Арт: {{ sampleProduct.sku || '—' }}</div>
+            <div class="text-[11px] text-[#666]">{{ sampleProduct.barcode || '—' }}</div>
+            <div class="text-[12px] font-semibold text-[#1f78ff] mt-1">{{ formatPrice(sampleProduct.price) }} UZS</div>
           </div>
 
           <!-- Scaled preview -->
           <div>
-            <div class="text-xs text-gray-500 mb-2">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм</div>
+            <div class="text-[11px] text-[#555] mb-2">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм</div>
             <div
-              class="relative bg-white border border-gray-400 overflow-hidden"
+              class="relative bg-white overflow-hidden border border-[#ddd]"
               :style="{ width: previewW + 'px', height: previewH + 'px' }"
             >
               <div
@@ -273,65 +340,97 @@
             </div>
           </div>
 
-          <div v-if="printCount > 1" class="text-xs text-gray-500">
-            Будет напечатано: {{ printCount }} шт
+          <div v-if="printCount > 1" class="text-[11px] text-[#555]">
+            Будет напечатано: <span class="text-white font-semibold">{{ printCount }} шт</span>
           </div>
+        </div>
+
+        <div v-else class="flex-1 flex items-center justify-center">
+          <p class="text-[12px] text-[#444] text-center px-4">Выберите шаблон для предпросмотра</p>
         </div>
       </div>
     </div>
 
-    <!-- New template dialog -->
+    <!-- ── New template dialog ── -->
     <Teleport to="body">
-      <div v-if="showNewDialog" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click.self="showNewDialog = false">
-        <div class="bg-[#2e2e2e] rounded-2xl p-6 w-80 shadow-2xl border border-gray-600">
-          <h3 class="text-lg font-bold mb-4">Новый шаблон</h3>
-          <label class="block mb-3">
-            <span class="label">Название</span>
-            <input v-model="newName" class="input" placeholder="Ценник 1" @keydown.enter="confirmCreate" />
-          </label>
-          <div class="flex gap-2 mb-3">
-            <label class="block flex-1">
-              <span class="label">Ширина (мм)</span>
-              <input type="number" v-model.number="newWidth" class="input" />
-            </label>
-            <label class="block flex-1">
-              <span class="label">Высота (мм)</span>
-              <input type="number" v-model.number="newLength" class="input" />
-            </label>
-          </div>
-          <label class="block mb-5">
-            <span class="label">Тип штрих-кода</span>
-            <select v-model="newBarcodeType" class="input">
-              <option value="CODE128">CODE128</option>
-              <option value="EAN13">EAN13</option>
-              <option value="EAN8">EAN8</option>
-            </select>
-          </label>
-          <div class="flex gap-3">
-            <button class="btn-dark flex-1" @click="showNewDialog = false">Отмена</button>
-            <button class="btn-primary flex-1" @click="confirmCreate" :disabled="!newName.trim()">Создать</button>
+      <Transition name="dialog">
+        <div
+          v-if="showNewDialog"
+          class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm"
+          @click.self="showNewDialog = false"
+        >
+          <div class="bg-[#222] rounded-[24px] p-6 w-[340px] shadow-2xl border border-white/10">
+            <h3 class="text-[17px] font-bold mb-1">Новый шаблон</h3>
+            <p class="text-[12px] text-[#666] mb-5">Заполните параметры ценника</p>
+
+            <div class="space-y-3">
+              <div>
+                <span class="label">Название</span>
+                <input v-model="newName" class="input" placeholder="Ценник 1" @keydown.enter="confirmCreate" autofocus />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="label">Ширина мм</span>
+                  <input type="number" v-model.number="newWidth" class="input" />
+                </div>
+                <div>
+                  <span class="label">Высота мм</span>
+                  <input type="number" v-model.number="newLength" class="input" />
+                </div>
+              </div>
+              <div>
+                <span class="label">Тип штрих-кода</span>
+                <select v-model="newBarcodeType" class="input">
+                  <option value="CODE128">CODE128</option>
+                  <option value="EAN13">EAN13</option>
+                  <option value="EAN8">EAN8</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex gap-2 mt-6">
+              <button
+                class="flex-1 px-4 py-2.5 rounded-[14px] bg-white/8 hover:bg-white/12 text-sm font-medium transition-colors"
+                @click="showNewDialog = false"
+              >Отмена</button>
+              <button
+                class="flex-1 px-4 py-2.5 rounded-[14px] bg-[#1f78ff] hover:bg-[#3d8bff] text-sm font-semibold transition-colors disabled:opacity-40"
+                :disabled="!newName.trim()"
+                @click="confirmCreate"
+              >Создать</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
 
-    <!-- Delete confirm dialog -->
+    <!-- ── Delete confirm dialog ── -->
     <Teleport to="body">
-      <div v-if="deleteTargetId" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50" @click.self="deleteTargetId = null">
-        <div class="bg-[#2e2e2e] rounded-2xl p-6 w-80 shadow-2xl border border-gray-600">
-          <h3 class="text-lg font-bold mb-2">Удалить шаблон?</h3>
-          <p class="text-gray-400 text-sm mb-5">Это действие нельзя отменить.</p>
-          <div class="flex gap-3">
-            <button class="btn-dark flex-1" @click="deleteTargetId = null">Отмена</button>
-            <button
-              class="flex-1 bg-red-600 hover:bg-red-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
-              @click="confirmDelete"
-            >
-              Удалить
-            </button>
+      <Transition name="dialog">
+        <div
+          v-if="deleteTargetId"
+          class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm"
+          @click.self="deleteTargetId = null"
+        >
+          <div class="bg-[#222] rounded-[24px] p-6 w-[320px] shadow-2xl border border-white/10">
+            <div class="w-10 h-10 rounded-[12px] bg-red-500/15 flex items-center justify-center mb-4">
+              <Icon name="heroicons:trash" class="w-5 h-5 text-red-400" />
+            </div>
+            <h3 class="text-[17px] font-bold mb-1">Удалить шаблон?</h3>
+            <p class="text-[13px] text-[#666] mb-6">Это действие нельзя отменить.</p>
+            <div class="flex gap-2">
+              <button
+                class="flex-1 px-4 py-2.5 rounded-[14px] bg-white/8 hover:bg-white/12 text-sm font-medium transition-colors"
+                @click="deleteTargetId = null"
+              >Отмена</button>
+              <button
+                class="flex-1 px-4 py-2.5 rounded-[14px] bg-red-600 hover:bg-red-500 text-sm font-semibold transition-colors"
+                @click="confirmDelete"
+              >Удалить</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </section>
 </template>
@@ -422,7 +521,6 @@ const showDiscount = ref(false);
 const zoom = ref(6);
 const canvasRef = ref<HTMLElement | null>(null);
 
-// Drag
 const dragging = ref<TagElement | null>(null);
 let dragStartMouseX = 0;
 let dragStartMouseY = 0;
@@ -440,16 +538,14 @@ const sampleProduct = computed(() => ({
 
 const tagW = computed(() => (selectedTemplate.value?.width  ?? 40) * zoom.value);
 const tagH = computed(() => (selectedTemplate.value?.length ?? 20) * zoom.value);
-
 const previewW = computed(() => (selectedTemplate.value?.width  ?? 40) * PREVIEW_PX_PER_MM);
 const previewH = computed(() => (selectedTemplate.value?.length ?? 20) * PREVIEW_PX_PER_MM);
-
 const visibleElements = computed(() => elements.value.filter((e) => e.visible));
 
 const gridStyle = computed(() => ({
   backgroundImage: [
-    `repeating-linear-gradient(0deg, #aaa 0, #aaa 1px, transparent 1px, transparent ${zoom.value}px)`,
-    `repeating-linear-gradient(90deg, #aaa 0, #aaa 1px, transparent 1px, transparent ${zoom.value}px)`,
+    `repeating-linear-gradient(0deg, #888 0, #888 1px, transparent 1px, transparent ${zoom.value}px)`,
+    `repeating-linear-gradient(90deg, #888 0, #888 1px, transparent 1px, transparent ${zoom.value}px)`,
   ].join(", "),
   backgroundSize: `${zoom.value}px ${zoom.value}px`,
 }));
@@ -528,7 +624,6 @@ function toggleBold(e: Event) {
   saveTemplate();
 }
 
-// ─── Format ───────────────────────────────────────────────────────────────────
 function formatPrice(value: number) {
   return Math.round(value).toLocaleString("ru-RU");
 }
@@ -537,7 +632,7 @@ function formatPrice(value: number) {
 async function loadTemplates() {
   loadingTemplates.value = true;
   try {
-    const res = await apiFetch<{ price_tags: PriceTagTemplate[] }>("/v1/price-tag");
+    const res = await apiFetch<{ price_tags: PriceTagTemplate[] }>("/price-tag");
     templates.value = res?.price_tags ?? [];
     if (templates.value.length) selectTemplate(templates.value[0]);
   } catch (e) {
@@ -554,7 +649,6 @@ function selectTemplate(tpl: PriceTagTemplate) {
   editLength.value = tpl.length;
   editBarcodeType.value = tpl.barcode_type;
   selectedEl.value = null;
-
   const saved = tpl.properties?.elements;
   elements.value = Array.isArray(saved) && saved.length
     ? saved.map((e) => ({ ...e }))
@@ -570,7 +664,7 @@ async function saveTemplate() {
     saving.value = true;
     try {
       const id = selectedTemplate.value!.id;
-      const updated = await apiFetch<PriceTagTemplate>(`/v1/price-tag/${id}`, {
+      const updated = await apiFetch<PriceTagTemplate>(`/price-tag/${id}`, {
         method: "PUT",
         body: {
           name: editName.value,
@@ -604,7 +698,7 @@ function createTemplate() {
 async function confirmCreate() {
   if (!newName.value.trim()) return;
   try {
-    const created = await apiFetch<PriceTagTemplate>("/v1/price-tag", {
+    const created = await apiFetch<PriceTagTemplate>("/price-tag", {
       method: "POST",
       body: {
         name: newName.value.trim(),
@@ -633,7 +727,7 @@ async function confirmDelete() {
   if (!deleteTargetId.value) return;
   const id = deleteTargetId.value;
   try {
-    await apiFetch(`/v1/price-tag/${id}`, { method: "DELETE" });
+    await apiFetch(`/price-tag/${id}`, { method: "DELETE" });
     templates.value = templates.value.filter((t) => t.id !== id);
     if (selectedTemplate.value?.id === id) {
       selectedTemplate.value = null;
@@ -690,7 +784,7 @@ function buildPrintHtml(count: number): string {
     return "";
   }
 
-  const tagStyle = `position:relative;width:${w * PX}px;height:${h * PX}px;overflow:hidden;border:1px solid #ccc;background:white;display:inline-block;margin:2px;`;
+  const tagStyle = `position:relative;width:${w * PX}px;height:${h * PX}px;overflow:hidden;background:white;display:inline-block;margin:2px;page-break-inside:avoid;`;
   const singleTag = `<div style="${tagStyle}">${els.map(elHtml).join("")}</div>`;
   const allTags = Array(count).fill(singleTag).join("");
   const body = printOnA4.value
@@ -729,32 +823,47 @@ function printTest() {
   openPrint(buildPrintHtml(1));
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
 loadTemplates();
 </script>
 
 <style scoped>
-@reference "tailwindcss";
-
-.btn-dark {
-  @apply bg-[#404040] px-4 py-2.5 text-sm font-semibold rounded-2xl transition-colors hover:bg-[#5e5e5e] cursor-pointer;
-}
-.btn-primary {
-  @apply bg-[#1f78ff] px-4 py-2.5 text-sm font-semibold rounded-2xl transition-colors hover:bg-[#4d94ff] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
-}
 .input {
-  @apply w-full px-3 py-2 border border-gray-600 rounded-lg bg-[#3a3a3a] text-white text-sm transition-all focus:border-[#1f78ff] focus:outline-none;
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 13px;
+  transition: border-color 0.15s;
+  outline: none;
 }
-select.input {
-  @apply cursor-pointer;
-}
+.input:focus { border-color: #1f78ff; }
+select.input { cursor: pointer; }
+
 .input-sm {
-  @apply px-2 py-1 border border-gray-600 rounded bg-[#3a3a3a] text-white text-xs focus:border-[#1f78ff] focus:outline-none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 12px;
+  outline: none;
 }
+.input-sm:focus { border-color: #1f78ff; }
+
 .label {
-  @apply block mb-1.5 text-xs font-medium text-gray-400;
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
 }
-.checkbox {
-  @apply flex items-center gap-2 cursor-pointer;
-}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.dialog-enter-active, .dialog-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.dialog-enter-from, .dialog-leave-to { opacity: 0; transform: scale(0.96); }
 </style>
