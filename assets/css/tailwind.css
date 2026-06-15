@@ -72,3 +72,54 @@ button:disabled,
     transform: translateY(-18px);
   }
 }
+
+/* Horizontal scroll for tables on mobile */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.table-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Larger tap targets on mobile */
+@media (max-width: 1023px) {
+  button, [role="button"], a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Page transitions */
+.page-enter-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.page-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Modal transitions (used in transfer/cheque/tag pages) */
+.modal-enter-active {
+  transition: opacity 0.18s ease;
+}
+.modal-leave-active {
+  transition: opacity 0.14s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}

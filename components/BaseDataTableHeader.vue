@@ -110,48 +110,91 @@ function onCreateClick() {
   </div>
 
   <div class="top flex flex-col gap-3 lg:flex-row lg:items-stretch lg:justify-between">
-    <div
-      v-if="showSearch"
-      class="group flex min-w-0 w-full items-center gap-[10px] rounded-[15px] border-3 border-transparent bg-[#404040] pl-[14px] transition-colors duration-300 hover:bg-[#5e5e5e] focus-within:border-[#4993dd] sm:pl-[17px]"
-    >
-      <Icon name="heroicons:magnifying-glass-20-solid" class="h-4 w-4 text-[#bdbdbd]" />
-      <UInput
-        v-model="searchInput"
-        :placeholder="resolvedSearchPlaceholder"
-        class="w-full"
-        :ui="{
-          root: 'w-full',
-          base: 'w-full border-0 bg-transparent text-[15px] font-bold text-[#bdbdbd] placeholder:text-[#bdbdbd] ring-0 outline-none focus:border-0 focus:ring-0 focus-visible:ring-0 sm:text-[17px]',
-        }"
-      />
+    <!-- Search + compact action buttons on mobile -->
+    <div class="flex items-center gap-2 min-w-0">
+      <div
+        v-if="showSearch"
+        class="group flex flex-1 min-w-0 items-center gap-[10px] rounded-[15px] border-3 border-transparent bg-[#404040] pl-[14px] transition-colors duration-300 hover:bg-[#5e5e5e] focus-within:border-[#4993dd]"
+      >
+        <Icon name="heroicons:magnifying-glass-20-solid" class="h-4 w-4 shrink-0 text-[#bdbdbd]" />
+        <UInput
+          v-model="searchInput"
+          :placeholder="resolvedSearchPlaceholder"
+          class="w-full"
+          :ui="{
+            root: 'w-full',
+            base: 'w-full border-0 bg-transparent text-[15px] font-bold text-[#bdbdbd] placeholder:text-[#bdbdbd] ring-0 outline-none focus:border-0 focus:ring-0 focus-visible:ring-0 sm:text-[17px]',
+          }"
+        />
+      </div>
+
+      <!-- Mobile-only compact icon buttons -->
+      <div class="flex shrink-0 items-center gap-1.5 lg:hidden">
+        <UButton
+          v-if="showFilters"
+          color="neutral"
+          variant="ghost"
+          class="h-11 w-11 items-center justify-center rounded-[14px] bg-[#404040] p-0 text-white hover:bg-[#5e5e5e] focus-visible:ring-0"
+          :aria-expanded="isFiltersOpen"
+          @click="onToggleFilters"
+        >
+          <Icon name="iconoir:filter-solid" class="h-5 w-5 text-[#4993dd]" />
+        </UButton>
+        <UButton
+          v-for="(btn, i) in actionButtons"
+          :key="`mob-${btn.label}-${i}`"
+          color="neutral"
+          variant="ghost"
+          class="h-11 w-11 items-center justify-center rounded-[14px] p-0 text-white hover:bg-[#5e5e5e] focus-visible:ring-0"
+          :class="[btn.color || 'bg-[#404040]']"
+          @click="btn.onClick"
+        >
+          <Icon name="mynaui:box-solid" class="h-5 w-5 text-[#4993dd]" />
+        </UButton>
+        <UButton
+          v-if="exportButton"
+          color="neutral"
+          variant="ghost"
+          class="h-11 w-11 items-center justify-center rounded-[14px] bg-[#10294f] p-0 text-white border border-[#2f6ed6]/50 hover:bg-[#16355f] focus-visible:ring-0"
+          :loading="exportButton.loading"
+          @click="exportButton.onClick"
+        >
+          <Icon name="heroicons:arrow-down-tray-20-solid" class="h-5 w-5 text-[#7fb0ff]" />
+        </UButton>
+        <UButton
+          v-if="createButton"
+          color="neutral"
+          variant="ghost"
+          class="h-11 w-11 items-center justify-center rounded-[14px] bg-[#1f78ff] p-0 text-white hover:bg-[#2a6ed9] focus-visible:ring-0"
+          @click="onCreateClick"
+        >
+          <Icon name="qlementine-icons:plus-16" class="h-6 w-6" />
+        </UButton>
+      </div>
     </div>
 
-    <div class="flex flex-col gap-3 sm:flex-row lg:w-auto lg:flex-nowrap">
-      <div v-if="showFilters" class="w-full sm:w-auto">
+    <!-- Desktop full buttons -->
+    <div class="hidden lg:flex gap-3 lg:w-auto lg:flex-nowrap">
+      <div v-if="showFilters" class="w-auto">
         <UButton
           color="neutral"
           variant="ghost"
-          class="cursor-pointer flex w-full items-center justify-center gap-[12px] rounded-[15px] bg-[#404040] px-4 py-4 text-[15px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0 sm:justify-start sm:gap-[15px] sm:p-[17px] sm:text-[17px]"
+          class="cursor-pointer flex w-full items-center justify-center gap-[12px] rounded-[15px] bg-[#404040] sm:p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] focus-visible:ring-0"
           @click="onToggleFilters"
           :aria-expanded="isFiltersOpen"
         >
-          <Icon
-            name="tabler:chevron-down"
-            class="h-5 w-5 text-white transition-transform duration-200"
-            :class="{ 'rotate-180': isFiltersOpen }"
-          />
+          <Icon name="tabler:chevron-down" class="h-5 w-5 text-white transition-transform duration-200" :class="{ 'rotate-180': isFiltersOpen }" />
           <Icon name="iconoir:filter-solid" class="h-5 w-5 text-[#4993dd]" />
           Фильтры
         </UButton>
       </div>
-
-      <div v-if="actionButtons?.length" class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+      <div v-if="actionButtons?.length" class="flex gap-3">
         <UButton
           v-for="(btn, i) in actionButtons"
           :key="`${btn.label}-${i}`"
           color="neutral"
           variant="ghost"
-          class="filter flex w-full cursor-pointer items-center justify-center gap-[10px] rounded-[15px] px-4 py-4 text-[15px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] active:bg-[#5e5e5e] data-[state=open]:bg-[#5e5e5e] focus-visible:ring-0 sm:w-auto sm:justify-start sm:p-[17px] sm:text-[17px]"
+          class="filter flex cursor-pointer items-center gap-[10px] rounded-[15px] sm:p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#5e5e5e] focus-visible:ring-0"
           :class="[btn.color || 'bg-[#404040]']"
           @click="btn.onClick"
         >
@@ -159,29 +202,27 @@ function onCreateClick() {
           {{ btn.label }}
         </UButton>
       </div>
-
-      <div v-if="exportButton" class="w-full sm:w-auto">
+      <div v-if="exportButton">
         <UButton
           color="neutral"
           variant="ghost"
-          class="flex w-full cursor-pointer items-center justify-center gap-[10px] rounded-[15px] border border-[#2f6ed6]/50 bg-[#10294f] px-4 py-4 text-[15px] font-bold text-white shadow-[0_0_0_1px_rgba(73,147,221,0.08)] transition-colors duration-300 hover:bg-[#16355f] active:bg-[#16355f] focus-visible:ring-0 sm:w-auto sm:justify-start sm:p-[17px] sm:text-[17px]"
+          class="flex cursor-pointer items-center gap-[10px] rounded-[15px] border border-[#2f6ed6]/50 bg-[#10294f] sm:p-[17px] text-[17px] font-bold text-white shadow-[0_0_0_1px_rgba(73,147,221,0.08)] transition-colors duration-300 hover:bg-[#16355f] focus-visible:ring-0"
           :loading="exportButton.loading"
           @click="exportButton.onClick"
         >
           <Icon name="heroicons:arrow-down-tray-20-solid" class="h-5 w-5 text-[#7fb0ff]" />
-          <span class="truncate">{{ exportButton.label || "Excel" }}</span>
+          <span>{{ exportButton.label || "Excel" }}</span>
         </UButton>
       </div>
-
-      <div v-if="createButton" class="w-full sm:w-auto">
+      <div v-if="createButton">
         <UButton
           color="neutral"
           variant="ghost"
-          class="cursor-pointer flex w-full items-center justify-center gap-2 rounded-[15px] bg-[#1f78ff] px-4 py-4 text-[15px] font-bold text-white transition-colors duration-300 hover:bg-[#2a6ed9] active:bg-[#2a6ed9] data-[state=open]:bg-[#2a6ed9] focus-visible:ring-0 sm:w-auto sm:p-[17px] sm:text-[17px]"
+          class="cursor-pointer flex items-center gap-2 rounded-[15px] bg-[#1f78ff] sm:p-[17px] text-[17px] font-bold text-white transition-colors duration-300 hover:bg-[#2a6ed9] focus-visible:ring-0"
           @click="onCreateClick"
         >
           <Icon name="qlementine-icons:plus-16" class="h-6 w-6 font-extrabold" />
-          <span class="truncate">{{ createButton.label }}</span>
+          <span>{{ createButton.label }}</span>
         </UButton>
       </div>
     </div>

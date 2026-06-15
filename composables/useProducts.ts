@@ -268,7 +268,7 @@ export function useProducts() {
 
   async function fetchPriceTags() {
     try {
-      const res = await apiFetch<PriceTagResponse>("/v1/price-tag");
+      const res = await apiFetch<PriceTagResponse>("/price-tag");
       return unwrapPayload<PriceTagResponse>(res);
     } catch (error: any) {
       throw new Error(normalizeApiError(error));
@@ -519,9 +519,10 @@ export function useProducts() {
     return String(res?.sku || "");
   }
 
-  async function generateBarcode() {
+  async function generateBarcode(exclude?: string[]) {
     const res = await apiFetch<any>("/v2/product/generate-barcode", {
       method: "POST",
+      body: exclude?.length ? { exclude } : undefined,
     });
 
     return String(res?.barcode || "");
@@ -548,9 +549,20 @@ export function useProducts() {
     }
   }
 
+  async function patchProductIdentifiers(
+    id: string | number,
+    payload: { sku?: string; barcode?: string },
+  ) {
+    return await apiFetch<any>(`/v2/product/${encodeURIComponent(String(id))}/identifiers`, {
+      method: "PATCH",
+      body: payload,
+    });
+  }
+
   return {
     createProduct,
     updateProduct,
+    patchProductIdentifiers,
     fetchProductDetail,
     fetchMeasurementUnit,
     fetchPriceTags,

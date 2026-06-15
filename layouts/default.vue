@@ -9,13 +9,12 @@ import { useSidebarStore } from "../store/useSidebar";
 const userStore = useUserStore();
 const sidebar = useSidebarStore();
 const route = useRoute();
-const { isPageLoading } = usePageLoader();
 const mobileSidebarOpen = ref(false);
 const isMobileViewport = ref(false);
 const showAuthLoader = computed(() => userStore.authLoading || !userStore.authChecked);
 const canRenderDashboard = computed(() => userStore.authChecked && userStore.isAuthenticated);
 const pageContentLoading = computed(
-  () => userStore.initializing || (userStore.permissionsLoading && !userStore.permissionsLoaded) || isPageLoading.value,
+  () => userStore.initializing || (userStore.permissionsLoading && !userStore.permissionsLoaded),
 );
 
 const syncViewport = () => {
@@ -110,7 +109,8 @@ onBeforeUnmount(() => {
 
     <div
       :class="[
-        'app-main-content relative min-h-screen min-w-0 pt-6 text-white transition-all duration-300 ease-in-out px-6',
+        'app-main-content relative min-h-screen min-w-0 text-white transition-all duration-300 ease-in-out',
+        'px-4 pt-4 pb-28 lg:px-6 lg:pt-6 lg:pb-6',
         isMobileViewport
           ? 'w-full ml-0'
           : sidebar.collapsed
@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
       ]"
       style="max-width: 100vw; overflow-x: hidden"
     >
-      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-4 border-b border-white/5 bg-[#1f1f1f]/95 py-3 backdrop-blur-sm px-6 lg:hidden">
+      <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-3 border-b border-white/5 bg-[#1f1f1f]/95 py-2.5 backdrop-blur-sm px-4 lg:hidden">
         <UButton
           color="neutral"
           variant="soft"
