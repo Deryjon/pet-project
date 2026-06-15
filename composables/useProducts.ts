@@ -549,9 +549,20 @@ export function useProducts() {
     }
   }
 
+  async function patchProductIdentifiers(
+    id: string | number,
+    payload: { sku?: string; barcode?: string },
+  ) {
+    return await apiFetch<any>(`/v2/product/${encodeURIComponent(String(id))}/identifiers`, {
+      method: "PATCH",
+      body: payload,
+    });
+  }
+
   return {
     createProduct,
     updateProduct,
+    patchProductIdentifiers,
     fetchProductDetail,
     fetchMeasurementUnit,
     fetchPriceTags,
