@@ -225,6 +225,26 @@ export function useTransfers() {
       method: "POST",
     }).then((response) => normalizeTransferDocument(response));
 
+  const acceptTransferVerified = (
+    transferId: string,
+    items: { item_id: string; arrived_quantity: number }[],
+  ) =>
+    apiFetch<any>(`/v2/transfer/${encodeURIComponent(transferId)}/accept-verified`, {
+      method: "POST",
+      body: { items },
+    }).then((response) => normalizeTransferDocument(response));
+
+  const cancelTransfer = (transferId: string) =>
+    apiFetch<any>(`/v2/transfer/${encodeURIComponent(transferId)}/cancel`, {
+      method: "POST",
+    }).then((response) => normalizeTransferDocument(response));
+
+  const removeTransferItem = (transferId: string, productId: string) =>
+    apiFetch<any>(`/v2/transfer/${encodeURIComponent(transferId)}/items`, {
+      method: "POST",
+      body: { product_id: productId, transfer_measurement_value: 0 },
+    }).then((response) => normalizeItemsResponse(response));
+
   return {
     listTransfers,
     createTransfer,
@@ -232,7 +252,10 @@ export function useTransfers() {
     getTransferProducts,
     getTransferItems,
     upsertTransferItem,
+    removeTransferItem,
     sendTransfer,
     acceptTransfer,
+    acceptTransferVerified,
+    cancelTransfer,
   };
 }

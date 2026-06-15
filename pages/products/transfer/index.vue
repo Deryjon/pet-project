@@ -173,16 +173,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="space-y-6 text-white">
-    <div class="rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.94),rgba(30,41,59,0.88))] p-6 shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 class="text-[36px] font-bold text-white">Трансфер</h1>
-          <p class="mt-2 max-w-3xl text-[15px] leading-7 text-slate-300">
-            Создание документов перемещения между филиалами, отправка и приём товара без клиентских пересчётов остатков.
-          </p>
-        </div>
-      </div>
+  <section class="space-y-4 text-white">
+    <div class="rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.94),rgba(30,41,59,0.88))] px-5 py-4 lg:p-6 shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
+      <h1 class="text-[24px] lg:text-[36px] font-bold text-white">Трансфер</h1>
+      <p class="mt-1 text-[13px] lg:text-[15px] text-slate-400 lg:leading-7">
+        Перемещение товаров между филиалами
+      </p>
     </div>
 
     <BaseDataTableHeader
@@ -200,36 +196,44 @@ onMounted(async () => {
       <article
         v-for="transfer in filteredTransfers"
         :key="transfer.id"
-        class="cursor-pointer rounded-[24px] border border-white/10 bg-white/5 p-5 transition hover:bg-white/8"
+        class="cursor-pointer rounded-[20px] border border-white/10 bg-white/5 p-4 lg:p-5 transition active:scale-[0.99] hover:bg-white/8"
         @click="openTransfer(transfer)"
       >
-        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <p class="text-sm uppercase tracking-[0.14em] text-sky-300">#{{ transfer.external_id }}</p>
-            <h2 class="mt-2 text-[22px] font-bold text-white">{{ transfer.name }}</h2>
-            <p class="mt-2 text-sm text-slate-300">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="text-xs uppercase tracking-[0.14em] text-sky-300 font-semibold">#{{ transfer.external_id }}</p>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full" :class="{
+                'bg-slate-500/20 text-slate-400': transfer.status === 'draft',
+                'bg-blue-500/20 text-blue-400': transfer.status === 'sent',
+                'bg-emerald-500/20 text-emerald-400': transfer.status === 'accepted',
+                'bg-red-500/20 text-red-400': transfer.status === 'cancelled',
+              }">{{ statusLabel(transfer.status) }}</span>
+            </div>
+            <h2 class="mt-1.5 text-[16px] lg:text-[20px] font-bold text-white truncate">{{ transfer.name }}</h2>
+            <p class="mt-1 text-[13px] text-slate-400">
               {{ transfer.departure_shop?.name || transfer.departure_shop_id }} → {{ transfer.arrival_shop?.name || transfer.arrival_shop_id }}
             </p>
-            <p class="mt-2 text-sm text-slate-400">{{ statusLabel(transfer.status) }}</p>
           </div>
+          <Icon name="heroicons:chevron-right" class="w-4 h-4 text-slate-600 shrink-0 mt-1" />
+        </div>
 
-          <div class="grid gap-3 text-sm text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-[16px] border border-white/10 bg-[#262626] px-4 py-3">
-              <p class="text-slate-400">Загружено</p>
-              <p class="mt-1 font-semibold text-white">{{ formatNumber(transfer.total_loaded_measurement_value) }}</p>
-            </div>
-            <div class="rounded-[16px] border border-white/10 bg-[#262626] px-4 py-3">
-              <p class="text-slate-400">Принято</p>
-              <p class="mt-1 font-semibold text-white">{{ formatNumber(transfer.total_arrived_measurement_value) }}</p>
-            </div>
-            <div class="rounded-[16px] border border-white/10 bg-[#262626] px-4 py-3">
-              <p class="text-slate-400">Создан</p>
-              <p class="mt-1 font-semibold text-white">{{ formatDate(transfer.created_at) || "-" }}</p>
-            </div>
-            <div class="rounded-[16px] border border-white/10 bg-[#262626] px-4 py-3">
-              <p class="text-slate-400">Принят</p>
-              <p class="mt-1 font-semibold text-white">{{ formatDate(transfer.accepted_at) || "-" }}</p>
-            </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <div class="rounded-[12px] border border-white/8 bg-[#262626] px-3 py-2">
+            <p class="text-[11px] text-slate-400">Загружено</p>
+            <p class="mt-0.5 text-[14px] font-semibold text-white">{{ formatNumber(transfer.total_loaded_measurement_value) }}</p>
+          </div>
+          <div class="rounded-[12px] border border-white/8 bg-[#262626] px-3 py-2">
+            <p class="text-[11px] text-slate-400">Принято</p>
+            <p class="mt-0.5 text-[14px] font-semibold text-white">{{ formatNumber(transfer.total_arrived_measurement_value) }}</p>
+          </div>
+          <div class="rounded-[12px] border border-white/8 bg-[#262626] px-3 py-2">
+            <p class="text-[11px] text-slate-400">Создан</p>
+            <p class="mt-0.5 text-[13px] font-semibold text-white">{{ formatDate(transfer.created_at) || "—" }}</p>
+          </div>
+          <div class="rounded-[12px] border border-white/8 bg-[#262626] px-3 py-2">
+            <p class="text-[11px] text-slate-400">Принят</p>
+            <p class="mt-0.5 text-[13px] font-semibold text-white">{{ formatDate(transfer.accepted_at) || "—" }}</p>
           </div>
         </div>
       </article>

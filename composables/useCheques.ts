@@ -28,6 +28,23 @@ export type ChequeItem = {
   attribute_id?: string;
 };
 
+export type ChequeExtraSettings = {
+  phone?: string;
+  address?: string;
+  workingHours?: string;
+  website?: string;
+  qrCodeUrl?: string;
+  branchName?: string;
+  taxId?: string;
+  hasPhone?: boolean;
+  hasAddress?: boolean;
+  hasWorkingHours?: boolean;
+  hasQrCode?: boolean;
+  hasTaxId?: boolean;
+  hasBranchName?: boolean;
+  hasWebsite?: boolean;
+};
+
 export type Cheque = {
   id: string;
   name: string;
@@ -55,6 +72,7 @@ export type Cheque = {
   y_axis?: number;
   rotation?: number;
   compact?: boolean;
+  extra_settings?: ChequeExtraSettings | null;
 };
 
 export type ProductCharacteristic = {
