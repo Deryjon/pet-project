@@ -64,13 +64,15 @@ async function generateAll() {
   generating.value = true;
   progress.value = 0;
   progressTotal.value = items.value.length;
+  const reservedBarcodes: string[] = [];
   for (const item of items.value) {
     try {
       if (item.hasSkuIssue) {
         item.newSku = await generateSku({ name: item.name });
       }
       if (item.hasBarcodeIssue) {
-        item.newBarcode = await generateBarcode();
+        item.newBarcode = await generateBarcode(reservedBarcodes);
+        if (item.newBarcode) reservedBarcodes.push(item.newBarcode);
       }
     } catch {
       // Keep existing value on error

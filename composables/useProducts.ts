@@ -519,9 +519,10 @@ export function useProducts() {
     return String(res?.sku || "");
   }
 
-  async function generateBarcode() {
+  async function generateBarcode(exclude?: string[]) {
     const res = await apiFetch<any>("/v2/product/generate-barcode", {
       method: "POST",
+      body: exclude?.length ? { exclude } : undefined,
     });
 
     return String(res?.barcode || "");
