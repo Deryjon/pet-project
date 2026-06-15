@@ -268,7 +268,7 @@ export function useProducts() {
 
   async function fetchPriceTags() {
     try {
-      const res = await apiFetch<PriceTagResponse>("/v1/price-tag");
+      const res = await apiFetch<PriceTagResponse>("/price-tag");
       return unwrapPayload<PriceTagResponse>(res);
     } catch (error: any) {
       throw new Error(normalizeApiError(error));

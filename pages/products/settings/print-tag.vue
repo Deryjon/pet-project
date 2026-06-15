@@ -537,7 +537,7 @@ function formatPrice(value: number) {
 async function loadTemplates() {
   loadingTemplates.value = true;
   try {
-    const res = await apiFetch<{ price_tags: PriceTagTemplate[] }>("/v1/price-tag");
+    const res = await apiFetch<{ price_tags: PriceTagTemplate[] }>("/price-tag");
     templates.value = res?.price_tags ?? [];
     if (templates.value.length) selectTemplate(templates.value[0]);
   } catch (e) {
@@ -570,7 +570,7 @@ async function saveTemplate() {
     saving.value = true;
     try {
       const id = selectedTemplate.value!.id;
-      const updated = await apiFetch<PriceTagTemplate>(`/v1/price-tag/${id}`, {
+      const updated = await apiFetch<PriceTagTemplate>(`/price-tag/${id}`, {
         method: "PUT",
         body: {
           name: editName.value,
@@ -604,7 +604,7 @@ function createTemplate() {
 async function confirmCreate() {
   if (!newName.value.trim()) return;
   try {
-    const created = await apiFetch<PriceTagTemplate>("/v1/price-tag", {
+    const created = await apiFetch<PriceTagTemplate>("/price-tag", {
       method: "POST",
       body: {
         name: newName.value.trim(),
@@ -633,7 +633,7 @@ async function confirmDelete() {
   if (!deleteTargetId.value) return;
   const id = deleteTargetId.value;
   try {
-    await apiFetch(`/v1/price-tag/${id}`, { method: "DELETE" });
+    await apiFetch(`/price-tag/${id}`, { method: "DELETE" });
     templates.value = templates.value.filter((t) => t.id !== id);
     if (selectedTemplate.value?.id === id) {
       selectedTemplate.value = null;
