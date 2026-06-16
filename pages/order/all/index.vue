@@ -356,25 +356,67 @@
         <Transition name="cpay">
           <div v-if="changePaymentOpen" class="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="changePaymentOpen = false" />
-            <div class="relative w-full max-w-[420px] rounded-[28px] border border-white/10 bg-[#262626] p-7 text-white shadow-2xl">
-              <h3 class="text-[20px] font-bold">Изменить способ оплаты</h3>
+            <div class="relative w-full max-w-[480px] rounded-[28px] border border-white/10 bg-[#262626] p-7 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
+              <h3 class="text-[20px] font-bold">Изменить продажу</h3>
               <p class="mt-1 text-[13px] text-[#9a9a9a]">
                 Продажа #{{ changePaymentSale ? saleNumberValue(changePaymentSale) : '' }}
+                <span v-if="changePaymentSale"> · {{ changePaymentSale.amountLabel }}</span>
               </p>
-              <div v-if="paymentTypesLoading" class="mt-5 text-[14px] text-[#9a9a9a]">Загрузка...</div>
-              <div v-else class="mt-5 flex flex-col gap-2">
-                <button
-                  v-for="pt in paymentTypesList"
-                  :key="pt.id"
-                  type="button"
-                  class="flex items-center gap-3 rounded-[14px] px-4 py-3 text-left text-[14px] font-semibold transition"
-                  :class="selectedNewPaymentTypeId === pt.id ? 'bg-[#1f78ff] text-white' : 'bg-[#404040] text-white hover:bg-[#505050]'"
-                  @click="selectedNewPaymentTypeId = pt.id"
+
+              <!-- Продавец -->
+              <div class="mt-6">
+                <p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#9a9a9a]">Продавец</p>
+                <div v-if="sellersLoading" class="text-[13px] text-[#9a9a9a]">Загрузка...</div>
+                <select
+                  v-else
+                  v-model="selectedNewSellerId"
+                  class="w-full appearance-none rounded-[14px] border border-white/10 bg-[#404040] px-4 py-3 text-[14px] font-semibold text-white outline-none focus:border-[#1f78ff] focus:ring-2 focus:ring-[#1f78ff]/30"
                 >
-                  <Icon :name="pt.isCash ? 'heroicons:banknotes' : 'heroicons:credit-card'" class="h-4 w-4 shrink-0" />
-                  {{ pt.name }}
-                </button>
+                  <option value="">Не менять</option>
+                  <option v-for="seller in sellersList" :key="seller.id" :value="seller.id">{{ seller.name }}</option>
+                </select>
               </div>
+
+              <!-- Оплата -->
+              <div class="mt-6">
+                <p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#9a9a9a]">Способ оплаты</p>
+                <p class="mb-3 text-[12px] text-[#9a9a9a]">Введите сумму для каждого способа оплаты (оставьте 0 чтобы не использовать)</p>
+                <div v-if="paymentTypesLoading" class="text-[13px] text-[#9a9a9a]">Загрузка...</div>
+                <div v-else class="flex flex-col gap-2">
+                  <div
+                    v-for="pt in paymentTypesList"
+                    :key="pt.id"
+                    class="flex items-center gap-3 rounded-[14px] bg-[#404040] px-4 py-3"
+                    :class="{ 'border border-[#1f78ff]/40 bg-[#1f2840]': Number(paymentAmounts[pt.id] || 0) > 0 }"
+                  >
+                    <Icon :name="pt.isCash ? 'heroicons:banknotes' : 'heroicons:credit-card'" class="h-4 w-4 shrink-0 text-[#9a9a9a]" />
+                    <span class="flex-1 text-[14px] font-semibold">{{ pt.name }}</span>
+                    <input
+                      v-model="paymentAmounts[pt.id]"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      class="w-[130px] rounded-[10px] bg-[#303030] px-3 py-2 text-right text-[14px] font-bold text-white outline-none placeholder-[#666] focus:ring-2 focus:ring-[#1f78ff]"
+                    />
+                  </div>
+
+                  <!-- Итог -->
+                  <div v-if="totalEnteredAmount > 0" class="mt-1 space-y-1">
+                    <div class="flex items-center justify-between rounded-[12px] bg-[#303030] px-4 py-2 text-[13px]">
+                      <span class="text-[#9a9a9a]">Введено:</span>
+                      <strong>{{ formatUzs(totalEnteredAmount) }}</strong>
+                    </div>
+                    <div
+                      class="flex items-center justify-between rounded-[12px] px-4 py-2 text-[13px] font-bold"
+                      :class="remainingAmount === 0 ? 'text-[#4ade80]' : remainingAmount < 0 ? 'text-[#ff7a7a]' : 'text-[#fbbf24]'"
+                    >
+                      <span>{{ remainingAmount > 0 ? 'Остаток:' : remainingAmount < 0 ? 'Превышение:' : 'Распределено:' }}</span>
+                      <span>{{ remainingAmount === 0 ? '✓ Сумма совпадает' : formatUzs(Math.abs(remainingAmount)) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="mt-6 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -385,7 +427,7 @@
                 </button>
                 <button
                   type="button"
-                  :disabled="!selectedNewPaymentTypeId || changingPayment"
+                  :disabled="!canSaveChanges || changingPayment"
                   class="rounded-[14px] bg-[#1f78ff] px-5 py-3 text-[14px] font-semibold text-white transition hover:bg-[#4993dd] disabled:cursor-not-allowed disabled:opacity-50"
                   @click="confirmChangePayment"
                 >
@@ -480,7 +522,10 @@ const changePaymentSale = ref<SaleView | null>(null);
 const changingPayment = ref(false);
 const paymentTypesLoading = ref(false);
 const paymentTypesList = ref<Array<{ id: string; name: string; isCash: boolean }>>([]);
-const selectedNewPaymentTypeId = ref("");
+const sellersList = ref<Array<{ id: string; name: string }>>([]);
+const sellersLoading = ref(false);
+const selectedNewSellerId = ref("");
+const paymentAmounts = ref<Record<string, string>>({});
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const saleScopeOptions = [
@@ -589,6 +634,21 @@ const paymentEntries = computed(() => {
     })
     .filter((entry) => entry.amount > 0)
     .sort((a, b) => paymentSortIndex(a.key) - paymentSortIndex(b.key));
+});
+
+const totalEnteredAmount = computed(() =>
+  Object.values(paymentAmounts.value).reduce((sum, v) => sum + (Number(v) || 0), 0),
+);
+
+const remainingAmount = computed(() => {
+  if (!changePaymentSale.value) return 0;
+  return changePaymentSale.value.amountValue - totalEnteredAmount.value;
+});
+
+const canSaveChanges = computed(() => {
+  const hasSeller = !!selectedNewSellerId.value;
+  const hasPayment = paymentTypesList.value.some(pt => Number(paymentAmounts.value[pt.id] || 0) > 0);
+  return hasSeller || hasPayment;
 });
 
 watch(filteredSales, (value) => {
@@ -870,20 +930,51 @@ async function fetchPaymentTypes() {
   }
 }
 
+async function fetchSellers() {
+  if (sellersList.value.length > 0) return;
+  sellersLoading.value = true;
+  try {
+    const res: any = await apiFetch("/users", { method: "GET" });
+    const list: any[] = Array.isArray(res) ? res : res?.users ?? res?.data ?? [];
+    sellersList.value = list.map((u: any) => ({
+      id: String(u.id),
+      name: String(u.name ?? u.full_name ?? u.username ?? `User ${u.id}`),
+    }));
+  } catch {
+    sellersList.value = [];
+  } finally {
+    sellersLoading.value = false;
+  }
+}
+
 function openChangePayment(sale: SaleView) {
   changePaymentSale.value = sale;
-  selectedNewPaymentTypeId.value = "";
+  selectedNewSellerId.value = "";
+  paymentAmounts.value = {};
   changePaymentOpen.value = true;
   if (!paymentTypesList.value.length) fetchPaymentTypes();
+  fetchSellers();
 }
 
 async function confirmChangePayment() {
-  if (!changePaymentSale.value || !selectedNewPaymentTypeId.value || changingPayment.value) return;
+  if (!changePaymentSale.value || changingPayment.value) return;
+
+  const activePayments = paymentTypesList.value
+    .filter(pt => Number(paymentAmounts.value[pt.id] || 0) > 0)
+    .map(pt => ({
+      company_payment_type_id: pt.id,
+      amount: Number(paymentAmounts.value[pt.id]),
+    }));
+
   changingPayment.value = true;
   try {
+    const body: Record<string, unknown> = {};
+    if (selectedNewSellerId.value) body.user_id = Number(selectedNewSellerId.value);
+    if (activePayments.length > 0) body.payments = activePayments;
+
     await apiFetch(`/order/${changePaymentSale.value.id}/payment-method`, {
       method: "PATCH",
-      body: { payment_method: selectedNewPaymentTypeId.value },
+      body,
     });
     changePaymentOpen.value = false;
     const refreshedDetails = await fetchSaleDetails(changePaymentSale.value.id);
@@ -892,7 +983,7 @@ async function confirmChangePayment() {
     }
     await fetchSales();
   } catch (e: any) {
-    const message = e?.data?.message ?? e?.message ?? "Не удалось изменить способ оплаты";
+    const message = e?.data?.message ?? e?.message ?? "Не удалось сохранить изменения";
     alert(message);
   } finally {
     changingPayment.value = false;
