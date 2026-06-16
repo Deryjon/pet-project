@@ -119,6 +119,8 @@ function handleEscape(event: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleEscape);
+  const saved = localStorage.getItem("company_login");
+  if (saved) companyLogin.value = saved;
 });
 
 onBeforeUnmount(() => {
@@ -175,6 +177,7 @@ async function verifyCompany() {
       subdomain: response?.company?.subdomain ? String(response.company.subdomain) : undefined,
       isActive: Boolean(response?.company?.is_active),
     };
+    localStorage.setItem("company_login", normalizedCompanyLogin);
     currentStep.value = "credentials";
   } catch (error: unknown) {
     confirmedCompany.value = null;
