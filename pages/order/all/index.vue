@@ -159,6 +159,10 @@
                     <span class="dot"></span>
                     {{ sale.pointLabel }}
                   </p>
+                  <p class="sale-payment" :class="{ 'sale-payment--mixed': sale.paymentKey === 'mixed' }">
+                    <Icon :name="sale.paymentKey === 'mixed' ? 'heroicons:arrows-right-left' : 'heroicons:credit-card'" class="h-3 w-3" />
+                    {{ sale.paymentLabel }}
+                  </p>
                   <button type="button" class="arrow-btn" @click.stop="openSaleDetails(sale)">
                     <Icon name="heroicons:arrow-right" class="h-4 w-4" />
                   </button>
@@ -282,7 +286,13 @@
 
             <section class="drawer-section">
               <h3>Оплата</h3>
-              <div class="drawer-row">
+              <template v-if="drawerSale.extraPayments && drawerSale.extraPayments.length > 1">
+                <div v-for="ep in drawerSale.extraPayments" :key="ep.payment_method" class="drawer-row">
+                  <span>{{ ep.payment_name }}</span>
+                  <strong>{{ formatUzs(ep.amount) }}</strong>
+                </div>
+              </template>
+              <div v-else class="drawer-row">
                 <span>{{ drawerSale.paymentLabel }}</span>
                 <strong>{{ drawerSale.amountLabel }}</strong>
               </div>
@@ -481,6 +491,7 @@ interface SaleView {
   statusKey: string;
   itemsCountLabel: string;
   cashbackLabel?: string;
+  extraPayments?: Array<{ payment_method: string; amount: number; payment_name: string }> | null;
   items: SaleItemView[];
 }
 
@@ -622,15 +633,36 @@ const statsSummary = computed(() => {
 });
 
 const paymentEntries = computed(() => {
-  const base = Object.keys(paymentsFromApi.value).length ? paymentsFromApi.value : filteredSales.value.reduce<Record<string, number>>((acc, sale) => {
-    acc[sale.paymentKey] = (acc[sale.paymentKey] ?? 0) + sale.amountValue;
-    return acc;
-  }, {});
+  if (Object.keys(paymentsFromApi.value).length) {
+    return Object.entries(paymentsFromApi.value)
+      .map(([key, amount]) => {
+        const normalizedKey = normalizePaymentKey(key);
+        return { key: normalizedKey, label: paymentLabelForKey(normalizedKey), amount: toNumber(amount), amountLabel: formatUzs(toNumber(amount)) };
+      })
+      .filter((entry) => entry.amount > 0)
+      .sort((a, b) => paymentSortIndex(a.key) - paymentSortIndex(b.key));
+  }
 
-  return Object.entries(base)
+  // Build sums and a name lookup for UUID keys that come from extra_payments
+  const sums: Record<string, number> = {};
+  const nameLookup: Record<string, string> = {};
+
+  for (const sale of filteredSales.value) {
+    if (sale.extraPayments && sale.extraPayments.length > 1) {
+      for (const ep of sale.extraPayments) {
+        sums[ep.payment_method] = (sums[ep.payment_method] ?? 0) + ep.amount;
+        nameLookup[ep.payment_method] = ep.payment_name;
+      }
+    } else {
+      sums[sale.paymentKey] = (sums[sale.paymentKey] ?? 0) + sale.amountValue;
+    }
+  }
+
+  return Object.entries(sums)
     .map(([key, amount]) => {
       const normalizedKey = normalizePaymentKey(key);
-      return { key: normalizedKey, label: paymentLabelForKey(normalizedKey), amount: toNumber(amount), amountLabel: formatUzs(toNumber(amount)) };
+      const label = paymentLabelForKey(normalizedKey) || nameLookup[key] || formatPaymentLabel(normalizedKey);
+      return { key: normalizedKey, label, amount: toNumber(amount), amountLabel: formatUzs(toNumber(amount)) };
     })
     .filter((entry) => entry.amount > 0)
     .sort((a, b) => paymentSortIndex(a.key) - paymentSortIndex(b.key));
@@ -756,6 +788,7 @@ function normalizeSale(raw: any): SaleView {
     statusKey: String(raw?.status ?? "paid").toLowerCase(),
     itemsCountLabel: `${itemsCount} ед.`,
     cashbackLabel: formatUzs(cashbackValue),
+    extraPayments: Array.isArray(raw?.extra_payments) && raw.extra_payments.length > 1 ? raw.extra_payments : null,
     items,
   };
 }
@@ -769,6 +802,13 @@ function normalizeItemType(value: unknown) {
 }
 
 function resolvePaymentInfo(raw: any) {
+  if (Array.isArray(raw?.extra_payments) && raw.extra_payments.length > 1) {
+    return {
+      key: "mixed",
+      label: "Смешанная оплата",
+    };
+  }
+
   const paymentName = String(raw?.payment?.name ?? raw?.payment_type_name ?? "").trim();
   const paymentId = String(raw?.payment?.id ?? raw?.payment_method ?? raw?.payment_type ?? raw?.paymentType ?? "").trim();
   const direct = paymentName || paymentId || String(raw?.payment?.method ?? raw?.payment?.type ?? "").trim();
@@ -950,7 +990,16 @@ async function fetchSellers() {
 function openChangePayment(sale: SaleView) {
   changePaymentSale.value = sale;
   selectedNewSellerId.value = "";
-  paymentAmounts.value = {};
+  // Pre-fill amounts from existing mixed payments
+  if (sale.extraPayments && sale.extraPayments.length > 1) {
+    const prefill: Record<string, string> = {};
+    for (const ep of sale.extraPayments) {
+      prefill[ep.payment_method] = String(ep.amount);
+    }
+    paymentAmounts.value = prefill;
+  } else {
+    paymentAmounts.value = {};
+  }
   changePaymentOpen.value = true;
   if (!paymentTypesList.value.length) fetchPaymentTypes();
   fetchSellers();
@@ -1107,13 +1156,25 @@ function normalizeSaleDetails(raw: any): SaleView {
     statusKey: String(raw?.order_status ?? raw?.status ?? "paid").toLowerCase(),
     itemsCountLabel: `${itemsCount} ед.`,
     cashbackLabel: formatUzs(cashbackValue),
+    extraPayments: Array.isArray(raw?.extra_payments) && raw.extra_payments.length > 1 ? raw.extra_payments : null,
     items,
   };
 }
 
 function resolveSaleDetailsPaymentInfo(raw: any) {
+  // Mixed payments take priority
+  if (Array.isArray(raw?.extra_payments) && raw.extra_payments.length > 1) {
+    return { key: "mixed", label: "Смешанная оплата" };
+  }
+
   const detail = raw?.order_detail ?? raw?.orderDetail ?? raw?.detail ?? raw;
+
+  // Also check order_payments from detail (now built from extraPayments on backend)
   const orderPayments = Array.isArray(detail?.order_payments) ? detail.order_payments : [];
+  if (orderPayments.length > 1) {
+    return { key: "mixed", label: "Смешанная оплата" };
+  }
+
   const firstOrderPayment = orderPayments.find((payment: any) => toNumber(payment?.paid_amount) > 0) ?? orderPayments[0];
 
   if (firstOrderPayment) {
@@ -1193,6 +1254,8 @@ function resolveSaleDetailsPaymentInfo(raw: any) {
 .sale-amount { font-size: 19px; color: #78b3ff; text-align: right; font-weight: 800; }
 .sale-amount--negative { color: #ff7a7a; }
 .sale-shop, .payment-label { display: flex; align-items: center; gap: 8px; }
+.sale-payment { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #9a9a9a; text-align: right; }
+.sale-payment--mixed { color: #f59e42; font-weight: 600; }
 .dot { width: 10px; height: 10px; border-radius: 999px; background: #1f78ff; flex: 0 0 auto; }
 .arrow-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.08); border-radius: 13px; background: #404040; color: #dfe9ff; transition: background .2s ease, transform .2s ease; }
 .arrow-btn:hover { background: #505050; transform: translateX(2px); }
