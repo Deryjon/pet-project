@@ -453,7 +453,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useFormatPrice } from "~/composables/useFormatPrice";
 import { useUserStore } from "~/store/useUserStore";
@@ -538,6 +538,14 @@ const sellersLoading = ref(false);
 const selectedNewSellerId = ref("");
 const paymentAmounts = ref<Record<string, string>>({});
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let isMounted = true;
+onUnmounted(() => {
+  isMounted = false;
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+});
 
 const saleScopeOptions = [
   { label: "Все продажи", value: "all" },
@@ -1075,9 +1083,11 @@ function downloadReport() {
 }
 
 async function fetchSales() {
+  if (!isMounted) return;
   loading.value = true;
   try {
     const response: any = await apiFetch("/sales", { method: "GET", query: { start_date: selectedDate.value || undefined, page: page.value, limit: limit.value } });
+    if (!isMounted) return;
     const items = Array.isArray(response?.data) ? response.data : Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : [];
     const meta = response?.meta ?? response ?? {};
     const stats = response?.stats ?? {};
