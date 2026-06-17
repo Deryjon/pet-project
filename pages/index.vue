@@ -141,7 +141,7 @@ function submitForm() {
     <!-- NAV -->
     <nav class="landing-nav">
       <div class="nav-inner">
-        <div class="nav-brand">
+        <div class="nav-brand" :class="isAuth ? 'nav-brand-clickable' : ''" @click="isAuth ? goToDashboard() : undefined">
           <div class="nav-logo">K</div>
           <div class="nav-brand-text">
             <span class="nav-name">Konkurent CRM</span>
@@ -512,6 +512,18 @@ function submitForm() {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.nav-brand-clickable {
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  transition: background 0.2s;
+}
+
+.nav-brand-clickable:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .nav-logo {
