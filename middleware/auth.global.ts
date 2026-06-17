@@ -62,7 +62,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
 
     const from = typeof to.query.from === "string" ? to.query.from : "";
-    if (from && routeCanAccess(from, userStore.can)) {
+    if (from && routeCanAccess(from, userStore.can, userStore.isAdmin)) {
       return navigateTo(from);
     }
 
@@ -83,6 +83,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (!authRoute && hasCrmAccess) {
     if (import.meta.server) {
+      // Token lives in localStorage — unavailable on the server.
+      // If permissions were already hydrated into the Pinia store (e.g. via SSR state transfer),
+      // we can still enforce access. Otherwise we defer to the client-side re-check on hydration.
+      if (!userStore.permissionsLoaded) {
+        return;
+      }
+
+      if (!routeCanAccess(path, userStore.can, userStore.isAdmin)) {
+        return navigateTo({ path: "/403", query: { from: to.fullPath } });
+      }
+
       return;
     }
 
@@ -90,15 +101,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
       await userStore.loadPermissionsForCurrentUser();
     }
 
+    // If permissions failed to load, deny access rather than silently allow everything.
     if (userStore.permissionsLoadFailed) {
-      return;
+      return navigateTo({ path: "/403", query: { from: to.fullPath } });
     }
 
-    if (path === "/" && !routeCanAccess(path, userStore.can)) {
+    if (path === "/" && !routeCanAccess(path, userStore.can, userStore.isAdmin)) {
       return navigateTo(firstAllowedRbacRoute(userStore.can));
     }
 
-    if (!routeCanAccess(path, userStore.can)) {
+    if (!routeCanAccess(path, userStore.can, userStore.isAdmin)) {
       return navigateTo({
         path: "/403",
         query: { from: to.fullPath },
