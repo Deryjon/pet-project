@@ -1,5 +1,5 @@
 import { useUserStore } from "~/store/useUserStore";
-import { firstAllowedRbacRoute, routeCanAccess } from "~/composables/useAccessControl";
+import { routeCanAccess } from "~/composables/useAccessControl";
 
 function isPlatformRoute(path: string) {
   return path === "/platform" || path.startsWith("/platform/");
@@ -44,8 +44,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const hasPlatformAccess = userStore.isPlatformUser && userStore.hasPlatformAccess;
   const hasCrmAccess = userStore.isCompanyUser;
 
+  // Landing page is always accessible — authenticated users see it with a dashboard link,
+  // unauthenticated users see it as a public marketing page.
+  if (path === "/") {
+    return;
+  }
+
   if (!isAuthenticated) {
-    if (publicRoute || path === "/") {
+    if (publicRoute) {
       return;
     }
 
@@ -104,10 +110,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // If permissions failed to load, deny access rather than silently allow everything.
     if (userStore.permissionsLoadFailed) {
       return navigateTo({ path: "/403", query: { from: to.fullPath } });
-    }
-
-    if (path === "/" && !routeCanAccess(path, userStore.can, userStore.isAdmin)) {
-      return navigateTo(firstAllowedRbacRoute(userStore.can));
     }
 
     if (!routeCanAccess(path, userStore.can, userStore.isAdmin)) {
