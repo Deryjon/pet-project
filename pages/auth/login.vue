@@ -565,9 +565,11 @@ async function handleSubmitAction() {
 .text-input {
   flex: 1;
   min-width: 0;
+  height: 100%;
   padding: 0 16px;
   background: transparent;
   color: #fff;
+  font-size: 1rem;
   outline: none;
 }
 

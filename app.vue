@@ -6,7 +6,7 @@ const locationStore = useLocationStore();
 
 const pageTransition = {
   name: "page",
-  mode: "out-in",
+  mode: "out-in" as const,
 };
 
 onMounted(() => {
