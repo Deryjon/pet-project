@@ -381,6 +381,7 @@
                   v-else
                   v-model="selectedNewSellerId"
                   class="w-full appearance-none rounded-[14px] border border-white/10 bg-[#404040] px-4 py-3 text-[14px] font-semibold text-white outline-none focus:border-[#1f78ff] focus:ring-2 focus:ring-[#1f78ff]/30"
+                  @change="changePaymentError = ''"
                 >
                   <option value="">Не менять</option>
                   <option v-for="seller in sellersList" :key="seller.id" :value="seller.id">{{ seller.name }}</option>
@@ -425,6 +426,10 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div v-if="changePaymentError" class="mt-4 rounded-[12px] bg-[#ff4444]/15 px-4 py-3 text-[13px] font-semibold text-[#ff7a7a]">
+                {{ changePaymentError }}
               </div>
 
               <div class="mt-6 flex items-center justify-end gap-3">
@@ -531,6 +536,7 @@ const saleDetailsError = ref("");
 const changePaymentOpen = ref(false);
 const changePaymentSale = ref<SaleView | null>(null);
 const changingPayment = ref(false);
+const changePaymentError = ref("");
 const paymentTypesLoading = ref(false);
 const paymentTypesList = ref<Array<{ id: string; name: string; isCash: boolean }>>([]);
 const sellersList = ref<Array<{ id: string; name: string }>>([]);
@@ -984,10 +990,15 @@ async function fetchSellers() {
   try {
     const res: any = await apiFetch("/users", { method: "GET" });
     const list: any[] = Array.isArray(res) ? res : res?.users ?? res?.data ?? [];
-    sellersList.value = list.map((u: any) => ({
-      id: String(u.id),
-      name: String(u.name ?? u.full_name ?? u.username ?? `User ${u.id}`),
-    }));
+    sellersList.value = list.map((u: any) => {
+      const firstName = String(u.first_name ?? u.firstName ?? "").trim();
+      const lastName = String(u.last_name ?? u.lastName ?? "").trim();
+      const fullName = [firstName, lastName].filter(Boolean).join(" ");
+      return {
+        id: String(u.id),
+        name: fullName || String(u.name ?? u.full_name ?? u.username ?? `User ${u.id}`),
+      };
+    });
   } catch {
     sellersList.value = [];
   } finally {
@@ -998,6 +1009,7 @@ async function fetchSellers() {
 function openChangePayment(sale: SaleView) {
   changePaymentSale.value = sale;
   selectedNewSellerId.value = "";
+  changePaymentError.value = "";
   // Pre-fill amounts from existing mixed payments
   if (sale.extraPayments && sale.extraPayments.length > 1) {
     const prefill: Record<string, string> = {};
@@ -1040,8 +1052,7 @@ async function confirmChangePayment() {
     }
     await fetchSales();
   } catch (e: any) {
-    const message = e?.data?.message ?? e?.message ?? "Не удалось сохранить изменения";
-    alert(message);
+    changePaymentError.value = e?.data?.message ?? e?.message ?? "Не удалось сохранить изменения";
   } finally {
     changingPayment.value = false;
   }

@@ -45,7 +45,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const hasCrmAccess = userStore.isCompanyUser;
 
   if (!isAuthenticated) {
-    if (publicRoute) {
+    if (publicRoute || path === "/") {
       return;
     }
 
