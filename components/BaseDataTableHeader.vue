@@ -111,7 +111,7 @@ function onCreateClick() {
 
   <div class="top flex flex-col gap-3 lg:flex-row lg:items-stretch lg:justify-between">
     <!-- Search + compact action buttons on mobile -->
-    <div class="flex items-center gap-2 min-w-0">
+    <div class="flex flex-1 items-center gap-2 min-w-0">
       <div
         v-if="showSearch"
         class="group flex flex-1 min-w-0 items-center gap-[10px] rounded-[15px] border-3 border-transparent bg-[#404040] pl-[14px] transition-colors duration-300 hover:bg-[#5e5e5e] focus-within:border-[#4993dd]"
