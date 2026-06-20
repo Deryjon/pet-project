@@ -129,6 +129,11 @@ function syncRouteWithPagination() {
   const currentLimitValue = String(readSingleQueryValue(route.query.limit) || "");
   if (currentPageValue === nextQuery.page && currentLimitValue === nextQuery.limit) return;
 
+  const atDefaults =
+    nextQuery.page === String(DEFAULT_PAGE) &&
+    nextQuery.limit === String(DEFAULT_PAGE_SIZE);
+  if (atDefaults && !currentPageValue && !currentLimitValue) return;
+
   void router.replace({ query: nextQuery });
 }
 

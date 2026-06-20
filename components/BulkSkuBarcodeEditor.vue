@@ -38,20 +38,33 @@ async function load() {
   loading.value = true;
   items.value = [];
   try {
-    const result = await listProducts({ page: 1, pageSize: 200, statistics: false });
-    items.value = result.products
-      .filter((p) => isAutoSku(p.sku) || isAutoBarcode(p.barcode))
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        currentSku: p.sku,
-        currentBarcode: p.barcode,
-        newSku: p.sku,
-        newBarcode: p.barcode,
-        _raw: (p as any)._original ?? p,
-        hasSkuIssue: isAutoSku(p.sku),
-        hasBarcodeIssue: isAutoBarcode(p.barcode),
-      }));
+    const allProblematic: EditableProduct[] = [];
+    let page = 1;
+    const pageSize = 200;
+
+    while (true) {
+      const result = await listProducts({ page, pageSize, statistics: false });
+      const found = result.products
+        .filter((p) => isAutoSku(p.sku) || isAutoBarcode(p.barcode))
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          currentSku: p.sku,
+          currentBarcode: p.barcode,
+          newSku: p.sku,
+          newBarcode: p.barcode,
+          _raw: (p as any)._original ?? p,
+          hasSkuIssue: isAutoSku(p.sku),
+          hasBarcodeIssue: isAutoBarcode(p.barcode),
+        }));
+
+      allProblematic.push(...found);
+
+      if (result.products.length < pageSize) break;
+      page++;
+    }
+
+    items.value = allProblematic;
   } catch (e: any) {
     toast.add({ title: "Ошибка загрузки товаров", description: e?.message ?? "Неизвестная ошибка", color: "error" });
   } finally {
