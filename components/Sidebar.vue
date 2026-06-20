@@ -23,7 +23,7 @@ const router = useRouter();
 const sidebar = useSidebarStore();
 
 const goToSidebar = () => {
-  router.push("/");
+  router.push("/dashboard");
 };
 
 const handleSidebarAction = () => {
