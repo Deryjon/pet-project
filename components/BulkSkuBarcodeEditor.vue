@@ -130,11 +130,6 @@ function buildPayload(raw: any, sku: string, barcode: string): CreateProductApiP
         raw?.unit ||
         "piece",
     ),
-    measurement_unit_id: raw?.measurement_unit_id
-      ? String(raw.measurement_unit_id)
-      : raw?.measurement_unit?.id
-        ? String(raw.measurement_unit.id)
-        : undefined,
     description: raw?.description || undefined,
     brand_name: raw?.brand_name || raw?.brand?.name || undefined,
     supplier_ids: supplierIds,
@@ -161,10 +156,7 @@ async function saveAll() {
     const barcodeChanged = item.newBarcode !== item.currentBarcode;
     if (skuChanged || barcodeChanged) {
       try {
-        await patchProductIdentifiers(item.id, {
-          ...(skuChanged ? { sku: item.newSku } : {}),
-          ...(barcodeChanged ? { barcode: item.newBarcode } : {}),
-        });
+        await patchProductIdentifiers(item.id, buildPayload(item._raw, item.newSku, item.newBarcode));
         ok++;
       } catch {
         fail++;
