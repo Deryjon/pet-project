@@ -472,6 +472,11 @@ function syncRouteWithPagination() {
     return;
   }
 
+  const atDefaults =
+    nextPage === String(DEFAULT_PAGE) &&
+    nextLimit === String(DEFAULT_PAGE_SIZE);
+  if (atDefaults && !currentPage && !currentLimit) return;
+
   void router.replace({
     query: {
       ...route.query,

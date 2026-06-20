@@ -453,7 +453,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useFormatPrice } from "~/composables/useFormatPrice";
 import { useUserStore } from "~/store/useUserStore";
@@ -709,7 +709,11 @@ watch([page, limit, selectedDate], () => {
   void syncRouteQuery();
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(fetchSales, 160);
-}, { immediate: true });
+});
+
+onMounted(() => {
+  void fetchSales();
+});
 
 watch(
   () => route.query,

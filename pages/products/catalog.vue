@@ -313,6 +313,12 @@ function syncRouteFromStore() {
     return;
   }
 
+  const atDefaults =
+    nextQuery.page === String(DEFAULT_PAGE) &&
+    nextQuery.limit === String(DEFAULT_PAGE_SIZE) &&
+    !nextQuery.archived;
+  if (atDefaults && !currentPage && !currentLimit && !currentArchived) return;
+
   void router.replace({ query: nextQuery });
 }
 

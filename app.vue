@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted } from "vue";
 import { useLocationStore } from "./store/useLocationStore";
 
@@ -6,7 +6,6 @@ const locationStore = useLocationStore();
 
 const pageTransition = {
   name: "page",
-  mode: "out-in",
 };
 
 onMounted(() => {
@@ -27,6 +26,7 @@ onMounted(() => {
     </NuxtLayout>
   </UApp>
 </template>
+
 <style>
 body {
   color: white;
@@ -41,16 +41,33 @@ body.no-scroll {
   box-shadow: 0px 0px 20px rgba(255, 255, 255, 0.08);
 }
 
-/* Р”Р»СЏ Chrome, Safari, Edge */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Р”Р»СЏ Firefox */
 input[type="number"] {
   -moz-appearance: textfield;
 }
-</style>
 
+/* Cross-fade: old page fades out while new page fades in simultaneously */
+/* The leaving page becomes absolute so it doesn't push new page down */
+.page-leave-active {
+  transition: opacity 0.15s ease;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.page-enter-active {
+  transition: opacity 0.2s ease;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+</style>
