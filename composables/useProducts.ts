@@ -551,12 +551,16 @@ export function useProducts() {
 
   async function patchProductIdentifiers(
     id: string | number,
-    payload: { sku?: string; barcode?: string },
+    payload: CreateProductApiPayload,
   ) {
-    return await apiFetch<any>(`/v2/product/${encodeURIComponent(String(id))}/identifiers`, {
-      method: "PATCH",
-      body: payload,
-    });
+    try {
+      return await apiFetch<any>(`/v2/product/${encodeURIComponent(String(id))}`, {
+        method: "PUT",
+        body: payload,
+      });
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
   }
 
   return {
