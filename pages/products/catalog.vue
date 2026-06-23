@@ -374,6 +374,11 @@ async function refreshCatalog() {
 watch(
   () => [route.query.page, route.query.limit, route.query.archived],
   () => {
+    if (store._skipNextRouteRefresh) {
+      store._skipNextRouteRefresh = false;
+      syncStoreFromRoute();
+      return;
+    }
     syncStoreFromRoute();
     refreshCatalog();
   },
