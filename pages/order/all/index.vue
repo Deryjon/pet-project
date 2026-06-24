@@ -1071,8 +1071,18 @@ function editSale(sale: SaleView) {
   void router.push({ path: `/order/new-order/${encodeURIComponent(sale.id)}`, query: { order_number: saleNumberValue(sale), page: String(page.value) } });
 }
 
-function requestDeleteSale(_sale: SaleView) {
-  detailsOpen.value = false;
+async function requestDeleteSale(sale: SaleView) {
+  if (!confirm("Вы уверены, что хотите удалить эту продажу?")) return;
+
+  try {
+    await apiFetch(`/order/${encodeURIComponent(sale.id)}`, { method: "DELETE" });
+    detailsOpen.value = false;
+    saleDetails.value = null;
+    selectedSaleId.value = null;
+    await fetchSales();
+  } catch (e: any) {
+    alert(e?.data?.message ?? e?.message ?? "Не удалось удалить продажу");
+  }
 }
 
 function selectScope(value: (typeof saleScopeOptions)[number]["value"]) {

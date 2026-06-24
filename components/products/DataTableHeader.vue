@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import BaseDataTableHeader from "../BaseDataTableHeader.vue";
@@ -29,8 +29,14 @@ function goToActions() {
   });
 }
 
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+onUnmounted(() => { if (searchDebounce) clearTimeout(searchDebounce); });
+
 watch(globalFilterInput, (val) => {
-  store.globalFilter = val;
+  if (searchDebounce) clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    store.globalFilter = val;
+  }, 350);
 });
 </script>
 
