@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   useVueTable,
 } from "@tanstack/vue-table";
+import { useApi } from "~/composables/useApi";
 
 interface RevaluationRow {
   id: number;
@@ -77,8 +78,33 @@ export const useRevaluationDataTableStore = defineStore("revaluationDataTableSto
 
   async function fetchData() {
     loading.value = true;
-    rawData.value = [];
-    loading.value = false;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch('/v1/revaluation', {
+        method: 'GET',
+        query: {
+          page: pagination.value.pageIndex + 1,
+          limit: pagination.value.pageSize,
+          search: globalFilter.value || undefined,
+        },
+      });
+      const items = Array.isArray(res?.items) ? res.items : [];
+      rawData.value = items.map((item: any) => ({
+        id: item.id ?? 0,
+        name: item.name ?? '',
+        store: item.store ?? '',
+        type: item.type ?? '',
+        qty: Number(item.qty ?? 0),
+        status: item.status ?? '',
+        createdBy: item.user ?? '',
+        closedBy: '',
+        revaluatedAt: item.revaluatedAt ? new Date(item.revaluatedAt).toLocaleDateString('ru-RU') : '',
+      }));
+    } catch {
+      rawData.value = [];
+    } finally {
+      loading.value = false;
+    }
   }
 
   watch(globalFilter, async () => {

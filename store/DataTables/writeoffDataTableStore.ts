@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   useVueTable,
 } from "@tanstack/vue-table";
+import { useApi } from "~/composables/useApi";
 
 interface WriteOffRow {
   id: number;
@@ -79,8 +80,34 @@ export const useWriteOffDataTableStore = defineStore("writeOffDataTableStore", (
 
   async function fetchData() {
     loading.value = true;
-    rawData.value = [];
-    loading.value = false;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch('/v1/write-offs', {
+        method: 'GET',
+        query: {
+          page: pagination.value.pageIndex + 1,
+          limit: pagination.value.pageSize,
+          search: globalFilter.value || undefined,
+        },
+      });
+      const items = Array.isArray(res?.items) ? res.items : [];
+      rawData.value = items.map((item: any) => ({
+        id: item.id ?? '',
+        name: item.name ?? '',
+        store: item.store ?? '',
+        qty: Number(item.qty ?? 0),
+        amount: Number(item.amount ?? 0),
+        type: item.type ?? '',
+        user: item.user ?? '',
+        status: item.status ?? '',
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString('ru-RU') : '',
+        closedAt: '',
+      }));
+    } catch {
+      rawData.value = [];
+    } finally {
+      loading.value = false;
+    }
   }
 
   watch(globalFilter, async () => {
