@@ -567,10 +567,14 @@ async function handleSubmitAction() {
   min-width: 0;
   height: 100%;
   padding: 0 16px;
+  border: 0;
+  border-radius: inherit;
   background: transparent;
   color: #fff;
   font-size: 1rem;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .text-input::placeholder {
@@ -628,7 +632,11 @@ async function handleSubmitAction() {
   width: 100%;
   height: 100%;
   padding: 0 14px;
+  border: 0;
+  border-radius: 16px 0 0 16px;
+  background: transparent;
   color: rgba(220, 233, 255, 0.94);
+  cursor: pointer;
 }
 
 .code-menu {
@@ -664,10 +672,13 @@ async function handleSubmitAction() {
 
 .submit-btn {
   min-height: 56px;
+  border: 0;
   border-radius: 16px;
   background: #1f78ff;
   color: #f5f9ff;
+  font-size: 1rem;
   font-weight: 600;
+  cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
 }
 

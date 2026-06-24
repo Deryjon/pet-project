@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   useVueTable,
 } from "@tanstack/vue-table";
+import { useApi } from "~/composables/useApi";
 
 interface OrdersRow {
   id: number;
@@ -81,8 +82,35 @@ export const useOrdersDataTableStore = defineStore("ordersDataTableStore", () =>
 
   async function fetchData() {
     loading.value = true;
-    rawData.value = [];
-    loading.value = false;
+    try {
+      const { apiFetch } = useApi();
+      const res: any = await apiFetch('/v1/purchase-orders', {
+        method: 'GET',
+        query: {
+          page: pagination.value.pageIndex + 1,
+          limit: pagination.value.pageSize,
+          search: globalFilter.value || undefined,
+        },
+      });
+      const items = Array.isArray(res?.items) ? res.items : [];
+      rawData.value = items.map((item: any) => ({
+        id: item.id ?? 0,
+        orderName: item.name ?? '',
+        supplier: '',
+        store: item.store ?? '',
+        status: item.status ?? '',
+        qty: Number(item.qty ?? 0),
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString('ru-RU') : '',
+        receivedAt: '',
+        closedAt: '',
+        createdBy: item.user ?? '',
+        acceptedBy: '',
+      }));
+    } catch {
+      rawData.value = [];
+    } finally {
+      loading.value = false;
+    }
   }
 
   fetchData();

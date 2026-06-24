@@ -187,6 +187,8 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     unit: unitOptions.value,
   }));
 
+  let _fetchGeneration = 0;
+
   async function fetchData(params?: {
     search?: string;
     page?: number;
@@ -194,6 +196,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     status?: string;
     archivedList?: boolean;
   }) {
+    const generation = ++_fetchGeneration;
     loading.value = true;
     try {
       const { listProducts } = useProducts();
@@ -223,6 +226,8 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
         wholesalePriceTo: parseNumber(prices.value.wholesale.max),
         freePrice: freePrice.value || undefined,
       });
+
+      if (generation !== _fetchGeneration) return;
 
       pagination.value = {
         pageIndex: Math.max(0, (params?.page ?? pagination.value.pageIndex + 1) - 1),
@@ -302,8 +307,10 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
 
   fetchData();
 
+  const _skipNextRouteRefresh = ref(false);
+
   watch(globalFilter, async (val) => {
-    pagination.value.pageIndex = 0;
+    _skipNextRouteRefresh.value = true;
     await fetchData({ search: val, page: 1 });
   });
 
@@ -313,12 +320,12 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       return;
     }
 
-    pagination.value.pageIndex = 0;
+    _skipNextRouteRefresh.value = true;
     await fetchData({ status, page: 1 });
   });
 
   watch(archivedOnly, async (archivedList) => {
-    pagination.value.pageIndex = 0;
+    _skipNextRouteRefresh.value = true;
     await fetchData({ archivedList, page: 1 });
   });
 
@@ -326,7 +333,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     () => locationStore.selectedLocation?.id,
     async (next, prev) => {
       if (next && next !== prev) {
-        pagination.value.pageIndex = 0;
+        _skipNextRouteRefresh.value = true;
         await fetchData({ page: 1 });
       }
     },
@@ -560,6 +567,7 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
     selectedProduct,
     showProductSidebar,
     selectedProducts,
+    _skipNextRouteRefresh,
     openProduct,
     closeProductSidebar,
     fetchData,
