@@ -190,6 +190,7 @@ import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
 import BulkSkuBarcodeEditor from "@/components/BulkSkuBarcodeEditor.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
+import { usePriceTagPrinter } from "~/composables/usePriceTagPrinter";
 import { useLocationStore } from "@/store/useLocationStore";
 import { normalizeApiError, useProducts } from "~/composables/useProducts";
 
@@ -233,6 +234,13 @@ const actions = computed(() => [
     iconClass: "h-5 w-5 text-[#f59e0b]",
     buttonClass: "",
     onClick: () => { bulkFixOpen.value = true; },
+  },
+  {
+    tooltip: "Печать ценников",
+    icon: "heroicons:printer",
+    iconClass: "h-5 w-5 text-[#10b981]",
+    buttonClass: "",
+    onClick: printSelectedTags,
   },
   {
     tooltip: "Управление каталогом",
@@ -328,6 +336,24 @@ function toggleArchivedProducts() {
 
 function openCatalogManagement() {
   void router.push("/products/settings");
+}
+
+async function printSelectedTags() {
+  if (!store.selectedProducts.length) {
+    toast.add({ title: "Выберите товары для печати", color: "warning" });
+    return;
+  }
+  const { printTags } = usePriceTagPrinter();
+  const products = store.rawData
+    .filter((p: any) => store.selectedProducts.includes(p.id))
+    .map((p: any) => ({
+      name: p.name,
+      sku: p.sku || "",
+      barcode: p.barcode || "",
+      price: Number(p.sale_price || 0),
+      unit: p.unit || "",
+    }));
+  printTags(products);
 }
 
 async function confirmClearArchive() {

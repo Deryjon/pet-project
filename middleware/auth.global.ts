@@ -23,7 +23,7 @@ function getHomeRoute(userStore: ReturnType<typeof useUserStore>) {
   }
 
   if (userStore.isCompanyUser) {
-    return "/";
+    return "/dashboard";
   }
 
   return "/auth/login";
@@ -44,9 +44,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const hasPlatformAccess = userStore.isPlatformUser && userStore.hasPlatformAccess;
   const hasCrmAccess = userStore.isCompanyUser;
 
-  // Landing page is always accessible — authenticated users see it with a dashboard link,
-  // unauthenticated users see it as a public marketing page.
   if (path === "/") {
+    if (isAuthenticated) {
+      return navigateTo(getHomeRoute(userStore));
+    }
     return;
   }
 
