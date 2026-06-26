@@ -536,7 +536,7 @@ async function handleSubmitAction() {
 
 .field-control {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   min-height: 56px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.035);
@@ -565,13 +565,13 @@ async function handleSubmitAction() {
 .text-input {
   flex: 1;
   min-width: 0;
-  height: 100%;
-  padding: 0 16px;
+  padding: 16px;
   border: 0;
   border-radius: inherit;
   background: transparent;
   color: #fff;
   font-size: 1rem;
+  line-height: 1.25;
   outline: none;
   appearance: none;
   -webkit-appearance: none;
@@ -630,8 +630,7 @@ async function handleSubmitAction() {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 100%;
-  padding: 0 14px;
+  padding: 16px 14px;
   border: 0;
   border-radius: 16px 0 0 16px;
   background: transparent;
