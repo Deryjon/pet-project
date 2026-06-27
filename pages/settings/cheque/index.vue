@@ -158,7 +158,7 @@ watch(totalPages, (pages) => {
         <p class="kicker">Настройки</p>
         <h1>Чеки</h1>
         <p class="subtitle">
-          Список шаблонов чеков загружается из <code>/v1/cheque</code>. Стандартный чек отображается первым.
+          Управление шаблонами чеков. Стандартный чек отображается первым.
         </p>
       </div>
 
@@ -187,7 +187,7 @@ watch(totalPages, (pages) => {
       <div class="table-toolbar">
         <div>
           <h2>Шаблоны чеков</h2>
-          <p>Поиск и пагинация уже работают через query: <code>name</code>, <code>limit</code>, <code>page</code>.</p>
+          <p>Поиск по названию чека и постраничная навигация.</p>
         </div>
 
         <div class="toolbar-controls">
@@ -238,7 +238,7 @@ watch(totalPages, (pages) => {
               <td>
                 <button type="button" class="name-cell" @click="openEdit(cheque)">
                   <span class="name">{{ cheque.name || "Без названия" }}</span>
-                  <span class="description">{{ cheque.id }}</span>
+                  <span class="description">{{ cheque.type === 'cheque' ? 'Чек' : cheque.type || 'Чек' }}</span>
                 </button>
               </td>
               <td>

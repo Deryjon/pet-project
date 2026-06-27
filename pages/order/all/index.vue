@@ -1062,8 +1062,26 @@ async function confirmChangePayment() {
   }
 }
 
-function printSale(_sale: SaleView) {
-  if (import.meta.client) window.print();
+async function printSale(sale: SaleView) {
+  if (!import.meta.client) return;
+  const { printReceipt } = useReceiptPrinter();
+  await printReceipt({
+    number: saleNumberValue(sale),
+    date: sale.dateTimeLabel,
+    seller: sale.sellerLabel,
+    cashier: sale.cashierLabel,
+    client: sale.clientLabel,
+    shop: sale.pointLabel,
+    items: sale.items.map((item) => ({
+      name: item.name || "Товар",
+      quantity: item.quantity,
+      price: item.amountLabel || "0",
+      code: item.codeLabel || "",
+    })),
+    total: sale.amountLabel,
+    payment: sale.paymentLabel,
+    extraPayments: sale.extraPayments,
+  });
 }
 
 function editSale(sale: SaleView) {

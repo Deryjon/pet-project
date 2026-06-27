@@ -688,7 +688,7 @@ onMounted(() => {
                   >
                     <div class="mb-3 flex items-center justify-between gap-3">
                       <p class="text-sm font-semibold text-white">{{ section.key || section.id }}</p>
-                      <span class="text-xs text-[#9b9b9b]">#{{ section.sequence_number }}</span>
+                      <span class="text-xs text-[#9b9b9b]">{{ section.sequence_number ? `Раздел ${section.sequence_number}` : '' }}</span>
                     </div>
 
                     <div class="space-y-3">

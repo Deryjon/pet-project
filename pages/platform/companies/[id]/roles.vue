@@ -326,9 +326,9 @@ watch(selectedRoleId, () => {
         </div>
       </DataPanel>
 
-      <DataPanel title="Permissions" description="Чекбоксы обновляются динамически и поддерживают новые модули из API.">
+      <DataPanel title="Права доступа" description="Настройте доступ к модулям для выбранной роли.">
         <div v-if="!selectedRole" class="rounded-[24px] border border-dashed border-slate-200 bg-slate-50/80 px-5 py-10 text-center text-[14px] text-slate-500">
-          Выберите роль слева, чтобы настроить permissions.
+          Выберите роль слева, чтобы настроить права доступа.
         </div>
 
         <div v-else-if="permissionsLoading" class="space-y-3">
@@ -343,7 +343,7 @@ watch(selectedRoleId, () => {
           <article v-for="section in sections" :key="section.id" class="rounded-[24px] border border-slate-200/70 bg-white/90 p-5 shadow-[0_16px_34px_rgba(15,23,42,0.05)]">
             <div class="mb-4 flex items-center justify-between gap-3">
               <p class="text-[16px] font-semibold text-slate-950">{{ section.key || section.id }}</p>
-              <span class="text-[12px] text-slate-400">#{{ section.sequence_number }}</span>
+              <span class="text-[12px] text-slate-400">{{ section.sequence_number ? `Раздел ${section.sequence_number}` : '' }}</span>
             </div>
 
             <div class="space-y-3">
