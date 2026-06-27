@@ -9,17 +9,17 @@ import {
 import { useApi } from "~/composables/useApi";
 
 interface InventoryRow {
-  id: number;
+  id: string;
   name: string;
   store: string;
-  qty: number;
-  difference: number;
-  differenceSum: number;
-  type: string;
+  shopId: string;
+  itemsCount: number;
   status: string;
+  comment: string;
   createdAt: string;
   createdBy: string;
   closedBy: string;
+  closedAt: string | null;
 }
 
 export const useInventoryDataTableStore = defineStore("inventoryDataTableStore", () => {
@@ -47,10 +47,7 @@ export const useInventoryDataTableStore = defineStore("inventoryDataTableStore",
   const columns = [
     { accessorKey: "name", header: "Наименование" },
     { accessorKey: "store", header: "Магазин" },
-    { accessorKey: "qty", header: "Кол-во" },
-    { accessorKey: "difference", header: "Разница" },
-    { accessorKey: "differenceSum", header: "Сумма разницы" },
-    { accessorKey: "type", header: "Тип" },
+    { accessorKey: "itemsCount", header: "Кол-во товаров" },
     { accessorKey: "status", header: "Статус" },
     { accessorKey: "createdAt", header: "Создание" },
     { accessorKey: "createdBy", header: "Создал" },
@@ -83,7 +80,7 @@ export const useInventoryDataTableStore = defineStore("inventoryDataTableStore",
     loading.value = true;
     try {
       const { apiFetch } = useApi();
-      const res: any = await apiFetch('/v1/inventory', {
+      const res: any = await apiFetch('/v1/inventory-sessions', {
         method: 'GET',
         query: {
           page: pagination.value.pageIndex + 1,
@@ -93,17 +90,17 @@ export const useInventoryDataTableStore = defineStore("inventoryDataTableStore",
       });
       const items = Array.isArray(res?.items) ? res.items : [];
       rawData.value = items.map((item: any) => ({
-        id: item.id ?? 0,
+        id: item.id ?? '',
         name: item.name ?? '',
         store: item.store ?? '',
-        qty: Number(item.qty ?? 0),
-        difference: 0,
-        differenceSum: 0,
-        type: item.type ?? '',
-        status: item.status ?? '',
+        shopId: item.shopId ?? '',
+        itemsCount: Number(item.itemsCount ?? 0),
+        status: item.status === 'completed' ? 'Завершена' : 'Черновик',
+        comment: item.comment ?? '',
         createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString('ru-RU') : '',
-        createdBy: item.user ?? '',
-        closedBy: '',
+        createdBy: item.createdBy ?? '',
+        closedBy: item.closedBy ?? '',
+        closedAt: item.closedAt ? new Date(item.closedAt).toLocaleDateString('ru-RU') : null,
       }));
     } catch {
       rawData.value = [];

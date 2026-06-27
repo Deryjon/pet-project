@@ -234,7 +234,7 @@ const onLogin = handleSubmit(async () => {
 
     userStore.login(token, response?.user ?? {}, refreshToken);
     await userStore.fetchMe();
-    await router.push("/");
+    await router.push("/dashboard");
   } catch (error: unknown) {
     serverError.value = resolveServerMessage(error, "Ошибка входа");
   } finally {

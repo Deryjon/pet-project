@@ -229,6 +229,7 @@ export const useCartStore = defineStore("cart", () => {
               shopId ??
               "",
           ),
+          measurementUnitLabel: resolveMeasurementUnitLabel(item),
         };
       });
     } catch {
@@ -1074,6 +1075,7 @@ export const useCartStore = defineStore("cart", () => {
             quantity: 1,
             availableQuantity: Math.max(1, Number(product.availableQuantity ?? 1)),
             shopId: String(product.shopId ?? resolveCurrentShopId() ?? ""),
+            measurementUnitLabel: resolveMeasurementUnitLabel(product),
             entryType: "sale",
           });
         }

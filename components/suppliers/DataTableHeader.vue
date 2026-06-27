@@ -25,10 +25,10 @@ watch(globalFilterInput, (val) => {
     :showSearch="true"
     searchPlaceholder="ID, имя, телефон"
     :showFilters="true"
-    :createButton="{ label: 'Новый поставщик', to: '/inventory/create' }"
+    :createButton="{ label: 'Новый поставщик', to: '/products/orders' }"
     @toggleFilters="showFilters = !showFilters"
   />
 
   <!-- Фильтры блок -->
   <TableFilter v-if="showFilters" />
-</template>~/store/DataTables/inventoryDataTableStore
+</template>
