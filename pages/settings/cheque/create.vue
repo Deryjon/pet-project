@@ -37,43 +37,180 @@ const form = reactive({
   display_text: "",
 });
 
-const activeItemsCount = computed(() => items.value.filter((item) => item.is_active).length);
-const canSubmit = computed(() => Boolean(form.name.trim()) && !submitting.value);
-
-const activeItems = computed(() =>
-  items.value
-    .filter((item) => item.is_active)
-    .sort((a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0)),
-);
-
-const groupedItems = computed(() => {
-  const groups = new Map<string, ChequeItem[]>();
-  for (const item of items.value) {
-    const blockType = item.cheque_option?.block_type || "other";
-    const group = groups.get(blockType) ?? [];
-    group.push(item);
-    groups.set(blockType, group);
-  }
-  return Array.from(groups.entries()).map(([blockType, group]) => ({
-    blockType,
-    title: blockTitle(blockType),
-    items: [...group].sort((a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0)),
-  }));
+const extra = reactive({
+  phone: "", address: "", workingHours: "", website: "",
+  qrCodeUrl: "", branchName: "", taxId: "",
+  hasPhone: false, hasAddress: false, hasWorkingHours: false,
+  hasQrCode: false, hasTaxId: false, hasBranchName: false, hasWebsite: false,
 });
 
-function blockTitle(blockType: string) {
-  switch (blockType) {
-    case "information_block": return "Информационный блок";
-    case "lower_block": return "Нижний блок";
-    case "customer_balance": return "Баланс клиента";
-    case "customer_debt": return "Долг клиента";
-    default: return blockType || "Другие блоки";
-  }
+// ─── Receipt element system ──────────────────────────────────────────────────
+interface ReceiptElementStyle {
+  id: string;
+  label: string;
+  fontSize: number;
+  fontWeight: "normal" | "bold";
+  visible: boolean;
+  order: number;
 }
 
-function itemName(item: ChequeItem) {
-  return item.cheque_option?.name || item.cheque_option_id || "Блок чека";
+const DEFAULT_RECEIPT_ELEMENTS: ReceiptElementStyle[] = [
+  { id: "shopName", label: "Название магазина", fontSize: 14, fontWeight: "bold", visible: true, order: 0 },
+  { id: "branch", label: "Филиал", fontSize: 11, fontWeight: "normal", visible: true, order: 1 },
+  { id: "address", label: "Адрес", fontSize: 11, fontWeight: "normal", visible: true, order: 2 },
+  { id: "phone", label: "Телефон", fontSize: 11, fontWeight: "normal", visible: true, order: 3 },
+  { id: "workingHours", label: "Часы работы", fontSize: 11, fontWeight: "normal", visible: false, order: 4 },
+  { id: "website", label: "Сайт", fontSize: 11, fontWeight: "normal", visible: false, order: 5 },
+  { id: "hr1", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 6 },
+  { id: "chequeNumber", label: "Номер чека", fontSize: 12, fontWeight: "bold", visible: true, order: 7 },
+  { id: "date", label: "Дата", fontSize: 11, fontWeight: "normal", visible: true, order: 8 },
+  { id: "taxId", label: "ИНН", fontSize: 11, fontWeight: "normal", visible: false, order: 9 },
+  { id: "seller", label: "Продавец", fontSize: 11, fontWeight: "normal", visible: true, order: 10 },
+  { id: "cashier", label: "Кассир", fontSize: 11, fontWeight: "normal", visible: true, order: 11 },
+  { id: "client", label: "Клиент", fontSize: 11, fontWeight: "normal", visible: true, order: 12 },
+  { id: "hr2", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 13 },
+  { id: "items", label: "Товары", fontSize: 12, fontWeight: "bold", visible: true, order: 14 },
+  { id: "hr3", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 15 },
+  { id: "total", label: "ИТОГО", fontSize: 14, fontWeight: "bold", visible: true, order: 16 },
+  { id: "payment", label: "Оплата", fontSize: 11, fontWeight: "normal", visible: true, order: 17 },
+  { id: "debt", label: "Долг клиента", fontSize: 11, fontWeight: "normal", visible: false, order: 18 },
+  { id: "balance", label: "Баланс клиента", fontSize: 11, fontWeight: "normal", visible: false, order: 19 },
+  { id: "hr4", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 20 },
+  { id: "barcode", label: "Штрих-код", fontSize: 14, fontWeight: "bold", visible: true, order: 21 },
+  { id: "footer", label: "Нижний текст", fontSize: 11, fontWeight: "normal", visible: true, order: 22 },
+  { id: "qrCode", label: "QR-код", fontSize: 0, fontWeight: "normal", visible: false, order: 23 },
+];
+
+const receiptElements = ref<ReceiptElementStyle[]>(DEFAULT_RECEIPT_ELEMENTS.map(el => ({ ...el })));
+const selectedElement = ref<ReceiptElementStyle | null>(null);
+
+const sortedVisibleElements = computed(() =>
+  [...receiptElements.value].filter(el => el.visible).sort((a, b) => a.order - b.order)
+);
+
+const sortedAllElements = computed(() =>
+  [...receiptElements.value].sort((a, b) => a.order - b.order)
+);
+
+function mergeElementStyles(saved: ReceiptElementStyle[]): ReceiptElementStyle[] {
+  const merged: ReceiptElementStyle[] = [];
+  const usedIds = new Set<string>();
+  for (const s of saved) {
+    const def = DEFAULT_RECEIPT_ELEMENTS.find(d => d.id === s.id);
+    merged.push({
+      id: s.id,
+      label: def?.label ?? s.label,
+      fontSize: s.fontSize ?? def?.fontSize ?? 12,
+      fontWeight: s.fontWeight ?? def?.fontWeight ?? "normal",
+      visible: s.visible ?? true,
+      order: s.order ?? merged.length,
+    });
+    usedIds.add(s.id);
+  }
+  for (const d of DEFAULT_RECEIPT_ELEMENTS) {
+    if (!usedIds.has(d.id)) {
+      merged.push({ ...d, order: merged.length });
+    }
+  }
+  merged.sort((a, b) => a.order - b.order);
+  merged.forEach((el, i) => { el.order = i; });
+  return merged;
 }
+
+// ─── Preview drag-and-drop ───────────────────────────────────────────────────
+const previewDragItem = ref<ReceiptElementStyle | null>(null);
+
+function onPreviewDragStart(e: DragEvent, el: ReceiptElementStyle) {
+  previewDragItem.value = el;
+  selectedElement.value = el;
+}
+
+function onPreviewDragOver(e: DragEvent, el: ReceiptElementStyle) {
+  e.preventDefault();
+}
+
+function onPreviewDrop(targetEl: ReceiptElementStyle) {
+  if (!previewDragItem.value || previewDragItem.value.id === targetEl.id) return;
+  const sorted = [...receiptElements.value].sort((a, b) => a.order - b.order);
+  const fromIdx = sorted.findIndex(e => e.id === previewDragItem.value!.id);
+  const toIdx = sorted.findIndex(e => e.id === targetEl.id);
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [moved] = sorted.splice(fromIdx, 1);
+  if (!moved) return;
+  sorted.splice(toIdx, 0, moved);
+  sorted.forEach((el, i) => { el.order = i; });
+  previewDragItem.value = null;
+}
+
+// ─── Sidebar drag-and-drop ───────────────────────────────────────────────────
+const sidebarDragItem = ref<ReceiptElementStyle | null>(null);
+const sidebarDragOverItem = ref<ReceiptElementStyle | null>(null);
+
+function onSidebarDragStart(e: DragEvent, el: ReceiptElementStyle) {
+  sidebarDragItem.value = el;
+  selectedElement.value = el;
+}
+
+function onSidebarDragOver(e: DragEvent, el: ReceiptElementStyle) {
+  e.preventDefault();
+  sidebarDragOverItem.value = el;
+}
+
+function onSidebarDrop(targetEl: ReceiptElementStyle) {
+  if (!sidebarDragItem.value || sidebarDragItem.value.id === targetEl.id) {
+    sidebarDragItem.value = null;
+    sidebarDragOverItem.value = null;
+    return;
+  }
+  const sorted = [...receiptElements.value].sort((a, b) => a.order - b.order);
+  const fromIdx = sorted.findIndex(e => e.id === sidebarDragItem.value!.id);
+  const toIdx = sorted.findIndex(e => e.id === targetEl.id);
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [moved] = sorted.splice(fromIdx, 1);
+  if (!moved) return;
+  sorted.splice(toIdx, 0, moved);
+  sorted.forEach((el, i) => { el.order = i; });
+  sidebarDragItem.value = null;
+  sidebarDragOverItem.value = null;
+}
+
+function moveElementOrder(el: ReceiptElementStyle, dir: -1 | 1) {
+  const sorted = [...receiptElements.value].sort((a, b) => a.order - b.order);
+  const idx = sorted.findIndex(e => e.id === el.id);
+  const targetIdx = idx + dir;
+  if (idx < 0 || targetIdx < 0 || targetIdx >= sorted.length) return;
+  const tmp = sorted[idx]!.order;
+  sorted[idx]!.order = sorted[targetIdx]!.order;
+  sorted[targetIdx]!.order = tmp;
+}
+
+function toggleElementBold(e: Event) {
+  if (!selectedElement.value) return;
+  selectedElement.value.fontWeight = (e.target as HTMLInputElement).checked ? "bold" : "normal";
+}
+
+// ─── Preview data ────────────────────────────────────────────────────────────
+const previewLines = [
+  { name: "Силиконовый Iphone Чехол", quantity: 1, price: 65000, total: 65000 },
+  { name: "Стекло Samsung S22", quantity: 2, price: 37500, total: 75000 },
+];
+const previewTotal = previewLines.reduce((s, l) => s + l.total, 0);
+const nowStr = new Date().toLocaleString("ru-RU", {
+  day: "2-digit", month: "2-digit", year: "numeric",
+  hour: "2-digit", minute: "2-digit",
+});
+
+function fmtMoney(v: number) {
+  return Math.round(v).toLocaleString("ru-RU") + " UZS";
+}
+
+const receiptWidthPx = computed(() => {
+  return form.compact || (form.width ?? 80) <= 58 ? 220 : 302;
+});
+
+// ─── Existing logic ─────────────────────────────────────────────────────────
+const activeItemsCount = computed(() => items.value.filter((item) => item.is_active).length);
+const canSubmit = computed(() => Boolean(form.name.trim()) && !submitting.value);
 
 function normalizeSourceItems(sourceItems: ChequeItem[]) {
   return sourceItems
@@ -104,6 +241,32 @@ function fillFormFromSource(cheque: Cheque) {
   form.has_customer_balance = Boolean(cheque.has_customer_balance);
   form.printed_with_billz = Boolean(cheque.printed_with_billz);
   form.display_text = String(cheque.display_text || "");
+
+  // Restore extra settings
+  const es = cheque.extra_settings ?? {};
+  Object.assign(extra, {
+    phone: es.phone ?? "",
+    address: es.address ?? "",
+    workingHours: es.workingHours ?? "",
+    website: es.website ?? "",
+    qrCodeUrl: es.qrCodeUrl ?? "",
+    branchName: es.branchName ?? "",
+    taxId: es.taxId ?? "",
+    hasPhone: es.hasPhone ?? false,
+    hasAddress: es.hasAddress ?? false,
+    hasWorkingHours: es.hasWorkingHours ?? false,
+    hasQrCode: es.hasQrCode ?? false,
+    hasTaxId: es.hasTaxId ?? false,
+    hasBranchName: es.hasBranchName ?? false,
+    hasWebsite: es.hasWebsite ?? false,
+  });
+
+  // Restore element styles from source cheque
+  if (es.elementStyles) {
+    receiptElements.value = mergeElementStyles(es.elementStyles);
+  } else {
+    receiptElements.value = DEFAULT_RECEIPT_ELEMENTS.map(el => ({ ...el }));
+  }
 }
 
 async function fetchDefaultCheque() {
@@ -151,19 +314,6 @@ async function onSourceChange() {
   loading.value = false;
 }
 
-function moveItem(item: ChequeItem, direction: -1 | 1) {
-  const ordered = [...items.value].sort((a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0));
-  const index = ordered.findIndex((entry) => entry === item || entry.cheque_option_id === item.cheque_option_id);
-  const nextIndex = index + direction;
-  if (index < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
-  const current = ordered[index];
-  const next = ordered[nextIndex];
-  if (!current || !next) return;
-  const currentSequence = current.sequence_number ?? index + 1;
-  current.sequence_number = next.sequence_number ?? nextIndex + 1;
-  next.sequence_number = currentSequence;
-}
-
 function buildPayload() {
   return {
     name: form.name.trim(),
@@ -184,6 +334,10 @@ function buildPayload() {
     has_customer_balance: Boolean(form.has_customer_balance),
     printed_with_billz: Boolean(form.printed_with_billz),
     display_text: form.display_text,
+    extra_settings: {
+      ...extra,
+      elementStyles: receiptElements.value.map(el => ({ ...el })),
+    },
     cheque_items: items.value
       .filter((item) => item.cheque_option_id)
       .map((item, index) => ({
@@ -298,28 +452,38 @@ fetchDefaultCheque();
           <textarea v-model="form.display_text" class="textarea" rows="3" placeholder="Спасибо за вашу покупку!" />
         </section>
 
-        <!-- Блоки чека -->
+        <!-- Порядок элементов -->
         <section class="panel">
           <div class="panel-head">
-            <h2>Блоки чека</h2>
-            <p>Активно: {{ activeItemsCount }} из {{ items.length }}</p>
+            <h2>Элементы чека</h2>
+            <p>Перетаскивайте для изменения порядка</p>
           </div>
-          <div v-if="!items.length" class="empty-block">Нет блоков в выбранном шаблоне.</div>
-          <div v-else class="groups">
-            <section v-for="group in groupedItems" :key="group.blockType" class="item-group">
-              <h3>{{ group.title }}</h3>
-              <div v-for="item in group.items" :key="item.cheque_option_id" class="cheque-item">
-                <label class="item-toggle">
-                  <input v-model="item.is_active" type="checkbox" />
-                  <span>{{ itemName(item) }}</span>
-                </label>
-                <span class="sequence">№ {{ item.sequence_number }}</span>
-                <div class="order-actions">
-                  <button type="button" class="icon-button" @click="moveItem(item, -1)"><Icon name="heroicons:arrow-up" class="h-4 w-4" /></button>
-                  <button type="button" class="icon-button" @click="moveItem(item, 1)"><Icon name="heroicons:arrow-down" class="h-4 w-4" /></button>
-                </div>
+          <div class="elements-list">
+            <div
+              v-for="el in sortedAllElements"
+              :key="el.id"
+              draggable="true"
+              class="element-item element-row"
+              :class="{
+                'element-row-dragging': sidebarDragItem?.id === el.id,
+                'element-row-dragover': sidebarDragOverItem?.id === el.id,
+                'element-item-selected': selectedElement?.id === el.id,
+              }"
+              @click="selectedElement = el"
+              @dragstart="onSidebarDragStart($event, el)"
+              @dragover.prevent="onSidebarDragOver($event, el)"
+              @drop.prevent="onSidebarDrop(el)"
+              @dragend="sidebarDragItem = null"
+            >
+              <label class="item-toggle" @click.stop>
+                <input v-model="el.visible" type="checkbox" />
+                <span>{{ el.label }}</span>
+              </label>
+              <div class="order-actions">
+                <button type="button" class="icon-button" @click.stop="moveElementOrder(el, -1)"><Icon name="heroicons:arrow-up" class="h-4 w-4" /></button>
+                <button type="button" class="icon-button" @click.stop="moveElementOrder(el, 1)"><Icon name="heroicons:arrow-down" class="h-4 w-4" /></button>
               </div>
-            </section>
+            </div>
           </div>
         </section>
       </div>
@@ -327,63 +491,109 @@ fetchDefaultCheque();
       <!-- ПРЕВЬЮ ЧЕКА -->
       <aside class="side-panel">
         <section class="panel preview-panel">
-          <div class="panel-head">
-            <h2>Предпросмотр</h2>
+          <!-- Toolbar -->
+          <div class="toolbar">
+            <template v-if="selectedElement">
+              <span class="toolbar-label">{{ selectedElement.label }}</span>
+              <div class="toolbar-divider" />
+              <template v-if="!selectedElement.id.startsWith('hr')">
+                <label class="toolbar-control">
+                  Размер
+                  <input type="number" min="8" max="24" v-model.number="selectedElement.fontSize" class="toolbar-input" />
+                  pt
+                </label>
+                <label class="toolbar-control toolbar-check">
+                  <input type="checkbox" :checked="selectedElement.fontWeight === 'bold'" @change="toggleElementBold" />
+                  Жирный
+                </label>
+              </template>
+            </template>
+            <span v-else class="toolbar-hint">Кликните на элемент в чеке</span>
           </div>
-          <div class="receipt" :style="{ maxWidth: form.compact ? '240px' : '320px' }">
+
+          <!-- Torn top -->
+          <div :style="{ width: receiptWidthPx + 'px', margin: '0 auto' }" class="overflow-hidden h-3 -mb-px">
+            <svg viewBox="0 0 300 12" preserveAspectRatio="none" class="w-full h-full">
+              <path d="M0,12 Q7.5,0 15,12 Q22.5,0 30,12 Q37.5,0 45,12 Q52.5,0 60,12 Q67.5,0 75,12 Q82.5,0 90,12 Q97.5,0 105,12 Q112.5,0 120,12 Q127.5,0 135,12 Q142.5,0 150,12 Q157.5,0 165,12 Q172.5,0 180,12 Q187.5,0 195,12 Q202.5,0 210,12 Q217.5,0 225,12 Q232.5,0 240,12 Q247.5,0 255,12 Q262.5,0 270,12 Q277.5,0 285,12 Q292.5,0 300,12" fill="white"/>
+            </svg>
+          </div>
+
+          <div class="receipt" :style="{ maxWidth: receiptWidthPx + 'px' }">
+            <!-- Logo -->
             <div v-if="form.has_logo" class="receipt-logo">
               <Icon name="heroicons:photo" class="h-8 w-8 text-[#666]" />
             </div>
-            <div class="receipt-header">
-              <strong>{{ form.name || "Название чека" }}</strong>
-            </div>
-            <div v-if="form.has_information_block" class="receipt-section">
-              <template v-for="item in activeItems" :key="item.cheque_option_id">
-                <div v-if="(item.cheque_option?.block_type || '') === 'information_block'" class="receipt-row">
-                  <span class="receipt-label">{{ itemName(item) }}</span>
-                  <span class="receipt-dots"></span>
-                  <span class="receipt-value">—</span>
+
+            <!-- Interactive receipt elements -->
+            <div
+              v-for="el in sortedVisibleElements"
+              :key="el.id"
+              class="receipt-element"
+              :style="{
+                fontSize: el.fontSize ? el.fontSize + 'px' : '12px',
+                fontWeight: el.fontWeight === 'bold' ? '900' : 'normal',
+                outline: selectedElement?.id === el.id ? '2px solid #1f78ff' : 'none',
+                outlineOffset: '2px',
+                padding: '2px 0',
+              }"
+              draggable="true"
+              @click="selectedElement = el"
+              @dragstart="onPreviewDragStart($event, el)"
+              @dragover.prevent="onPreviewDragOver($event, el)"
+              @drop.prevent="onPreviewDrop(el)"
+              @dragend="previewDragItem = null"
+            >
+              <div v-if="el.id === 'shopName'" class="text-center">{{ form.name || 'Название магазина' }}</div>
+              <div v-else-if="el.id === 'branch'" class="text-center" style="color:#666;">{{ extra.branchName || 'Филиал' }}</div>
+              <div v-else-if="el.id === 'address'" class="text-center" style="color:#666;">{{ extra.address || 'Адрес' }}</div>
+              <div v-else-if="el.id === 'phone'" class="text-center" style="color:#666;">{{ extra.phone || 'Телефон' }}</div>
+              <div v-else-if="el.id === 'workingHours'" class="text-center" style="color:#666;">{{ extra.workingHours || 'Часы работы' }}</div>
+              <div v-else-if="el.id === 'website'" class="text-center" style="color:#666;">{{ extra.website || 'Сайт' }}</div>
+              <div v-else-if="el.id.startsWith('hr')" class="receipt-divider" />
+              <div v-else-if="el.id === 'chequeNumber'" class="receipt-row" style="color:#555;"><span>Чек #TEST-001</span></div>
+              <div v-else-if="el.id === 'date'" style="color:#555;">{{ nowStr }}</div>
+              <div v-else-if="el.id === 'taxId'" style="color:#555;">ИНН: {{ extra.taxId || '123456789' }}</div>
+              <div v-else-if="el.id === 'seller'" style="color:#555;">Продавец: Иванов И.</div>
+              <div v-else-if="el.id === 'cashier'" style="color:#555;">Кассир: —</div>
+              <div v-else-if="el.id === 'client'" style="color:#555;">Клиент: —</div>
+              <div v-else-if="el.id === 'items'">
+                <div v-for="line in previewLines" :key="line.name" style="margin-bottom:4px;">
+                  <div style="font-weight:600;">{{ line.name }}</div>
+                  <div class="receipt-row" style="font-size:11px;color:#555;">
+                    <span>{{ line.quantity }} шт x {{ fmtMoney(line.price) }}</span>
+                    <span style="font-weight:700;color:#111;">{{ fmtMoney(line.total) }}</span>
+                  </div>
                 </div>
-              </template>
-            </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-section">
-              <div class="receipt-row receipt-row-bold">
-                <span>Товар</span>
-                <span>Сумма</span>
               </div>
-              <div class="receipt-row">
-                <span class="receipt-label">Пример товара x1</span>
-                <span class="receipt-dots"></span>
-                <span class="receipt-value">50 000</span>
+              <div v-else-if="el.id === 'total'" class="receipt-row receipt-row-bold receipt-total">
+                <span>ИТОГО</span><span>{{ fmtMoney(previewTotal) }}</span>
               </div>
-              <div class="receipt-row">
-                <span class="receipt-label">Другой товар x2</span>
-                <span class="receipt-dots"></span>
-                <span class="receipt-value">120 000</span>
+              <div v-else-if="el.id === 'payment'" class="receipt-row" style="color:#555;">
+                <span>Наличные</span><span>{{ fmtMoney(previewTotal) }}</span>
               </div>
-            </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-row receipt-row-bold receipt-total">
-              <span>ИТОГО</span>
-              <span>170 000 UZS</span>
-            </div>
-            <div v-if="form.has_customer_balance" class="receipt-row receipt-extra">
-              <span>Баланс клиента</span>
-              <span>0 UZS</span>
-            </div>
-            <div v-if="form.has_customer_debt" class="receipt-row receipt-extra">
-              <span>Долг клиента</span>
-              <span>0 UZS</span>
-            </div>
-            <div v-if="form.has_bar_code" class="receipt-barcode">
-              <div class="barcode-placeholder">
-                <span>||||| |||| ||| |||| |||||</span>
+              <div v-else-if="el.id === 'debt'" class="receipt-row receipt-extra">
+                <span>Долг клиента</span><span>0 UZS</span>
+              </div>
+              <div v-else-if="el.id === 'balance'" class="receipt-row receipt-extra">
+                <span>Баланс</span><span>0 UZS</span>
+              </div>
+              <div v-else-if="el.id === 'barcode'" class="receipt-barcode">
+                <div class="barcode-placeholder"><span>||||| |||| ||| |||| |||||</span></div>
+                <div style="font-size:10px;color:#666;text-align:center;margin-top:2px;">1234567890123</div>
+              </div>
+              <div v-else-if="el.id === 'footer'" class="receipt-footer">{{ form.display_text || 'Спасибо за покупку!' }}</div>
+              <div v-else-if="el.id === 'qrCode'" style="text-align:center;">
+                <div style="width:60px;height:60px;border:1px dashed #ccc;display:inline-flex;align-items:center;justify-content:center;color:#ccc;font-size:10px;border-radius:4px;">QR</div>
+                <div v-if="extra.qrCodeUrl" style="font-size:10px;color:#999;margin-top:4px;word-break:break-all;">{{ extra.qrCodeUrl }}</div>
               </div>
             </div>
-            <div v-if="form.display_text || form.has_lower_block" class="receipt-footer">
-              {{ form.display_text || "Спасибо за вашу покупку!" }}
-            </div>
+          </div>
+
+          <!-- Torn bottom -->
+          <div :style="{ width: receiptWidthPx + 'px', margin: '0 auto' }" class="overflow-hidden h-3 -mt-px">
+            <svg viewBox="0 0 300 12" preserveAspectRatio="none" class="w-full h-full">
+              <path d="M0,0 Q7.5,12 15,0 Q22.5,12 30,0 Q37.5,12 45,0 Q52.5,12 60,0 Q67.5,12 75,0 Q82.5,12 90,0 Q97.5,12 105,0 Q112.5,12 120,0 Q127.5,12 135,0 Q142.5,12 150,0 Q157.5,12 165,0 Q172.5,12 180,0 Q187.5,12 195,0 Q202.5,12 210,0 Q217.5,12 225,0 Q232.5,12 240,0 Q247.5,12 255,0 Q262.5,12 270,0 Q277.5,12 285,0 Q292.5,12 300,0" fill="white"/>
+            </svg>
           </div>
         </section>
       </aside>
@@ -400,8 +610,8 @@ fetchDefaultCheque();
 h1 { margin-top: 6px; font-size: 30px; font-weight: 800; }
 .subtitle { margin-top: 6px; color: #bdbdbd; line-height: 1.5; }
 
-.create-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; }
-.settings-stack, .groups { display: grid; gap: 16px; }
+.create-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 18px; }
+.settings-stack { display: grid; gap: 16px; }
 .panel { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; background: #262626; padding: 22px; }
 .panel-head { margin-bottom: 18px; }
 .panel-head h2 { font-size: 20px; font-weight: 800; }
@@ -425,40 +635,51 @@ h1 { margin-top: 6px; font-size: 30px; font-weight: 800; }
 .textarea { padding: 12px; resize: vertical; }
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; border-radius: 14px; background: #1f1f1f; padding: 0 12px; color: #d7d7d7; font-size: 13px; font-weight: 700; }
 .switch-row input, .item-toggle input { width: 18px; height: 18px; accent-color: #1f78ff; }
-.item-group { border-radius: 18px; background: #1f1f1f; padding: 14px; }
-.item-group h3 { margin-bottom: 10px; color: #9dccff; font-size: 15px; font-weight: 800; }
-.cheque-item { display: grid; grid-template-columns: minmax(180px, 1fr) 80px auto; gap: 10px; align-items: center; padding: 10px 0; }
-.cheque-item + .cheque-item { border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.item-toggle { gap: 10px; font-weight: 700; }
-.sequence { color: #bdbdbd; font-size: 13px; }
-.order-actions { gap: 6px; }
+
+/* Elements list */
+.elements-list { display: grid; gap: 4px; }
+.element-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1f1f1f; }
+.element-item-selected { background: rgba(31,120,255,0.1); border-color: rgba(31,120,255,0.3); }
+.item-toggle { gap: 10px; font-weight: 700; flex: 1; }
+.order-actions { display: flex; gap: 6px; }
 .icon-button, .primary-button, .ghost-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; border-radius: 14px; padding: 0 14px; font-weight: 800; border: 0; cursor: pointer; }
-.icon-button { width: 42px; padding: 0; background: #404040; color: white; }
+.icon-button { width: 36px; min-height: 36px; padding: 0; background: #404040; color: white; }
 .primary-button { background: #1f78ff; color: white; }
 .ghost-button { background: #404040; color: white; }
 .primary-button:disabled { cursor: not-allowed; opacity: 0.55; }
 .state, .empty-block { display: flex; align-items: center; justify-content: center; min-height: 240px; gap: 10px; color: #bdbdbd; }
 .state-error { color: #fecaca; }
 
+/* Toolbar */
+.toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; margin-bottom: 12px; border-radius: 12px; background: #1f1f1f; min-height: 40px; flex-wrap: wrap; }
+.toolbar-label { font-size: 12px; color: #aaa; font-weight: 600; }
+.toolbar-divider { width: 1px; height: 16px; background: rgba(255,255,255,0.1); }
+.toolbar-control { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }
+.toolbar-check { cursor: pointer; }
+.toolbar-check input { width: 14px; height: 14px; accent-color: #1f78ff; }
+.toolbar-input { width: 48px; padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: #2a2a2a; color: white; font-size: 12px; outline: none; }
+.toolbar-input:focus { border-color: #1f78ff; }
+.toolbar-hint { font-size: 11px; color: #555; }
+
 /* Preview panel */
 .side-panel { position: sticky; top: 96px; align-self: start; }
 .preview-panel { padding: 22px; display: flex; flex-direction: column; align-items: center; }
-.receipt { width: 100%; background: #fff; color: #111; border-radius: 4px; padding: 20px 16px; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.6; }
+.receipt { width: 100%; background: #fff; color: #111; border-radius: 0; padding: 20px 16px; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.6; margin: 0 auto; }
+.receipt-element { cursor: pointer; transition: outline-color 0.15s; }
 .receipt-logo { text-align: center; margin-bottom: 12px; padding: 12px; background: #f5f5f5; border-radius: 4px; }
-.receipt-header { text-align: center; margin-bottom: 12px; font-size: 14px; }
-.receipt-section { margin: 8px 0; }
-.receipt-row { display: flex; align-items: baseline; gap: 4px; padding: 2px 0; }
+.receipt-row { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; padding: 2px 0; }
 .receipt-row-bold { font-weight: 700; }
-.receipt-label { white-space: nowrap; }
-.receipt-dots { flex: 1; border-bottom: 1px dotted #999; margin: 0 4px; min-width: 16px; height: 1em; }
-.receipt-value { white-space: nowrap; text-align: right; }
 .receipt-divider { border-top: 1px dashed #999; margin: 8px 0; }
-.receipt-total { font-size: 14px; margin: 8px 0; justify-content: space-between; }
-.receipt-extra { font-size: 11px; color: #666; justify-content: space-between; }
-.receipt-barcode { text-align: center; margin: 12px 0 4px; font-size: 18px; letter-spacing: 2px; color: #333; }
+.receipt-total { font-size: 14px; margin: 8px 0; }
+.receipt-extra { font-size: 11px; color: #666; }
+.receipt-barcode { text-align: center; margin: 4px 0; font-size: 18px; letter-spacing: 2px; color: #333; }
 .barcode-placeholder { padding: 8px; background: #f9f9f9; border-radius: 4px; }
-.receipt-footer { text-align: center; margin-top: 12px; font-size: 11px; color: #666; font-style: italic; }
+.receipt-footer { text-align: center; margin-top: 8px; font-size: 11px; color: #666; font-style: italic; }
+
+.element-row { cursor: grab; transition: opacity 0.15s, border-color 0.15s, background 0.15s; border: 1px solid transparent; }
+.element-row-dragging { opacity: 0.4; cursor: grabbing; }
+.element-row-dragover { border-color: #1f78ff !important; background: rgba(31,120,255,0.08); }
 
 @media (max-width: 1180px) { .create-layout { grid-template-columns: 1fr; } .side-panel { position: static; } }
-@media (max-width: 760px) { .page-header { flex-direction: column; align-items: stretch; } .form-grid, .toggle-grid { grid-template-columns: 1fr; } .cheque-item { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .page-header { flex-direction: column; align-items: stretch; } .form-grid, .toggle-grid { grid-template-columns: 1fr; } }
 </style>

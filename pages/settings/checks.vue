@@ -1,24 +1,30 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { useHead } from "#imports";
 import { usePrintSettingsStore } from "@/store/printSettings";
-import { formatUzPhoneDisplay } from "~/utils/phone";
+import { useReceiptPrinter } from "@/composables/useReceiptPrinter";
 
 useHead({ title: "Настройки чеков | Konkurent" });
 
 const printStore = usePrintSettingsStore();
 const settings = printStore.settings;
+const receiptPrinter = useReceiptPrinter();
 
-const receiptPreviewLines = computed(() => [
-  { name: "Чехол iPhone 12", quantity: 1, price: 50000, total: 50000 },
-  { name: "Стекло Samsung S22", quantity: 2, price: 80000, total: 160000 },
-]);
-
-const previewTotal = computed(() =>
-  receiptPreviewLines.value.reduce((sum, line) => sum + line.total, 0),
-);
-
-const displayPhone = computed(() => formatUzPhoneDisplay(settings.phone) || settings.phone);
+async function testPrint() {
+  await receiptPrinter.printReceipt({
+    number: "TEST-001",
+    date: new Date().toLocaleString("ru-RU"),
+    seller: "",
+    cashier: "",
+    client: "—",
+    shop: settings.companyName || "",
+    items: [
+      { name: "Чехол iPhone 12", quantity: 1, price: "50 000 UZS" },
+      { name: "Стекло Samsung S22", quantity: 2, price: "80 000 UZS" },
+    ],
+    total: "210 000 UZS",
+    payment: "Наличные",
+  });
+}
 
 function save() {
   printStore.saveSettings();
@@ -138,21 +144,20 @@ function save() {
               <input v-model="settings.footerText" type="text" />
             </label>
           </div>
+        </section>
 
-          <div class="option-grid mt-4">
-            <label class="switch-row">
-              <span>Название компании</span>
-              <input v-model="settings.showCompanyName" type="checkbox" />
-            </label>
-            <label class="switch-row">
-              <span>Название магазина</span>
-              <input v-model="settings.showShopName" type="checkbox" />
-            </label>
-            <label class="switch-row">
-              <span>Кассир</span>
-              <input v-model="settings.showCashier" type="checkbox" />
-            </label>
+        <section class="panel">
+          <div class="panel-head">
+            <Icon name="heroicons:document-text" class="h-5 w-5" />
+            <div>
+              <h2>Шаблоны чеков</h2>
+              <p>Управляйте шаблонами чеков, порядком блоков и содержимым.</p>
+            </div>
           </div>
+          <NuxtLink to="/settings/cheque" class="primary-button" style="text-decoration:none;display:inline-flex;">
+            <Icon name="heroicons:cog-6-tooth" class="h-5 w-5" />
+            Управление шаблонами
+          </NuxtLink>
         </section>
 
         <section class="panel">
@@ -223,35 +228,31 @@ function save() {
           </div>
 
           <div class="receipt-preview" :class="printStore.receiptPaperClass">
-            <div v-if="settings.showCompanyName" class="center strong">{{ settings.companyName }}</div>
-            <div v-if="settings.showShopName && (settings.shopName || settings.address)" class="center muted">
-              {{ settings.shopName || settings.address }}
+            <div v-if="settings.showCompanyName" style="text-align:center;font-weight:900;font-size:14px;">{{ settings.companyName }}</div>
+            <div v-if="settings.showShopName && (settings.shopName || settings.address)" style="text-align:center;font-size:12px;">{{ settings.shopName || settings.address }}</div>
+            <div v-if="settings.phone" style="text-align:center;font-size:12px;">{{ settings.phone }}</div>
+            <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+            <div style="font-weight:900;font-size:13px;">Чек #: TEST-001</div>
+            <div style="font-size:12px;">{{ new Date().toLocaleString("ru-RU") }}</div>
+            <div v-if="settings.showPaymentMethod" style="font-size:12px;">Оплата: Наличные</div>
+            <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+            <div style="margin-bottom:6px;">
+              <div style="font-weight:900;font-size:13px;">1. Чехол iPhone 12</div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;"><span>1 x 50 000 UZS</span><span style="font-weight:900;">50 000 UZS</span></div>
             </div>
-            <div v-if="settings.phone" class="center muted">{{ displayPhone }}</div>
-            <div class="dash"></div>
-            <div>Чек: TEST-001</div>
-            <div>Дата: {{ new Date().toLocaleString("ru-RU") }}</div>
-            <div v-if="settings.showPaymentMethod">Оплата: Наличные</div>
-            <div class="dash"></div>
-            <div v-for="line in receiptPreviewLines" :key="line.name" class="receipt-line">
-              <div>
-                <strong>{{ line.name }}</strong>
-                <span>{{ line.quantity }} x {{ printStore.formatMoney(line.price) }}</span>
-              </div>
-              <b>{{ printStore.formatMoney(line.total) }}</b>
+            <div style="margin-bottom:6px;">
+              <div style="font-weight:900;font-size:13px;">2. Стекло Samsung S22</div>
+              <div style="font-size:12px;display:flex;justify-content:space-between;"><span>2 x 80 000 UZS</span><span style="font-weight:900;">160 000 UZS</span></div>
             </div>
-            <div class="dash"></div>
-            <div class="total-row">
-              <span>Итого</span>
-              <strong>{{ printStore.formatMoney(previewTotal) }}</strong>
-            </div>
+            <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+            <div style="font-weight:900;font-size:16px;display:flex;justify-content:space-between;"><span>ИТОГО</span><span>210 000 UZS</span></div>
             <template v-if="settings.showFooter && settings.footerText">
-              <div class="dash"></div>
-              <div class="center">{{ settings.footerText }}</div>
+              <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+              <div style="text-align:center;font-size:12px;">{{ settings.footerText }}</div>
             </template>
           </div>
 
-          <button type="button" class="test-button" @click="printStore.printTestReceipt">
+          <button type="button" class="test-button" @click="testPrint">
             <Icon name="heroicons:printer" class="h-5 w-5" />
             Тестовая печать
           </button>
@@ -461,9 +462,9 @@ h1 {
   margin: 0 auto;
   border-radius: 8px;
   background: white;
-  color: #111;
+  color: #000;
   padding: 12px;
-  font-family: Arial, sans-serif;
+  font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
 }
 
@@ -473,49 +474,6 @@ h1 {
 
 .receipt-paper-80 {
   max-width: 320px;
-}
-
-.center {
-  text-align: center;
-}
-
-.strong {
-  font-weight: 700;
-}
-
-.muted {
-  color: #555;
-}
-
-.dash {
-  border-top: 1px dashed #111;
-  margin: 10px 0;
-}
-
-.receipt-line,
-.total-row {
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.receipt-line + .receipt-line {
-  margin-top: 8px;
-}
-
-.receipt-line span {
-  display: block;
-  margin-top: 2px;
-  color: #555;
-}
-
-.receipt-line b,
-.total-row strong {
-  white-space: nowrap;
-}
-
-.total-row {
-  font-size: 14px;
-  font-weight: 700;
 }
 
 .test-button {

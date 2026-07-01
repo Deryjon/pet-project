@@ -45,7 +45,17 @@ const visibleMonth = ref(startOfMonth(resolveInitialDate()));
 
 watch(
   () => props.modelValue,
-  () => {
+  (newVal, oldVal) => {
+    // Don't reset visible month if only the `to` date changed during an active range selection —
+    // otherwise the calendar jumps back to the start month after the user picks an end date.
+    if (
+      isRangeValue(newVal)
+      && isRangeValue(oldVal)
+      && newVal.from === oldVal.from
+      && newVal.from
+    ) {
+      return;
+    }
     visibleMonth.value = startOfMonth(resolveInitialDate());
   },
   { deep: true },
