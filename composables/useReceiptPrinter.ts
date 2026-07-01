@@ -1,5 +1,5 @@
 import { useApi } from "~/composables/useApi";
-import type { Cheque } from "~/composables/useCheques";
+import type { Cheque, ChequeExtraSettings } from "~/composables/useCheques";
 
 export interface ReceiptItem {
   name: string;
@@ -19,6 +19,14 @@ export interface ReceiptData {
   total: string;
   payment: string;
   extraPayments?: Array<{ payment_method: string; amount: number; payment_name: string }> | null;
+}
+
+interface ElementStyle {
+  id: string;
+  fontSize: number;
+  fontWeight: "normal" | "bold";
+  visible: boolean;
+  order: number;
 }
 
 export function useReceiptPrinter() {
@@ -45,181 +53,155 @@ export function useReceiptPrinter() {
       .replace(/"/g, "&quot;");
   }
 
+  function getStyle(styles: ElementStyle[] | undefined, id: string): { fs: number; fw: string; visible: boolean } {
+    const el = styles?.find((s) => s.id === id);
+    if (!el) return { fs: 12, fw: "normal", visible: true };
+    return { fs: el.fontSize || 12, fw: el.fontWeight === "bold" ? "900" : "normal", visible: el.visible !== false };
+  }
+
+  function renderElementHtml(
+    elId: string,
+    data: ReceiptData,
+    template: Cheque | null,
+    extra: ChequeExtraSettings | null | undefined,
+    styles: ElementStyle[] | undefined,
+  ): string {
+    const { fs, fw } = getStyle(styles, elId);
+    const s = `font-size:${fs}px;font-weight:${fw};`;
+    const C = "text-align:center;";
+    const ROW = "display:flex;justify-content:space-between;gap:4px;";
+    const NW = "white-space:nowrap;";
+
+    switch (elId) {
+      case "shopName":
+        return data.shop ? `<div style="${s}${C}">${escapeHtml(data.shop)}</div>` : "";
+      case "branch":
+        return (extra?.hasBranchName && extra.branchName) ? `<div style="${s}${C}">${escapeHtml(extra.branchName)}</div>` : "";
+      case "address":
+        return (extra?.hasAddress && extra.address) ? `<div style="${s}${C}">${escapeHtml(extra.address)}</div>` : "";
+      case "phone":
+        return (extra?.hasPhone && extra.phone) ? `<div style="${s}${C}">${escapeHtml(extra.phone)}</div>` : "";
+      case "workingHours":
+        return (extra?.hasWorkingHours && extra.workingHours) ? `<div style="${s}${C}">${escapeHtml(extra.workingHours)}</div>` : "";
+      case "website":
+        return (extra?.hasWebsite && extra.website) ? `<div style="${s}${C}">${escapeHtml(extra.website)}</div>` : "";
+      case "taxId":
+        return (extra?.hasTaxId && extra.taxId) ? `<div style="${s}${ROW}"><span>ИНН:</span><span style="${NW}">${escapeHtml(extra.taxId)}</span></div>` : "";
+      case "chequeNumber":
+        return `<div style="${s}${ROW}"><span>Чек #:</span><span style="${NW}">${escapeHtml(data.number)}</span></div>`;
+      case "date":
+        return `<div style="${s}${ROW}"><span>Дата:</span><span style="${NW}">${escapeHtml(data.date)}</span></div>`;
+      case "seller":
+        return data.seller ? `<div style="${s}${ROW}"><span>Продавец:</span><span style="${NW}">${escapeHtml(data.seller)}</span></div>` : "";
+      case "cashier":
+        return (data.cashier && data.cashier !== data.seller) ? `<div style="${s}${ROW}"><span>Кассир:</span><span style="${NW}">${escapeHtml(data.cashier)}</span></div>` : "";
+      case "client":
+        return (data.client && data.client !== "—") ? `<div style="${s}${ROW}"><span>Клиент:</span><span style="${NW}">${escapeHtml(data.client)}</span></div>` : "";
+      case "items": {
+        const itemFs = getStyle(styles, "items");
+        return data.items.map((item, idx) => {
+          const lines: string[] = [];
+          lines.push(`<div style="font-size:${itemFs.fs}px;font-weight:${itemFs.fw};">${idx + 1}. ${escapeHtml(item.name)}</div>`);
+          if (item.code) {
+            lines.push(`<div style="font-size:10px;color:#444;">${escapeHtml(item.code)}</div>`);
+          }
+          lines.push(`<div style="font-size:${Math.max(10, itemFs.fs - 1)}px;${ROW}"><span>${item.quantity} x ${escapeHtml(item.price)}</span><span style="font-weight:900;${NW}">${escapeHtml(item.price)}</span></div>`);
+          return `<div style="margin-bottom:6px;">${lines.join("\n")}</div>`;
+        }).join("\n");
+      }
+      case "total":
+        return `<div style="${s}${ROW}"><span>ИТОГО:</span><span style="${NW}">${escapeHtml(data.total)}</span></div>`;
+      case "payment":
+        if (data.extraPayments && data.extraPayments.length > 1) {
+          return data.extraPayments.map((ep) =>
+            `<div style="${s}${ROW}"><span>${escapeHtml(ep.payment_name)}:</span><span style="${NW}">${escapeHtml(String(ep.amount))}</span></div>`
+          ).join("\n");
+        }
+        return `<div style="${s}${ROW}"><span>Оплата:</span><span style="${NW}">${escapeHtml(data.payment)}</span></div>`;
+      case "debt":
+        return "";
+      case "balance":
+        return "";
+      case "barcode":
+        return template?.has_bar_code
+          ? `<div style="${C}margin:8px 0;"><div style="font-family:monospace;letter-spacing:4px;font-size:${fs}px;font-weight:900;">${escapeHtml(data.number)}</div><div style="font-size:9px;">Штрих-код</div></div>`
+          : "";
+      case "footer":
+        return template?.display_text ? `<div style="${s}${C}margin-top:6px;">${escapeHtml(template.display_text)}</div>` : "";
+      case "qrCode":
+        return (extra?.hasQrCode && extra.qrCodeUrl)
+          ? `<div style="${C}margin:6px 0;"><img src="${escapeHtml(extra.qrCodeUrl)}" alt="QR" style="max-width:100px;max-height:100px;"/></div>`
+          : "";
+      default:
+        if (elId.startsWith("hr")) return `<div style="border-top:1px dashed #000;margin:6px 0;"></div>`;
+        return "";
+    }
+  }
+
+  const DEFAULT_ORDER = [
+    "shopName", "branch", "address", "phone", "workingHours", "website",
+    "hr1", "chequeNumber", "date", "taxId", "seller", "cashier", "client",
+    "hr2", "items", "hr3", "total", "payment", "debt", "balance",
+    "hr4", "barcode", "footer", "qrCode",
+  ];
+
   function buildReceiptHtml(data: ReceiptData, template: Cheque | null): string {
-    const width = template?.compact ? "58mm" : template?.width ? `${template.width}mm` : "80mm";
+    const widthMm = template?.compact ? 58 : template?.width ? Number(template.width) : 80;
+    const bodyW = `${widthMm - 10}mm`;
+    const pageW = `${widthMm}mm`;
     const extra = template?.extra_settings;
+    const styles = extra?.elementStyles as ElementStyle[] | undefined;
+
+    let orderedIds: string[];
+    if (styles && styles.length > 0) {
+      orderedIds = [...styles]
+        .filter((s) => s.visible !== false)
+        .sort((a, b) => a.order - b.order)
+        .map((s) => s.id);
+    } else {
+      orderedIds = DEFAULT_ORDER;
+    }
+
+    if (template?.has_logo && template.logo_url) {
+      const logoHtml = `<div style="text-align:center;margin-bottom:6px;"><img src="${escapeHtml(template.logo_url)}" alt="logo" style="max-width:80%;max-height:60px;object-fit:contain;"/></div>`;
+      const sections = [logoHtml];
+      for (const id of orderedIds) {
+        const html = renderElementHtml(id, data, template, extra, styles);
+        if (html) sections.push(html);
+      }
+      return wrapHtml(sections.join("\n"), bodyW, pageW, data.number);
+    }
 
     const sections: string[] = [];
-
-    // --- Logo ---
-    if (template?.has_logo && template.logo_url) {
-      sections.push(`
-        <div class="center" style="margin-bottom:6px;">
-          <img src="${escapeHtml(template.logo_url)}" alt="logo"
-               style="max-width:80%;max-height:60px;object-fit:contain;" />
-        </div>`);
+    for (const id of orderedIds) {
+      const html = renderElementHtml(id, data, template, extra, styles);
+      if (html) sections.push(html);
     }
 
-    // --- Information block ---
-    if (template?.has_information_block !== false) {
-      const infoLines: string[] = [];
-      if (data.shop) infoLines.push(`<div class="center bold">${escapeHtml(data.shop)}</div>`);
+    return wrapHtml(sections.join("\n"), bodyW, pageW, data.number);
+  }
 
-      if (extra?.hasBranchName && extra.branchName) {
-        infoLines.push(`<div class="center">${escapeHtml(extra.branchName)}</div>`);
-      }
-      if (extra?.hasAddress && extra.address) {
-        infoLines.push(`<div class="center">${escapeHtml(extra.address)}</div>`);
-      }
-      if (extra?.hasPhone && extra.phone) {
-        infoLines.push(`<div class="center">${escapeHtml(extra.phone)}</div>`);
-      }
-      if (extra?.hasWorkingHours && extra.workingHours) {
-        infoLines.push(`<div class="center">${escapeHtml(extra.workingHours)}</div>`);
-      }
-      if (extra?.hasWebsite && extra.website) {
-        infoLines.push(`<div class="center">${escapeHtml(extra.website)}</div>`);
-      }
-      if (extra?.hasTaxId && extra.taxId) {
-        infoLines.push(`<div class="row"><span>ИНН:</span><span>${escapeHtml(extra.taxId)}</span></div>`);
-      }
-
-      infoLines.push(`<div class="row"><span>Дата:</span><span>${escapeHtml(data.date)}</span></div>`);
-      infoLines.push(`<div class="row"><span>Чек #:</span><span>${escapeHtml(data.number)}</span></div>`);
-      if (data.seller) {
-        infoLines.push(`<div class="row"><span>Продавец:</span><span>${escapeHtml(data.seller)}</span></div>`);
-      }
-      if (data.cashier && data.cashier !== data.seller) {
-        infoLines.push(`<div class="row"><span>Кассир:</span><span>${escapeHtml(data.cashier)}</span></div>`);
-      }
-      if (data.client && data.client !== "—") {
-        infoLines.push(`<div class="row"><span>Клиент:</span><span>${escapeHtml(data.client)}</span></div>`);
-      }
-
-      sections.push(infoLines.join("\n"));
-    }
-
-    // --- Items ---
-    sections.push('<div class="hr"></div>');
-
-    const itemRows = data.items.map((item, idx) => {
-      const num = idx + 1;
-      const lines: string[] = [];
-      lines.push(`<div class="item-name">${num}. ${escapeHtml(item.name)}</div>`);
-      if (item.code) {
-        lines.push(`<div class="item-code">${escapeHtml(item.code)}</div>`);
-      }
-      lines.push(`<div class="row"><span>${item.quantity} x ${escapeHtml(item.price)}</span><span>${escapeHtml(item.price)}</span></div>`);
-      return `<div class="item">${lines.join("\n")}</div>`;
-    });
-    sections.push(itemRows.join("\n"));
-
-    sections.push('<div class="hr"></div>');
-
-    // --- Totals ---
-    sections.push(`<div class="row total"><span>ИТОГО:</span><span>${escapeHtml(data.total)}</span></div>`);
-
-    // --- Payment ---
-    if (data.extraPayments && data.extraPayments.length > 1) {
-      data.extraPayments.forEach((ep) => {
-        sections.push(`<div class="row"><span>${escapeHtml(ep.payment_name)}:</span><span>${escapeHtml(String(ep.amount))}</span></div>`);
-      });
-    } else {
-      sections.push(`<div class="row"><span>Оплата:</span><span>${escapeHtml(data.payment)}</span></div>`);
-    }
-
-    // --- Barcode placeholder ---
-    if (template?.has_bar_code) {
-      sections.push(`
-        <div class="hr"></div>
-        <div class="center" style="margin:8px 0;">
-          <div style="font-family:monospace;letter-spacing:4px;font-size:14px;">${escapeHtml(data.number)}</div>
-          <div style="font-size:9px;color:#666;">Штрих-код</div>
-        </div>`);
-    }
-
-    // --- QR Code ---
-    if (extra?.hasQrCode && extra.qrCodeUrl) {
-      sections.push(`
-        <div class="center" style="margin:6px 0;">
-          <img src="${escapeHtml(extra.qrCodeUrl)}" alt="QR"
-               style="max-width:100px;max-height:100px;" />
-        </div>`);
-    }
-
-    // --- Footer / lower block ---
-    if (template?.has_lower_block && template.display_text) {
-      sections.push(`<div class="hr"></div>`);
-      sections.push(`<div class="footer">${escapeHtml(template.display_text)}</div>`);
-    }
-
+  function wrapHtml(body: string, bodyW: string, pageW: string, number: string): string {
     return `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <title>Чек #${escapeHtml(data.number)}</title>
-  <style>
-    @page {
-      size: ${width} auto;
-      margin: 2mm;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 12px;
-      width: ${width};
-      max-width: ${width};
-      margin: 0 auto;
-      padding: 4px;
-      color: #000;
-      background: #fff;
-      -webkit-print-color-adjust: exact;
-    }
-    .center { text-align: center; }
-    .bold { font-weight: bold; }
-    .hr { border-top: 1px dashed #000; margin: 6px 0; }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 4px;
-      line-height: 1.4;
-    }
-    .row span:last-child { text-align: right; white-space: nowrap; }
-    .total { font-size: 14px; font-weight: bold; margin: 4px 0; }
-    .item { margin-bottom: 4px; }
-    .item-name { font-weight: bold; }
-    .item-code { font-size: 10px; color: #444; }
-    .footer {
-      text-align: center;
-      font-size: 10px;
-      color: #666;
-      margin-top: 8px;
-      white-space: pre-line;
-    }
-    @media print {
-      body { width: ${width}; }
-    }
-  </style>
-</head>
-<body>
-${sections.join("\n")}
-</body>
-</html>`;
+<html lang="ru"><head><meta charset="utf-8"><title>Чек #${escapeHtml(number)}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#fff;font-family:Arial,Helvetica,sans-serif;color:#000;width:${bodyW};max-width:${bodyW};padding:2mm;margin:0 auto;overflow:hidden;word-wrap:break-word;overflow-wrap:break-word;}@page{margin:0;size:${pageW} auto;}</style>
+</head><body>
+${body}
+<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script>
+</body></html>`;
+  }
+
+  function openPrintHtml(html: string) {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   }
 
   async function printReceipt(data: ReceiptData): Promise<void> {
     const template = await loadDefaultTemplate();
     const html = buildReceiptHtml(data, template);
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) return;
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 300);
+    openPrintHtml(html);
   }
 
-  return { printReceipt, loadDefaultTemplate };
+  return { printReceipt, loadDefaultTemplate, buildReceiptHtml, openPrintHtml };
 }
