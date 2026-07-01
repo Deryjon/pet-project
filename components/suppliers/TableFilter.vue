@@ -2,9 +2,8 @@
     <div class="w-full border-2 bg-[#262626] text-white rounded-[20px] p-[20px]">
       <div class="grid w-full grid-cols-1 gap-y-[30px] md:grid-cols-2 md:gap-x-4">
       <!-- Дата -->
-      <div class="w-full bg-[#404040] p-[15px] rounded-lg">
-        e
-        <!-- <DatePicker v-model="date" label="Дата" placeholder="Выберите дату" /> -->
+      <div class="w-full">
+        <AppDatePicker v-model="date" clearable class="w-full" />
       </div>
   
       <!-- Магазин -->

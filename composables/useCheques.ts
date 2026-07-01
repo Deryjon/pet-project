@@ -43,6 +43,14 @@ export type ChequeExtraSettings = {
   hasTaxId?: boolean;
   hasBranchName?: boolean;
   hasWebsite?: boolean;
+  elementStyles?: Array<{
+    id: string;
+    label: string;
+    fontSize: number;
+    fontWeight: "normal" | "bold";
+    visible: boolean;
+    order: number;
+  }>;
 };
 
 export type Cheque = {
