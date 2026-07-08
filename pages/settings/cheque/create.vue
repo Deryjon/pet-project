@@ -52,33 +52,34 @@ interface ReceiptElementStyle {
   fontWeight: "normal" | "bold";
   visible: boolean;
   order: number;
+  marginBottom?: number;
 }
 
 const DEFAULT_RECEIPT_ELEMENTS: ReceiptElementStyle[] = [
-  { id: "shopName", label: "Название магазина", fontSize: 14, fontWeight: "bold", visible: true, order: 0 },
-  { id: "branch", label: "Филиал", fontSize: 11, fontWeight: "normal", visible: true, order: 1 },
-  { id: "address", label: "Адрес", fontSize: 11, fontWeight: "normal", visible: true, order: 2 },
-  { id: "phone", label: "Телефон", fontSize: 11, fontWeight: "normal", visible: true, order: 3 },
-  { id: "workingHours", label: "Часы работы", fontSize: 11, fontWeight: "normal", visible: false, order: 4 },
-  { id: "website", label: "Сайт", fontSize: 11, fontWeight: "normal", visible: false, order: 5 },
-  { id: "hr1", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 6 },
-  { id: "chequeNumber", label: "Номер чека", fontSize: 12, fontWeight: "bold", visible: true, order: 7 },
-  { id: "date", label: "Дата", fontSize: 11, fontWeight: "normal", visible: true, order: 8 },
-  { id: "taxId", label: "ИНН", fontSize: 11, fontWeight: "normal", visible: false, order: 9 },
-  { id: "seller", label: "Продавец", fontSize: 11, fontWeight: "normal", visible: true, order: 10 },
-  { id: "cashier", label: "Кассир", fontSize: 11, fontWeight: "normal", visible: true, order: 11 },
-  { id: "client", label: "Клиент", fontSize: 11, fontWeight: "normal", visible: true, order: 12 },
-  { id: "hr2", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 13 },
-  { id: "items", label: "Товары", fontSize: 12, fontWeight: "bold", visible: true, order: 14 },
-  { id: "hr3", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 15 },
-  { id: "total", label: "ИТОГО", fontSize: 14, fontWeight: "bold", visible: true, order: 16 },
-  { id: "payment", label: "Оплата", fontSize: 11, fontWeight: "normal", visible: true, order: 17 },
-  { id: "debt", label: "Долг клиента", fontSize: 11, fontWeight: "normal", visible: false, order: 18 },
-  { id: "balance", label: "Баланс клиента", fontSize: 11, fontWeight: "normal", visible: false, order: 19 },
-  { id: "hr4", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 20 },
-  { id: "barcode", label: "Штрих-код", fontSize: 14, fontWeight: "bold", visible: true, order: 21 },
-  { id: "footer", label: "Нижний текст", fontSize: 11, fontWeight: "normal", visible: true, order: 22 },
-  { id: "qrCode", label: "QR-код", fontSize: 0, fontWeight: "normal", visible: false, order: 23 },
+  { id: "shopName", label: "Название магазина", fontSize: 14, fontWeight: "bold", visible: true, order: 0, marginBottom: 3 },
+  { id: "branch", label: "Филиал", fontSize: 11, fontWeight: "normal", visible: true, order: 1, marginBottom: 2 },
+  { id: "address", label: "Адрес", fontSize: 11, fontWeight: "normal", visible: true, order: 2, marginBottom: 2 },
+  { id: "phone", label: "Телефон", fontSize: 11, fontWeight: "normal", visible: true, order: 3, marginBottom: 2 },
+  { id: "workingHours", label: "Часы работы", fontSize: 11, fontWeight: "normal", visible: false, order: 4, marginBottom: 2 },
+  { id: "website", label: "Сайт", fontSize: 11, fontWeight: "normal", visible: false, order: 5, marginBottom: 2 },
+  { id: "hr1", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 6, marginBottom: 4 },
+  { id: "chequeNumber", label: "Номер чека", fontSize: 12, fontWeight: "bold", visible: true, order: 7, marginBottom: 3 },
+  { id: "date", label: "Дата", fontSize: 11, fontWeight: "normal", visible: true, order: 8, marginBottom: 3 },
+  { id: "taxId", label: "ИНН", fontSize: 11, fontWeight: "normal", visible: false, order: 9, marginBottom: 3 },
+  { id: "seller", label: "Продавец", fontSize: 11, fontWeight: "normal", visible: true, order: 10, marginBottom: 3 },
+  { id: "cashier", label: "Кассир", fontSize: 11, fontWeight: "normal", visible: true, order: 11, marginBottom: 3 },
+  { id: "client", label: "Клиент", fontSize: 11, fontWeight: "normal", visible: true, order: 12, marginBottom: 3 },
+  { id: "hr2", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 13, marginBottom: 4 },
+  { id: "items", label: "Товары", fontSize: 12, fontWeight: "bold", visible: true, order: 14, marginBottom: 6 },
+  { id: "hr3", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 15, marginBottom: 4 },
+  { id: "total", label: "ИТОГО", fontSize: 14, fontWeight: "bold", visible: true, order: 16, marginBottom: 3 },
+  { id: "payment", label: "Оплата", fontSize: 11, fontWeight: "normal", visible: true, order: 17, marginBottom: 3 },
+  { id: "debt", label: "Долг клиента", fontSize: 11, fontWeight: "normal", visible: false, order: 18, marginBottom: 3 },
+  { id: "balance", label: "Баланс клиента", fontSize: 11, fontWeight: "normal", visible: false, order: 19, marginBottom: 3 },
+  { id: "hr4", label: "─ Разделитель ─", fontSize: 0, fontWeight: "normal", visible: true, order: 20, marginBottom: 4 },
+  { id: "barcode", label: "Штрих-код", fontSize: 14, fontWeight: "bold", visible: true, order: 21, marginBottom: 6 },
+  { id: "footer", label: "Нижний текст", fontSize: 11, fontWeight: "normal", visible: true, order: 22, marginBottom: 4 },
+  { id: "qrCode", label: "QR-код", fontSize: 0, fontWeight: "normal", visible: false, order: 23, marginBottom: 6 },
 ];
 
 const receiptElements = ref<ReceiptElementStyle[]>(DEFAULT_RECEIPT_ELEMENTS.map(el => ({ ...el })));
@@ -104,6 +105,7 @@ function mergeElementStyles(saved: ReceiptElementStyle[]): ReceiptElementStyle[]
       fontWeight: s.fontWeight ?? def?.fontWeight ?? "normal",
       visible: s.visible ?? true,
       order: s.order ?? merged.length,
+      marginBottom: s.marginBottom ?? def?.marginBottom ?? 4,
     });
     usedIds.add(s.id);
   }
@@ -506,7 +508,13 @@ fetchDefaultCheque();
                   <input type="checkbox" :checked="selectedElement.fontWeight === 'bold'" @change="toggleElementBold" />
                   Жирный
                 </label>
+                <div class="toolbar-divider" />
               </template>
+              <label class="toolbar-control">
+                Отступ
+                <input type="number" min="0" max="40" v-model.number="selectedElement.marginBottom" class="toolbar-input" />
+                px
+              </label>
             </template>
             <span v-else class="toolbar-hint">Кликните на элемент в чеке</span>
           </div>
@@ -534,7 +542,8 @@ fetchDefaultCheque();
                 fontWeight: el.fontWeight === 'bold' ? '900' : 'normal',
                 outline: selectedElement?.id === el.id ? '2px solid #1f78ff' : 'none',
                 outlineOffset: '2px',
-                padding: '2px 0',
+                paddingTop: '2px',
+                marginBottom: (el.marginBottom ?? 4) + 'px',
               }"
               draggable="true"
               @click="selectedElement = el"
