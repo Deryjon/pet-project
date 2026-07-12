@@ -14,7 +14,7 @@ export type ProductSectionCard = {
 
 export const productReportSections: ProductSectionCard[] = [
   {
-    key: "summary",
+    key: "sales-by-products",
     title: "Продажи по товарам",
     description:
       "Данный отчет покажет вам какие товары продаются хорошо. Вы сможете посмотреть разбивку по категориям, цветам, размерам и другим характеристикам товаров.",

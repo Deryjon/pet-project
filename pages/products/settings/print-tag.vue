@@ -114,11 +114,11 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <span class="label">Ширина мм</span>
-                <input type="number" min="10" max="200" v-model.number="editWidth" class="input" @blur="saveTemplate" />
+                <input type="number" min="10" v-model.number="editWidth" class="input" @blur="saveTemplate" />
               </div>
               <div>
                 <span class="label">Высота мм</span>
-                <input type="number" min="10" max="200" v-model.number="editLength" class="input" @blur="saveTemplate" />
+                <input type="number" min="10" v-model.number="editLength" class="input" @blur="saveTemplate" />
               </div>
             </div>
             <div>
@@ -493,6 +493,29 @@ const DEFAULT_ELEMENTS: TagElement[] = [
   { id: "discount", label: "Скидка",       x: 2, y: 48, fontSize: 7,  fontWeight: "bold",   visible: false },
 ];
 
+function mergeElements(saved: TagElement[]): TagElement[] {
+  const merged: TagElement[] = [];
+  const usedIds = new Set<string>();
+  for (const s of saved) {
+    const def = DEFAULT_ELEMENTS.find((d) => d.id === s.id);
+    merged.push({
+      id: s.id,
+      label: def?.label ?? s.label,
+      x: s.x ?? def?.x ?? 2,
+      y: s.y ?? def?.y ?? 2,
+      fontSize: s.fontSize ?? def?.fontSize,
+      fontWeight: s.fontWeight ?? def?.fontWeight,
+      visible: s.visible ?? def?.visible ?? true,
+      barcodeHeight: s.barcodeHeight ?? def?.barcodeHeight,
+    });
+    usedIds.add(s.id);
+  }
+  for (const d of DEFAULT_ELEMENTS) {
+    if (!usedIds.has(d.id)) merged.push({ ...d });
+  }
+  return merged;
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const loadingTemplates = ref(true);
 const saving = ref(false);
@@ -536,10 +559,10 @@ const sampleProduct = computed(() => ({
   shop:    String(route.query.shop        || "Магазин"),
 }));
 
-const tagW = computed(() => (selectedTemplate.value?.width  ?? 40) * zoom.value);
-const tagH = computed(() => (selectedTemplate.value?.length ?? 20) * zoom.value);
-const previewW = computed(() => (selectedTemplate.value?.width  ?? 40) * PREVIEW_PX_PER_MM);
-const previewH = computed(() => (selectedTemplate.value?.length ?? 20) * PREVIEW_PX_PER_MM);
+const tagW = computed(() => (editWidth.value  || 40) * zoom.value);
+const tagH = computed(() => (editLength.value || 20) * zoom.value);
+const previewW = computed(() => (editWidth.value  || 40) * PREVIEW_PX_PER_MM);
+const previewH = computed(() => (editLength.value || 20) * PREVIEW_PX_PER_MM);
 const visibleElements = computed(() => elements.value.filter((e) => e.visible));
 
 const gridStyle = computed(() => ({
@@ -607,8 +630,8 @@ function onCanvasMouseMove(e: MouseEvent) {
   if (!dragging.value || !selectedTemplate.value) return;
   const dx = (e.clientX - dragStartMouseX) / zoom.value;
   const dy = (e.clientY - dragStartMouseY) / zoom.value;
-  const w = selectedTemplate.value.width;
-  const h = selectedTemplate.value.length;
+  const w = editWidth.value || selectedTemplate.value.width;
+  const h = editLength.value || selectedTemplate.value.length;
   dragging.value.x = Math.max(0, Math.min(w - 1, +(dragStartElX + dx).toFixed(1)));
   dragging.value.y = Math.max(0, Math.min(h - 1, +(dragStartElY + dy).toFixed(1)));
 }
@@ -642,7 +665,8 @@ async function loadTemplates() {
   }
 }
 
-function selectTemplate(tpl: PriceTagTemplate) {
+async function selectTemplate(tpl: PriceTagTemplate) {
+  await flushPendingSave();
   selectedTemplate.value = tpl;
   editName.value = tpl.name;
   editWidth.value = tpl.width;
@@ -651,39 +675,55 @@ function selectTemplate(tpl: PriceTagTemplate) {
   selectedEl.value = null;
   const saved = tpl.properties?.elements;
   elements.value = Array.isArray(saved) && saved.length
-    ? saved.map((e) => ({ ...e }))
+    ? mergeElements(saved)
     : DEFAULT_ELEMENTS.map((e) => ({ ...e }));
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-async function saveTemplate() {
+function currentEditPayload() {
+  return {
+    name: editName.value,
+    width: editWidth.value,
+    length: editLength.value,
+    barcode_type: editBarcodeType.value,
+    properties: { elements: elements.value.map((e) => ({ ...e })) },
+  };
+}
+
+async function persistTemplate(id: string, payload: ReturnType<typeof currentEditPayload>) {
+  saving.value = true;
+  try {
+    const updated = await apiFetch<PriceTagTemplate>(`/price-tag/${id}`, {
+      method: "PUT",
+      body: payload,
+    });
+    const idx = templates.value.findIndex((t) => t.id === id);
+    if (idx !== -1 && updated) {
+      templates.value[idx] = { ...templates.value[idx], ...updated };
+      if (selectedTemplate.value?.id === id) selectedTemplate.value = templates.value[idx];
+    }
+  } catch (e) {
+    console.error("saveTemplate", e);
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function flushPendingSave() {
+  if (!saveTimer || !selectedTemplate.value) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  await persistTemplate(selectedTemplate.value.id, currentEditPayload());
+}
+
+function saveTemplate() {
   if (!selectedTemplate.value) return;
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    saving.value = true;
-    try {
-      const id = selectedTemplate.value!.id;
-      const updated = await apiFetch<PriceTagTemplate>(`/price-tag/${id}`, {
-        method: "PUT",
-        body: {
-          name: editName.value,
-          width: editWidth.value,
-          length: editLength.value,
-          barcode_type: editBarcodeType.value,
-          properties: { elements: elements.value.map((e) => ({ ...e })) },
-        },
-      });
-      const idx = templates.value.findIndex((t) => t.id === id);
-      if (idx !== -1 && updated) {
-        templates.value[idx] = { ...templates.value[idx], ...updated };
-        selectedTemplate.value = templates.value[idx];
-      }
-    } catch (e) {
-      console.error("saveTemplate", e);
-    } finally {
-      saving.value = false;
-    }
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (!selectedTemplate.value) return;
+    void persistTemplate(selectedTemplate.value.id, currentEditPayload());
   }, 600);
 }
 

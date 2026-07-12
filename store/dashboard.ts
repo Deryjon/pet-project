@@ -188,7 +188,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     () => selectedPeriod.value,
     (period) => {
       const allowed = granularityOptions[period];
-      if (!allowed.includes(selectedGranularity.value)) {
+      if (!allowed.includes(selectedGranularity.value) && allowed[0]) {
         selectedGranularity.value = allowed[0];
       }
     },
@@ -468,5 +468,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     saveSettings,
     fetchDashboardReport,
     availableGranularities,
+    startDateForPeriod,
+    endDateForPeriod,
   };
 });

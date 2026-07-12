@@ -1,5 +1,6 @@
 import { useApi } from "~/composables/useApi";
 import type { Cheque, ChequeExtraSettings } from "~/composables/useCheques";
+import { renderQrSvg } from "~/utils/qrcode";
 
 export interface ReceiptItem {
   name: string;
@@ -18,7 +19,10 @@ export interface ReceiptData {
   items: ReceiptItem[];
   total: string;
   payment: string;
+  paymentMethodName?: string;
   extraPayments?: Array<{ payment_method: string; amount: number; payment_name: string }> | null;
+  debt?: string;
+  balance?: string;
 }
 
 interface ElementStyle {
@@ -27,6 +31,7 @@ interface ElementStyle {
   fontWeight: "normal" | "bold";
   visible: boolean;
   order: number;
+  marginBottom?: number;
 }
 
 export function useReceiptPrinter() {
@@ -53,10 +58,15 @@ export function useReceiptPrinter() {
       .replace(/"/g, "&quot;");
   }
 
-  function getStyle(styles: ElementStyle[] | undefined, id: string): { fs: number; fw: string; visible: boolean } {
+  function getStyle(styles: ElementStyle[] | undefined, id: string): { fs: number; fw: string; visible: boolean; marginBottom: number } {
     const el = styles?.find((s) => s.id === id);
-    if (!el) return { fs: 12, fw: "normal", visible: true };
-    return { fs: el.fontSize || 12, fw: el.fontWeight === "bold" ? "900" : "normal", visible: el.visible !== false };
+    if (!el) return { fs: 12, fw: "normal", visible: true, marginBottom: 4 };
+    return {
+      fs: el.fontSize || 12,
+      fw: el.fontWeight === "bold" ? "900" : "normal",
+      visible: el.visible !== false,
+      marginBottom: el.marginBottom ?? 4,
+    };
   }
 
   function renderElementHtml(
@@ -117,11 +127,11 @@ export function useReceiptPrinter() {
             `<div style="${s}${ROW}"><span>${escapeHtml(ep.payment_name)}:</span><span style="${NW}">${escapeHtml(String(ep.amount))}</span></div>`
           ).join("\n");
         }
-        return `<div style="${s}${ROW}"><span>Оплата:</span><span style="${NW}">${escapeHtml(data.payment)}</span></div>`;
+        return `<div style="${s}${ROW}"><span>Оплачено${data.paymentMethodName ? ` (${escapeHtml(data.paymentMethodName)})` : ""}:</span><span style="${NW}">${escapeHtml(data.payment)}</span></div>`;
       case "debt":
-        return "";
+        return data.debt ? `<div style="${s}${ROW}"><span>В долг:</span><span style="${NW}">${escapeHtml(data.debt)}</span></div>` : "";
       case "balance":
-        return "";
+        return data.balance ? `<div style="${s}${ROW}"><span>Баланс:</span><span style="${NW}">${escapeHtml(data.balance)}</span></div>` : "";
       case "barcode":
         return template?.has_bar_code
           ? `<div style="${C}margin:8px 0;"><div style="font-family:monospace;letter-spacing:4px;font-size:${fs}px;font-weight:900;">${escapeHtml(data.number)}</div><div style="font-size:9px;">Штрих-код</div></div>`
@@ -130,10 +140,10 @@ export function useReceiptPrinter() {
         return template?.display_text ? `<div style="${s}${C}margin-top:6px;">${escapeHtml(template.display_text)}</div>` : "";
       case "qrCode":
         return (extra?.hasQrCode && extra.qrCodeUrl)
-          ? `<div style="${C}margin:6px 0;"><img src="${escapeHtml(extra.qrCodeUrl)}" alt="QR" style="max-width:100px;max-height:100px;"/></div>`
+          ? `<div style="${C}margin:6px 0;width:100px;height:100px;display:inline-block;">${renderQrSvg(extra.qrCodeUrl, { pixelSize: 4 })}</div>`
           : "";
       default:
-        if (elId.startsWith("hr")) return `<div style="border-top:1px dashed #000;margin:6px 0;"></div>`;
+        if (elId.startsWith("hr")) return `<div style="border-top:1px dashed #000;"></div>`;
         return "";
     }
   }
@@ -149,6 +159,8 @@ export function useReceiptPrinter() {
     const widthMm = template?.compact ? 58 : template?.width ? Number(template.width) : 80;
     const bodyW = `${widthMm - 10}mm`;
     const pageW = `${widthMm}mm`;
+    const lengthMm = Number(template?.length) || 0;
+    const pageH = lengthMm > 0 ? `${lengthMm}mm` : "auto";
     const extra = template?.extra_settings;
     const styles = extra?.elementStyles as ElementStyle[] | undefined;
 
@@ -162,29 +174,36 @@ export function useReceiptPrinter() {
       orderedIds = DEFAULT_ORDER;
     }
 
+    function renderSection(id: string): string {
+      const html = renderElementHtml(id, data, template, extra, styles);
+      if (!html) return "";
+      const { marginBottom } = getStyle(styles, id);
+      return marginBottom ? `<div style="margin-bottom:${marginBottom}px;">${html}</div>` : html;
+    }
+
     if (template?.has_logo && template.logo_url) {
       const logoHtml = `<div style="text-align:center;margin-bottom:6px;"><img src="${escapeHtml(template.logo_url)}" alt="logo" style="max-width:80%;max-height:60px;object-fit:contain;"/></div>`;
       const sections = [logoHtml];
       for (const id of orderedIds) {
-        const html = renderElementHtml(id, data, template, extra, styles);
+        const html = renderSection(id);
         if (html) sections.push(html);
       }
-      return wrapHtml(sections.join("\n"), bodyW, pageW, data.number);
+      return wrapHtml(sections.join("\n"), bodyW, pageW, pageH, data.number);
     }
 
     const sections: string[] = [];
     for (const id of orderedIds) {
-      const html = renderElementHtml(id, data, template, extra, styles);
+      const html = renderSection(id);
       if (html) sections.push(html);
     }
 
-    return wrapHtml(sections.join("\n"), bodyW, pageW, data.number);
+    return wrapHtml(sections.join("\n"), bodyW, pageW, pageH, data.number);
   }
 
-  function wrapHtml(body: string, bodyW: string, pageW: string, number: string): string {
+  function wrapHtml(body: string, bodyW: string, pageW: string, pageH: string, number: string): string {
     return `<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8"><title>Чек #${escapeHtml(number)}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#fff;font-family:Arial,Helvetica,sans-serif;color:#000;width:${bodyW};max-width:${bodyW};padding:2mm;margin:0 auto;overflow:hidden;word-wrap:break-word;overflow-wrap:break-word;}@page{margin:0;size:${pageW} auto;}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#fff;font-family:Arial,Helvetica,sans-serif;color:#000;width:${bodyW};max-width:${bodyW};padding:2mm;margin:0 auto;overflow:hidden;word-wrap:break-word;overflow-wrap:break-word;}@page{margin:0;size:${pageW} ${pageH};}</style>
 </head><body>
 ${body}
 <script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script>

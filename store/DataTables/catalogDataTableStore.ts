@@ -710,7 +710,6 @@ function normalizeDetailedProduct(productCard: ProductCardData) {
   return {
     id: product?.id ?? "",
     photo: resolveProductImageUrl(
-      product?.photo ??
       product?.main_image_url ??
       product?.images?.[0]?.url,
     ) || null,
