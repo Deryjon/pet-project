@@ -463,7 +463,7 @@ export function useProducts() {
           ]);
 
       const items = Array.isArray(productsResponse?.products) ? productsResponse.products : [];
-      const normalized = items.map((item) => normalizeCatalogProduct(item, apiBase));
+      const normalized = items.map((item: any) => normalizeCatalogProduct(item, apiBase));
       const resolvedCount = Number(productsResponse?.count ?? normalized.length ?? 0);
       const resolvedTotal = Number(
         productsResponse?.total ?? productsResponse?.count ?? normalized.length ?? 0,
@@ -492,7 +492,7 @@ export function useProducts() {
         : null;
 
       const items = Array.isArray(res?.products) ? res.products : [];
-      const normalized = items.map((item) => normalizeCatalogProduct(item, apiBase));
+      const normalized = items.map((item: any) => normalizeCatalogProduct(item, apiBase));
       const resolvedCount = Number(res?.count ?? normalized.length ?? 0);
       const resolvedTotal = Number(res?.total ?? res?.count ?? normalized.length ?? 0);
       products.value = normalized;
