@@ -20,6 +20,13 @@ export type SaleReceiptSnapshot = {
   subtotal: number;
   discount: number;
   total: number;
+  paidAmount: number;
+  debtAmount: number;
+  cashbackAmount: number;
+  clientName?: string | null;
+  clientPhone?: string | null;
+  sellerName?: string | null;
+  cashierName?: string | null;
   lines: SaleReceiptLine[];
   receiptResponse?: any;
 };

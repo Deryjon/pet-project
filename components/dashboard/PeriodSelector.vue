@@ -89,7 +89,24 @@ function nextMonth() {
   visibleMonth.value = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth() + 1, 1);
 }
 
+let syncingFromPeriod = false;
+
+watch(
+  () => store.selectedPeriod,
+  (period) => {
+    syncingFromPeriod = true;
+    const start = store.startDateForPeriod(period);
+    const end = store.endDateForPeriod(period);
+    rangeStart.value = start;
+    rangeEnd.value = end;
+    visibleMonth.value = startOfMonth(parseModelDate(end) ?? todayDate);
+    syncingFromPeriod = false;
+  },
+  { immediate: true },
+);
+
 watch(rangeEnd, (end) => {
+  if (syncingFromPeriod) return;
   if (rangeStart.value && end) {
     store.setCustomDateRange(rangeStart.value, end);
   }
@@ -122,8 +139,10 @@ function setToday() {
 }
 
 function clearRange() {
-  rangeStart.value = "";
-  rangeEnd.value = "";
+  syncingFromPeriod = true;
+  rangeStart.value = store.startDateForPeriod(store.selectedPeriod);
+  rangeEnd.value = store.endDateForPeriod(store.selectedPeriod);
+  syncingFromPeriod = false;
   store.clearCustomDateRange();
 }
 </script>

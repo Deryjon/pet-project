@@ -427,28 +427,15 @@
             </UButton>
           </div>
 
-          <iframe
-            v-if="printStore.latestReceipt && receiptPreviewHtml"
-            :srcdoc="receiptPreviewHtml"
-            class="mx-auto rounded-lg border-0"
-            :class="printStore.receiptPaperClass === 'receipt-paper-58' ? 'w-[250px] h-[400px]' : 'w-[320px] h-[500px]'"
+          <ReceiptCard
+            v-if="printStore.latestReceipt"
+            :receipt="printStore.latestReceipt"
+            :template="receiptTemplate"
+            :shop-name="printStore.settings.companyName"
+            @print="onPrintReceipt"
+            @open="onOpenReceipt"
+            @send="onSendReceipt"
           />
-
-          <div class="mt-5 flex flex-col gap-2 sm:flex-row">
-            <UButton
-              block
-              color="neutral"
-              variant="soft"
-              class="justify-center rounded-[16px] bg-[#404040] py-3 font-semibold text-white hover:bg-[#505050]"
-              @click="printStore.receiptPreviewOpen = false"
-            >
-              Закрыть
-            </UButton>
-            <UButton block color="primary" class="justify-center rounded-[16px] py-3 font-semibold" @click="onPrintReceipt">
-              <Icon name="heroicons:printer" class="h-5 w-5" />
-              Печать
-            </UButton>
-          </div>
         </div>
       </template>
     </UModal>
@@ -463,6 +450,8 @@ import { useCartStore } from "@/store/cart";
 import { usePrintSettingsStore, type SaleReceiptSnapshot } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 import { useReceiptPrinter, type ReceiptData } from "@/composables/useReceiptPrinter";
+import type { Cheque } from "@/composables/useCheques";
+import ReceiptCard from "@/components/pos/ReceiptCard.vue";
 
 const cartStore = useCartStore();
 const printStore = usePrintSettingsStore();
@@ -495,11 +484,13 @@ const debtConfirmation = ref(false);
 const completionCustomerId = ref("");
 const completionDebt = ref<any | null>(null);
 const receiptPreviewHtml = ref("");
+const receiptTemplate = ref<Cheque | null>(null);
 
 watch(() => printStore.latestReceipt, async (receipt) => {
-  if (!receipt) { receiptPreviewHtml.value = ""; return; }
+  if (!receipt) { receiptPreviewHtml.value = ""; receiptTemplate.value = null; return; }
   const data = snapshotToReceiptData(receipt);
   const template = await receiptPrinter.loadDefaultTemplate();
+  receiptTemplate.value = template;
   receiptPreviewHtml.value = receiptPrinter.buildReceiptHtml(data, template);
 }, { immediate: true });
 
@@ -658,7 +649,7 @@ function openCompletionState(result: any) {
   completionModalOpen.value = true;
 }
 
-function buildReceiptSnapshot(): SaleReceiptSnapshot {
+function buildReceiptSnapshot(debtAmount = 0): SaleReceiptSnapshot {
   const firstPayment = currentPayments.value[0];
   const methodName =
     pendingPayments.value.length > 1
@@ -671,6 +662,9 @@ function buildReceiptSnapshot(): SaleReceiptSnapshot {
             ? "Смешанная оплата"
             : paymentTypeLabel(selectedPaymentMethod.value);
 
+  const debt = Math.max(0, Number(debtAmount || 0));
+  const order = cartStore.currentOrder;
+
   return {
     saleId: cartStore.saleId,
     saleNumber: cartStore.saleNumber,
@@ -679,6 +673,13 @@ function buildReceiptSnapshot(): SaleReceiptSnapshot {
     subtotal: subtotal.value,
     discount: totalDiscount.value,
     total: totalAmount.value,
+    paidAmount: Math.max(0, totalAmount.value - debt),
+    debtAmount: debt,
+    cashbackAmount: 0,
+    clientName: order?.customerName || order?.client?.firstName || null,
+    clientPhone: order?.client?.phone || null,
+    sellerName: order?.sellerName || null,
+    cashierName: order?.cashierName || null,
     lines: cart.value.map((item: any) => {
       const quantity = Math.max(1, Number(item.quantity || 1));
       const price = Number(item.price || 0);
@@ -697,9 +698,9 @@ function snapshotToReceiptData(snapshot: SaleReceiptSnapshot): ReceiptData {
   return {
     number: String(snapshot.saleNumber || snapshot.saleId || "-"),
     date: new Date(snapshot.paidAt).toLocaleString("ru-RU"),
-    seller: cartStore.currentOrder?.sellerName || "",
-    cashier: cartStore.currentOrder?.cashierName || "",
-    client: cartStore.currentOrder?.customerName || cartStore.currentOrder?.client?.firstName || "—",
+    seller: snapshot.sellerName || "",
+    cashier: snapshot.cashierName || "",
+    client: snapshot.clientName || "—",
     shop: printStore.settings.companyName || "",
     items: snapshot.lines.map((line) => ({
       name: line.name,
@@ -707,7 +708,9 @@ function snapshotToReceiptData(snapshot: SaleReceiptSnapshot): ReceiptData {
       price: printStore.formatMoney(line.price),
     })),
     total: printStore.formatMoney(snapshot.total),
-    payment: snapshot.paymentMethodName,
+    payment: printStore.formatMoney(snapshot.paidAmount),
+    paymentMethodName: snapshot.paymentMethodName,
+    debt: snapshot.debtAmount > 0 ? printStore.formatMoney(snapshot.debtAmount) : undefined,
   };
 }
 
@@ -715,6 +718,33 @@ async function onPrintReceipt() {
   if (!printStore.latestReceipt) return;
   const data = snapshotToReceiptData(printStore.latestReceipt);
   await receiptPrinter.printReceipt(data);
+}
+
+function onOpenReceipt() {
+  if (!receiptPreviewHtml.value) return;
+  receiptPrinter.openPrintHtml(receiptPreviewHtml.value);
+}
+
+async function onSendReceipt() {
+  const receipt = printStore.latestReceipt;
+  if (!receipt) return;
+
+  const summary = [
+    `Чек №${receipt.saleNumber || receipt.saleId || "-"}`,
+    `Сумма: ${printStore.formatMoney(receipt.total)}`,
+    receipt.clientName ? `Клиент: ${receipt.clientName}` : null,
+  ].filter(Boolean).join("\n");
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({ title: "Чек продажи", text: summary });
+      return;
+    } catch {
+      return;
+    }
+  }
+
+  toast.add({ title: "Отправка недоступна", description: "Браузер не поддерживает системный обмен. Используйте печать или откройте чек.", color: "warning" });
 }
 
 async function openPaymentPanel() {
@@ -824,7 +854,7 @@ async function completePaidOrder() {
 async function completeWithDebt() {
   if (!canConfirmDebtCompletion.value) return;
 
-  const snapshotBeforePay = buildReceiptSnapshot();
+  const snapshotBeforePay = buildReceiptSnapshot(Number(remainingDebtAmount.value || 0));
 
   const result = await cartStore.paySale({
     paymentMethodId: selectedPaymentMethod.value,
