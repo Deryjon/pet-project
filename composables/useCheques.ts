@@ -50,6 +50,7 @@ export type ChequeExtraSettings = {
     fontWeight: "normal" | "bold";
     visible: boolean;
     order: number;
+    marginBottom?: number;
   }>;
 };
 

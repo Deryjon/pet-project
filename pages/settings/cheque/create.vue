@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useHead, useRouter } from "#imports";
 import { useCheques, type Cheque, type ChequeItem } from "@/composables/useCheques";
+import { renderQrSvg } from "@/utils/qrcode";
 
 useHead({ title: "Создать чек | Konkurent" });
 
@@ -432,6 +433,7 @@ fetchDefaultCheque();
           <div class="form-grid">
             <label class="field"><span>Название</span><input v-model="form.name" type="text" placeholder="Например, Чек для доставки" /></label>
             <label class="field"><span>Ширина (мм)</span><input v-model.number="form.width" type="number" min="1" /></label>
+            <label class="field"><span>Длина (мм)</span><input v-model.number="form.length" type="number" min="0" placeholder="Авто" /></label>
           </div>
           <div class="toggle-grid">
             <label class="switch-row"><span>По умолчанию</span><input v-model="form.is_default" type="checkbox" /></label>
@@ -519,13 +521,6 @@ fetchDefaultCheque();
             <span v-else class="toolbar-hint">Кликните на элемент в чеке</span>
           </div>
 
-          <!-- Torn top -->
-          <div :style="{ width: receiptWidthPx + 'px', margin: '0 auto' }" class="overflow-hidden h-3 -mb-px">
-            <svg viewBox="0 0 300 12" preserveAspectRatio="none" class="w-full h-full">
-              <path d="M0,12 Q7.5,0 15,12 Q22.5,0 30,12 Q37.5,0 45,12 Q52.5,0 60,12 Q67.5,0 75,12 Q82.5,0 90,12 Q97.5,0 105,12 Q112.5,0 120,12 Q127.5,0 135,12 Q142.5,0 150,12 Q157.5,0 165,12 Q172.5,0 180,12 Q187.5,0 195,12 Q202.5,0 210,12 Q217.5,0 225,12 Q232.5,0 240,12 Q247.5,0 255,12 Q262.5,0 270,12 Q277.5,0 285,12 Q292.5,0 300,12" fill="white"/>
-            </svg>
-          </div>
-
           <div class="receipt" :style="{ maxWidth: receiptWidthPx + 'px' }">
             <!-- Logo -->
             <div v-if="form.has_logo" class="receipt-logo">
@@ -552,57 +547,53 @@ fetchDefaultCheque();
               @drop.prevent="onPreviewDrop(el)"
               @dragend="previewDragItem = null"
             >
-              <div v-if="el.id === 'shopName'" class="text-center">{{ form.name || 'Название магазина' }}</div>
-              <div v-else-if="el.id === 'branch'" class="text-center" style="color:#666;">{{ extra.branchName || 'Филиал' }}</div>
-              <div v-else-if="el.id === 'address'" class="text-center" style="color:#666;">{{ extra.address || 'Адрес' }}</div>
-              <div v-else-if="el.id === 'phone'" class="text-center" style="color:#666;">{{ extra.phone || 'Телефон' }}</div>
-              <div v-else-if="el.id === 'workingHours'" class="text-center" style="color:#666;">{{ extra.workingHours || 'Часы работы' }}</div>
-              <div v-else-if="el.id === 'website'" class="text-center" style="color:#666;">{{ extra.website || 'Сайт' }}</div>
+              <div v-if="el.id === 'shopName'" class="text-center font-bold">{{ form.name || 'Название магазина' }}</div>
+              <div v-else-if="el.id === 'branch'" class="text-center rc-muted">{{ extra.branchName || 'Филиал' }}</div>
+              <div v-else-if="el.id === 'address'" class="text-center rc-muted">{{ extra.address || 'Адрес' }}</div>
+              <div v-else-if="el.id === 'phone'" class="text-center rc-muted">{{ extra.phone || 'Телефон' }}</div>
+              <div v-else-if="el.id === 'workingHours'" class="text-center rc-muted">{{ extra.workingHours || 'Часы работы' }}</div>
+              <div v-else-if="el.id === 'website'" class="text-center rc-muted">{{ extra.website || 'Сайт' }}</div>
               <div v-else-if="el.id.startsWith('hr')" class="receipt-divider" />
-              <div v-else-if="el.id === 'chequeNumber'" class="receipt-row" style="color:#555;"><span>Чек #TEST-001</span></div>
-              <div v-else-if="el.id === 'date'" style="color:#555;">{{ nowStr }}</div>
-              <div v-else-if="el.id === 'taxId'" style="color:#555;">ИНН: {{ extra.taxId || '123456789' }}</div>
-              <div v-else-if="el.id === 'seller'" style="color:#555;">Продавец: Иванов И.</div>
-              <div v-else-if="el.id === 'cashier'" style="color:#555;">Кассир: —</div>
-              <div v-else-if="el.id === 'client'" style="color:#555;">Клиент: —</div>
+              <div v-else-if="el.id === 'chequeNumber'" class="receipt-row"><span class="rc-muted">Sotuv:</span><span class="font-bold">№TEST-001</span></div>
+              <div v-else-if="el.id === 'date'" class="receipt-row"><span class="rc-muted">Sana:</span><span class="font-bold">{{ nowStr }}</span></div>
+              <div v-else-if="el.id === 'taxId'" class="receipt-row rc-muted"><span>ИНН:</span><span>{{ extra.taxId || '123456789' }}</span></div>
+              <div v-else-if="el.id === 'seller'" class="receipt-row"><span class="rc-muted">Menejer:</span><span class="font-bold">Иванов И.</span></div>
+              <div v-else-if="el.id === 'cashier'" class="receipt-row"><span class="rc-muted">Кассир:</span><span class="font-bold">—</span></div>
+              <div v-else-if="el.id === 'client'" class="font-bold">Klient: —</div>
               <div v-else-if="el.id === 'items'">
-                <div v-for="line in previewLines" :key="line.name" style="margin-bottom:4px;">
-                  <div style="font-weight:600;">{{ line.name }}</div>
-                  <div class="receipt-row" style="font-size:11px;color:#555;">
-                    <span>{{ line.quantity }} шт x {{ fmtMoney(line.price) }}</span>
-                    <span style="font-weight:700;color:#111;">{{ fmtMoney(line.total) }}</span>
-                  </div>
+                <div class="rc-items-header">
+                  <span class="rc-idx">№</span><span>Nomi</span><span class="rc-center-col">Son</span><span class="rc-right-col">Narxi</span>
+                </div>
+                <div v-for="(line, idx) in previewLines" :key="line.name" class="rc-item-row">
+                  <span class="rc-idx">{{ idx + 1 }}</span>
+                  <span>{{ line.name }}</span>
+                  <span class="rc-center-col rc-muted">{{ line.quantity }}</span>
+                  <span class="rc-right-col font-bold">{{ fmtMoney(line.total) }}</span>
                 </div>
               </div>
-              <div v-else-if="el.id === 'total'" class="receipt-row receipt-row-bold receipt-total">
-                <span>ИТОГО</span><span>{{ fmtMoney(previewTotal) }}</span>
+              <div v-else-if="el.id === 'total'" class="receipt-row receipt-total" style="font-weight:800;">
+                <span>К оплате:</span><span>{{ fmtMoney(previewTotal) }}</span>
               </div>
-              <div v-else-if="el.id === 'payment'" class="receipt-row" style="color:#555;">
-                <span>Наличные</span><span>{{ fmtMoney(previewTotal) }}</span>
+              <div v-else-if="el.id === 'payment'" class="receipt-row">
+                <span class="rc-muted">Оплачено (карта):</span><span class="font-bold">{{ fmtMoney(previewTotal) }}</span>
               </div>
-              <div v-else-if="el.id === 'debt'" class="receipt-row receipt-extra">
-                <span>Долг клиента</span><span>0 UZS</span>
+              <div v-else-if="el.id === 'debt'" class="receipt-row">
+                <span class="rc-muted">В долг:</span><span class="font-bold">0</span>
               </div>
-              <div v-else-if="el.id === 'balance'" class="receipt-row receipt-extra">
-                <span>Баланс</span><span>0 UZS</span>
+              <div v-else-if="el.id === 'balance'" class="receipt-row">
+                <span class="rc-muted">Баланс:</span><span class="font-bold">0</span>
               </div>
               <div v-else-if="el.id === 'barcode'" class="receipt-barcode">
                 <div class="barcode-placeholder"><span>||||| |||| ||| |||| |||||</span></div>
-                <div style="font-size:10px;color:#666;text-align:center;margin-top:2px;">1234567890123</div>
+                <div class="text-[10px] rc-muted text-center mt-0.5">1234567890123</div>
               </div>
-              <div v-else-if="el.id === 'footer'" class="receipt-footer">{{ form.display_text || 'Спасибо за покупку!' }}</div>
-              <div v-else-if="el.id === 'qrCode'" style="text-align:center;">
-                <div style="width:60px;height:60px;border:1px dashed #ccc;display:inline-flex;align-items:center;justify-content:center;color:#ccc;font-size:10px;border-radius:4px;">QR</div>
-                <div v-if="extra.qrCodeUrl" style="font-size:10px;color:#999;margin-top:4px;word-break:break-all;">{{ extra.qrCodeUrl }}</div>
+              <div v-else-if="el.id === 'footer'" class="receipt-footer font-bold">{{ form.display_text || 'Спасибо за покупку!' }}</div>
+              <div v-else-if="el.id === 'qrCode'" class="text-center">
+                <div v-if="extra.qrCodeUrl" class="rc-qr" v-html="renderQrSvg(extra.qrCodeUrl, { pixelSize: 4, blackColor: '#f5f5f5' })" />
+                <div v-else class="w-16 h-16 border border-dashed border-white/20 inline-flex items-center justify-center rc-muted text-[10px] rounded">QR</div>
+                <div class="text-[10px] rc-muted mt-1">QR для фискального контроля</div>
               </div>
             </div>
-          </div>
-
-          <!-- Torn bottom -->
-          <div :style="{ width: receiptWidthPx + 'px', margin: '0 auto' }" class="overflow-hidden h-3 -mt-px">
-            <svg viewBox="0 0 300 12" preserveAspectRatio="none" class="w-full h-full">
-              <path d="M0,0 Q7.5,12 15,0 Q22.5,12 30,0 Q37.5,12 45,0 Q52.5,12 60,0 Q67.5,12 75,0 Q82.5,12 90,0 Q97.5,12 105,0 Q112.5,12 120,0 Q127.5,12 135,0 Q142.5,12 150,0 Q157.5,12 165,0 Q172.5,12 180,0 Q187.5,12 195,0 Q202.5,12 210,0 Q217.5,12 225,0 Q232.5,12 240,0 Q247.5,12 255,0 Q262.5,12 270,0 Q277.5,12 285,0 Q292.5,12 300,0" fill="white"/>
-            </svg>
           </div>
         </section>
       </aside>
@@ -673,17 +664,24 @@ h1 { margin-top: 6px; font-size: 30px; font-weight: 800; }
 /* Preview panel */
 .side-panel { position: sticky; top: 96px; align-self: start; }
 .preview-panel { padding: 22px; display: flex; flex-direction: column; align-items: center; }
-.receipt { width: 100%; background: #fff; color: #111; border-radius: 0; padding: 20px 16px; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.6; margin: 0 auto; }
+.receipt { width: 100%; background: #1a1a1a; color: #fff; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 24px 20px; font-family: "Courier New", monospace; font-size: 13px; line-height: 1.5; margin: 0 auto; }
 .receipt-element { cursor: pointer; transition: outline-color 0.15s; }
-.receipt-logo { text-align: center; margin-bottom: 12px; padding: 12px; background: #f5f5f5; border-radius: 4px; }
+.receipt-logo { text-align: center; margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; }
 .receipt-row { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; padding: 2px 0; }
 .receipt-row-bold { font-weight: 700; }
-.receipt-divider { border-top: 1px dashed #999; margin: 8px 0; }
-.receipt-total { font-size: 14px; margin: 8px 0; }
-.receipt-extra { font-size: 11px; color: #666; }
-.receipt-barcode { text-align: center; margin: 4px 0; font-size: 18px; letter-spacing: 2px; color: #333; }
-.barcode-placeholder { padding: 8px; background: #f9f9f9; border-radius: 4px; }
-.receipt-footer { text-align: center; margin-top: 8px; font-size: 11px; color: #666; font-style: italic; }
+.receipt-divider { border-top: 1px dashed rgba(255,255,255,0.18); margin: 8px 0; }
+.receipt-total { font-size: 18px; margin: 8px 0; }
+.receipt-extra { font-size: 11px; color: #8a8a8a; }
+.receipt-barcode { text-align: center; margin: 4px 0; font-size: 18px; letter-spacing: 2px; }
+.barcode-placeholder { padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+.receipt-footer { text-align: center; margin-top: 8px; font-size: 12px; }
+.rc-muted { color: #8a8a8a; }
+.rc-items-header { display: grid; grid-template-columns: 18px 1fr 32px 74px; column-gap: 8px; color: #8a8a8a; font-size: 11px; padding-bottom: 6px; }
+.rc-item-row { display: grid; grid-template-columns: 18px 1fr 32px 74px; column-gap: 8px; align-items: start; padding: 6px 0; }
+.rc-idx { color: #666; font-size: 11px; }
+.rc-center-col { text-align: center; }
+.rc-right-col { text-align: right; }
+.rc-qr :deep(svg) { width: 90px; height: 90px; }
 
 .element-row { cursor: grab; transition: opacity 0.15s, border-color 0.15s, background 0.15s; border: 1px solid transparent; }
 .element-row-dragging { opacity: 0.4; cursor: grabbing; }
