@@ -364,6 +364,33 @@
 
       <Teleport to="body">
         <Transition name="cpay">
+          <div v-if="receiptModalOpen" class="fixed inset-0 z-[110] flex items-center justify-center px-4">
+            <div class="no-print absolute inset-0 bg-black/70 backdrop-blur-sm" @click="receiptModalOpen = false" />
+            <div class="no-print relative w-full max-w-[420px] rounded-[24px] border border-white/10 bg-[#1a1a1a] p-6 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
+              <button
+                type="button"
+                class="no-print absolute right-4 top-4 rounded-full bg-white/10 p-1.5 hover:bg-white/20"
+                @click="receiptModalOpen = false"
+              >
+                <Icon name="heroicons:x-mark-20-solid" class="h-5 w-5" />
+              </button>
+              <div v-if="receiptLoading" class="drawer-state">
+                <Icon name="heroicons:arrow-path" class="h-5 w-5 animate-spin" />
+                Загружаем чек...
+              </div>
+              <div v-else-if="receiptError" class="drawer-state drawer-state--error">
+                {{ receiptError }}
+              </div>
+              <div v-else-if="receiptData && receiptSettings" class="rounded-[16px] bg-white p-2">
+                <ReceiptView :receipt="receiptData" :settings="receiptSettings" mode="screen" @send="sendReceipt" />
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
+      <Teleport to="body">
+        <Transition name="cpay">
           <div v-if="changePaymentOpen" class="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="changePaymentOpen = false" />
             <div class="relative w-full max-w-[480px] rounded-[28px] border border-white/10 bg-[#262626] p-7 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -462,6 +489,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useFormatPrice } from "~/composables/useFormatPrice";
 import { useUserStore } from "~/store/useUserStore";
+import { useShopAccess } from "~/composables/useShopAccess";
+import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "~/composables/useReceipts";
+import ReceiptView from "~/components/receipt/ReceiptView.vue";
 
 useHead({ title: "Все продажи | Konkurent" });
 
@@ -487,6 +517,7 @@ interface SaleView {
   dateTimeLabel: string;
   sellerLabel: string;
   pointLabel: string;
+  shopId?: string;
   amountLabel: string;
   amountValue: number;
   paymentKey: string;
@@ -531,6 +562,11 @@ const selectedSaleId = ref<string | null>(null);
 const detailsOpen = ref(false);
 const saleDetails = ref<SaleView | null>(null);
 const saleDetailsLoading = ref(false);
+const receiptModalOpen = ref(false);
+const receiptLoading = ref(false);
+const receiptError = ref("");
+const receiptData = ref<ReceiptData | null>(null);
+const receiptSettings = ref<ReceiptSettingsData | null>(null);
 const saleDetailsError = ref("");
 
 const changePaymentOpen = ref(false);
@@ -797,6 +833,7 @@ function normalizeSale(raw: any): SaleView {
     dateTimeLabel: `${new Date(createdAt).toLocaleDateString("ru-RU")} | ${new Date(createdAt).toLocaleTimeString("ru-RU")}`,
     sellerLabel: sellerName,
     pointLabel: raw?.shop?.name ?? raw?.branch_title ?? raw?.branch_name ?? raw?.location?.name ?? raw?.point?.name ?? "Не указана",
+    shopId: raw?.shop?.id ?? raw?.shop_id ?? raw?.branch_code ?? undefined,
     amountLabel: formatUzs(amountValue),
     amountValue,
     paymentKey: paymentInfo.key,
@@ -1062,26 +1099,87 @@ async function confirmChangePayment() {
   }
 }
 
+async function sendReceipt() {
+  const receipt = receiptData.value;
+  if (!receipt) return;
+
+  const summary = [
+    `Чек №${receipt.number}`,
+    `Сумма: ${Math.round(receipt.totalDue).toLocaleString("ru-RU")} UZS`,
+    receipt.clientName ? `Клиент: ${receipt.clientName}` : null,
+  ].filter(Boolean).join("\n");
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({ title: "Чек продажи", text: summary });
+    } catch {
+      // user cancelled share sheet
+    }
+  }
+}
+
 async function printSale(sale: SaleView) {
   if (!import.meta.client) return;
-  const { printReceipt } = useReceiptPrinter();
-  await printReceipt({
-    number: saleNumberValue(sale),
-    date: sale.dateTimeLabel,
-    seller: sale.sellerLabel,
-    cashier: sale.cashierLabel,
-    client: sale.clientLabel,
-    shop: sale.pointLabel,
-    items: sale.items.map((item) => ({
-      name: item.name || "Товар",
-      quantity: item.quantity,
-      price: item.amountLabel || "0",
-      code: item.codeLabel || "",
-    })),
-    total: sale.amountLabel,
-    payment: sale.paymentLabel,
-    extraPayments: sale.extraPayments,
-  });
+  receiptModalOpen.value = true;
+  receiptLoading.value = true;
+  receiptError.value = "";
+  receiptData.value = null;
+  receiptSettings.value = null;
+  try {
+    const { fetchReceipt, fetchReceiptSettings } = useReceipts();
+    const { currentShopId } = useShopAccess();
+    const shopId = sale.shopId || currentShopId.value || "";
+    const [receipt, settings] = await Promise.all([
+      fetchReceipt(sale.id),
+      shopId ? fetchReceiptSettings(shopId) : Promise.resolve(null),
+    ]);
+    receiptData.value = receipt;
+    receiptSettings.value = settings ?? defaultReceiptSettings(shopId);
+  } catch (e: any) {
+    receiptError.value = e?.data?.message || e?.message || "Не удалось загрузить чек.";
+  } finally {
+    receiptLoading.value = false;
+  }
+}
+
+function defaultReceiptSettings(shopId: string): ReceiptSettingsData {
+  return {
+    shopId,
+    showClientInfo: true,
+    showManagerName: true,
+    showManagerPhone: false,
+    showCashback: true,
+    showDebtLine: true,
+    showQrCode: false,
+    showItemIndex: true,
+    paperWidth: 80,
+    fontSize: 13,
+    dividerStyle: "single",
+    dividerGap: 8,
+    sectionGap: 12,
+    itemDividers: false,
+    footerMessage: "",
+    footerNote: "",
+    hasLogo: false,
+    logoUrl: "",
+    hasBarCode: false,
+    branchName: "",
+    hasBranchName: false,
+    address: "",
+    hasAddress: false,
+    phone: "",
+    hasPhone: false,
+    workingHours: "",
+    hasWorkingHours: false,
+    website: "",
+    hasWebsite: false,
+    taxId: "",
+    hasTaxId: false,
+    qrCodeUrl: "",
+    hasCustomerDebt: false,
+    hasCustomerBalance: false,
+    elementStyles: null,
+  };
 }
 
 function editSale(sale: SaleView) {
@@ -1200,6 +1298,7 @@ function normalizeSaleDetails(raw: any): SaleView {
     dateTimeLabel: `${new Date(createdAt).toLocaleDateString("ru-RU")} | ${new Date(createdAt).toLocaleTimeString("ru-RU")}`,
     sellerLabel: sellerName,
     pointLabel: String(detail?.shop?.name ?? raw?.shop?.name ?? raw?.branch_title ?? raw?.branch_name ?? raw?.location?.name ?? raw?.point?.name ?? "Не указана"),
+    shopId: detail?.shop?.id ?? raw?.shop?.id ?? raw?.shop_id ?? raw?.branch_code ?? undefined,
     amountLabel: formatUzs(amountValue),
     amountValue,
     paymentKey: paymentInfo.key,

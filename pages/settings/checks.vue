@@ -1,30 +1,11 @@
 <script setup lang="ts">
 import { useHead } from "#imports";
 import { usePrintSettingsStore } from "@/store/printSettings";
-import { useReceiptPrinter } from "@/composables/useReceiptPrinter";
 
 useHead({ title: "Настройки чеков | Konkurent" });
 
 const printStore = usePrintSettingsStore();
 const settings = printStore.settings;
-const receiptPrinter = useReceiptPrinter();
-
-async function testPrint() {
-  await receiptPrinter.printReceipt({
-    number: "TEST-001",
-    date: new Date().toLocaleString("ru-RU"),
-    seller: "",
-    cashier: "",
-    client: "—",
-    shop: settings.companyName || "",
-    items: [
-      { name: "Чехол iPhone 12", quantity: 1, price: "50 000 UZS" },
-      { name: "Стекло Samsung S22", quantity: 2, price: "80 000 UZS" },
-    ],
-    total: "210 000 UZS",
-    payment: "Наличные",
-  });
-}
 
 function save() {
   printStore.saveSettings();
@@ -38,7 +19,7 @@ function save() {
         <p class="kicker">Настройки</p>
         <h1>Чеки и печать</h1>
         <p class="subtitle">
-          Настройте чек после продажи, шаблон печати и базовые параметры для будущей печати ценников.
+          Настройте поведение печати после продажи и параметры ценников. Формат и содержимое самого чека настраиваются на странице «Чек».
         </p>
       </div>
 
@@ -54,210 +35,108 @@ function save() {
       </div>
     </header>
 
-    <div class="checks-layout">
-      <div class="settings-stack">
-        <section class="panel">
-          <div class="panel-head">
-            <Icon name="heroicons:receipt-percent" class="h-5 w-5" />
-            <div>
-              <h2>Чек после продажи</h2>
-              <p>Эти параметры используются после успешной оплаты в кассе.</p>
-            </div>
+    <div class="settings-stack">
+      <section class="panel">
+        <div class="panel-head">
+          <Icon name="heroicons:receipt-percent" class="h-5 w-5" />
+          <div>
+            <h2>Чек после продажи</h2>
+            <p>Эти параметры используются после успешной оплаты в кассе.</p>
           </div>
+        </div>
 
-          <div class="form-grid">
-            <label class="field">
-              <span>Название компании</span>
-              <input v-model="settings.companyName" type="text" />
-            </label>
-            <label class="field">
-              <span>Название магазина</span>
-              <input v-model="settings.shopName" type="text" placeholder="Например, Globus Mall" />
-            </label>
-            <label class="field field-wide">
-              <span>Адрес</span>
-              <input v-model="settings.address" type="text" placeholder="Адрес магазина" />
-            </label>
-            <label class="field">
-              <span>Телефон</span>
-              <input v-model="settings.phone" type="text" placeholder="+998 ..." />
-            </label>
-            <label class="field">
-              <span>Принтер чеков</span>
-              <input v-model="settings.receiptPrinterName" type="text" placeholder="Имя принтера" />
-            </label>
+        <div class="form-grid">
+          <label class="field">
+            <span>Принтер чеков</span>
+            <input v-model="settings.receiptPrinterName" type="text" placeholder="Имя принтера" />
+          </label>
+          <label class="field">
+            <span>Копий чека</span>
+            <input v-model.number="settings.receiptCopies" type="number" min="1" max="5" />
+          </label>
+        </div>
+
+        <div class="option-grid">
+          <label class="switch-row">
+            <span>Открывать чек после продажи</span>
+            <input v-model="settings.autoOpenReceiptAfterSale" type="checkbox" />
+          </label>
+          <label class="switch-row">
+            <span>Сразу отправлять на печать</span>
+            <input v-model="settings.autoPrintReceiptAfterSale" type="checkbox" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <Icon name="heroicons:document-text" class="h-5 w-5" />
+          <div>
+            <h2>Чек</h2>
+            <p>Формат бумаги, отступы, видимость блоков и содержимое чека.</p>
           </div>
+        </div>
+        <NuxtLink to="/settings/receipt" class="primary-button" style="text-decoration:none;display:inline-flex;">
+          <Icon name="heroicons:cog-6-tooth" class="h-5 w-5" />
+          Настроить чек
+        </NuxtLink>
+      </section>
 
-          <div class="option-grid">
-            <label class="switch-row">
-              <span>Открывать чек после продажи</span>
-              <input v-model="settings.autoOpenReceiptAfterSale" type="checkbox" />
-            </label>
-            <label class="switch-row">
-              <span>Сразу отправлять на печать</span>
-              <input v-model="settings.autoPrintReceiptAfterSale" type="checkbox" />
-            </label>
-            <label class="switch-row">
-              <span>Показывать способ оплаты</span>
-              <input v-model="settings.showPaymentMethod" type="checkbox" />
-            </label>
-            <label class="switch-row">
-              <span>Показывать подвал</span>
-              <input v-model="settings.showFooter" type="checkbox" />
-            </label>
+      <section class="panel">
+        <div class="panel-head">
+          <Icon name="heroicons:tag" class="h-5 w-5" />
+          <div>
+            <h2>Ценники</h2>
+            <p>Базовые настройки для следующего шага печати ценников.</p>
           </div>
-        </section>
+        </div>
 
-        <section class="panel">
-          <div class="panel-head">
-            <Icon name="heroicons:cog-6-tooth" class="h-5 w-5" />
-            <div>
-              <h2>Шаблон чека</h2>
-              <p>Формат бумаги, количество копий и текст внизу чека.</p>
-            </div>
-          </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>Принтер ценников</span>
+            <input v-model="settings.priceTagPrinterName" type="text" placeholder="Имя принтера" />
+          </label>
+          <label class="field">
+            <span>Копий по умолчанию</span>
+            <input v-model.number="settings.priceTagCopies" type="number" min="1" max="100" />
+          </label>
+        </div>
 
-          <div class="segmented">
-            <button
-              type="button"
-              :class="{ active: settings.paperWidth === '58' }"
-              @click="settings.paperWidth = '58'"
-            >
-              58 мм
-            </button>
-            <button
-              type="button"
-              :class="{ active: settings.paperWidth === '80' }"
-              @click="settings.paperWidth = '80'"
-            >
-              80 мм
-            </button>
-          </div>
-
-          <div class="form-grid mt-4">
-            <label class="field">
-              <span>Копий чека</span>
-              <input v-model.number="settings.receiptCopies" type="number" min="1" max="5" />
-            </label>
-            <label class="field field-wide">
-              <span>Текст подвала</span>
-              <input v-model="settings.footerText" type="text" />
-            </label>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <Icon name="heroicons:document-text" class="h-5 w-5" />
-            <div>
-              <h2>Шаблоны чеков</h2>
-              <p>Управляйте шаблонами чеков, порядком блоков и содержимым.</p>
-            </div>
-          </div>
-          <NuxtLink to="/settings/cheque" class="primary-button" style="text-decoration:none;display:inline-flex;">
-            <Icon name="heroicons:cog-6-tooth" class="h-5 w-5" />
-            Управление шаблонами
-          </NuxtLink>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <Icon name="heroicons:tag" class="h-5 w-5" />
-            <div>
-              <h2>Ценники</h2>
-              <p>Базовые настройки для следующего шага печати ценников.</p>
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <label class="field">
-              <span>Принтер ценников</span>
-              <input v-model="settings.priceTagPrinterName" type="text" placeholder="Имя принтера" />
-            </label>
-            <label class="field">
-              <span>Копий по умолчанию</span>
-              <input v-model.number="settings.priceTagCopies" type="number" min="1" max="100" />
-            </label>
-          </div>
-
-          <div class="segmented mt-4">
-            <button
-              type="button"
-              :class="{ active: settings.priceTagSize === 'small' }"
-              @click="settings.priceTagSize = 'small'"
-            >
-              Малый
-            </button>
-            <button
-              type="button"
-              :class="{ active: settings.priceTagSize === 'medium' }"
-              @click="settings.priceTagSize = 'medium'"
-            >
-              Средний
-            </button>
-            <button
-              type="button"
-              :class="{ active: settings.priceTagSize === 'a4' }"
-              @click="settings.priceTagSize = 'a4'"
-            >
-              A4
-            </button>
-          </div>
-
-          <div class="option-grid mt-4">
-            <label class="switch-row">
-              <span>Показывать штрихкод</span>
-              <input v-model="settings.showBarcodeOnPriceTag" type="checkbox" />
-            </label>
-            <label class="switch-row">
-              <span>Показывать артикул</span>
-              <input v-model="settings.showSkuOnPriceTag" type="checkbox" />
-            </label>
-          </div>
-        </section>
-      </div>
-
-      <aside class="preview-column">
-        <section class="panel preview-panel">
-          <div class="panel-head">
-            <Icon name="heroicons:eye" class="h-5 w-5" />
-            <div>
-              <h2>Предпросмотр</h2>
-              <p>Так будет выглядеть обычный чек продажи.</p>
-            </div>
-          </div>
-
-          <div class="receipt-preview" :class="printStore.receiptPaperClass">
-            <div v-if="settings.showCompanyName" style="text-align:center;font-weight:900;font-size:14px;">{{ settings.companyName }}</div>
-            <div v-if="settings.showShopName && (settings.shopName || settings.address)" style="text-align:center;font-size:12px;">{{ settings.shopName || settings.address }}</div>
-            <div v-if="settings.phone" style="text-align:center;font-size:12px;">{{ settings.phone }}</div>
-            <div style="border-top:1px dashed #000;margin:6px 0;"></div>
-            <div style="font-weight:900;font-size:13px;">Чек #: TEST-001</div>
-            <div style="font-size:12px;">{{ new Date().toLocaleString("ru-RU") }}</div>
-            <div v-if="settings.showPaymentMethod" style="font-size:12px;">Оплата: Наличные</div>
-            <div style="border-top:1px dashed #000;margin:6px 0;"></div>
-            <div style="margin-bottom:6px;">
-              <div style="font-weight:900;font-size:13px;">1. Чехол iPhone 12</div>
-              <div style="font-size:12px;display:flex;justify-content:space-between;"><span>1 x 50 000 UZS</span><span style="font-weight:900;">50 000 UZS</span></div>
-            </div>
-            <div style="margin-bottom:6px;">
-              <div style="font-weight:900;font-size:13px;">2. Стекло Samsung S22</div>
-              <div style="font-size:12px;display:flex;justify-content:space-between;"><span>2 x 80 000 UZS</span><span style="font-weight:900;">160 000 UZS</span></div>
-            </div>
-            <div style="border-top:1px dashed #000;margin:6px 0;"></div>
-            <div style="font-weight:900;font-size:16px;display:flex;justify-content:space-between;"><span>ИТОГО</span><span>210 000 UZS</span></div>
-            <template v-if="settings.showFooter && settings.footerText">
-              <div style="border-top:1px dashed #000;margin:6px 0;"></div>
-              <div style="text-align:center;font-size:12px;">{{ settings.footerText }}</div>
-            </template>
-          </div>
-
-          <button type="button" class="test-button" @click="testPrint">
-            <Icon name="heroicons:printer" class="h-5 w-5" />
-            Тестовая печать
+        <div class="segmented mt-4">
+          <button
+            type="button"
+            :class="{ active: settings.priceTagSize === 'small' }"
+            @click="settings.priceTagSize = 'small'"
+          >
+            Малый
           </button>
-        </section>
-      </aside>
+          <button
+            type="button"
+            :class="{ active: settings.priceTagSize === 'medium' }"
+            @click="settings.priceTagSize = 'medium'"
+          >
+            Средний
+          </button>
+          <button
+            type="button"
+            :class="{ active: settings.priceTagSize === 'a4' }"
+            @click="settings.priceTagSize = 'a4'"
+          >
+            A4
+          </button>
+        </div>
+
+        <div class="option-grid mt-4">
+          <label class="switch-row">
+            <span>Показывать штрихкод</span>
+            <input v-model="settings.showBarcodeOnPriceTag" type="checkbox" />
+          </label>
+          <label class="switch-row">
+            <span>Показывать артикул</span>
+            <input v-model="settings.showSkuOnPriceTag" type="checkbox" />
+          </label>
+        </div>
+      </section>
     </div>
   </section>
 </template>
@@ -298,9 +177,7 @@ h1 {
 }
 
 .header-actions,
-.panel-head,
-.receipt-line,
-.total-row {
+.panel-head {
   display: flex;
   align-items: center;
 }
@@ -309,15 +186,10 @@ h1 {
   gap: 10px;
 }
 
-.checks-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
-}
-
 .settings-stack {
   display: grid;
   gap: 18px;
+  max-width: 720px;
 }
 
 .panel {
@@ -351,10 +223,6 @@ h1 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.field-wide {
-  grid-column: span 2;
 }
 
 .field {
@@ -429,8 +297,7 @@ h1 {
 }
 
 .primary-button,
-.ghost-button,
-.test-button {
+.ghost-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -441,8 +308,7 @@ h1 {
   font-weight: 700;
 }
 
-.primary-button,
-.test-button {
+.primary-button {
   background: #1f78ff;
   color: white;
 }
@@ -452,52 +318,12 @@ h1 {
   color: white;
 }
 
-.preview-column {
-  position: sticky;
-  top: 96px;
-  align-self: start;
-}
-
-.receipt-preview {
-  margin: 0 auto;
-  border-radius: 8px;
-  background: white;
-  color: #000;
-  padding: 12px;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
-}
-
-.receipt-paper-58 {
-  max-width: 250px;
-}
-
-.receipt-paper-80 {
-  max-width: 320px;
-}
-
-.test-button {
-  width: 100%;
-  margin-top: 16px;
-}
-
 .mt-4 {
   margin-top: 16px;
 }
 
-@media (max-width: 1180px) {
-  .checks-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .preview-column {
-    position: static;
-  }
-}
-
 @media (max-width: 760px) {
-  .checks-header,
-  .header-actions {
+  .checks-header {
     flex-direction: column;
     align-items: stretch;
   }
@@ -505,10 +331,6 @@ h1 {
   .form-grid,
   .option-grid {
     grid-template-columns: 1fr;
-  }
-
-  .field-wide {
-    grid-column: auto;
   }
 }
 </style>

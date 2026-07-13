@@ -172,10 +172,9 @@ export const ROUTE_PERMISSION_MAP: Record<string, AccessItem> = {
       "currency-list", "currency-create", "currency-edit", "currency-delete",
     ],
   },
-  "/settings/cheque": {
+  "/settings/receipt": {
     anyOf: ["settings-cheque", "cheque-list", "cheque-create", "cheque-edit", "cheque-delete"],
   },
-  "/settings/cheque/create": { anyOf: ["cheque-create", "settings-cheque"] },
   "/settings/checks": { anyOf: ["settings-cheque", "cheque-list"] },
   "/settings/shop": { slug: "shop-list" },
   "/management/employees": {
@@ -464,7 +463,7 @@ export const MENU_PERMISSION_MAP: Record<string, AccessItem> = {
       "currency-delete",
     ],
   },
-  "/settings/cheque": {
+  "/settings/receipt": {
     anyOf: [
       "settings-cheque",
       "cheque-list",
@@ -594,7 +593,7 @@ export function firstAllowedRbacRoute(can: (slug: string) => boolean) {
     { path: "/settings/company", slug: "company-edit" },
     { path: "/settings/products", slug: "company-edit" },
     { path: "/settings/payment-types", slug: "payment-types" },
-    { path: "/settings/cheque", slug: "cheque-list" },
+    { path: "/settings/receipt", slug: "cheque-list" },
   ];
 
   return candidates.find((item) => can(item.slug))?.path ?? "/403";
