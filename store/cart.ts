@@ -150,7 +150,6 @@ export const useCartStore = defineStore("cart", () => {
   const paymentMethods = ref<CompanyPaymentMethod[]>([]);
   const cashBoxes = ref<any[]>([]);
   const selectedCashBox = ref<any | null>(null);
-  const saleCheque = ref<any | null>(null);
   const shopInfo = ref<any | null>(null);
   const orderDraftDebt = ref<any | null>(null);
   const loyaltyProgram = ref<any | null>(null);
@@ -734,29 +733,6 @@ export const useCartStore = defineStore("cart", () => {
     return companyCurrency.value;
   }
 
-  async function loadSaleCheque(inputCompanyId?: string) {
-    const companyId = resolveCompanyId(inputCompanyId);
-    const { apiFetch } = useApi();
-    const res: any = await apiFetch("/v1/cheque", {
-      method: "GET",
-      query: companyId ? { company_id: companyId } : undefined,
-    });
-    const cheques = Array.isArray(res?.cheques)
-      ? res.cheques
-      : Array.isArray(res?.data?.cheques)
-        ? res.data.cheques
-        : [];
-    const cashBoxChequeId = String(selectedCashBox.value?.cheque_id ?? "");
-
-    saleCheque.value =
-      cheques.find((cheque: any) => cashBoxChequeId && String(cheque?.id) === cashBoxChequeId) ??
-      cheques.find((cheque: any) => Boolean(cheque?.is_default)) ??
-      cheques[0] ??
-      null;
-
-    return saleCheque.value;
-  }
-
   async function loadOrderDraftDebt(sid?: string | number | null) {
     const id = sid ?? saleId.value;
     if (!id) {
@@ -782,9 +758,6 @@ export const useCartStore = defineStore("cart", () => {
         loadLoyaltyProgram(),
         loadCompanyCurrency(),
       ]);
-      await loadSaleCheque().catch(() => {
-        saleCheque.value = null;
-      });
     } finally {
       referenceDataLoading.value = false;
     }
@@ -1981,7 +1954,6 @@ export const useCartStore = defineStore("cart", () => {
     referenceDataLoading,
     cashBoxes,
     selectedCashBox,
-    saleCheque,
     shopInfo,
     orderDraftDebt,
     loyaltyProgram,
@@ -2036,7 +2008,6 @@ export const useCartStore = defineStore("cart", () => {
     loadShopInfo,
     loadLoyaltyProgram,
     loadCompanyCurrency,
-    loadSaleCheque,
     loadOrderDraftDebt,
     loadSaleReferenceData,
     cancelSale,
