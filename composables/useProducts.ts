@@ -8,6 +8,7 @@ import type {
   ProductDetailResponse,
   ProductMovementResponse,
   ShopListResponse,
+  StockMovementListResponse,
 } from "~/types/product-detail";
 
 export interface ProductStockPayload {
@@ -316,6 +317,49 @@ export function useProducts() {
     }
   }
 
+  async function listStockMovements(params?: {
+    limit?: number;
+    page?: number;
+    from_created_at?: string;
+    to_created_at?: string;
+    movement_type?: string;
+    shop_id?: string;
+    product_id?: string;
+  }) {
+    try {
+      const query = new URLSearchParams();
+      query.set("limit", String(params?.limit ?? 20));
+      query.set("page", String(params?.page ?? 1));
+
+      if (params?.from_created_at) {
+        query.set("from_created_at", params.from_created_at);
+      }
+
+      if (params?.to_created_at) {
+        query.set("to_created_at", params.to_created_at);
+      }
+
+      if (params?.movement_type) {
+        query.set("movement_type", params.movement_type);
+      }
+
+      if (params?.shop_id) {
+        query.set("shop_id", params.shop_id);
+      }
+
+      if (params?.product_id) {
+        query.set("product_id", params.product_id);
+      }
+
+      const res = await apiFetch<StockMovementListResponse>(
+        `/v2/stock-movements?${query.toString()}`,
+      );
+      return unwrapPayload<StockMovementListResponse>(res);
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   async function uploadProductPhoto(file: File) {
     try {
       const formData = new FormData();
@@ -411,7 +455,7 @@ export function useProducts() {
     },
   ): Promise<ProductListResult> {
     lastListParams.value = params ? { ...params } : {};
-    const search = (params?.search || "").trim();
+    const search = (params?.search || "").trim().replace(/\s+/g, " ");
     const page = Math.max(1, Number(params?.page || 1));
     const pageSize = Math.max(1, Number(params?.pageSize || 10));
     const statistics = params?.statistics ?? true;
@@ -571,6 +615,7 @@ export function useProducts() {
     fetchMeasurementUnit,
     fetchPriceTags,
     fetchProductMovements,
+    listStockMovements,
     uploadProductPhoto,
     fetchAllowedShops,
     loadProductCard,
@@ -705,7 +750,7 @@ function normalizeProduct(raw: any, apiBase?: string): ProductDTO {
     photo: resolveProductImageUrl(getProductImageValue(raw), apiBase) || null,
     product_type: String(raw?.product_type ?? "goods"),
     variant_type: String(raw?.variant_type ?? "simple"),
-    unit: String(raw?.unit ?? "piece"),
+    unit: String(raw?.unit ?? "шт"),
     markup_percent: Number(raw?.markup_percent ?? 0),
     quantity: Number(raw?.quantity ?? raw?.stock_quantity ?? 0),
     purchase_price: Number(raw?.purchase_price ?? 0),
@@ -743,7 +788,7 @@ function normalizeBillzProduct(raw: any, apiBase?: string): ProductDTO {
     photo: resolveProductImageUrl(getProductImageValue(raw), apiBase) || null,
     product_type: String(raw?.product_type_id ?? "goods"),
     variant_type: "simple",
-    unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "piece"),
+    unit: String(raw?.measurement_unit?.short_name ?? raw?.measurement_unit?.name ?? "шт"),
     markup_percent: 0,
     quantity: totalActiveQuantity,
     purchase_price: Number(primaryShopPrice?.supply_price ?? raw?.purchase_price ?? 0),
@@ -784,7 +829,7 @@ function normalizeCatalogProduct(raw: any, apiBase?: string): ProductDTO {
       raw?.measurement_unit?.short_name ??
         raw?.measurement_unit?.name ??
         raw?.unit ??
-        "piece",
+        "шт",
     ),
     markup_percent: Number(raw?.markup_percent ?? 0),
     quantity: Number(

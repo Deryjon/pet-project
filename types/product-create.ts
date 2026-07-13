@@ -1,5 +1,6 @@
 export type ProductType = "goods" | "service" | "bundle";
 export type VariationType = "simple" | "variant";
+export type ProductTier = "" | "BUDGET" | "MID" | "PREMIUM";
 
 export type ProductTypeLabel = "Товар" | "Услуга" | "Комплект";
 export type VariationTypeLabel = "Простой" | "Вариативный";
@@ -72,6 +73,8 @@ export interface CreateProductFormState {
   variationAttribute: string;
   variations: ProductVariationForm[];
   bundleItems: BundleItemForm[];
+  productGroupId: string;
+  tier: ProductTier;
 }
 
 export interface FormValidationIssue {
@@ -94,6 +97,8 @@ export interface CreateProductApiPayload {
   profit_margin?: number;
   category_ids?: Array<number | string>;
   images?: string[];
+  product_group_id?: string;
+  tier?: Exclude<ProductTier, "">;
   shop_measurement_values?: Array<{
     shop_id: string;
     measurement_value: number;

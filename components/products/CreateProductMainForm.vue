@@ -172,6 +172,37 @@ function selectVariationType(type: VariationTypeLabel) {
 
     <ProductMeasurementFields v-if="isSimpleGoods || isVariantGoods || isService" />
 
+    <div class="mt-4 flex flex-col gap-4 lg:flex-row">
+      <div class="w-full">
+        <label class="font-medium">Товарная группа (для аналитики апсейла)</label>
+        <UInput
+          v-model="store.form.productGroupId"
+          type="text"
+          placeholder="Например: steklo-iphone-15"
+          class="mt-4 w-full"
+          :ui="{
+            base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400',
+          }"
+        />
+        <p class="mt-2 text-sm text-gray-400">
+          Товары с одинаковой группой считаются взаимозаменяемыми аналогами (например, все стёкла на одну модель телефона).
+        </p>
+      </div>
+
+      <div class="w-full">
+        <label class="font-medium">Уровень (tier)</label>
+        <select
+          v-model="store.form.tier"
+          class="mt-4 w-full rounded-[15px] border-0 bg-[#404040] p-4 text-[18px] font-semibold text-white ring-0"
+        >
+          <option value="">Не задан</option>
+          <option value="BUDGET">Бюджет</option>
+          <option value="MID">Средний</option>
+          <option value="PREMIUM">Премиум</option>
+        </select>
+      </div>
+    </div>
+
     <div class="mt-4">
       <label class="mb-2 font-medium">Фото</label>
       <CreateProductImageUpload v-model="store.form.images" />

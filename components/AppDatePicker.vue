@@ -289,17 +289,17 @@ function clearDate() {
     >
       <button
         type="button"
-        class="group flex h-[54px] w-full items-center justify-between rounded-[18px] border border-white/10 bg-white/[0.06] px-4 text-left text-white outline-none transition hover:border-white/20 hover:bg-white/[0.09] focus:border-[#1f78ff]"
+        class="group flex h-[54px] w-full items-center justify-between gap-3 rounded-[18px] border border-white/10 bg-white/[0.06] px-4 text-left text-white outline-none transition hover:border-white/20 hover:bg-white/[0.09] focus:border-[#1f78ff]"
       >
-        <span>
+        <span class="min-w-0">
           <span class="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
             {{ isRangeMode ? "Период" : "Дата" }}
           </span>
-          <span :class="modelValue ? 'text-white' : 'text-slate-300'" class="mt-0.5 block text-[15px] font-semibold">
+          <span :class="modelValue ? 'text-white' : 'text-slate-300'" class="mt-1.5 block truncate text-[15px] font-semibold">
             {{ label }}
           </span>
         </span>
-        <span class="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#1f78ff]/15 text-sky-300 transition group-hover:bg-[#1f78ff]/25">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#1f78ff]/15 text-sky-300 transition group-hover:bg-[#1f78ff]/25">
           <Icon name="heroicons:calendar-days" class="h-5 w-5" />
         </span>
       </button>

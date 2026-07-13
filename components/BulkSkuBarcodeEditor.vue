@@ -128,7 +128,7 @@ function buildPayload(raw: any, sku: string, barcode: string): CreateProductApiP
       raw?.measurement_unit?.type ||
         raw?.measurement_type ||
         raw?.unit ||
-        "piece",
+        "шт",
     ),
     description: raw?.description || undefined,
     brand_name: raw?.brand_name || raw?.brand?.name || undefined,

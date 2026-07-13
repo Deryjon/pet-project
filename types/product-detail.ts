@@ -236,6 +236,25 @@ export interface ProductMovementResponse {
   };
 }
 
+export interface StockMovementListItem {
+  id: string;
+  created_at: string;
+  type_code: string;
+  type_label: string;
+  product_id: string;
+  product_name: string;
+  shop_name: string;
+  before_quantity: number;
+  after_quantity: number;
+  quantity: number;
+  user_name: string;
+}
+
+export interface StockMovementListResponse {
+  count: number;
+  items: StockMovementListItem[];
+}
+
 export interface PriceTag {
   id: string;
   company_id: string;

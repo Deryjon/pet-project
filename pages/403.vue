@@ -10,7 +10,7 @@ useHead({ title: "Нет доступа | Konkurent" });
       <p class="text-[56px] font-bold leading-none text-[#7fb0ff]">403</p>
       <h1 class="mt-4 text-[28px] font-bold">Нет доступа</h1>
       <p class="mt-3 text-[15px] leading-6 text-[#bdbdbd]">
-        У вашей роли нет прав для просмотра этой страницы.
+        У вашей роли нет прав для просмотра этой страницы..
       </p>
       <NuxtLink
         to="/"

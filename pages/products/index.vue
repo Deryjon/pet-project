@@ -6,6 +6,7 @@ useHead({ title: "Товары | Konkurent" });
 const sections = [
   { title: "Каталог", description: "Просмотр всех товаров и быстрая работа с ассортиментом.", to: "/products/catalog?limit=10&page=1" },
   { title: "Импорт", description: "Массовая загрузка товаров и редактирование импортов.", to: "/products/import" },
+  { title: "История остатков", description: "Все изменения остатков: импорт, ручное редактирование, трансфер, продажа, списание.", to: "/products/stock-history" },
   { title: "Заказы", description: "Контроль заказов поставщикам и связанных операций.", to: "/products/orders" },
   { title: "Инвентаризация", description: "Проверка фактических остатков по товарам.", to: "/products/inventory" },
   { title: "Трансфер", description: "Перемещение товаров между магазинами и точками.", to: "/products/transfer" },
