@@ -14,6 +14,8 @@ type Subscriber = {
   userId: number;
   userName: string;
   notifyOnSale: boolean;
+  notifySellerAnalytics: boolean;
+  notifyOnLogin: boolean;
   branchCode: string | null;
   linkedAt: string;
 };
@@ -97,6 +99,30 @@ async function toggleNotify(sub: Subscriber) {
   }
 }
 
+async function toggleSellerAnalytics(sub: Subscriber) {
+  try {
+    await apiFetch(`/telegram/subscribers/${sub.id}`, {
+      method: "PATCH",
+      body: { notifySellerAnalytics: !sub.notifySellerAnalytics },
+    });
+    sub.notifySellerAnalytics = !sub.notifySellerAnalytics;
+  } catch {
+    /* ignore */
+  }
+}
+
+async function toggleLoginNotify(sub: Subscriber) {
+  try {
+    await apiFetch(`/telegram/subscribers/${sub.id}`, {
+      method: "PATCH",
+      body: { notifyOnLogin: !sub.notifyOnLogin },
+    });
+    sub.notifyOnLogin = !sub.notifyOnLogin;
+  } catch {
+    /* ignore */
+  }
+}
+
 onMounted(() => {
   loadSubscribers();
 });
@@ -122,6 +148,8 @@ onMounted(() => {
         <p>📲 Нажмите <b class="text-white">«Получить ссылку»</b> — появится персональная ссылка на бота.</p>
         <p>🔗 Перейдите по ней и нажмите <b class="text-white">«Старт»</b> в Telegram.</p>
         <p>✅ Готово — при каждой продаже вы будете получать уведомление.</p>
+        <p>📊 Ниже можно отдельно включить аналитику по продавцам (иконка графика) — ежедневный и еженедельный разбор по каждому продавцу.</p>
+        <p>🛡 А также уведомления о входе в аккаунт (иконка щита) — кто, когда и с какого устройства/IP зашёл в систему.</p>
         <p class="text-[#fbbf24]">⚠️ Ссылка действует 15 минут. Если истекла — сгенерируйте новую.</p>
       </div>
 
@@ -208,12 +236,28 @@ onMounted(() => {
 
           <div class="flex items-center gap-2 shrink-0">
             <button
-              :title="sub.notifyOnSale ? 'Уведомления включены' : 'Уведомления выключены'"
+              :title="sub.notifyOnSale ? 'Уведомления о продажах включены' : 'Уведомления о продажах выключены'"
               class="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors"
               :class="sub.notifyOnSale ? 'bg-green-500/20 text-green-400' : 'bg-[#2f2f2f] text-[#9ca3af]'"
               @click="toggleNotify(sub)"
             >
               <Icon name="heroicons:bell" class="h-4 w-4" />
+            </button>
+            <button
+              :title="sub.notifySellerAnalytics ? 'Аналитика по продавцам включена' : 'Аналитика по продавцам выключена'"
+              class="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors"
+              :class="sub.notifySellerAnalytics ? 'bg-green-500/20 text-green-400' : 'bg-[#2f2f2f] text-[#9ca3af]'"
+              @click="toggleSellerAnalytics(sub)"
+            >
+              <Icon name="heroicons:chart-bar" class="h-4 w-4" />
+            </button>
+            <button
+              :title="sub.notifyOnLogin ? 'Уведомления о входе включены' : 'Уведомления о входе выключены'"
+              class="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors"
+              :class="sub.notifyOnLogin ? 'bg-green-500/20 text-green-400' : 'bg-[#2f2f2f] text-[#9ca3af]'"
+              @click="toggleLoginNotify(sub)"
+            >
+              <Icon name="heroicons:shield-check" class="h-4 w-4" />
             </button>
             <button
               :disabled="removingId === sub.id"

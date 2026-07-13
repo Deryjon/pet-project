@@ -1,0 +1,25 @@
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .receipt-print-root,
+  .receipt-print-root * {
+    visibility: visible !important;
+  }
+  .receipt-print-root {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: var(--receipt-width, 80mm);
+  }
+  .no-print {
+    display: none !important;
+  }
+  /* Fallback page size; ReceiptView injects an exact #receipt-page-size
+     <style> tag with the real configured paperWidth, since @page does not
+     support CSS custom properties (var()) in any current browser. */
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}

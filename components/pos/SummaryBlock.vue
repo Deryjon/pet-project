@@ -411,7 +411,7 @@
     >
       <template #content>
         <div class="p-5 sm:p-6">
-          <div class="mb-5 flex items-start justify-between gap-4">
+          <div class="no-print mb-5 flex items-start justify-between gap-4">
             <div>
               <h3 class="text-[22px] font-semibold">Чек продажи</h3>
               <p class="mt-1 text-sm text-[#bdbdbd]">Проверьте чек перед печатью или закройте окно.</p>
@@ -427,15 +427,15 @@
             </UButton>
           </div>
 
-          <ReceiptCard
-            v-if="printStore.latestReceipt"
-            :receipt="printStore.latestReceipt"
-            :template="receiptTemplate"
-            :shop-name="printStore.settings.companyName"
-            @print="onPrintReceipt"
-            @open="onOpenReceipt"
-            @send="onSendReceipt"
-          />
+          <div v-if="receiptData && receiptSettings" class="rounded-[16px] bg-white p-2">
+            <ReceiptView
+              :receipt="receiptData"
+              :settings="receiptSettings"
+              mode="screen"
+              @print="onPrintReceipt"
+              @send="onSendReceipt"
+            />
+          </div>
         </div>
       </template>
     </UModal>
@@ -443,19 +443,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useCartStore } from "@/store/cart";
-import { usePrintSettingsStore, type SaleReceiptSnapshot } from "@/store/printSettings";
+import { usePrintSettingsStore } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
-import { useReceiptPrinter, type ReceiptData } from "@/composables/useReceiptPrinter";
-import type { Cheque } from "@/composables/useCheques";
-import ReceiptCard from "@/components/pos/ReceiptCard.vue";
+import { useShopAccess } from "@/composables/useShopAccess";
+import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "@/composables/useReceipts";
+import ReceiptView from "@/components/receipt/ReceiptView.vue";
 
 const cartStore = useCartStore();
 const printStore = usePrintSettingsStore();
-const receiptPrinter = useReceiptPrinter();
+const receipts = useReceipts();
+const { currentShopId } = useShopAccess();
 const router = useRouter();
 const {
   subtotal,
@@ -483,16 +484,28 @@ const receiptUrlInput = ref("");
 const debtConfirmation = ref(false);
 const completionCustomerId = ref("");
 const completionDebt = ref<any | null>(null);
-const receiptPreviewHtml = ref("");
-const receiptTemplate = ref<Cheque | null>(null);
+const receiptData = ref<ReceiptData | null>(null);
+const receiptSettings = ref<ReceiptSettingsData | null>(null);
 
-watch(() => printStore.latestReceipt, async (receipt) => {
-  if (!receipt) { receiptPreviewHtml.value = ""; receiptTemplate.value = null; return; }
-  const data = snapshotToReceiptData(receipt);
-  const template = await receiptPrinter.loadDefaultTemplate();
-  receiptTemplate.value = template;
-  receiptPreviewHtml.value = receiptPrinter.buildReceiptHtml(data, template);
-}, { immediate: true });
+async function loadReceiptForSale(saleId: number | string) {
+  try {
+    const [receipt, settings] = await Promise.all([
+      receipts.fetchReceipt(saleId),
+      currentShopId.value ? receipts.fetchReceiptSettings(currentShopId.value) : Promise.resolve(null),
+    ]);
+    receiptData.value = receipt;
+    receiptSettings.value = settings;
+    if (printStore.settings.autoOpenReceiptAfterSale) {
+      printStore.receiptPreviewOpen = true;
+    }
+    if (printStore.settings.autoPrintReceiptAfterSale && import.meta.client) {
+      window.print();
+    }
+  } catch {
+    receiptData.value = null;
+    receiptSettings.value = null;
+  }
+}
 
 type PendingPayment = { methodId: string; methodName: string; amount: number; isCash: boolean };
 const pendingPayments = ref<PendingPayment[]>([]);
@@ -545,7 +558,6 @@ const currentCustomerLabel = computed(
     cartStore.currentOrder?.customer?.firstName ||
     "Без клиента",
 );
-const currentPayments = computed(() => cartStore.currentOrder?.payments || []);
 const canAddPayment = computed(() => false);
 const hasCustomerAttached = computed(() => Boolean(String(cartStore.currentOrder?.customerId ?? "").trim()));
 const selectedPaymentMethodMeta = computed(
@@ -584,10 +596,6 @@ function formatDate(value: string | null) {
     month: "2-digit",
     year: "numeric",
   }).format(date);
-}
-
-function paymentTypeLabel(paymentTypeId: string) {
-  return singlePaymentMethods.value.find((method) => method.value === paymentTypeId)?.label || "Способ оплаты";
 }
 
 function selectPaymentMethod(method: { value: string; label: string; requiresCustomer?: boolean }) {
@@ -649,89 +657,22 @@ function openCompletionState(result: any) {
   completionModalOpen.value = true;
 }
 
-function buildReceiptSnapshot(debtAmount = 0): SaleReceiptSnapshot {
-  const firstPayment = currentPayments.value[0];
-  const methodName =
-    pendingPayments.value.length > 1
-      ? "Смешанная оплата"
-      : pendingPayments.value.length === 1
-        ? pendingPayments.value[0]!.methodName
-        : currentPayments.value.length === 1 && firstPayment
-          ? paymentTypeLabel(firstPayment.paymentTypeId)
-          : currentPayments.value.length > 1
-            ? "Смешанная оплата"
-            : paymentTypeLabel(selectedPaymentMethod.value);
-
-  const debt = Math.max(0, Number(debtAmount || 0));
-  const order = cartStore.currentOrder;
-
-  return {
-    saleId: cartStore.saleId,
-    saleNumber: cartStore.saleNumber,
-    paidAt: new Date().toISOString(),
-    paymentMethodName: methodName,
-    subtotal: subtotal.value,
-    discount: totalDiscount.value,
-    total: totalAmount.value,
-    paidAmount: Math.max(0, totalAmount.value - debt),
-    debtAmount: debt,
-    cashbackAmount: 0,
-    clientName: order?.customerName || order?.client?.firstName || null,
-    clientPhone: order?.client?.phone || null,
-    sellerName: order?.sellerName || null,
-    cashierName: order?.cashierName || null,
-    lines: cart.value.map((item: any) => {
-      const quantity = Math.max(1, Number(item.quantity || 1));
-      const price = Number(item.price || 0);
-
-      return {
-        name: String(item.name || "Товар"),
-        quantity,
-        price,
-        total: price * quantity,
-      };
-    }),
-  };
-}
-
-function snapshotToReceiptData(snapshot: SaleReceiptSnapshot): ReceiptData {
-  return {
-    number: String(snapshot.saleNumber || snapshot.saleId || "-"),
-    date: new Date(snapshot.paidAt).toLocaleString("ru-RU"),
-    seller: snapshot.sellerName || "",
-    cashier: snapshot.cashierName || "",
-    client: snapshot.clientName || "—",
-    shop: printStore.settings.companyName || "",
-    items: snapshot.lines.map((line) => ({
-      name: line.name,
-      quantity: line.quantity,
-      price: printStore.formatMoney(line.price),
-    })),
-    total: printStore.formatMoney(snapshot.total),
-    payment: printStore.formatMoney(snapshot.paidAmount),
-    paymentMethodName: snapshot.paymentMethodName,
-    debt: snapshot.debtAmount > 0 ? printStore.formatMoney(snapshot.debtAmount) : undefined,
-  };
-}
-
 async function onPrintReceipt() {
-  if (!printStore.latestReceipt) return;
-  const data = snapshotToReceiptData(printStore.latestReceipt);
-  await receiptPrinter.printReceipt(data);
-}
-
-function onOpenReceipt() {
-  if (!receiptPreviewHtml.value) return;
-  receiptPrinter.openPrintHtml(receiptPreviewHtml.value);
+  if (!receiptData.value) return;
+  try {
+    await receipts.markPrinted(receiptData.value.saleId);
+  } catch {
+    // non-critical: printing already happened via window.print(), status tracking is best-effort
+  }
 }
 
 async function onSendReceipt() {
-  const receipt = printStore.latestReceipt;
+  const receipt = receiptData.value;
   if (!receipt) return;
 
   const summary = [
-    `Чек №${receipt.saleNumber || receipt.saleId || "-"}`,
-    `Сумма: ${printStore.formatMoney(receipt.total)}`,
+    `Чек №${receipt.number}`,
+    `Сумма: ${Math.round(receipt.totalDue).toLocaleString("ru-RU")} UZS`,
     receipt.clientName ? `Клиент: ${receipt.clientName}` : null,
   ].filter(Boolean).join("\n");
 
@@ -744,7 +685,7 @@ async function onSendReceipt() {
     }
   }
 
-  toast.add({ title: "Отправка недоступна", description: "Браузер не поддерживает системный обмен. Используйте печать или откройте чек.", color: "warning" });
+  toast.add({ title: "Отправка недоступна", description: "Браузер не поддерживает системный обмен. Используйте печать чека.", color: "warning" });
 }
 
 async function openPaymentPanel() {
@@ -825,7 +766,7 @@ async function completePaidOrder() {
     primaryMethodId = payments[0]!.payment_method;
   }
 
-  const snapshotBeforePay = buildReceiptSnapshot();
+  const paidSaleId = cartStore.saleId;
 
   const result = await cartStore.paySale({
     paymentMethodId: primaryMethodId,
@@ -841,11 +782,7 @@ async function completePaidOrder() {
     return;
   }
 
-  const fullSnapshot = { ...snapshotBeforePay, receiptResponse: result };
-  printStore.setLatestReceipt(fullSnapshot);
-  if (printStore.settings.autoPrintReceiptAfterSale) {
-    await receiptPrinter.printReceipt(snapshotToReceiptData(fullSnapshot));
-  }
+  if (paidSaleId) await loadReceiptForSale(paidSaleId);
   closePaymentPanel();
   openCompletionState(result);
   toast.add({ title: "Продажа завершена", color: "success" });
@@ -854,7 +791,7 @@ async function completePaidOrder() {
 async function completeWithDebt() {
   if (!canConfirmDebtCompletion.value) return;
 
-  const snapshotBeforePay = buildReceiptSnapshot(Number(remainingDebtAmount.value || 0));
+  const paidSaleId = cartStore.saleId;
 
   const result = await cartStore.paySale({
     paymentMethodId: selectedPaymentMethod.value,
@@ -876,11 +813,7 @@ async function completeWithDebt() {
     return;
   }
 
-  const fullSnapshot = { ...snapshotBeforePay, receiptResponse: result };
-  printStore.setLatestReceipt(fullSnapshot);
-  if (printStore.settings.autoPrintReceiptAfterSale) {
-    await receiptPrinter.printReceipt(snapshotToReceiptData(fullSnapshot));
-  }
+  if (paidSaleId) await loadReceiptForSale(paidSaleId);
   debtModalOpen.value = false;
   closePaymentPanel();
   resetDebtModalState();

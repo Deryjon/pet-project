@@ -6,6 +6,7 @@ import type {
   MeasurementUnitPrecision,
   PriceFields,
   ProductStoreStock,
+  ProductTier,
   ProductType,
   ProductTypeLabel,
   ProductVariationForm,
@@ -135,6 +136,8 @@ export function createInitialProductFormState(
     variationAttribute: "",
     variations: [createVariation(shops)],
     bundleItems: [createBundleItem()],
+    productGroupId: "",
+    tier: "",
   };
 }
 
@@ -307,6 +310,14 @@ function buildProductPayload(
 
   if (form.category) {
     payload.category_ids = [form.category];
+  }
+
+  if (form.productGroupId.trim()) {
+    payload.product_group_id = form.productGroupId.trim();
+  }
+
+  if (form.tier) {
+    payload.tier = form.tier;
   }
 
   if (form.images.length) {
@@ -483,6 +494,8 @@ export function createProductFormStateFromApi(
         "",
     ).trim() || undefined;
   form.variationAttribute = String(raw?.metadata?.variation_attribute ?? "").trim();
+  form.productGroupId = String(raw?.product_group_id ?? "").trim();
+  form.tier = normalizeProductTier(raw?.tier);
 
   if (mapProductType(productType) === "goods" && variationType === "Вариативный") {
     const variants = Array.isArray(raw?.variants) ? raw.variants : [];
@@ -499,6 +512,14 @@ function normalizeProductTypeLabel(value: unknown): ProductTypeLabel {
   if (normalized === "service") return "Услуга";
   if (normalized === "bundle") return "Комплект";
   return "Товар";
+}
+
+function normalizeProductTier(value: unknown): ProductTier {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (normalized === "BUDGET" || normalized === "MID" || normalized === "PREMIUM") {
+    return normalized;
+  }
+  return "";
 }
 
 function normalizeVariationTypeLabel(raw: any): VariationTypeLabel {

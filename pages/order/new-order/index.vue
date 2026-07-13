@@ -165,7 +165,7 @@ async function fetchProducts() {
     const query = {
       page: page.value,
       limit: pageSize,
-      search: search.value || undefined,
+      search: search.value.trim().replace(/\s+/g, " ") || undefined,
       shop_id: currentShopId.value || undefined,
     };
     let response: any;
