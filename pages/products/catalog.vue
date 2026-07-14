@@ -157,6 +157,48 @@
               </div>
             </template>
           </UModal>
+
+          <UModal v-model:open="priceTagsDialogOpen" :ui="{ content: 'max-w-[480px] rounded-[28px] bg-[#262626] p-0 text-white border border-white/10' }">
+            <template #content>
+              <div class="p-7">
+                <h3 class="text-[22px] font-bold">Печать ценников</h3>
+                <p class="mt-2 text-[14px] text-[#9a9a9a]">Укажите количество копий для каждого товара</p>
+                <div class="mt-5 flex max-h-[320px] flex-col gap-3 overflow-y-auto pr-1">
+                  <div
+                    v-for="p in selectedTagProducts"
+                    :key="p.id"
+                    class="flex items-center justify-between gap-3 rounded-[14px] bg-[#333] px-4 py-3"
+                  >
+                    <span class="truncate text-[14px]">{{ p.name }}</span>
+                    <input
+                      v-model.number="priceTagCopies[p.id]"
+                      type="number"
+                      min="1"
+                      class="w-20 rounded-[10px] border border-white/10 bg-[#1f1f1f] px-3 py-1.5 text-right text-[14px] text-white"
+                    />
+                  </div>
+                </div>
+                <div class="mt-7 flex items-center justify-end gap-3">
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    class="rounded-[14px] bg-[#404040] px-5 py-3 text-white hover:bg-[#505050]"
+                    @click="priceTagsDialogOpen = false"
+                  >
+                    Отмена
+                  </UButton>
+                  <UButton
+                    color="primary"
+                    variant="solid"
+                    class="rounded-[14px] px-5 py-3"
+                    @click="confirmPrintTags"
+                  >
+                    Печать
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UModal>
         </div>
       </div>
 
@@ -190,7 +232,7 @@ import DataTable from "@/components/CatalogDataTable.vue";
 import StatsBox from "@/components/ui/StatsBox.vue";
 import BulkSkuBarcodeEditor from "@/components/BulkSkuBarcodeEditor.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
-import { usePriceTagPrinter } from "~/composables/usePriceTagPrinter";
+import { usePrintWindow } from "~/composables/usePrintWindow";
 import { useLocationStore } from "@/store/useLocationStore";
 import { normalizeApiError, useProducts } from "~/composables/useProducts";
 
@@ -219,6 +261,8 @@ const clearArchiveConfirmOpen = ref(false);
 const deletingSelected = ref(false);
 const deleteSelectedConfirmOpen = ref(false);
 const bulkFixOpen = ref(false);
+const priceTagsDialogOpen = ref(false);
+const priceTagCopies = ref<Record<string, number>>({});
 
 const actions = computed(() => [
   {
@@ -338,22 +382,25 @@ function openCatalogManagement() {
   void router.push("/products/settings");
 }
 
-async function printSelectedTags() {
+const selectedTagProducts = computed(() =>
+  store.rawData.filter((p: any) => store.selectedProducts.includes(p.id)),
+);
+
+function printSelectedTags() {
   if (!store.selectedProducts.length) {
     toast.add({ title: "Выберите товары для печати", color: "warning" });
     return;
   }
-  const { printTags } = usePriceTagPrinter();
-  const products = store.rawData
-    .filter((p: any) => store.selectedProducts.includes(p.id))
-    .map((p: any) => ({
-      name: p.name,
-      sku: p.sku || "",
-      barcode: p.barcode || "",
-      price: Number(p.sale_price || 0),
-      unit: p.unit || "",
-    }));
-  printTags(products);
+  priceTagCopies.value = Object.fromEntries(
+    selectedTagProducts.value.map((p: any) => [p.id, priceTagCopies.value[p.id] ?? 1]),
+  );
+  priceTagsDialogOpen.value = true;
+}
+
+function confirmPrintTags() {
+  const { openPriceTagsPrint } = usePrintWindow();
+  openPriceTagsPrint(store.selectedProducts, priceTagCopies.value);
+  priceTagsDialogOpen.value = false;
 }
 
 async function confirmClearArchive() {

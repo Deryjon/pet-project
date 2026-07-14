@@ -366,7 +366,7 @@
         <Transition name="cpay">
           <div v-if="receiptModalOpen" class="fixed inset-0 z-[110] flex items-center justify-center px-4">
             <div class="no-print absolute inset-0 bg-black/70 backdrop-blur-sm" @click="receiptModalOpen = false" />
-            <div class="no-print relative w-full max-w-[420px] rounded-[24px] border border-white/10 bg-[#1a1a1a] p-6 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="relative w-full max-w-[420px] rounded-[24px] border border-white/10 bg-[#1a1a1a] p-6 text-white shadow-2xl max-h-[90vh] overflow-y-auto">
               <button
                 type="button"
                 class="no-print absolute right-4 top-4 rounded-full bg-white/10 p-1.5 hover:bg-white/20"
@@ -491,6 +491,7 @@ import { useFormatPrice } from "~/composables/useFormatPrice";
 import { useUserStore } from "~/store/useUserStore";
 import { useShopAccess } from "~/composables/useShopAccess";
 import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "~/composables/useReceipts";
+import { useReceiptShare } from "~/composables/useReceiptShare";
 import ReceiptView from "~/components/receipt/ReceiptView.vue";
 
 useHead({ title: "Все продажи | Konkurent" });
@@ -763,6 +764,13 @@ watch([page, limit, selectedDate], () => {
 
 onMounted(() => {
   void fetchSales();
+
+  const receiptNumber = route.query.receipt;
+  if (receiptNumber) {
+    void printSaleByNumber(String(receiptNumber));
+    const { receipt, ...rest } = route.query;
+    void router.replace({ query: rest });
+  }
 });
 
 watch(
@@ -1099,23 +1107,10 @@ async function confirmChangePayment() {
   }
 }
 
+const { shareReceipt } = useReceiptShare();
+
 async function sendReceipt() {
-  const receipt = receiptData.value;
-  if (!receipt) return;
-
-  const summary = [
-    `Чек №${receipt.number}`,
-    `Сумма: ${Math.round(receipt.totalDue).toLocaleString("ru-RU")} UZS`,
-    receipt.clientName ? `Клиент: ${receipt.clientName}` : null,
-  ].filter(Boolean).join("\n");
-
-  if (typeof navigator !== "undefined" && navigator.share) {
-    try {
-      await navigator.share({ title: "Чек продажи", text: summary });
-    } catch {
-      // user cancelled share sheet
-    }
-  }
+  if (receiptData.value) await shareReceipt(receiptData.value);
 }
 
 async function printSale(sale: SaleView) {
@@ -1135,6 +1130,29 @@ async function printSale(sale: SaleView) {
     ]);
     receiptData.value = receipt;
     receiptSettings.value = settings ?? defaultReceiptSettings(shopId);
+  } catch (e: any) {
+    receiptError.value = e?.data?.message || e?.message || "Не удалось загрузить чек.";
+  } finally {
+    receiptLoading.value = false;
+  }
+}
+
+async function printSaleByNumber(number: string) {
+  if (!import.meta.client) return;
+  receiptModalOpen.value = true;
+  receiptLoading.value = true;
+  receiptError.value = "";
+  receiptData.value = null;
+  receiptSettings.value = null;
+  try {
+    const { fetchReceiptByNumber, fetchReceiptSettings } = useReceipts();
+    const { currentShopId } = useShopAccess();
+    const receipt = await fetchReceiptByNumber(number);
+    const shopId = receipt.shopId || currentShopId.value || "";
+    receiptData.value = receipt;
+    receiptSettings.value = shopId
+      ? await fetchReceiptSettings(shopId)
+      : defaultReceiptSettings(shopId);
   } catch (e: any) {
     receiptError.value = e?.data?.message || e?.message || "Не удалось загрузить чек.";
   } finally {

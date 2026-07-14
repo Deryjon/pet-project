@@ -2,18 +2,19 @@
 import { computed } from "vue";
 import type { ReceiptData, ReceiptSettingsData } from "@/composables/useReceipts";
 import { renderQrSvg } from "@/utils/qrcode";
+import { renderBarcodeSvg } from "@/utils/barcode";
 
 const props = defineProps<{ receipt: ReceiptData; settings: ReceiptSettingsData }>();
 
 const qrValue = computed(() => props.settings.qrCodeUrl || props.receipt.qrPayload || "");
+const barcodeSvg = computed(() =>
+  props.settings.hasBarCode ? renderBarcodeSvg(props.receipt.number, { height: 36 }) : "",
+);
 </script>
 
 <template>
   <div class="rv-footer">
-    <div v-if="settings.hasBarCode" class="rv-center rv-barcode">
-      <div class="rv-barcode-bars">{{ receipt.number }}</div>
-      <div class="rv-muted rv-small">Штрих-код</div>
-    </div>
+    <div v-if="barcodeSvg" class="rv-center rv-barcode" v-html="barcodeSvg" />
     <div v-if="settings.showQrCode && qrValue" class="rv-center rv-qr" v-html="renderQrSvg(qrValue, { pixelSize: 4 })" />
     <div v-if="settings.footerMessage" class="rv-center rv-bold">{{ settings.footerMessage }}</div>
     <div v-if="settings.footerNote" class="rv-center rv-muted rv-small">{{ settings.footerNote }}</div>
@@ -26,11 +27,6 @@ const qrValue = computed(() => props.settings.qrCodeUrl || props.receipt.qrPaylo
 .rv-bold { font-weight: 700; }
 .rv-muted { opacity: 0.75; }
 .rv-small { font-size: calc(var(--receipt-font-size) - 2px); }
-.rv-barcode-bars {
-  font-family: monospace;
-  letter-spacing: 3px;
-  font-weight: 700;
-  font-size: calc(var(--receipt-font-size) + 3px);
-}
+.rv-barcode :deep(svg) { max-width: 100%; height: 36px; margin: 0 auto; }
 .rv-qr :deep(svg) { width: 90px; height: 90px; margin: 0 auto; }
 </style>

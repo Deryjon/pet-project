@@ -443,7 +443,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useCartStore } from "@/store/cart";
@@ -451,6 +451,7 @@ import { usePrintSettingsStore } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 import { useShopAccess } from "@/composables/useShopAccess";
 import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "@/composables/useReceipts";
+import { useReceiptShare } from "@/composables/useReceiptShare";
 import ReceiptView from "@/components/receipt/ReceiptView.vue";
 
 const cartStore = useCartStore();
@@ -495,11 +496,27 @@ async function loadReceiptForSale(saleId: number | string) {
     ]);
     receiptData.value = receipt;
     receiptSettings.value = settings;
-    if (printStore.settings.autoOpenReceiptAfterSale) {
+
+    const shouldAutoOpen = printStore.settings.autoOpenReceiptAfterSale;
+    const shouldAutoPrint = printStore.settings.autoPrintReceiptAfterSale;
+
+    // ReceiptView only exists in the DOM while the modal is open (it's the
+    // print source — @media print hides everything else), so printing
+    // requires mounting it first even if auto-open itself is disabled.
+    if (shouldAutoOpen || shouldAutoPrint) {
       printStore.receiptPreviewOpen = true;
     }
-    if (printStore.settings.autoPrintReceiptAfterSale && import.meta.client) {
+
+    if (shouldAutoPrint && import.meta.client) {
+      await nextTick();
       window.print();
+      if (!shouldAutoOpen) {
+        const closeAfterPrint = () => {
+          printStore.receiptPreviewOpen = false;
+          window.removeEventListener("afterprint", closeAfterPrint);
+        };
+        window.addEventListener("afterprint", closeAfterPrint);
+      }
     }
   } catch {
     receiptData.value = null;
@@ -666,26 +683,10 @@ async function onPrintReceipt() {
   }
 }
 
+const { shareReceipt } = useReceiptShare();
+
 async function onSendReceipt() {
-  const receipt = receiptData.value;
-  if (!receipt) return;
-
-  const summary = [
-    `Чек №${receipt.number}`,
-    `Сумма: ${Math.round(receipt.totalDue).toLocaleString("ru-RU")} UZS`,
-    receipt.clientName ? `Клиент: ${receipt.clientName}` : null,
-  ].filter(Boolean).join("\n");
-
-  if (typeof navigator !== "undefined" && navigator.share) {
-    try {
-      await navigator.share({ title: "Чек продажи", text: summary });
-      return;
-    } catch {
-      return;
-    }
-  }
-
-  toast.add({ title: "Отправка недоступна", description: "Браузер не поддерживает системный обмен. Используйте печать чека.", color: "warning" });
+  if (receiptData.value) await shareReceipt(receiptData.value);
 }
 
 async function openPaymentPanel() {

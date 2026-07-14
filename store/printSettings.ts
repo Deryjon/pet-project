@@ -6,8 +6,6 @@ type PriceTagSize = "small" | "medium" | "a4";
 const STORAGE_KEY = "print-settings-v1";
 
 const defaultSettings = {
-  receiptPrinterName: "",
-  priceTagPrinterName: "",
   receiptCopies: 1,
   autoOpenReceiptAfterSale: true,
   autoPrintReceiptAfterSale: false,

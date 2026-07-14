@@ -11,6 +11,7 @@ export interface ReceiptItemData {
 export interface ReceiptData {
   id: string;
   saleId: number;
+  shopId: string;
   number: string;
   status: "CREATED" | "PRINTED" | "SENT";
   createdAt: string;
@@ -82,6 +83,7 @@ function normalizeReceipt(raw: any): ReceiptData {
   return {
     id: String(raw?.id ?? ""),
     saleId: Number(raw?.sale_id ?? 0),
+    shopId: String(raw?.shop_id ?? ""),
     number: String(raw?.number ?? ""),
     status: (raw?.status as ReceiptData["status"]) ?? "CREATED",
     createdAt: String(raw?.created_at ?? ""),
@@ -193,12 +195,19 @@ export function useReceipts() {
   const { apiFetch } = useApi();
 
   async function fetchReceipt(saleId: number | string): Promise<ReceiptData> {
-    const res = await apiFetch(`/sales/${saleId}/receipt`, { method: "GET" });
+    const res = await apiFetch(`/receipts/${saleId}`, { method: "GET" });
+    return normalizeReceipt(res);
+  }
+
+  async function fetchReceiptByNumber(number: string): Promise<ReceiptData> {
+    const res = await apiFetch(`/receipts/by-number/${encodeURIComponent(number)}`, {
+      method: "GET",
+    });
     return normalizeReceipt(res);
   }
 
   async function fetchReceiptSettings(shopId: string): Promise<ReceiptSettingsData> {
-    const res = await apiFetch(`/branches/${encodeURIComponent(shopId)}/receipt-settings`, {
+    const res = await apiFetch(`/receipt-settings/${encodeURIComponent(shopId)}`, {
       method: "GET",
     });
     return normalizeSettings(res);
@@ -208,16 +217,22 @@ export function useReceipts() {
     shopId: string,
     patch: Partial<ReceiptSettingsData>,
   ): Promise<ReceiptSettingsData> {
-    const res = await apiFetch(`/branches/${encodeURIComponent(shopId)}/receipt-settings`, {
-      method: "PATCH",
+    const res = await apiFetch(`/receipt-settings/${encodeURIComponent(shopId)}`, {
+      method: "PUT",
       body: toReceiptSettingsPatch(patch),
     });
     return normalizeSettings(res);
   }
 
   async function markPrinted(saleId: number | string) {
-    return apiFetch(`/sales/${saleId}/receipt/mark-printed`, { method: "POST" });
+    return apiFetch(`/receipts/${saleId}/mark-printed`, { method: "POST" });
   }
 
-  return { fetchReceipt, fetchReceiptSettings, updateReceiptSettings, markPrinted };
+  return {
+    fetchReceipt,
+    fetchReceiptByNumber,
+    fetchReceiptSettings,
+    updateReceiptSettings,
+    markPrinted,
+  };
 }
