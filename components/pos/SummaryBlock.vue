@@ -443,7 +443,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { useCartStore } from "@/store/cart";
@@ -495,11 +495,27 @@ async function loadReceiptForSale(saleId: number | string) {
     ]);
     receiptData.value = receipt;
     receiptSettings.value = settings;
-    if (printStore.settings.autoOpenReceiptAfterSale) {
+
+    const shouldAutoOpen = printStore.settings.autoOpenReceiptAfterSale;
+    const shouldAutoPrint = printStore.settings.autoPrintReceiptAfterSale;
+
+    // ReceiptView only exists in the DOM while the modal is open (it's the
+    // print source — @media print hides everything else), so printing
+    // requires mounting it first even if auto-open itself is disabled.
+    if (shouldAutoOpen || shouldAutoPrint) {
       printStore.receiptPreviewOpen = true;
     }
-    if (printStore.settings.autoPrintReceiptAfterSale && import.meta.client) {
+
+    if (shouldAutoPrint && import.meta.client) {
+      await nextTick();
       window.print();
+      if (!shouldAutoOpen) {
+        const closeAfterPrint = () => {
+          printStore.receiptPreviewOpen = false;
+          window.removeEventListener("afterprint", closeAfterPrint);
+        };
+        window.addEventListener("afterprint", closeAfterPrint);
+      }
     }
   } catch {
     receiptData.value = null;

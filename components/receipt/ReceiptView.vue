@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onUnmounted, watch } from "vue";
 import type { ReceiptData, ReceiptSettingsData } from "@/composables/useReceipts";
 import ReceiptHeader from "./ReceiptHeader.vue";
 import ReceiptSaleInfo from "./ReceiptSaleInfo.vue";
@@ -53,6 +53,11 @@ watch(
   },
   { immediate: true },
 );
+
+onUnmounted(() => {
+  if (!import.meta.client) return;
+  document.getElementById(PAGE_SIZE_STYLE_ID)?.remove();
+});
 </script>
 
 <template>
