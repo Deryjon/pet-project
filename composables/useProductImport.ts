@@ -9,7 +9,8 @@ export type ImportStatus =
   | "importing"
   | "completed"
   | "cancelled"
-  | "failed";
+  | "failed"
+  | "rolled_back";
 
 export type ImportMatchPolicy = "keep_store" | "from_file";
 
@@ -162,6 +163,21 @@ export interface ImportCommitResult {
   committed_at?: string;
   committed_by?: string;
   idempotent?: boolean;
+}
+
+export interface ImportRollbackItem {
+  product_id: number;
+  product_name: string;
+  quantity_to_revert: number;
+  current_quantity: number;
+  quantity_after: number;
+}
+
+export interface ImportRollbackResult {
+  can_rollback: boolean;
+  items?: ImportRollbackItem[];
+  blocked_items?: ImportRollbackItem[];
+  reason?: string;
 }
 
 export interface ImportSessionListItem {
@@ -1266,6 +1282,30 @@ export function useProductImport() {
     }
   }
 
+  async function previewImportRollback(id: string) {
+    try {
+      const importId = ensureImportId(id);
+      return await apiFetch<ImportRollbackResult>(
+        `/v2/imports/${encodeURIComponent(importId)}/rollback?dry_run=true`,
+        { method: "POST" },
+      );
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
+  async function rollbackImportSession(id: string) {
+    try {
+      const importId = ensureImportId(id);
+      return await apiFetch<ImportRollbackResult>(
+        `/v2/imports/${encodeURIComponent(importId)}/rollback`,
+        { method: "POST" },
+      );
+    } catch (error: any) {
+      throw new Error(normalizeApiError(error));
+    }
+  }
+
   async function importWithoutCheck(payload: CreateImportPayload) {
     try {
       const response = await apiFetch<any>("/v2/excel/import-without-check", {
@@ -1362,6 +1402,8 @@ export function useProductImport() {
     getImportItems,
     commitImportSession,
     cancelImportSession,
+    previewImportRollback,
+    rollbackImportSession,
     importWithoutCheck,
     createImportInventory,
     getStocktaking,
