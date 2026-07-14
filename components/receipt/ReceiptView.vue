@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import type { ReceiptData, ReceiptSettingsData } from "@/composables/useReceipts";
+import { downloadReceiptPdf } from "@/composables/useReceiptPdf";
 import ReceiptHeader from "./ReceiptHeader.vue";
 import ReceiptSaleInfo from "./ReceiptSaleInfo.vue";
 import ReceiptClientInfo from "./ReceiptClientInfo.vue";
@@ -18,6 +19,22 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ print: []; send: [] }>();
+
+const toast = useToast();
+const rootRef = ref<HTMLElement | null>(null);
+const downloading = ref(false);
+
+async function onDownload() {
+  if (!rootRef.value || downloading.value) return;
+  downloading.value = true;
+  try {
+    await downloadReceiptPdf(rootRef.value, props.receipt.number);
+  } catch {
+    toast.add({ title: "Не удалось скачать чек", color: "error" });
+  } finally {
+    downloading.value = false;
+  }
+}
 
 const hasFooterContent = computed(
   () =>
@@ -53,10 +70,15 @@ watch(
   },
   { immediate: true },
 );
+
+onUnmounted(() => {
+  if (!import.meta.client) return;
+  document.getElementById(PAGE_SIZE_STYLE_ID)?.remove();
+});
 </script>
 
 <template>
-  <div class="receipt-print-root rv-root" :style="styleVars">
+  <div ref="rootRef" class="receipt-print-root rv-root" :style="styleVars">
     <ReceiptHeader :settings="settings" />
     <ReceiptDivider :style="settings.dividerStyle" />
 
@@ -77,7 +99,13 @@ watch(
     <ReceiptDivider v-if="hasFooterContent" :style="settings.dividerStyle" />
     <ReceiptFooter :receipt="receipt" :settings="settings" />
 
-    <ReceiptActions v-if="mode !== 'print'" :receipt="receipt" @print="emit('print')" @send="emit('send')" />
+    <ReceiptActions
+      v-if="mode !== 'print'"
+      :downloading="downloading"
+      @print="emit('print')"
+      @send="emit('send')"
+      @download="onDownload"
+    />
   </div>
 </template>
 
