@@ -79,6 +79,18 @@
           </p>
         </div>
       </div>
+
+      <UButton
+        v-if="canRollbackImport"
+        color="neutral"
+        variant="soft"
+        class="rounded-[16px] bg-[#404040] px-5 py-3 text-white hover:bg-[#505050]"
+        :loading="rollbackLoading"
+        @click="openRollbackPreview"
+      >
+        <Icon name="heroicons:arrow-uturn-left-20-solid" class="h-5 w-5" />
+        Откатить остатки
+      </UButton>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -285,6 +297,76 @@
       </div>
       <p class="mt-3 text-[22px] font-bold">{{ progressPercent }}%</p>
     </section>
+
+    <UModal
+      v-model:open="rollbackModalOpen"
+      :ui="{ content: 'max-w-[560px] rounded-[28px] bg-[#262626] p-0 text-white border border-white/10' }"
+    >
+      <template #content>
+        <div class="p-8">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-[24px] font-bold">Откат остатков по импорту</h3>
+              <p class="mt-3 text-[15px] text-[#d1d5db]">
+                {{
+                  rollbackPreview?.can_rollback
+                    ? "Количество по товарам ниже будет уменьшено обратно на то, что добавил этот импорт."
+                    : rollbackPreview?.reason ||
+                      "Откат невозможен: часть добавленного количества уже разошлась, откат увёл бы остаток в минус."
+                }}
+              </p>
+            </div>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              class="rounded-full bg-[#404040] text-white hover:bg-[#505050]"
+              @click="closeRollbackModal"
+            >
+              <Icon name="heroicons:x-mark" class="h-5 w-5" />
+            </UButton>
+          </div>
+
+          <div
+            v-if="rollbackPreview?.items?.length || rollbackPreview?.blocked_items?.length"
+            class="mt-6 max-h-[320px] space-y-2 overflow-y-auto"
+          >
+            <div
+              v-for="item in (rollbackPreview.can_rollback ? rollbackPreview.items : rollbackPreview.blocked_items)"
+              :key="item.product_id"
+              class="rounded-[16px] bg-[#2f2f2f] px-4 py-3"
+            >
+              <p class="text-[15px] font-semibold text-white">{{ item.product_name }}</p>
+              <p class="mt-1 text-[13px] text-[#a7a7a7]">
+                Было: {{ item.current_quantity }} → Станет: {{ item.quantity_after }}
+                (откат {{ item.quantity_to_revert }})
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-8 flex items-center justify-end gap-3">
+            <UButton
+              color="neutral"
+              variant="soft"
+              class="rounded-[16px] bg-[#404040] px-5 py-3 text-white hover:bg-[#505050]"
+              :disabled="rollbackLoading"
+              @click="closeRollbackModal"
+            >
+              Отмена
+            </UButton>
+            <UButton
+              v-if="rollbackPreview?.can_rollback"
+              color="primary"
+              variant="solid"
+              class="rounded-[16px] bg-[#1f78ff] px-5 py-3 text-white hover:bg-[#4d94ff]"
+              :loading="rollbackLoading"
+              @click="confirmRollback"
+            >
+              Откатить остатки
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </section>
 </template>
 
@@ -297,6 +379,7 @@ import {
   type ImportDraftMappingPayload,
   type ImportMode,
   type ImportProperty,
+  type ImportRollbackResult,
   type ImportSession,
   type ParsedImportRow,
 } from "~/composables/useProductImport";
@@ -390,6 +473,8 @@ const {
   validateImportSession,
   commitImportSession,
   cancelImportSession,
+  previewImportRollback,
+  rollbackImportSession,
   createImportInventory,
   getStocktaking,
   acceptStocktaking,
@@ -409,6 +494,9 @@ const newPropertyNames = ref<Record<ImportFieldKey, string>>(
 const inventoryBeforeImport = ref(false);
 const loading = ref(true);
 const actionLoading = ref(false);
+const rollbackModalOpen = ref(false);
+const rollbackLoading = ref(false);
+const rollbackPreview = ref<ImportRollbackResult | null>(null);
 const error = ref("");
 const errorMessage = ref("");
 const progressPercent = ref(0);
@@ -535,6 +623,9 @@ const canCancelImport = computed(
     Boolean(session.value) &&
     sessionStatusCode.value !== "completed" &&
     sessionStatusCode.value !== "cancelled",
+);
+const canRollbackImport = computed(
+  () => Boolean(session.value) && sessionStatusCode.value === "completed",
 );
 const canValidateAndUpload = computed(
   () =>
@@ -1104,6 +1195,45 @@ async function cancelCurrentImport() {
   } finally {
     actionLoading.value = false;
     currentAction.value = "";
+  }
+}
+
+async function openRollbackPreview() {
+  if (!session.value || !canRollbackImport.value) return;
+
+  errorMessage.value = "";
+  rollbackLoading.value = true;
+
+  try {
+    rollbackPreview.value = await previewImportRollback(session.value.id);
+    rollbackModalOpen.value = true;
+  } catch (err: any) {
+    errorMessage.value = err?.message || "Не удалось подготовить откат импорта.";
+  } finally {
+    rollbackLoading.value = false;
+  }
+}
+
+function closeRollbackModal() {
+  rollbackModalOpen.value = false;
+  rollbackPreview.value = null;
+}
+
+async function confirmRollback() {
+  if (!session.value) return;
+
+  rollbackLoading.value = true;
+
+  try {
+    await rollbackImportSession(session.value.id);
+    session.value = await getImportSession(session.value.id);
+    closeRollbackModal();
+    toast.add({ title: "Остатки по импорту откачены", color: "success" });
+  } catch (err: any) {
+    errorMessage.value = err?.message || "Не удалось откатить импорт.";
+    closeRollbackModal();
+  } finally {
+    rollbackLoading.value = false;
   }
 }
 
