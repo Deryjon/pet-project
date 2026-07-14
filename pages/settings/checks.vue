@@ -47,10 +47,6 @@ function save() {
 
         <div class="form-grid">
           <label class="field">
-            <span>Принтер чеков</span>
-            <input v-model="settings.receiptPrinterName" type="text" placeholder="Имя принтера" />
-          </label>
-          <label class="field">
             <span>Копий чека</span>
             <input v-model.number="settings.receiptCopies" type="number" min="1" max="5" />
           </label>
@@ -92,10 +88,6 @@ function save() {
         </div>
 
         <div class="form-grid">
-          <label class="field">
-            <span>Принтер ценников</span>
-            <input v-model="settings.priceTagPrinterName" type="text" placeholder="Имя принтера" />
-          </label>
           <label class="field">
             <span>Копий по умолчанию</span>
             <input v-model.number="settings.priceTagCopies" type="number" min="1" max="100" />

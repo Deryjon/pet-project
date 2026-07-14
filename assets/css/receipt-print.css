@@ -1,4 +1,16 @@
 @media print {
+  /* Modals/drawers wrapping the receipt use max-height + overflow (auto or
+     hidden) so long receipts scroll on screen instead of blowing up the
+     dialog. Left alone, that same clipping — or a modal library's transform
+     on the dialog panel, which turns position:fixed on .receipt-print-root
+     into "fixed relative to that panel" instead of the viewport — would
+     silently cut a long receipt short at print time. Force it open here.
+     visibility:hidden below still keeps everything except the receipt off
+     the printed page, so this can't leak unrelated UI into the print. */
+  body * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
   body * {
     visibility: hidden !important;
   }

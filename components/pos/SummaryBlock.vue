@@ -451,6 +451,7 @@ import { usePrintSettingsStore } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
 import { useShopAccess } from "@/composables/useShopAccess";
 import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "@/composables/useReceipts";
+import { useReceiptShare } from "@/composables/useReceiptShare";
 import ReceiptView from "@/components/receipt/ReceiptView.vue";
 
 const cartStore = useCartStore();
@@ -682,26 +683,10 @@ async function onPrintReceipt() {
   }
 }
 
+const { shareReceipt } = useReceiptShare();
+
 async function onSendReceipt() {
-  const receipt = receiptData.value;
-  if (!receipt) return;
-
-  const summary = [
-    `Чек №${receipt.number}`,
-    `Сумма: ${Math.round(receipt.totalDue).toLocaleString("ru-RU")} UZS`,
-    receipt.clientName ? `Клиент: ${receipt.clientName}` : null,
-  ].filter(Boolean).join("\n");
-
-  if (typeof navigator !== "undefined" && navigator.share) {
-    try {
-      await navigator.share({ title: "Чек продажи", text: summary });
-      return;
-    } catch {
-      return;
-    }
-  }
-
-  toast.add({ title: "Отправка недоступна", description: "Браузер не поддерживает системный обмен. Используйте печать чека.", color: "warning" });
+  if (receiptData.value) await shareReceipt(receiptData.value);
 }
 
 async function openPaymentPanel() {

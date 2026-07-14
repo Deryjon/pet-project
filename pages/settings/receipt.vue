@@ -97,6 +97,7 @@ async function save() {
 const mockReceipt: ReceiptData = {
   id: "mock",
   saleId: 0,
+  shopId: "mock",
   number: "TEST-001",
   status: "CREATED",
   createdAt: new Date().toISOString(),
