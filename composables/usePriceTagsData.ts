@@ -68,12 +68,14 @@ export function usePriceTagsData() {
   async function fetchPriceTags(
     productIds: string[],
     copies: Record<string, number>,
+    branchId?: string,
   ): Promise<PriceTagProduct[]> {
     const copiesParam = Object.entries(copies)
       .map(([id, count]) => `${id}:${count}`)
       .join(",");
     const query = new URLSearchParams({ productIds: productIds.join(",") });
     if (copiesParam) query.set("copies", copiesParam);
+    if (branchId) query.set("branchId", branchId);
 
     const res: any = await apiFetch(`/price-tags?${query.toString()}`, { method: "GET" });
     return Array.isArray(res?.products) ? res.products.map(normalizeProduct) : [];
