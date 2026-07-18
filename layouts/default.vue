@@ -9,6 +9,8 @@ import { useSidebarStore } from "../store/useSidebar";
 const userStore = useUserStore();
 const sidebar = useSidebarStore();
 const route = useRoute();
+const runtimeConfig = useRuntimeConfig();
+const isMobileApp = runtimeConfig.public.appMode === "mobile";
 const mobileSidebarOpen = ref(false);
 const isMobileViewport = ref(false);
 const showAuthLoader = computed(() => userStore.authLoading || !userStore.authChecked);
@@ -121,6 +123,7 @@ onBeforeUnmount(() => {
     >
       <div class="sticky top-0 z-20 flex items-center justify-between -mx-4 mb-3 border-b border-white/5 bg-[#1f1f1f]/95 py-2.5 backdrop-blur-sm px-4 lg:hidden">
         <UButton
+          v-if="!isMobileApp"
           color="neutral"
           variant="soft"
           class="inline-flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#404040] text-white hover:bg-[#4f4f4f]"
@@ -128,7 +131,7 @@ onBeforeUnmount(() => {
         >
           <Icon name="tabler:menu-2" class="h-5 w-5" />
         </UButton>
-        <div class="icon flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#404040]">
+        <div class="icon flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#404040]" :class="{ 'ml-auto': isMobileApp }">
           <img src="/favicon.png" alt="Logo" class="h-6 w-6 object-contain" />
         </div>
       </div>
@@ -150,7 +153,7 @@ onBeforeUnmount(() => {
     </div>
 
     <MobileBottomNav
-      v-if="isMobileViewport"
+      v-if="isMobileViewport || isMobileApp"
       @open-menu="mobileSidebarOpen = true"
     />
   </section>
