@@ -1,7 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const isMobileBuild = import.meta.env.NUXT_APP_MODE === 'mobile';
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: import.meta.env.NUXT_DEVTOOLS === 'true' },
+  // Mobile (Capacitor) build ships as a static SPA — no Node server on-device.
+  // Website deploy stays SSR (NUXT_APP_MODE unset).
+  ssr: !isMobileBuild,
   css: ['~/assets/css/tailwind.css', '~/assets/css/receipt-print.css'],
   modules: [
     '@pinia/nuxt',
@@ -35,6 +40,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiProxyTarget: import.meta.env.NUXT_API_PROXY_TARGET || 'https://api.konkurent-group.uz/api',
     public: {
+      appMode: import.meta.env.NUXT_APP_MODE || 'web',
       backendOrigin: (
         import.meta.env.NUXT_PUBLIC_BACKEND_ORIGIN ||
         import.meta.env.NUXT_API_PROXY_TARGET ||

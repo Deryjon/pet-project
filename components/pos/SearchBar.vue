@@ -20,6 +20,18 @@
         <template #leading>
           <Icon name="fe:search" class="h-4 w-4 text-[#bdbdbd]" />
         </template>
+        <template v-if="scannerSupported" #trailing>
+          <button
+            type="button"
+            class="flex h-9 w-9 items-center justify-center rounded-[10px] text-[#bdbdbd] transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isActionBusy"
+            aria-label="Сканировать штрихкод"
+            title="Сканировать штрихкод"
+            @click="void handleScan()"
+          >
+            <Icon name="tabler:barcode" class="h-5 w-5" />
+          </button>
+        </template>
       </UInput>
     </div>
 
@@ -483,6 +495,20 @@ const { formatPrice } = useFormatPrice();
 const { searchQuery, filteredProducts } = storeToRefs(store);
 const toast = useToast();
 const addToCart = store.addToCartServer;
+const { isSupported: scannerSupported, scanBarcode } = useBarcodeScanner();
+
+async function handleScan() {
+  try {
+    const code = await scanBarcode();
+    if (code) searchQuery.value = code;
+  } catch (error: any) {
+    toast.add({
+      title: "Не удалось отсканировать штрихкод",
+      description: error?.message || undefined,
+      color: "error",
+    });
+  }
+}
 
 const showDropdown = computed(() => Boolean(searchQuery.value.trim()));
 const isActionBusy = computed(

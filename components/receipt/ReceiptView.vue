@@ -45,7 +45,7 @@ const hasFooterContent = computed(
 );
 
 const styleVars = computed(() => ({
-  "--receipt-width": `${props.settings.paperWidth - 10}mm`,
+  "--receipt-width": `${props.settings.paperWidth}mm`,
   "--receipt-font-size": `${props.settings.fontSize}px`,
   "--section-gap": `${props.settings.sectionGap}px`,
   "--divider-gap": `${props.settings.dividerGap}px`,
@@ -113,11 +113,12 @@ onUnmounted(() => {
 .rv-root {
   width: var(--receipt-width);
   max-width: var(--receipt-width);
+  box-sizing: border-box;
   font-size: var(--receipt-font-size);
   font-family: "Courier New", ui-monospace, monospace;
   color: #000;
   background: #fff;
-  padding: 8px 6px;
+  padding: 2mm 3mm;
   margin: 0 auto;
   word-wrap: break-word;
   overflow-wrap: break-word;

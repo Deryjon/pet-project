@@ -14,15 +14,42 @@
   body * {
     visibility: hidden !important;
   }
+  /* This stylesheet is global (see nuxt.config.ts), so it loads on every
+     route, including the standalone /print/price-tags page — which has no
+     .receipt-print-root element at all. Without opting that page's own root
+     back into visibility here too, the rule above hides it completely and
+     printing price tags produces a blank page. */
   .receipt-print-root,
-  .receipt-print-root * {
+  .receipt-print-root *,
+  .price-tags-page,
+  .price-tags-page * {
     visibility: visible !important;
   }
   .receipt-print-root {
     position: fixed;
-    left: 0;
+    left: 50%;
     top: 0;
+    transform: translateX(-50%);
     width: var(--receipt-width, 80mm);
+  }
+  /* .rv-muted (dates, phone numbers, quantities, footer notes — most of the
+     receipt's secondary text) is styled with opacity for on-screen hierarchy.
+     A thermal head doesn't reproduce gentle gray: translucent/light-gray
+     content gets dithered into scattered dots by the driver, which is what
+     reads as "blurry, some of it not there" on paper. Force pure black ink
+     and full weight for everything actually sent to the printer; the faded
+     look stays intact for the on-screen preview/modal. */
+  .receipt-print-root,
+  .receipt-print-root * {
+    opacity: 1 !important;
+    color: #000 !important;
+    border-color: #000 !important;
+  }
+  /* Baseline weight only — not !important, not on *, so it's inherited and
+     anything with its own explicit font-weight (.rv-bold at 700, the
+     disabled-button state, etc.) still wins via normal cascade rules. */
+  .receipt-print-root {
+    font-weight: 600;
   }
   .no-print {
     display: none !important;

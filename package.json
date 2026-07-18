@@ -6,10 +6,18 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "generate:mobile": "NUXT_APP_MODE=mobile NUXT_PUBLIC_API_BASE=https://api.konkurent-group.uz/api nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^8.1.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@iconify-json/tabler": "^1.2.26",
     "@nuxt/ui": "^4.4.0",
     "@pinia/nuxt": "^0.11.2",
@@ -35,6 +43,7 @@
     "yup": "^1.7.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@iconify-json/boxicons": "^1.2.0",
     "@iconify-json/heroicons": "^1.2.3",
     "@iconify-json/material-symbols": "^1.2.56",
