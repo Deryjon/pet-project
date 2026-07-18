@@ -56,7 +56,7 @@ async function load() {
     const templateId = route.query.templateId ? String(route.query.templateId) : "";
 
     const [fetchedProducts, templates] = await Promise.all([
-      fetchPriceTags(productIds, copies),
+      fetchPriceTags(productIds, copies, branchId || undefined),
       branchId ? fetchPriceTagTemplates(branchId) : Promise.resolve([]),
     ]);
 

@@ -7,8 +7,31 @@ import BaseDataTableHeader from "../BaseDataTableHeader.vue";
 const store = useCatalogDataTableStore();
 const router = useRouter();
 const { can } = useAccessControl();
+const { isSupported: scannerSupported, scanBarcode } = useBarcodeScanner();
+const toast = useToast();
 
 const globalFilterInput = ref(store.globalFilter);
+
+async function handleScan() {
+  try {
+    const code = await scanBarcode();
+    if (code) globalFilterInput.value = code;
+  } catch (error: any) {
+    toast.add({
+      title: "Не удалось отсканировать штрихкод",
+      description: error?.message || undefined,
+      color: "error",
+    });
+  }
+}
+
+const actionButtons = computed(() => {
+  const buttons = [{ label: "Действия", onClick: goToActions }];
+  if (scannerSupported.value) {
+    buttons.push({ label: "Скан", onClick: () => void handleScan() });
+  }
+  return buttons;
+});
 const selectedFilter = computed({
   get: () => store.activeStatusFilter,
   set: (value: string) => {
@@ -49,7 +72,7 @@ watch(globalFilterInput, (val) => {
     :showFilters="true"
     :createButton="can('product-create') ? { label: 'Создать', to: '/products/create?page=1' } : undefined"
     @toggleFilters="showFilters = !showFilters"
-    :actionButtons="[{ label: 'Действия', onClick: goToActions }]"
+    :actionButtons="actionButtons"
     :statFilters="store.statusFilters"
   />
 

@@ -8,6 +8,8 @@ const emit = defineEmits<{
 
 const route = useRoute();
 const { canAccess } = useAccessControl();
+const runtimeConfig = useRuntimeConfig();
+const isMobileApp = computed(() => runtimeConfig.public.appMode === "mobile");
 
 const items = [
   {
@@ -36,7 +38,17 @@ const items = [
   },
 ];
 
-const visibleItems = computed(() => items.filter((item) => canAccess(item.to)));
+const settingsItem = {
+  label: "Настройки",
+  icon: "heroicons:cog-6-tooth-solid",
+  to: "/settings/profile",
+  match: ["/settings"],
+};
+
+const visibleItems = computed(() => {
+  const list = isMobileApp.value ? [...items, settingsItem] : items;
+  return list.filter((item) => canAccess(item.to));
+});
 
 const isMenuActive = computed(() =>
   ["/settings", "/management"].some(
@@ -72,6 +84,7 @@ function isItemActive(matchers: string[]) {
       </NuxtLink>
 
       <button
+        v-if="!isMobileApp"
         type="button"
         class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-1 py-2 text-center transition-colors"
         :class="

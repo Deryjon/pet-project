@@ -321,6 +321,8 @@ async function handleFooterAction(actionLabel: string) {
         productId: String(product.id ?? ""),
         productName: String(product.name ?? ""),
         sku: String(product.sku ?? ""),
+        barcode: String(product.barcode ?? ""),
+        price: String(product.sale_price ?? 0),
         shop: String(product.shop_name ?? ""),
         count: "1",
       },
