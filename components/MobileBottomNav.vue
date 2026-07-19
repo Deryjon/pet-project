@@ -65,7 +65,7 @@ function isItemActive(matchers: string[]) {
 
 <template>
   <nav
-    class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[rgba(24,24,24,0.96)] px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 backdrop-blur-xl lg:hidden"
+    class="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[rgba(24,24,24,0.96)] px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 backdrop-blur-xl lg:hidden [transform:translateZ(0)] [will-change:transform]"
   >
     <div class="grid grid-cols-5 gap-1 rounded-[24px] bg-[#2a2a2a]/95 p-1 shadow-[0_-12px_30px_rgba(0,0,0,0.22)]">
       <NuxtLink
