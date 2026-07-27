@@ -221,6 +221,18 @@
               </button>
             </template>
           </div>
+
+          <div class="mt-4 rounded-[18px] border border-white/8 bg-[#262626] p-4">
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-white">Комментарий к продаже (необязательно)</span>
+              <input
+                v-model="saleComment"
+                type="text"
+                class="w-full rounded-[16px] border border-white/10 bg-[#303030] px-4 py-3 text-white outline-none placeholder-[#666] focus:border-[#1f78ff]"
+                placeholder="Например: подарочная упаковка"
+              />
+            </label>
+          </div>
         </div>
 
         <div class="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -449,15 +461,13 @@ import { useRouter } from "vue-router";
 import { useCartStore } from "@/store/cart";
 import { usePrintSettingsStore } from "@/store/printSettings";
 import { useFormatPrice } from "@/composables/useFormatPrice";
-import { useShopAccess } from "@/composables/useShopAccess";
-import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "@/composables/useReceipts";
+import { useReceipts, defaultReceiptSettings, type ReceiptData, type ReceiptSettingsData } from "@/composables/useReceipts";
 import { useReceiptShare } from "@/composables/useReceiptShare";
 import ReceiptView from "@/components/receipt/ReceiptView.vue";
 
 const cartStore = useCartStore();
 const printStore = usePrintSettingsStore();
 const receipts = useReceipts();
-const { currentShopId } = useShopAccess();
 const router = useRouter();
 const {
   subtotal,
@@ -480,6 +490,7 @@ const completionModalOpen = ref(false);
 const selectedPaymentMethod = ref("");
 const paymentAmountInput = ref("");
 const dueDateInput = ref("");
+const saleComment = ref("");
 const debtCommentInput = ref("");
 const receiptUrlInput = ref("");
 const debtConfirmation = ref(false);
@@ -492,10 +503,10 @@ async function loadReceiptForSale(saleId: number | string) {
   try {
     const [receipt, settings] = await Promise.all([
       receipts.fetchReceipt(saleId),
-      currentShopId.value ? receipts.fetchReceiptSettings(currentShopId.value) : Promise.resolve(null),
+      receipts.fetchReceiptSettings().catch(() => null),
     ]);
     receiptData.value = receipt;
-    receiptSettings.value = settings;
+    receiptSettings.value = settings ?? defaultReceiptSettings();
 
     const shouldAutoOpen = printStore.settings.autoOpenReceiptAfterSale;
     const shouldAutoPrint = printStore.settings.autoPrintReceiptAfterSale;
@@ -703,6 +714,7 @@ function closePaymentPanel() {
   paymentPanelOpen.value = false;
   pendingPayments.value = [];
   paymentAmountInput.value = "";
+  saleComment.value = "";
 }
 
 function openDebtModal() {
@@ -773,6 +785,7 @@ async function completePaidOrder() {
     paymentMethodId: primaryMethodId,
     clientId: cartStore.currentOrder?.customerId ?? null,
     payments: payments ?? null,
+    comment: saleComment.value.trim() || undefined,
   });
   if (!result) {
     toast.add({
@@ -797,6 +810,7 @@ async function completeWithDebt() {
   const result = await cartStore.paySale({
     paymentMethodId: selectedPaymentMethod.value,
     clientId: cartStore.currentOrder?.customerId ?? null,
+    comment: saleComment.value.trim() || undefined,
     debt: {
       amount_uzs: Number(remainingDebtAmount.value || 0),
       due_date: dueDateInput.value || null,

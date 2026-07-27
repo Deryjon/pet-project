@@ -70,7 +70,7 @@ export const MENU_DATA: IMenuItem[] = [
       { title: "Компания", url: "/settings/company" },
       { title: "Товары", url: "/settings/products" },
       { title: "Способы оплаты", url: "/settings/payment-types" },
-      { title: "Чек", url: "/settings/receipt" },
+      { title: "Чек", url: "/settings/cheque" },
     ],
   },
 ];

@@ -489,8 +489,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useApi } from "~/composables/useApi";
 import { useFormatPrice } from "~/composables/useFormatPrice";
 import { useUserStore } from "~/store/useUserStore";
-import { useShopAccess } from "~/composables/useShopAccess";
-import { useReceipts, type ReceiptData, type ReceiptSettingsData } from "~/composables/useReceipts";
+import { useReceipts, defaultReceiptSettings, type ReceiptData, type ReceiptSettingsData } from "~/composables/useReceipts";
 import { useReceiptShare } from "~/composables/useReceiptShare";
 import ReceiptView from "~/components/receipt/ReceiptView.vue";
 
@@ -1122,14 +1121,12 @@ async function printSale(sale: SaleView) {
   receiptSettings.value = null;
   try {
     const { fetchReceipt, fetchReceiptSettings } = useReceipts();
-    const { currentShopId } = useShopAccess();
-    const shopId = sale.shopId || currentShopId.value || "";
     const [receipt, settings] = await Promise.all([
       fetchReceipt(sale.id),
-      shopId ? fetchReceiptSettings(shopId) : Promise.resolve(null),
+      fetchReceiptSettings().catch(() => null),
     ]);
     receiptData.value = receipt;
-    receiptSettings.value = settings ?? defaultReceiptSettings(shopId);
+    receiptSettings.value = settings ?? defaultReceiptSettings();
   } catch (e: any) {
     receiptError.value = e?.data?.message || e?.message || "Не удалось загрузить чек.";
   } finally {
@@ -1146,58 +1143,17 @@ async function printSaleByNumber(number: string) {
   receiptSettings.value = null;
   try {
     const { fetchReceiptByNumber, fetchReceiptSettings } = useReceipts();
-    const { currentShopId } = useShopAccess();
-    const receipt = await fetchReceiptByNumber(number);
-    const shopId = receipt.shopId || currentShopId.value || "";
+    const [receipt, settings] = await Promise.all([
+      fetchReceiptByNumber(number),
+      fetchReceiptSettings().catch(() => null),
+    ]);
     receiptData.value = receipt;
-    receiptSettings.value = shopId
-      ? await fetchReceiptSettings(shopId)
-      : defaultReceiptSettings(shopId);
+    receiptSettings.value = settings ?? defaultReceiptSettings();
   } catch (e: any) {
     receiptError.value = e?.data?.message || e?.message || "Не удалось загрузить чек.";
   } finally {
     receiptLoading.value = false;
   }
-}
-
-function defaultReceiptSettings(shopId: string): ReceiptSettingsData {
-  return {
-    shopId,
-    showClientInfo: true,
-    showManagerName: true,
-    showManagerPhone: false,
-    showCashback: true,
-    showDebtLine: true,
-    showQrCode: false,
-    showItemIndex: true,
-    paperWidth: 80,
-    fontSize: 13,
-    dividerStyle: "single",
-    dividerGap: 8,
-    sectionGap: 12,
-    itemDividers: false,
-    footerMessage: "",
-    footerNote: "",
-    hasLogo: false,
-    logoUrl: "",
-    hasBarCode: false,
-    branchName: "",
-    hasBranchName: false,
-    address: "",
-    hasAddress: false,
-    phone: "",
-    hasPhone: false,
-    workingHours: "",
-    hasWorkingHours: false,
-    website: "",
-    hasWebsite: false,
-    taxId: "",
-    hasTaxId: false,
-    qrCodeUrl: "",
-    hasCustomerDebt: false,
-    hasCustomerBalance: false,
-    elementStyles: null,
-  };
 }
 
 function editSale(sale: SaleView) {

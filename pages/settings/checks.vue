@@ -72,7 +72,7 @@ function save() {
             <p>Формат бумаги, отступы, видимость блоков и содержимое чека.</p>
           </div>
         </div>
-        <NuxtLink to="/settings/receipt" class="primary-button" style="text-decoration:none;display:inline-flex;">
+        <NuxtLink to="/settings/cheque" class="primary-button" style="text-decoration:none;display:inline-flex;">
           <Icon name="heroicons:cog-6-tooth" class="h-5 w-5" />
           Настроить чек
         </NuxtLink>
