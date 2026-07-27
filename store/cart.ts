@@ -33,6 +33,7 @@ type CompanyPaymentMethod = {
 type SalePaymentPayload = {
   paymentMethodId: string;
   clientId?: string | null;
+  comment?: string;
   payments?: { payment_method: string; amount: number }[] | null;
   debt?: {
     amount_uzs?: number | null;
@@ -1472,6 +1473,10 @@ export const useCartStore = defineStore("cart", () => {
 
       if (clientId) {
         body.client_id = clientId;
+      }
+
+      if (payload.comment?.trim()) {
+        body.comment = payload.comment.trim();
       }
 
       if (hasDebtMeta) {

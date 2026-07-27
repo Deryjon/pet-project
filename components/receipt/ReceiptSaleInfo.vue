@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ReceiptData, ReceiptSettingsData } from "@/composables/useReceipts";
+import type { ReceiptData } from "@/composables/useReceipts";
 
-const props = defineProps<{ receipt: ReceiptData; settings: ReceiptSettingsData }>();
+const props = defineProps<{ receipt: ReceiptData; showDate: boolean }>();
 
 const dateLabel = new Date(props.receipt.createdAt).toLocaleString("ru-RU", {
   day: "2-digit",
@@ -18,17 +18,9 @@ const dateLabel = new Date(props.receipt.createdAt).toLocaleString("ru-RU", {
       <span class="rv-muted">Чек #:</span>
       <span class="rv-bold">{{ receipt.number }}</span>
     </div>
-    <div class="rv-row">
+    <div v-if="showDate" class="rv-row">
       <span class="rv-muted">Дата:</span>
       <span>{{ dateLabel }}</span>
-    </div>
-    <div v-if="settings.showManagerName && receipt.managerName" class="rv-row">
-      <span class="rv-muted">Продавец:</span>
-      <span>{{ receipt.managerName }}</span>
-    </div>
-    <div v-if="settings.showManagerPhone && receipt.managerPhone" class="rv-row">
-      <span class="rv-muted">Телефон продавца:</span>
-      <span>{{ receipt.managerPhone }}</span>
     </div>
   </div>
 </template>

@@ -6,6 +6,7 @@ import { useLocationStore } from "@/store/useLocationStore";
 import { useProductStore } from "@/store/productStore";
 import { resolveProductImageUrl, useProducts } from "~/composables/useProducts";
 import type { ProductMovementItem, ProductMovementResponse } from "~/types/product-detail";
+import PrintPriceTagsModal from "@/components/products/PrintPriceTagsModal.vue";
 
 type TableSection = {
   title: string;
@@ -51,6 +52,8 @@ const showProductSidebar = computed({
 const filtersOpen = ref(false);
 const actionPopoverOpen = ref(false);
 const shopPopoverOpen = ref(false);
+const printModalOpen = ref(false);
+const printModalProductIds = ref<Array<string | number>>([]);
 const productHistoryLoading = ref(false);
 const productMovementData = ref<ProductMovementResponse | null>(null);
 const historyActionOptions = ref<HistoryActionOption[]>([]);
@@ -314,19 +317,8 @@ async function handleFooterAction(actionLabel: string) {
   const product = selectedProduct.value;
 
   if (actionLabel === "Печать ценников") {
-    closeSidebar();
-    await router.push({
-      path: "/products/settings/print-tag",
-      query: {
-        productId: String(product.id ?? ""),
-        productName: String(product.name ?? ""),
-        sku: String(product.sku ?? ""),
-        barcode: String(product.barcode ?? ""),
-        price: String(product.sale_price ?? 0),
-        shop: String(product.shop_name ?? ""),
-        count: "1",
-      },
-    });
+    printModalProductIds.value = [product.id];
+    printModalOpen.value = true;
     return;
   }
 
@@ -708,4 +700,6 @@ watch(
         </div>
       </div>
   </AppSlideover>
+
+  <PrintPriceTagsModal v-model="printModalOpen" :product-ids="printModalProductIds" />
 </template>

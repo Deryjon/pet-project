@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ReceiptData } from "@/composables/useReceipts";
 
-defineProps<{ receipt: ReceiptData; showDebt: boolean }>();
+defineProps<{ receipt: ReceiptData }>();
 
 function fmt(v: number) {
   return Math.round(v).toLocaleString("ru-RU");
@@ -22,7 +22,7 @@ function fmt(v: number) {
       <span class="rv-muted">Кешбек:</span>
       <span>{{ fmt(receipt.paidCashback) }}</span>
     </div>
-    <div v-if="showDebt && receipt.debt > 0" class="rv-row rv-bold">
+    <div v-if="receipt.debt > 0" class="rv-row rv-bold">
       <span>В долг:</span>
       <span>{{ fmt(receipt.debt) }}</span>
     </div>
