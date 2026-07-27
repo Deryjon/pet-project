@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from "vue";
 import { useRoute } from "#app";
-import { usePriceTagsData, type PriceTagProduct, type PriceTagTemplateData } from "@/composables/usePriceTagsData";
+import { usePriceTagsData, ELEMENT_PRESETS, type PriceTagProduct, type PriceTagTemplate } from "@/composables/usePriceTagsData";
 import { useShopAccess } from "@/composables/useShopAccess";
 import PriceTagGrid from "@/components/print/PriceTagGrid.vue";
 
@@ -14,20 +14,18 @@ const { currentShopId } = useShopAccess();
 const loading = ref(true);
 const error = ref("");
 const products = ref<PriceTagProduct[]>([]);
-const template = ref<PriceTagTemplateData | null>(null);
+const template = ref<PriceTagTemplate | null>(null);
+const showDiscount = ref(route.query.discount !== "0");
+const printOnA4 = ref(route.query.a4 === "1");
 
-const FALLBACK_TEMPLATE: PriceTagTemplateData = {
+const FALLBACK_TEMPLATE: PriceTagTemplate = {
   id: "",
   name: "Стандарт 40x20мм",
   width: 40,
   length: 20,
   barcodeType: "CODE128",
-  elements: [
-    { id: "name", x: 2, y: 2, fontSize: 8, fontWeight: "bold", visible: true },
-    { id: "price", x: 2, y: 10, fontSize: 14, fontWeight: "bold", visible: true },
-    { id: "barcode", x: 2, y: 22, fontSize: 6, barcodeHeight: 10, visible: true },
-    { id: "sku", x: 2, y: 36, fontSize: 6, fontWeight: "normal", visible: true },
-  ],
+  barcodeTypeId: "",
+  elements: ELEMENT_PRESETS.filter((e) => ["product_name", "price", "barcode", "sku"].includes(e.name)).map((e) => ({ ...e })),
 };
 
 function parseCopies(raw: string): Record<string, number> {
@@ -55,9 +53,15 @@ async function load() {
     const branchId = String(route.query.branchId ?? currentShopId.value ?? "");
     const templateId = route.query.templateId ? String(route.query.templateId) : "";
 
-    const [fetchedProducts, templates] = await Promise.all([
+    // Templates and products are independent — a templates-fetch failure
+    // should still let the fallback template print, and vice versa. Only a
+    // products-fetch failure (nothing to actually print) is fatal.
+    const [templates, fetchedProducts] = await Promise.all([
+      fetchPriceTagTemplates(branchId || "all").catch((e) => {
+        console.error("Failed to load price tag templates", e);
+        return [];
+      }),
       fetchPriceTags(productIds, copies, branchId || undefined),
-      branchId ? fetchPriceTagTemplates(branchId) : Promise.resolve([]),
     ]);
 
     products.value = fetchedProducts;
@@ -65,6 +69,10 @@ async function load() {
       (templateId && templates.find((t) => t.id === templateId)) ||
       templates[0] ||
       FALLBACK_TEMPLATE;
+
+    if (!products.value.length) {
+      error.value = "Товары не найдены.";
+    }
   } catch (e: any) {
     error.value = e?.data?.message || e?.message || "Не удалось загрузить ценники.";
   } finally {
@@ -82,15 +90,27 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="price-tags-page">
+  <div class="price-tags-page" :class="{ 'price-tags-page-a4': printOnA4 }">
     <p v-if="loading" class="no-print status">Загрузка...</p>
     <p v-else-if="error" class="no-print status status-error">{{ error }}</p>
-    <PriceTagGrid v-else-if="template" :products="products" :template="template" />
+    <PriceTagGrid
+      v-else-if="template"
+      :products="products"
+      :template="template"
+      :show-discount="showDiscount"
+      :a4="printOnA4"
+    />
   </div>
 </template>
 
 <style scoped>
 .price-tags-page {
+  padding: 0;
+}
+/* Only the A4 (gang-print) layout needs page margin — single-label mode sets
+   @page to the template's exact mm size (see PriceTagGrid.vue), so any
+   padding here would push the tag past the physical label's edge. */
+.price-tags-page-a4 {
   padding: 3mm;
 }
 .status {

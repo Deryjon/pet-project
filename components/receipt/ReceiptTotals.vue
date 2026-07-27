@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import type { ReceiptData } from "@/composables/useReceipts";
 
-const props = defineProps<{ receipt: ReceiptData; showCashback: boolean }>();
+const props = defineProps<{
+  receipt: ReceiptData;
+  showDiscount: boolean;
+  showSum: boolean;
+  showCashback: boolean;
+}>();
 
 function fmt(v: number) {
   return Math.round(v).toLocaleString("ru-RU");
@@ -10,15 +15,21 @@ function fmt(v: number) {
 
 <template>
   <div class="rv-totals">
-    <div v-if="receipt.discount > 0" class="rv-row rv-muted">
-      <span>Сумма без скидки:</span>
-      <span>{{ fmt(receipt.subtotal) }}</span>
-    </div>
-    <div v-if="receipt.discount > 0" class="rv-row rv-muted">
-      <span>Скидка:</span>
-      <span>-{{ fmt(receipt.discount) }}</span>
-    </div>
-    <div class="rv-row rv-total">
+    <template v-if="showDiscount && receipt.discount > 0">
+      <div class="rv-row rv-muted">
+        <span>Сумма без скидки:</span>
+        <span>{{ fmt(receipt.subtotal) }}</span>
+      </div>
+      <div class="rv-row rv-muted">
+        <span>Скидка:</span>
+        <span>-{{ fmt(receipt.discount) }}</span>
+      </div>
+      <div v-if="receipt.discountPercent > 0" class="rv-row rv-muted">
+        <span>Скидка %:</span>
+        <span>{{ receipt.discountPercent }}%</span>
+      </div>
+    </template>
+    <div v-if="showSum" class="rv-row rv-total">
       <span>ИТОГО:</span>
       <span>{{ fmt(receipt.totalDue) }}</span>
     </div>

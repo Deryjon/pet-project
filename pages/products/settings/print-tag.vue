@@ -22,6 +22,10 @@
           <Transition name="fade">
             <span v-if="saving" class="text-[11px] text-[#666] mr-1">Сохранение...</span>
           </Transition>
+          <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+            Копий
+            <input type="number" min="1" max="999" v-model.number="printCount" class="input-sm w-14" />
+          </label>
           <button
             class="px-4 py-2 rounded-[14px] bg-[#2a2a2a] hover:bg-[#333] text-sm font-medium transition-colors"
             :disabled="!selectedTemplate"
@@ -124,53 +128,58 @@
             <div>
               <span class="label">Штрих-код</span>
               <select v-model="editBarcodeType" class="input" @change="saveTemplate">
-                <option value="CODE128">CODE128</option>
-                <option value="EAN13">EAN13</option>
-                <option value="EAN8">EAN8</option>
-                <option value="UPC">UPC-A</option>
+                <option v-for="bt in BARCODE_TYPES" :key="bt" :value="bt">{{ bt }}</option>
               </select>
             </div>
           </div>
 
           <!-- Elements -->
           <div class="space-y-2">
-            <p class="text-[11px] font-semibold text-[#555] uppercase tracking-wider">Элементы</p>
-            <div class="space-y-0.5">
+            <div class="flex items-center justify-between relative">
+              <p class="text-[11px] font-semibold text-[#555] uppercase tracking-wider">Свойства</p>
+              <button
+                type="button"
+                class="flex items-center gap-1 text-[11px] text-[#1f78ff] hover:text-[#5a9eff] transition-colors font-medium"
+                @click="showAddMenu = !showAddMenu"
+              >
+                <Icon name="heroicons:plus" class="w-3.5 h-3.5" />
+                Добавить
+              </button>
+              <div
+                v-if="showAddMenu"
+                class="absolute right-0 top-6 z-10 w-44 rounded-[12px] bg-[#242424] border border-white/10 shadow-xl py-1"
+              >
+                <button
+                  v-for="preset in availablePresets"
+                  :key="preset.name"
+                  type="button"
+                  class="w-full text-left px-3 py-2 text-[12px] text-[#ccc] hover:bg-white/5 transition-colors"
+                  @click="addElement(preset)"
+                >{{ ELEMENT_LABELS[preset.name] }}</button>
+                <p v-if="!availablePresets.length" class="px-3 py-2 text-[11px] text-[#555]">Все свойства добавлены</p>
+              </div>
+            </div>
+            <div v-if="!elements.length" class="text-center py-6 text-[11px] text-[#555]">
+              Добавьте свойства для отображения
+            </div>
+            <div v-else class="space-y-0.5">
               <div
                 v-for="el in elements"
                 :key="el.id"
-                class="flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] cursor-pointer transition-colors"
+                class="group flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] cursor-pointer transition-colors"
                 :class="selectedEl?.id === el.id ? 'bg-white/8' : 'hover:bg-white/4'"
                 @click="selectedEl = el"
               >
-                <input
-                  type="checkbox"
-                  v-model="el.visible"
-                  class="w-3.5 h-3.5 accent-[#1f78ff] flex-none"
-                  @click.stop
-                  @change="saveTemplate"
-                />
-                <span class="text-[12px] flex-1" :class="el.visible ? 'text-[#ccc]' : 'text-[#555]'">{{ el.label }}</span>
-                <span v-if="selectedEl?.id === el.id" class="w-1.5 h-1.5 rounded-full bg-[#1f78ff] flex-none" />
+                <span class="text-[12px] flex-1 text-[#ccc]">{{ ELEMENT_LABELS[el.name] }}</span>
+                <button
+                  type="button"
+                  class="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 text-[#666] transition-all"
+                  @click.stop="removeElement(el)"
+                >
+                  <Icon name="heroicons:trash" class="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
-          </div>
-
-          <!-- Print options -->
-          <div class="space-y-2">
-            <p class="text-[11px] font-semibold text-[#555] uppercase tracking-wider">Печать</p>
-            <div>
-              <span class="label">Количество копий</span>
-              <input type="number" min="1" max="999" v-model.number="printCount" class="input" />
-            </div>
-            <label class="flex items-center gap-2 cursor-pointer py-1">
-              <input type="checkbox" v-model="printOnA4" class="w-3.5 h-3.5 accent-[#1f78ff]" />
-              <span class="text-[12px] text-[#aaa]">Формат A4</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer py-1">
-              <input type="checkbox" v-model="showDiscount" class="w-3.5 h-3.5 accent-[#1f78ff]" />
-              <span class="text-[12px] text-[#aaa]">Показать скидку</span>
-            </label>
           </div>
         </div>
       </div>
@@ -194,12 +203,12 @@
             <!-- Zoom -->
             <div class="flex items-center gap-0.5 bg-[#242424] rounded-[10px] p-0.5">
               <button
-                @click="zoom = Math.max(3, zoom - 1)"
+                @click="zoom = Math.max(1, +(zoom - 0.5).toFixed(1))"
                 class="w-7 h-7 flex items-center justify-center rounded-[8px] hover:bg-white/10 transition-colors text-[#aaa] text-sm"
               >−</button>
               <span class="text-[12px] text-[#888] w-8 text-center font-mono">{{ zoom }}×</span>
               <button
-                @click="zoom = Math.min(15, zoom + 1)"
+                @click="zoom = Math.min(8, +(zoom + 0.5).toFixed(1))"
                 class="w-7 h-7 flex items-center justify-center rounded-[8px] hover:bg-white/10 transition-colors text-[#aaa] text-sm"
               >+</button>
             </div>
@@ -209,37 +218,82 @@
             <!-- Selected element controls -->
             <template v-if="selectedEl">
               <div class="h-4 w-px bg-white/10" />
-              <span class="text-[12px] text-[#888] font-medium">{{ selectedEl.label }}</span>
+              <span class="text-[12px] text-[#888] font-medium">{{ ELEMENT_LABELS[selectedEl.name] }}</span>
 
               <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
                 X
-                <input type="number" step="0.5" v-model.number="selectedEl.x" class="input-sm w-14" @change="saveTemplate" />
+                <input type="number" step="0.5" v-model.number="selectedEl.xAxis" class="input-sm w-14" @change="saveTemplate" />
                 мм
               </label>
               <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
                 Y
-                <input type="number" step="0.5" v-model.number="selectedEl.y" class="input-sm w-14" @change="saveTemplate" />
+                <input type="number" step="0.5" v-model.number="selectedEl.yAxis" class="input-sm w-14" @change="saveTemplate" />
+                мм
+              </label>
+              <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+                Ширина
+                <input type="number" step="0.5" min="2" v-model.number="selectedEl.width" class="input-sm w-14" @change="saveTemplate" />
                 мм
               </label>
 
-              <template v-if="selectedEl.id !== 'barcode'">
+              <template v-if="selectedEl.type === 'text'">
                 <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
                   Размер
                   <input type="number" min="4" max="72" v-model.number="selectedEl.fontSize" class="input-sm w-12" @change="saveTemplate" />
                   pt
                 </label>
-                <label class="flex items-center gap-1.5 text-[11px] text-[#777] cursor-pointer">
-                  <input type="checkbox" :checked="selectedEl.fontWeight === 'bold'" @change="toggleBold" class="w-3 h-3 accent-[#1f78ff]" />
-                  Жирный
-                </label>
+                <div class="flex items-center gap-0.5 bg-[#242424] rounded-[8px] p-0.5">
+                  <button
+                    type="button"
+                    class="w-6 h-6 rounded-[6px] text-[11px] font-bold transition-colors"
+                    :class="selectedEl.isBold ? 'bg-[#1f78ff] text-white' : 'text-[#888] hover:bg-white/10'"
+                    @click="toggleStyle('isBold')"
+                  >B</button>
+                  <button
+                    type="button"
+                    class="w-6 h-6 rounded-[6px] text-[11px] italic transition-colors"
+                    :class="selectedEl.isItalic ? 'bg-[#1f78ff] text-white' : 'text-[#888] hover:bg-white/10'"
+                    @click="toggleStyle('isItalic')"
+                  >I</button>
+                  <button
+                    type="button"
+                    class="w-6 h-6 rounded-[6px] text-[11px] underline transition-colors"
+                    :class="selectedEl.isUnderlined ? 'bg-[#1f78ff] text-white' : 'text-[#888] hover:bg-white/10'"
+                    @click="toggleStyle('isUnderlined')"
+                  >U</button>
+                  <button
+                    type="button"
+                    class="w-6 h-6 rounded-[6px] text-[11px] line-through transition-colors"
+                    :class="selectedEl.isLineThrough ? 'bg-[#1f78ff] text-white' : 'text-[#888] hover:bg-white/10'"
+                    @click="toggleStyle('isLineThrough')"
+                  >S</button>
+                </div>
+                <div class="flex items-center gap-0.5 bg-[#242424] rounded-[8px] p-0.5">
+                  <button
+                    v-for="a in (['LEFT', 'CENTER', 'RIGHT'] as const)"
+                    :key="a"
+                    type="button"
+                    class="w-6 h-6 rounded-[6px] flex items-center justify-center transition-colors"
+                    :class="selectedEl.alignmentType === a ? 'bg-[#1f78ff] text-white' : 'text-[#888] hover:bg-white/10'"
+                    @click="setAlignment(a)"
+                  >
+                    <Icon :name="a === 'LEFT' ? 'heroicons:bars-3-bottom-left' : a === 'CENTER' ? 'heroicons:bars-3' : 'heroicons:bars-3-bottom-right'" class="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </template>
               <template v-else>
                 <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
                   Высота
-                  <input type="number" min="3" max="40" v-model.number="selectedEl.barcodeHeight" class="input-sm w-12" @change="saveTemplate" />
+                  <input type="number" min="3" max="40" v-model.number="selectedEl.length" class="input-sm w-12" @change="saveTemplate" />
                   мм
                 </label>
               </template>
+
+              <label class="flex items-center gap-1.5 text-[11px] text-[#777]">
+                Поворот
+                <input type="number" step="90" v-model.number="selectedEl.rotation" class="input-sm w-12" @change="saveTemplate" />
+                °
+              </label>
             </template>
 
             <span v-else class="text-[11px] text-[#444] ml-1">Кликните на элемент для редактирования</span>
@@ -248,7 +302,6 @@
           <!-- Canvas area -->
           <div class="flex-1 overflow-auto p-10 flex items-start justify-center">
             <div
-              ref="canvasRef"
               class="relative bg-white shadow-2xl select-none"
               style="border: 2px dashed #d0d0d0;"
               :style="{
@@ -257,40 +310,50 @@
                 minWidth: tagW + 'px',
                 minHeight: tagH + 'px',
               }"
-              @mousemove.prevent="onCanvasMouseMove"
-              @mouseup="stopDrag"
-              @mouseleave="stopDrag"
             >
-              <!-- Grid -->
-              <div class="absolute inset-0 pointer-events-none opacity-[0.08]" :style="gridStyle" />
-
-              <!-- Elements -->
+              <!-- Real mm-sized tag, magnified via transform so every element
+                   uses the exact same mm/pt units the actual print does —
+                   editing here is guaranteed to match print 1:1. -->
               <div
-                v-for="el in visibleElements"
-                :key="el.id"
-                class="absolute select-none"
-                :class="[
-                  dragging?.id === el.id ? 'cursor-grabbing' : 'cursor-grab',
-                ]"
+                ref="canvasRef"
+                class="absolute top-0 left-0"
                 :style="{
-                  left: el.x * zoom + 'px',
-                  top: el.y * zoom + 'px',
-                  outline: selectedEl?.id === el.id ? '1.5px solid #1f78ff' : 'none',
-                  outlineOffset: '2px',
+                  width: editWidth + 'mm',
+                  height: editLength + 'mm',
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'top left',
                 }"
-                @mousedown.prevent="startDrag($event, el)"
+                @mousemove.prevent="onCanvasMouseMove"
+                @mouseup="stopDrag"
+                @mouseleave="stopDrag"
               >
-                <span v-if="el.id === 'name'" :style="textStyle(el, 8)">{{ sampleProduct.name }}</span>
-                <span v-else-if="el.id === 'price'" :style="textStyle(el, 14)">{{ formatPrice(sampleProduct.price) }} UZS</span>
-                <div v-else-if="el.id === 'barcode'" style="display:flex;flex-direction:column;align-items:center;line-height:1;">
-                  <span :style="barcodeStyle(el)">{{ sampleProduct.barcode || '000000000000' }}</span>
-                  <span :style="{ fontSize: Math.max(6, (el.fontSize || 6) * zoom * 0.35) + 'px', color: '#111', fontFamily: 'monospace', marginTop: '1px' }">
-                    {{ sampleProduct.barcode || '000000000000' }}
-                  </span>
+                <!-- Grid -->
+                <div class="absolute inset-0 pointer-events-none opacity-[0.08]" :style="gridStyle" />
+
+                <!-- Empty state -->
+                <div v-if="!elements.length" class="absolute inset-0 flex items-center justify-center pointer-events-none px-2">
+                  <p class="text-[8px] text-[#999] text-center leading-tight">Добавьте свойства для отображения</p>
                 </div>
-                <span v-else-if="el.id === 'sku'" :style="textStyle(el, 6)">Арт: {{ sampleProduct.sku }}</span>
-                <span v-else-if="el.id === 'shop'" :style="textStyle(el, 6)">{{ sampleProduct.shop }}</span>
-                <span v-else-if="el.id === 'discount'" :style="{ ...textStyle(el, 7), color: '#e00' }">Скидка: -10%</span>
+
+                <!-- Elements -->
+                <div
+                  v-for="el in visibleElements"
+                  :key="el.id"
+                  class="absolute select-none"
+                  :class="[
+                    dragging?.id === el.id ? 'cursor-grabbing' : 'cursor-grab',
+                  ]"
+                  :style="{
+                    left: el.xAxis + 'mm',
+                    top: el.yAxis + 'mm',
+                    outline: selectedEl?.id === el.id ? (0.5 / zoom) + 'mm solid #1f78ff' : 'none',
+                    outlineOffset: (0.5 / zoom) + 'mm',
+                  }"
+                  @mousedown.prevent="startDrag($event, el)"
+                >
+                  <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
+                  <div v-else class="price-tag-barcode" :style="{ width: el.width + 'mm' }" v-html="elementBarcodeSvg(el)" />
+                </div>
               </div>
             </div>
           </div>
@@ -312,7 +375,8 @@
             <div class="text-[12px] font-semibold text-[#1f78ff] mt-1">{{ formatPrice(sampleProduct.price) }} UZS</div>
           </div>
 
-          <!-- Scaled preview -->
+          <!-- Scaled preview — same mm/pt units + transform:scale as the
+               canvas and the actual print, just at a fixed small zoom. -->
           <div>
             <div class="text-[11px] text-[#555] mb-2">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм</div>
             <div
@@ -320,22 +384,23 @@
               :style="{ width: previewW + 'px', height: previewH + 'px' }"
             >
               <div
-                v-for="el in visibleElements"
-                :key="el.id"
-                class="absolute overflow-hidden"
-                :style="{ left: el.x * PREVIEW_PX_PER_MM + 'px', top: el.y * PREVIEW_PX_PER_MM + 'px' }"
+                :style="{
+                  width: editWidth + 'mm',
+                  height: editLength + 'mm',
+                  transform: `scale(${PREVIEW_ZOOM})`,
+                  transformOrigin: 'top left',
+                  position: 'relative',
+                }"
               >
-                <span v-if="el.id === 'name'" :style="previewTextStyle(el, 8)">{{ sampleProduct.name }}</span>
-                <span v-else-if="el.id === 'price'" :style="previewTextStyle(el, 14)">{{ formatPrice(sampleProduct.price) }} UZS</span>
-                <div v-else-if="el.id === 'barcode'" style="display:flex;flex-direction:column;align-items:center;line-height:1;">
-                  <span :style="previewBarcodeStyle(el)">{{ sampleProduct.barcode || '000000000000' }}</span>
-                  <span :style="{ fontSize: Math.max(4, (el.fontSize || 6) * PREVIEW_PX_PER_MM * 0.35) + 'px', color: '#111', fontFamily: 'monospace' }">
-                    {{ sampleProduct.barcode || '000000000000' }}
-                  </span>
+                <div
+                  v-for="el in visibleElements"
+                  :key="el.id"
+                  class="absolute overflow-hidden"
+                  :style="{ left: el.xAxis + 'mm', top: el.yAxis + 'mm', width: el.width + 'mm' }"
+                >
+                  <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
+                  <div v-else v-html="elementBarcodeSvg(el)" />
                 </div>
-                <span v-else-if="el.id === 'sku'" :style="previewTextStyle(el, 6)">Арт: {{ sampleProduct.sku }}</span>
-                <span v-else-if="el.id === 'shop'" :style="previewTextStyle(el, 6)">{{ sampleProduct.shop }}</span>
-                <span v-else-if="el.id === 'discount' && showDiscount" :style="{ ...previewTextStyle(el, 7), color: '#e00' }">Скидка: -10%</span>
               </div>
             </div>
           </div>
@@ -366,7 +431,7 @@
             <div class="space-y-3">
               <div>
                 <span class="label">Название</span>
-                <input v-model="newName" class="input" placeholder="Ценник 1" @keydown.enter="confirmCreate" autofocus />
+                <input v-model="newName" class="input" placeholder="Введите название" @keydown.enter="confirmCreate" autofocus />
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
@@ -381,9 +446,7 @@
               <div>
                 <span class="label">Тип штрих-кода</span>
                 <select v-model="newBarcodeType" class="input">
-                  <option value="CODE128">CODE128</option>
-                  <option value="EAN13">EAN13</option>
-                  <option value="EAN8">EAN8</option>
+                  <option v-for="bt in BARCODE_TYPES" :key="bt" :value="bt">{{ bt }}</option>
                 </select>
               </div>
             </div>
@@ -439,90 +502,46 @@
 import { ref, computed } from "vue";
 import { useHead, definePageMeta } from "#imports";
 import { useRouter, useRoute } from "#app";
-import { useApi } from "~/composables/useApi";
+import {
+  usePriceTagsData,
+  ELEMENT_LABELS,
+  ELEMENT_PRESETS,
+  BARCODE_TYPES,
+  type PriceTagElement,
+  type PriceTagTemplate,
+  type PriceTagAlignment,
+} from "@/composables/usePriceTagsData";
+import { renderBarcodeSvg, type BarcodeFormat } from "@/utils/barcode";
 
-useHead({
-  title: "Печать ценников | Konkurent",
-  link: [
-    {
-      rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=Libre+Barcode+128&family=Libre+Barcode+EAN13+Text&display=swap",
-    },
-  ],
-});
-
+useHead({ title: "Печать ценников | Konkurent" });
 definePageMeta({ layout: "empty" });
 
 const router = useRouter();
 const route = useRoute();
-const { apiFetch } = useApi();
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface TagElement {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  fontSize?: number;
-  fontWeight?: "normal" | "bold";
-  visible: boolean;
-  barcodeHeight?: number;
-}
-
-interface PriceTagTemplate {
-  id: string;
-  company_id: string;
-  name: string;
-  width: number;
-  length: number;
-  barcode_type: string;
-  barcode_type_id: string;
-  properties: { elements?: TagElement[] } | null;
-}
+const {
+  fetchPriceTagTemplateList,
+  createPriceTagTemplate,
+  updatePriceTagTemplate,
+  deletePriceTagTemplate,
+} = usePriceTagsData();
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const PREVIEW_PX_PER_MM = 3.0;
-const BARCODE_FONT = "'Libre Barcode 128', monospace";
-
-const DEFAULT_ELEMENTS: TagElement[] = [
-  { id: "name",     label: "Наименование", x: 2, y: 2,  fontSize: 8,  fontWeight: "bold",   visible: true  },
-  { id: "price",    label: "Цена",         x: 2, y: 10, fontSize: 14, fontWeight: "bold",   visible: true  },
-  { id: "barcode",  label: "Штрих-код",    x: 2, y: 22, fontSize: 6,  barcodeHeight: 10,    visible: true  },
-  { id: "sku",      label: "Артикул",      x: 2, y: 36, fontSize: 6,  fontWeight: "normal", visible: true  },
-  { id: "shop",     label: "Магазин",      x: 2, y: 42, fontSize: 6,  fontWeight: "normal", visible: false },
-  { id: "discount", label: "Скидка",       x: 2, y: 48, fontSize: 7,  fontWeight: "bold",   visible: false },
-];
-
-function mergeElements(saved: TagElement[]): TagElement[] {
-  const merged: TagElement[] = [];
-  const usedIds = new Set<string>();
-  for (const s of saved) {
-    const def = DEFAULT_ELEMENTS.find((d) => d.id === s.id);
-    merged.push({
-      id: s.id,
-      label: def?.label ?? s.label,
-      x: s.x ?? def?.x ?? 2,
-      y: s.y ?? def?.y ?? 2,
-      fontSize: s.fontSize ?? def?.fontSize,
-      fontWeight: s.fontWeight ?? def?.fontWeight,
-      visible: s.visible ?? def?.visible ?? true,
-      barcodeHeight: s.barcodeHeight ?? def?.barcodeHeight,
-    });
-    usedIds.add(s.id);
-  }
-  for (const d of DEFAULT_ELEMENTS) {
-    if (!usedIds.has(d.id)) merged.push({ ...d });
-  }
-  return merged;
-}
+// The real, spec-accurate CSS mm-to-px ratio (96dpi "reference pixel" — what
+// every browser actually uses to lay out `mm`-unit lengths). All three
+// renderings below (canvas, side preview, print HTML) use plain CSS `mm`/`pt`
+// units directly and only reach for this constant where a raw pixel number is
+// unavoidable (jsbarcode's height option) — that's what keeps them identical
+// to each other and to the real print output.
+const CSS_PX_PER_MM = 3.7795275591;
+const PREVIEW_ZOOM = 3;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const loadingTemplates = ref(true);
 const saving = ref(false);
 const templates = ref<PriceTagTemplate[]>([]);
 const selectedTemplate = ref<PriceTagTemplate | null>(null);
-const elements = ref<TagElement[]>([]);
-const selectedEl = ref<TagElement | null>(null);
+const elements = ref<PriceTagElement[]>([]);
+const selectedEl = ref<PriceTagElement | null>(null);
 
 const editName = ref("");
 const editWidth = ref(40);
@@ -536,15 +555,14 @@ const newLength = ref(20);
 const newBarcodeType = ref("CODE128");
 
 const deleteTargetId = ref<string | null>(null);
+const showAddMenu = ref(false);
 
 const printCount = ref(Number(route.query.count) || 1);
-const printOnA4 = ref(false);
-const showDiscount = ref(false);
 
-const zoom = ref(6);
+const zoom = ref(2);
 const canvasRef = ref<HTMLElement | null>(null);
 
-const dragging = ref<TagElement | null>(null);
+const dragging = ref<PriceTagElement | null>(null);
 let dragStartMouseX = 0;
 let dragStartMouseY = 0;
 let dragStartElX = 0;
@@ -552,88 +570,95 @@ let dragStartElY = 0;
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
 const sampleProduct = computed(() => ({
-  name:    String(route.query.productName || "Наименование товара"),
-  sku:     String(route.query.sku         || "АРТ-001"),
-  barcode: String(route.query.barcode     || "123456789012"),
-  price:   Number(route.query.price       || 59900),
-  shop:    String(route.query.shop        || "Магазин"),
+  name: String(route.query.productName || "Наименование товара"),
+  sku: String(route.query.sku || "АРТ-001"),
+  barcode: String(route.query.barcode || "123456789012"),
+  price: Number(route.query.price || 59900),
+  shop: String(route.query.shop || "Магазин"),
 }));
 
-const tagW = computed(() => (editWidth.value  || 40) * zoom.value);
-const tagH = computed(() => (editLength.value || 20) * zoom.value);
-const previewW = computed(() => (editWidth.value  || 40) * PREVIEW_PX_PER_MM);
-const previewH = computed(() => (editLength.value || 20) * PREVIEW_PX_PER_MM);
-const visibleElements = computed(() => elements.value.filter((e) => e.visible));
+const tagW = computed(() => (editWidth.value || 40) * CSS_PX_PER_MM * zoom.value);
+const tagH = computed(() => (editLength.value || 20) * CSS_PX_PER_MM * zoom.value);
+const previewW = computed(() => (editWidth.value || 40) * CSS_PX_PER_MM * PREVIEW_ZOOM);
+const previewH = computed(() => (editLength.value || 20) * CSS_PX_PER_MM * PREVIEW_ZOOM);
+const visibleElements = computed(() => elements.value);
+const availablePresets = computed(() =>
+  ELEMENT_PRESETS.filter((preset) => !elements.value.some((el) => el.name === preset.name)),
+);
 
+// Grid is drawn in real mm (1mm cells) inside the same transform:scale
+// wrapper as the elements, so it always lines up with them regardless of zoom.
 const gridStyle = computed(() => ({
   backgroundImage: [
-    `repeating-linear-gradient(0deg, #888 0, #888 1px, transparent 1px, transparent ${zoom.value}px)`,
-    `repeating-linear-gradient(90deg, #888 0, #888 1px, transparent 1px, transparent ${zoom.value}px)`,
+    "repeating-linear-gradient(0deg, #888 0, #888 0.1mm, transparent 0.1mm, transparent 1mm)",
+    "repeating-linear-gradient(90deg, #888 0, #888 0.1mm, transparent 0.1mm, transparent 1mm)",
   ].join(", "),
-  backgroundSize: `${zoom.value}px ${zoom.value}px`,
+  backgroundSize: "1mm 1mm",
 }));
 
+// ─── Sample content per element ──────────────────────────────────────────────
+function sampleText(el: PriceTagElement): string {
+  switch (el.name) {
+    case "product_name": return sampleProduct.value.name;
+    case "price": return `${formatPrice(sampleProduct.value.price)} UZS`;
+    case "sku": return `Арт: ${sampleProduct.value.sku}`;
+    case "shop_name": return sampleProduct.value.shop;
+    case "discount": return "-10%";
+    default: return "";
+  }
+}
+
+function formatPrice(value: number) {
+  return Math.round(value).toLocaleString("ru-RU");
+}
+
 // ─── Style helpers ────────────────────────────────────────────────────────────
-function textStyle(el: TagElement, defaultSize: number): Record<string, string> {
+// Plain CSS mm/pt units — identical to components/print/PriceTag.vue's
+// elementStyle(). Magnification is handled entirely by the transform:scale()
+// wrapper around the canvas/preview, never baked into these numbers, so
+// editing here always matches the real print exactly.
+function elementTextStyle(el: PriceTagElement): Record<string, string> {
   return {
     display: "block",
-    fontSize: Math.max(6, (el.fontSize ?? defaultSize) * zoom.value * 0.35) + "px",
-    fontWeight: el.fontWeight ?? "normal",
+    fontSize: `${el.fontSize}pt`,
+    fontFamily: el.fontFamily || "Arial, sans-serif",
+    fontWeight: el.isBold ? "700" : "400",
+    fontStyle: el.isItalic ? "italic" : "normal",
+    textDecoration: [el.isUnderlined ? "underline" : "", el.isLineThrough ? "line-through" : ""].filter(Boolean).join(" ") || "none",
+    textAlign: el.alignmentType.toLowerCase() as "left" | "center" | "right",
     color: "#111",
     whiteSpace: "nowrap",
+    transform: el.rotation ? `rotate(${el.rotation}deg)` : "none",
+    transformOrigin: "top left",
   };
 }
 
-function barcodeStyle(el: TagElement): Record<string, string> {
-  return {
-    display: "block",
-    fontFamily: BARCODE_FONT,
-    fontSize: (el.barcodeHeight ?? 10) * zoom.value + "px",
-    color: "#111",
-    lineHeight: "1",
-    letterSpacing: "0",
-  };
-}
-
-function previewTextStyle(el: TagElement, defaultSize: number): Record<string, string> {
-  return {
-    display: "block",
-    fontSize: Math.max(4, (el.fontSize ?? defaultSize) * PREVIEW_PX_PER_MM * 0.35) + "px",
-    fontWeight: el.fontWeight ?? "normal",
-    color: "#111",
-    whiteSpace: "nowrap",
-  };
-}
-
-function previewBarcodeStyle(el: TagElement): Record<string, string> {
-  return {
-    display: "block",
-    fontFamily: BARCODE_FONT,
-    fontSize: (el.barcodeHeight ?? 10) * PREVIEW_PX_PER_MM + "px",
-    color: "#111",
-    lineHeight: "1",
-    letterSpacing: "0",
-  };
+function elementBarcodeSvg(el: PriceTagElement) {
+  return renderBarcodeSvg(sampleProduct.value.barcode || "123456789012", {
+    format: editBarcodeType.value as BarcodeFormat,
+    height: el.length * CSS_PX_PER_MM,
+    displayValue: true,
+  });
 }
 
 // ─── Drag ─────────────────────────────────────────────────────────────────────
-function startDrag(e: MouseEvent, el: TagElement) {
+function startDrag(e: MouseEvent, el: PriceTagElement) {
   selectedEl.value = el;
   dragging.value = el;
   dragStartMouseX = e.clientX;
   dragStartMouseY = e.clientY;
-  dragStartElX = el.x;
-  dragStartElY = el.y;
+  dragStartElX = el.xAxis;
+  dragStartElY = el.yAxis;
 }
 
 function onCanvasMouseMove(e: MouseEvent) {
   if (!dragging.value || !selectedTemplate.value) return;
-  const dx = (e.clientX - dragStartMouseX) / zoom.value;
-  const dy = (e.clientY - dragStartMouseY) / zoom.value;
+  const dx = (e.clientX - dragStartMouseX) / (CSS_PX_PER_MM * zoom.value);
+  const dy = (e.clientY - dragStartMouseY) / (CSS_PX_PER_MM * zoom.value);
   const w = editWidth.value || selectedTemplate.value.width;
   const h = editLength.value || selectedTemplate.value.length;
-  dragging.value.x = Math.max(0, Math.min(w - 1, +(dragStartElX + dx).toFixed(1)));
-  dragging.value.y = Math.max(0, Math.min(h - 1, +(dragStartElY + dy).toFixed(1)));
+  dragging.value.xAxis = Math.max(0, Math.min(w - 1, +(dragStartElX + dx).toFixed(1)));
+  dragging.value.yAxis = Math.max(0, Math.min(h - 1, +(dragStartElY + dy).toFixed(1)));
 }
 
 function stopDrag() {
@@ -641,23 +666,40 @@ function stopDrag() {
   dragging.value = null;
 }
 
-function toggleBold(e: Event) {
+function toggleStyle(key: "isBold" | "isItalic" | "isUnderlined" | "isLineThrough") {
   if (!selectedEl.value) return;
-  selectedEl.value.fontWeight = (e.target as HTMLInputElement).checked ? "bold" : "normal";
+  selectedEl.value[key] = !selectedEl.value[key];
   saveTemplate();
 }
 
-function formatPrice(value: number) {
-  return Math.round(value).toLocaleString("ru-RU");
+function setAlignment(a: PriceTagAlignment) {
+  if (!selectedEl.value) return;
+  selectedEl.value.alignmentType = a;
+  saveTemplate();
+}
+
+function addElement(preset: PriceTagElement) {
+  const el: PriceTagElement = { ...preset, id: `${preset.name}-${Date.now()}` };
+  elements.value.push(el);
+  selectedEl.value = el;
+  showAddMenu.value = false;
+  saveTemplate();
+}
+
+function removeElement(el: PriceTagElement) {
+  elements.value = elements.value.filter((e) => e.id !== el.id);
+  if (selectedEl.value?.id === el.id) selectedEl.value = null;
+  saveTemplate();
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 async function loadTemplates() {
   loadingTemplates.value = true;
   try {
-    const res = await apiFetch<{ price_tags: PriceTagTemplate[] }>("/price-tag");
-    templates.value = res?.price_tags ?? [];
-    if (templates.value.length) selectTemplate(templates.value[0]);
+    templates.value = await fetchPriceTagTemplateList();
+    const requestedId = route.query.templateId ? String(route.query.templateId) : "";
+    const initial = (requestedId && templates.value.find((t) => t.id === requestedId)) || templates.value[0];
+    if (initial) selectTemplate(initial);
   } catch (e) {
     console.error("loadTemplates", e);
   } finally {
@@ -671,12 +713,9 @@ async function selectTemplate(tpl: PriceTagTemplate) {
   editName.value = tpl.name;
   editWidth.value = tpl.width;
   editLength.value = tpl.length;
-  editBarcodeType.value = tpl.barcode_type;
+  editBarcodeType.value = tpl.barcodeType;
   selectedEl.value = null;
-  const saved = tpl.properties?.elements;
-  elements.value = Array.isArray(saved) && saved.length
-    ? mergeElements(saved)
-    : DEFAULT_ELEMENTS.map((e) => ({ ...e }));
+  elements.value = tpl.elements.map((e) => ({ ...e }));
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -686,22 +725,19 @@ function currentEditPayload() {
     name: editName.value,
     width: editWidth.value,
     length: editLength.value,
-    barcode_type: editBarcodeType.value,
-    properties: { elements: elements.value.map((e) => ({ ...e })) },
+    barcodeType: editBarcodeType.value,
+    elements: elements.value,
   };
 }
 
 async function persistTemplate(id: string, payload: ReturnType<typeof currentEditPayload>) {
   saving.value = true;
   try {
-    const updated = await apiFetch<PriceTagTemplate>(`/price-tag/${id}`, {
-      method: "PUT",
-      body: payload,
-    });
+    const updated = await updatePriceTagTemplate(id, payload);
     const idx = templates.value.findIndex((t) => t.id === id);
-    if (idx !== -1 && updated) {
-      templates.value[idx] = { ...templates.value[idx], ...updated };
-      if (selectedTemplate.value?.id === id) selectedTemplate.value = templates.value[idx];
+    if (idx !== -1) {
+      templates.value[idx] = updated;
+      if (selectedTemplate.value?.id === id) selectedTemplate.value = updated;
     }
   } catch (e) {
     console.error("saveTemplate", e);
@@ -728,7 +764,7 @@ function saveTemplate() {
 }
 
 function createTemplate() {
-  newName.value = `Ценник ${templates.value.length + 1}`;
+  newName.value = "";
   newWidth.value = 40;
   newLength.value = 20;
   newBarcodeType.value = "CODE128";
@@ -738,20 +774,14 @@ function createTemplate() {
 async function confirmCreate() {
   if (!newName.value.trim()) return;
   try {
-    const created = await apiFetch<PriceTagTemplate>("/price-tag", {
-      method: "POST",
-      body: {
-        name: newName.value.trim(),
-        width: newWidth.value,
-        length: newLength.value,
-        barcode_type: newBarcodeType.value,
-        properties: { elements: DEFAULT_ELEMENTS.map((e) => ({ ...e })) },
-      },
+    const created = await createPriceTagTemplate({
+      name: newName.value.trim(),
+      width: newWidth.value,
+      length: newLength.value,
+      barcodeType: newBarcodeType.value,
     });
-    if (created) {
-      templates.value.unshift(created);
-      selectTemplate(created);
-    }
+    templates.value.unshift(created);
+    selectTemplate(created);
   } catch (e) {
     console.error("confirmCreate", e);
   } finally {
@@ -767,7 +797,7 @@ async function confirmDelete() {
   if (!deleteTargetId.value) return;
   const id = deleteTargetId.value;
   try {
-    await apiFetch(`/price-tag/${id}`, { method: "DELETE" });
+    await deletePriceTagTemplate(id);
     templates.value = templates.value.filter((t) => t.id !== id);
     if (selectedTemplate.value?.id === id) {
       selectedTemplate.value = null;
@@ -782,62 +812,49 @@ async function confirmDelete() {
 }
 
 // ─── Print ────────────────────────────────────────────────────────────────────
+// Same mm/pt units as elementTextStyle()/elementBarcodeSvg() above — this is
+// what makes the printed page match the canvas and preview exactly. (The one
+// exception is the barcode's raw pixel height, which jsbarcode requires as a
+// number — converted via the same CSS_PX_PER_MM constant used everywhere else.)
+function elHtml(el: PriceTagElement): string {
+  const rotate = el.rotation ? ` transform:rotate(${el.rotation}deg);transform-origin:top left;` : "";
+  const base = `position:absolute;left:${el.xAxis}mm;top:${el.yAxis}mm;width:${el.width}mm;${rotate}`;
+
+  if (el.type === "barcode") {
+    const svg = renderBarcodeSvg(sampleProduct.value.barcode || "123456789012", {
+      format: editBarcodeType.value as BarcodeFormat,
+      height: el.length * CSS_PX_PER_MM,
+      displayValue: true,
+    });
+    return `<div style="${base}">${svg}</div>`;
+  }
+
+  const text = sampleText(el);
+  if (!text) return "";
+  const decoration = [el.isUnderlined ? "underline" : "", el.isLineThrough ? "line-through" : ""].filter(Boolean).join(" ") || "none";
+  const style = `${base}font-family:${el.fontFamily || "Arial, sans-serif"};font-size:${el.fontSize}pt;font-weight:${el.isBold ? 700 : 400};font-style:${el.isItalic ? "italic" : "normal"};text-decoration:${decoration};text-align:${el.alignmentType.toLowerCase()};color:#111;white-space:nowrap;`;
+  return `<span style="${style}">${text}</span>`;
+}
+
 function buildPrintHtml(count: number): string {
   if (!selectedTemplate.value) return "";
   const tpl = selectedTemplate.value;
-  const p = sampleProduct.value;
-  const els = elements.value.filter((e) => e.visible);
-  const PX = 3.7795;
   const w = tpl.width;
   const h = tpl.length;
 
-  function elHtml(el: TagElement): string {
-    const s = `position:absolute;left:${el.x * PX}px;top:${el.y * PX}px;`;
-    if (el.id === "name") {
-      const fs = Math.round((el.fontSize ?? 8) * 0.35 * PX);
-      return `<span style="${s}font-size:${fs}px;font-weight:${el.fontWeight ?? "bold"};color:#111;white-space:nowrap;">${p.name}</span>`;
-    }
-    if (el.id === "price") {
-      const fs = Math.round((el.fontSize ?? 14) * 0.35 * PX);
-      return `<span style="${s}font-size:${fs}px;font-weight:bold;color:#111;white-space:nowrap;">${formatPrice(p.price)} UZS</span>`;
-    }
-    if (el.id === "barcode") {
-      const bh = Math.round((el.barcodeHeight ?? 10) * PX);
-      const fs = Math.round((el.fontSize ?? 6) * 0.35 * PX);
-      return `<div style="${s}display:flex;flex-direction:column;align-items:center;line-height:1;">
-        <span style="font-family:'Libre Barcode 128',monospace;font-size:${bh}px;color:#111;letter-spacing:0;">${p.barcode || "000000000000"}</span>
-        <span style="font-family:monospace;font-size:${fs}px;color:#111;">${p.barcode || "000000000000"}</span>
-      </div>`;
-    }
-    if (el.id === "sku") {
-      const fs = Math.round((el.fontSize ?? 6) * 0.35 * PX);
-      return `<span style="${s}font-size:${fs}px;color:#555;white-space:nowrap;">Арт: ${p.sku}</span>`;
-    }
-    if (el.id === "shop") {
-      const fs = Math.round((el.fontSize ?? 6) * 0.35 * PX);
-      return `<span style="${s}font-size:${fs}px;color:#555;white-space:nowrap;">${p.shop}</span>`;
-    }
-    if (el.id === "discount" && showDiscount.value) {
-      const fs = Math.round((el.fontSize ?? 7) * 0.35 * PX);
-      return `<span style="${s}font-size:${fs}px;color:#e00;font-weight:bold;white-space:nowrap;">Скидка: -10%</span>`;
-    }
-    return "";
-  }
-
-  const tagStyle = `position:relative;width:${w * PX}px;height:${h * PX}px;overflow:hidden;background:white;display:inline-block;margin:2px;page-break-inside:avoid;`;
-  const singleTag = `<div style="${tagStyle}">${els.map(elHtml).join("")}</div>`;
-  const allTags = Array(count).fill(singleTag).join("");
-  const body = printOnA4.value
-    ? `<div style="width:210mm;padding:5mm;box-sizing:border-box;">${allTags}</div>`
-    : allTags;
+  // One tag per physical page, sized exactly to the template — matches a
+  // label printer/roll where the page IS the label, not a sheet you'd
+  // margin/center content on.
+  const tagStyle = `position:relative;width:${w}mm;height:${h}mm;overflow:hidden;background:white;page-break-after:always;break-after:page;`;
+  const singleTag = `<div style="${tagStyle}">${elements.value.map(elHtml).join("")}</div>`;
+  const body = Array(count).fill(singleTag).join("");
 
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/>
 <title>Ценники — ${tpl.name}</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap"/>
-<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#fff;}@page{margin:${printOnA4.value ? "10mm" : "2mm"}}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#fff;}@page{size:${w}mm ${h}mm;margin:0}</style>
 </head>
 <body>${body}</body>
 </html>`;
@@ -850,7 +867,7 @@ function openPrint(html: string) {
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => win.print(), 900);
+  setTimeout(() => win.print(), 300);
 }
 
 function printAll() {
@@ -899,6 +916,11 @@ select.input { cursor: pointer; }
   font-size: 11px;
   font-weight: 500;
   color: #666;
+}
+
+.price-tag-barcode :deep(svg) {
+  display: block;
+  max-width: 100%;
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
