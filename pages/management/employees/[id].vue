@@ -383,7 +383,6 @@ async function saveMainData() {
       body: {
         first_name: String(firstName.value || "").trim(),
         last_name: String(lastName.value || "").trim(),
-        role: roleCode,
         crm_role_id: String(crm_role_id.value || "").trim(),
         current_shop_id: String(current_shop_id.value || ""),
         allowed_shop_ids: [...allowed_shop_ids.value],
