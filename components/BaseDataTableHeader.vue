@@ -126,6 +126,15 @@ function onCreateClick() {
             base: 'w-full border-0 bg-transparent text-[15px] font-bold text-[#bdbdbd] placeholder:text-[#bdbdbd] ring-0 outline-none focus:border-0 focus:ring-0 focus-visible:ring-0 sm:text-[17px]',
           }"
         />
+        <button
+          v-if="searchInput"
+          type="button"
+          class="mr-[14px] flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#bdbdbd] transition-colors duration-200 hover:text-white"
+          aria-label="Очистить поиск"
+          @click="searchInput = ''"
+        >
+          <Icon name="heroicons:x-mark-20-solid" class="h-4 w-4" />
+        </button>
       </div>
 
       <!-- Mobile-only compact icon buttons -->
