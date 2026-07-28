@@ -533,7 +533,7 @@ function createEmptyRow(): ParsedImportRow {
 function resetForm() {
   form.value = {
     name: createDefaultImportName(),
-    shopId: shops.value[0]?.id || "",
+    shopId: "",
     mode: "with_check",
     generateBarcodes: true,
     generateArticles: true,

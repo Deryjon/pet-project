@@ -147,7 +147,6 @@ export interface PlatformUserPayload {
   phone_number?: string;
   email?: string;
   password?: string;
-  role?: string;
   crm_role_id?: string;
   birth_date?: string;
   company_id?: string;
