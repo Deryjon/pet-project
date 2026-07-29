@@ -89,9 +89,21 @@
                 <Icon name="heroicons:tag" class="w-3.5 h-3.5" :class="selectedTemplate?.id === tpl.id ? 'text-[#1f78ff]' : 'text-[#666]'" />
               </div>
               <div class="min-w-0 flex-1">
-                <div class="text-[13px] font-medium truncate" :class="selectedTemplate?.id === tpl.id ? 'text-white' : 'text-[#ccc]'">{{ tpl.name }}</div>
+                <div class="flex items-center gap-1.5 text-[13px] font-medium truncate" :class="selectedTemplate?.id === tpl.id ? 'text-white' : 'text-[#ccc]'">
+                  <span class="truncate">{{ tpl.name }}</span>
+                  <span v-if="tpl.isDefault" class="flex-none rounded-[6px] bg-[#1f78ff]/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#5a9eff]">По умолчанию</span>
+                </div>
                 <div class="text-[10px] text-[#555] mt-0.5">{{ tpl.width }}×{{ tpl.length }} мм</div>
               </div>
+              <button
+                v-if="!tpl.isDefault"
+                type="button"
+                title="Сделать шаблоном по умолчанию для печати"
+                @click.stop="markAsDefault(tpl)"
+                class="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-[#5a9eff] text-[#666] transition-all"
+              >
+                <Icon name="heroicons:star" class="w-3.5 h-3.5" />
+              </button>
               <button
                 @click.stop="deleteTemplate(tpl.id)"
                 class="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 text-[#666] transition-all"
@@ -213,7 +225,7 @@
               >+</button>
             </div>
 
-            <span class="text-[11px] text-[#444]">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм</span>
+            <span class="text-[11px] text-[#444]">{{ editWidth }}×{{ editLength }} мм</span>
 
             <!-- Selected element controls -->
             <template v-if="selectedEl">
@@ -378,7 +390,7 @@
           <!-- Scaled preview — same mm/pt units + transform:scale as the
                canvas and the actual print, just at a fixed small zoom. -->
           <div>
-            <div class="text-[11px] text-[#555] mb-2">{{ selectedTemplate.width }}×{{ selectedTemplate.length }} мм</div>
+            <div class="text-[11px] text-[#555] mb-2">{{ editWidth }}×{{ editLength }} мм</div>
             <div
               class="relative bg-white overflow-hidden border border-[#ddd]"
               :style="{ width: previewW + 'px', height: previewH + 'px' }"
@@ -518,6 +530,7 @@ definePageMeta({ layout: "empty" });
 
 const router = useRouter();
 const route = useRoute();
+const toast = useToast();
 const {
   fetchPriceTagTemplateList,
   createPriceTagTemplate,
@@ -793,6 +806,17 @@ function deleteTemplate(id: string) {
   deleteTargetId.value = id;
 }
 
+async function markAsDefault(tpl: PriceTagTemplate) {
+  if (tpl.isDefault) return;
+  try {
+    const updated = await updatePriceTagTemplate(tpl.id, { isDefault: true });
+    templates.value = templates.value.map((t) => ({ ...t, isDefault: t.id === updated.id }));
+    if (selectedTemplate.value?.id === updated.id) selectedTemplate.value = updated;
+  } catch (e: any) {
+    toast.add({ title: "Не удалось назначить шаблон по умолчанию", description: e?.data?.message || e?.message, color: "error" });
+  }
+}
+
 async function confirmDelete() {
   if (!deleteTargetId.value) return;
   const id = deleteTargetId.value;
@@ -839,8 +863,8 @@ function elHtml(el: PriceTagElement): string {
 function buildPrintHtml(count: number): string {
   if (!selectedTemplate.value) return "";
   const tpl = selectedTemplate.value;
-  const w = tpl.width;
-  const h = tpl.length;
+  const w = editWidth.value || tpl.width;
+  const h = editLength.value || tpl.length;
 
   // One tag per physical page, sized exactly to the template — matches a
   // label printer/roll where the page IS the label, not a sheet you'd
