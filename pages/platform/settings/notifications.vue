@@ -16,6 +16,7 @@ const form = ref({
   saleNotifications: true,
   stockAlerts: false,
   lowStockThreshold: false,
+  lowStockThresholdValue: 5,
   dailyReport: false,
 });
 
@@ -27,6 +28,7 @@ async function loadSettings() {
       saleNotifications: data.saleNotifications ?? true,
       stockAlerts: data.stockAlerts ?? false,
       lowStockThreshold: data.lowStockThreshold ?? false,
+      lowStockThresholdValue: data.lowStockThresholdValue ?? 5,
       dailyReport: data.dailyReport ?? false,
     };
   } catch {
@@ -74,18 +76,32 @@ const toggles = [
       description="Настройте типы уведомлений для платформы."
     >
       <form class="grid gap-4" @submit.prevent="submit">
-        <label
-          v-for="toggle in toggles"
-          :key="toggle.key"
-          class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"
-        >
-          <input
-            v-model="form[toggle.key]"
-            type="checkbox"
-            class="h-4 w-4 accent-teal-600"
-          />
-          {{ toggle.label }}
-        </label>
+        <template v-for="toggle in toggles" :key="toggle.key">
+          <label
+            class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"
+          >
+            <input
+              v-model="form[toggle.key]"
+              type="checkbox"
+              class="h-4 w-4 accent-teal-600"
+            />
+            {{ toggle.label }}
+          </label>
+
+          <label
+            v-if="toggle.key === 'lowStockThreshold'"
+            class="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-[14px] text-slate-700 ring-1 ring-slate-200"
+          >
+            Порог малого остатка (шт.)
+            <input
+              v-model.number="form.lowStockThresholdValue"
+              type="number"
+              min="0"
+              step="1"
+              class="ml-auto w-24 rounded-xl border border-slate-200 px-3 py-1.5 text-right"
+            />
+          </label>
+        </template>
 
         <div class="flex justify-end">
           <UButton
