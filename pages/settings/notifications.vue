@@ -16,6 +16,7 @@ type Subscriber = {
   notifyOnSale: boolean;
   notifySellerAnalytics: boolean;
   notifyOnLogin: boolean;
+  notifyOnLowStock: boolean;
   branchCode: string | null;
   linkedAt: string;
 };
@@ -118,6 +119,18 @@ async function toggleLoginNotify(sub: Subscriber) {
       body: { notifyOnLogin: !sub.notifyOnLogin },
     });
     sub.notifyOnLogin = !sub.notifyOnLogin;
+  } catch {
+    /* ignore */
+  }
+}
+
+async function toggleLowStockNotify(sub: Subscriber) {
+  try {
+    await apiFetch(`/telegram/subscribers/${sub.id}`, {
+      method: "PATCH",
+      body: { notifyOnLowStock: !sub.notifyOnLowStock },
+    });
+    sub.notifyOnLowStock = !sub.notifyOnLowStock;
   } catch {
     /* ignore */
   }
@@ -258,6 +271,14 @@ onMounted(() => {
               @click="toggleLoginNotify(sub)"
             >
               <Icon name="heroicons:shield-check" class="h-4 w-4" />
+            </button>
+            <button
+              :title="sub.notifyOnLowStock ? 'Уведомления о низком остатке включены' : 'Уведомления о низком остатке выключены'"
+              class="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors"
+              :class="sub.notifyOnLowStock ? 'bg-green-500/20 text-green-400' : 'bg-[#2f2f2f] text-[#9ca3af]'"
+              @click="toggleLowStockNotify(sub)"
+            >
+              <Icon name="heroicons:exclamation-triangle" class="h-4 w-4" />
             </button>
             <button
               :disabled="removingId === sub.id"
