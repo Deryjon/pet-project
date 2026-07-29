@@ -58,6 +58,7 @@ export interface PriceTagTemplate {
   length: number;
   barcodeType: string;
   barcodeTypeId: string;
+  isDefault: boolean;
   elements: PriceTagElement[];
 }
 
@@ -129,6 +130,7 @@ function normalizeTemplate(raw: any): PriceTagTemplate {
     length: Number(raw?.length ?? 20),
     barcodeType: String(raw?.barcode_type ?? "CODE128"),
     barcodeTypeId: String(raw?.barcode_type_id ?? ""),
+    isDefault: Boolean(raw?.is_default ?? false),
     elements: properties.map(normalizeElement),
   };
 }
@@ -183,13 +185,14 @@ export function usePriceTagsData() {
 
   async function updatePriceTagTemplate(
     id: string,
-    patch: Partial<Pick<PriceTagTemplate, "name" | "width" | "length" | "barcodeType" | "elements">>,
+    patch: Partial<Pick<PriceTagTemplate, "name" | "width" | "length" | "barcodeType" | "isDefault" | "elements">>,
   ): Promise<PriceTagTemplate> {
     const body: Record<string, unknown> = {};
     if (patch.name !== undefined) body.name = patch.name;
     if (patch.width !== undefined) body.width = patch.width;
     if (patch.length !== undefined) body.length = patch.length;
     if (patch.barcodeType !== undefined) body.barcode_type = patch.barcodeType;
+    if (patch.isDefault !== undefined) body.is_default = patch.isDefault;
     if (patch.elements !== undefined) body.properties = patch.elements.map(serializeElement);
 
     const res = await apiFetch(`/price-tag/${encodeURIComponent(id)}`, { method: "PUT", body });

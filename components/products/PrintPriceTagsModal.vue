@@ -92,7 +92,7 @@ async function open() {
       return [];
     });
     if (!selectedTemplateId.value || !templates.value.some((t) => t.id === selectedTemplateId.value)) {
-      selectedTemplateId.value = templates.value[0]?.id ?? "";
+      selectedTemplateId.value = templates.value.find((t) => t.isDefault)?.id ?? templates.value[0]?.id ?? "";
     }
     shops.value = await fetchShops().catch((e) => {
       console.error("PrintPriceTagsModal: failed to load shops", e);
