@@ -35,6 +35,7 @@ const props = defineProps<{
   };
   statFilters?: StatFilter[];
   activeFilter?: string;
+  minSearchLength?: number;
 }>();
 
 const emit = defineEmits<{
@@ -58,6 +59,22 @@ const selectedFilterKey = computed({
 const resolvedSearchPlaceholder = computed(
   () => props.searchPlaceholder || "Поиск..."
 );
+
+function pluralizeRu(n: number, one: string, few: string, many: string) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+const searchHint = computed(() => {
+  if (!props.minSearchLength) return "";
+  const length = searchInput.value.trim().length;
+  if (length === 0 || length >= props.minSearchLength) return "";
+  const remaining = props.minSearchLength - length;
+  return `Введите ещё ${remaining} ${pluralizeRu(remaining, "символ", "символа", "символов")}`;
+});
 
 const isFiltersOpen = ref(!!props.filtersOpen);
 
@@ -236,6 +253,8 @@ function onCreateClick() {
       </div>
     </div>
   </div>
+
+  <p v-if="searchHint" class="mt-1.5 pl-1 text-[13px] text-[#bdbdbd]">{{ searchHint }}</p>
 
   <slot name="filters" />
 </template>

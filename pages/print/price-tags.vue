@@ -25,6 +25,7 @@ const FALLBACK_TEMPLATE: PriceTagTemplate = {
   length: 20,
   barcodeType: "CODE128",
   barcodeTypeId: "",
+  isDefault: false,
   elements: ELEMENT_PRESETS.filter((e) => ["product_name", "price", "barcode", "sku"].includes(e.name)).map((e) => ({ ...e })),
 };
 
@@ -67,6 +68,7 @@ async function load() {
     products.value = fetchedProducts;
     template.value =
       (templateId && templates.find((t) => t.id === templateId)) ||
+      templates.find((t) => t.isDefault) ||
       templates[0] ||
       FALLBACK_TEMPLATE;
 

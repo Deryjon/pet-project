@@ -52,11 +52,17 @@ function goToActions() {
   });
 }
 
+const MIN_SEARCH_LENGTH = 4;
+
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 onUnmounted(() => { if (searchDebounce) clearTimeout(searchDebounce); });
 
 watch(globalFilterInput, (val) => {
   if (searchDebounce) clearTimeout(searchDebounce);
+
+  const trimmedLength = (val || "").trim().length;
+  if (trimmedLength > 0 && trimmedLength < MIN_SEARCH_LENGTH) return;
+
   searchDebounce = setTimeout(() => {
     store.globalFilter = val;
   }, 350);
@@ -69,6 +75,7 @@ watch(globalFilterInput, (val) => {
     v-model:activeFilter="selectedFilter"
     :showSearch="true"
     searchPlaceholder="Артикул, баркод, наименование"
+    :minSearchLength="4"
     :showFilters="true"
     :createButton="can('product-create') ? { label: 'Создать', to: '/products/create?page=1' } : undefined"
     @toggleFilters="showFilters = !showFilters"
