@@ -5,6 +5,7 @@ import {
   createInitialProductFormState,
   createStockRows,
   createVariation,
+  extractShopQuantities,
   nonNegative,
   type ProductFormShopOption,
 } from "~/composables/useCreateProductForm";
@@ -69,10 +70,23 @@ export const useProductStore = defineStore("product", {
 
       this.availableShops = normalized;
 
+      // When editing a product, `form.stocks` may have been built before the
+      // real shop list was known (startEditingProduct runs on the catalog
+      // page, before this store's availableShops is populated) — in that
+      // case `form.stocks` is empty and has nothing to preserve for a given
+      // shop, so fall back to the original API response instead of silently
+      // zeroing it out. Once a shop has a real entry in `form.stocks` (from
+      // this fallback or from the user editing it), that value always wins
+      // on later re-syncs so in-progress edits are never clobbered.
+      const quantityByShop = this.editingProductSource
+        ? extractShopQuantities(this.editingProductSource)
+        : null;
       const previousStocksById = new Map(this.form.stocks.map((stock) => [stock.id, stock.qty]));
       this.form.stocks = createStockRows(normalized).map((stock) => ({
         ...stock,
-        qty: previousStocksById.get(stock.id) ?? 0,
+        qty: previousStocksById.has(stock.id)
+          ? (previousStocksById.get(stock.id) ?? 0)
+          : nonNegative(quantityByShop?.[stock.id] ?? 0),
       }));
 
       this.form.variations = this.form.variations.map((variation) => {
