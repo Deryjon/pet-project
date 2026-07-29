@@ -560,7 +560,7 @@ function normalizeMeasurementUnit(raw: any): {
   };
 }
 
-function extractShopQuantities(raw: any): Record<string, number> {
+export function extractShopQuantities(raw: any): Record<string, number> {
   const entries = Array.isArray(raw?.shop_measurement_values)
     ? raw.shop_measurement_values
     : Array.isArray(raw?.product_supply_stock)
