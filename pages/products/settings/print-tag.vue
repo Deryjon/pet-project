@@ -364,7 +364,12 @@
                   @mousedown.prevent="startDrag($event, el)"
                 >
                   <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
-                  <div v-else class="price-tag-barcode" :style="{ width: el.width + 'mm', height: el.length + 'mm' }" v-html="elementBarcodeSvg(el)" />
+                  <div v-else class="price-tag-barcode-wrap" :style="{ width: el.width + 'mm', height: el.length + 'mm' }">
+                    <div class="price-tag-barcode" v-html="elementBarcodeSvg(el)" />
+                    <div class="price-tag-barcode-text" :style="{ fontSize: `${el.fontSize}pt`, fontFamily: el.fontFamily || 'Arial, sans-serif' }">
+                      {{ sampleProduct.barcode || "123456789012" }}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -650,7 +655,7 @@ function elementBarcodeSvg(el: PriceTagElement) {
   return renderBarcodeSvg(sampleProduct.value.barcode || "123456789012", {
     format: editBarcodeType.value as BarcodeFormat,
     height: el.length * CSS_PX_PER_MM,
-    displayValue: true,
+    displayValue: false,
   });
 }
 
@@ -848,9 +853,12 @@ function elHtml(el: PriceTagElement): string {
     const svg = renderBarcodeSvg(sampleProduct.value.barcode || "123456789012", {
       format: editBarcodeType.value as BarcodeFormat,
       height: el.length * CSS_PX_PER_MM,
-      displayValue: true,
+      displayValue: false,
     });
-    return `<div style="${base}">${svg}</div>`;
+    const wrapStyle = `${base}height:${el.length}mm;display:flex;flex-direction:column;align-items:stretch;`;
+    const svgStyle = "flex:1 1 auto;min-height:0;";
+    const textStyle = `flex:0 0 auto;overflow:hidden;white-space:nowrap;line-height:1.1;text-align:center;color:#111;font-family:${el.fontFamily || "Arial, sans-serif"};font-size:${el.fontSize}pt;`;
+    return `<div style="${wrapStyle}"><div style="${svgStyle}">${svg}</div><div style="${textStyle}">${sampleProduct.value.barcode || "123456789012"}</div></div>`;
   }
 
   const text = sampleText(el);
@@ -942,10 +950,27 @@ select.input { cursor: pointer; }
   color: #666;
 }
 
+.price-tag-barcode-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.price-tag-barcode {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .price-tag-barcode :deep(svg) {
   display: block;
   width: 100%;
   height: 100%;
+}
+.price-tag-barcode-text {
+  flex: 0 0 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.1;
+  text-align: center;
+  color: #111;
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
