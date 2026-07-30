@@ -44,7 +44,7 @@ const roleLabel = computed(() => {
     </div>
 
     <div class="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:flex">
-      <UAvatar size="md" alt="Администратор платформы" src="https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=facearea&w=160&h=160&q=80" />
+      <UAvatar size="md" alt="Администратор платформы" :src="userStore.userState.avatarUrl || undefined" />
       <div>
         <p class="text-[14px] font-semibold text-slate-900">{{ userStore.fullName || "Пользователь платформы" }}</p>
         <p class="text-[12px] text-slate-500">{{ roleLabel }}</p>
