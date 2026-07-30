@@ -72,8 +72,7 @@ function createEmptyUser() {
     },
     shops: [] as NormalizedShop[],
     name: "" as string,
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+    avatarUrl: "" as string,
   };
 }
 
@@ -324,7 +323,7 @@ export const useUserStore = defineStore("user", {
           user?.phone ??
           user?.phone_number ??
           "",
-        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user?.avatarUrl ?? createEmptyUser().avatarUrl,
+        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? this.user?.avatarUrl ?? "",
       };
 
       const nextUserId = String(normalized.id ?? "");
