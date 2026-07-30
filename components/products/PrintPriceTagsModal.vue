@@ -36,7 +36,6 @@ const selectedBranchCode = ref("");
 const quantityMode = ref<"manual" | "stock">("manual");
 const manualCopies = ref(1);
 const showDiscount = ref(true);
-const printOnA4 = ref(false);
 const products = ref<PriceTagProduct[]>([]);
 
 const showCreateForm = ref(false);
@@ -172,14 +171,11 @@ function computeCopies(): Record<string, number> {
   return copies;
 }
 
-function confirmPrint() {
+async function confirmPrint() {
   if (!selectedTemplate.value || !products.value.length) return;
-  openPriceTagsPrint(props.productIds, computeCopies(), {
-    branchId: selectedBranchCode.value || undefined,
-    templateId: selectedTemplate.value.id || undefined,
-    showDiscount: showDiscount.value,
-    a4: printOnA4.value,
-  });
+  const copies = computeCopies();
+  const printProducts = products.value.map((p) => ({ ...p, copies: copies[String(p.id)] ?? 1 }));
+  await openPriceTagsPrint(printProducts, selectedTemplate.value, { showDiscount: showDiscount.value });
   close();
 }
 </script>
@@ -261,10 +257,6 @@ function confirmPrint() {
             <label class="switch-row">
               <span>Показывать специальную скидку</span>
               <input type="checkbox" v-model="showDiscount" />
-            </label>
-            <label class="switch-row">
-              <span>Печать в формате A4</span>
-              <input type="checkbox" v-model="printOnA4" />
             </label>
           </div>
 
