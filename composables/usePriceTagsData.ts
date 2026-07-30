@@ -62,6 +62,31 @@ export interface PriceTagTemplate {
   elements: PriceTagElement[];
 }
 
+// Used whenever a caller needs *some* printable template but has none of its
+// own (server fetch failed, or the company hasn't created a template yet) —
+// keeps printing working instead of dead-ending on an empty state.
+export const FALLBACK_PRICE_TAG_TEMPLATE: PriceTagTemplate = {
+  id: "",
+  name: "Стандарт 40x20мм",
+  width: 40,
+  length: 20,
+  barcodeType: "CODE128",
+  barcodeTypeId: "",
+  isDefault: false,
+  elements: ELEMENT_PRESETS.filter((e) => ["product_name", "price", "barcode", "sku"].includes(e.name)).map((e) => ({
+    ...e,
+  })),
+};
+
+export function pickPriceTagTemplate(templates: PriceTagTemplate[], templateId?: string): PriceTagTemplate {
+  return (
+    (templateId && templates.find((t) => t.id === templateId)) ||
+    templates.find((t) => t.isDefault) ||
+    templates[0] ||
+    FALLBACK_PRICE_TAG_TEMPLATE
+  );
+}
+
 export interface PriceTagProduct {
   id: number;
   name: string;

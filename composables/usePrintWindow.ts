@@ -1,28 +1,31 @@
+import { nextTick, ref } from "vue";
+import type { PriceTagProduct, PriceTagTemplate } from "@/composables/usePriceTagsData";
+
 export interface PriceTagsPrintOptions {
-  branchId?: string;
-  templateId?: string;
   showDiscount?: boolean;
-  a4?: boolean;
 }
 
+// Module-level singleton: exactly one hidden PriceTagGrid is mounted app-wide
+// (see app.vue) and reads this state, so every caller — the full print modal
+// and the catalog's quick copies dialog alike — feeds the same print target
+// instead of each rendering its own (which would print duplicates, since the
+// print stylesheet makes every .price-tags-page element visible at once).
+const printProducts = ref<Array<PriceTagProduct & { copies: number }>>([]);
+const printTemplate = ref<PriceTagTemplate | null>(null);
+const printShowDiscount = ref(true);
+
 export function usePrintWindow() {
-  function openPriceTagsPrint(
-    productIds: (string | number)[],
-    copies: Record<string, number>,
+  async function openPriceTagsPrint(
+    products: Array<PriceTagProduct & { copies: number }>,
+    template: PriceTagTemplate,
     options?: PriceTagsPrintOptions,
   ) {
-    const ids = productIds.join(",");
-    const copiesParam = Object.entries(copies)
-      .map(([id, count]) => `${id}:${count}`)
-      .join(",");
-    const query = new URLSearchParams({ productIds: ids, autoprint: "1" });
-    if (copiesParam) query.set("copies", copiesParam);
-    if (options?.branchId) query.set("branchId", options.branchId);
-    if (options?.templateId) query.set("templateId", options.templateId);
-    if (options?.showDiscount === false) query.set("discount", "0");
-    if (options?.a4) query.set("a4", "1");
-    window.open(`/print/price-tags?${query.toString()}`, "_blank", "width=900,height=700");
+    printProducts.value = products;
+    printTemplate.value = template;
+    printShowDiscount.value = options?.showDiscount ?? true;
+    await nextTick();
+    window.print();
   }
 
-  return { openPriceTagsPrint };
+  return { printProducts, printTemplate, printShowDiscount, openPriceTagsPrint };
 }

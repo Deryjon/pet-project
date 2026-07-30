@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useLocationStore } from "./store/useLocationStore";
+import { usePrintWindow } from "./composables/usePrintWindow";
+import PriceTagGrid from "./components/print/PriceTagGrid.vue";
 
 const locationStore = useLocationStore();
+const { printProducts, printTemplate, printShowDiscount } = usePrintWindow();
 
 const pageTransition = {
   name: "page",
@@ -24,6 +27,17 @@ onMounted(() => {
     <NuxtLayout>
       <NuxtPage :transition="pageTransition" />
     </NuxtLayout>
+
+    <!-- Single app-wide print target for price tags — kept out of normal
+         layout flow and hidden on screen; the global print stylesheet
+         (assets/css/receipt-print.css) makes .price-tags-page visible and
+         everything else on the page invisible for the duration of print. -->
+    <div
+      v-if="printTemplate && printProducts.length"
+      class="price-tags-page price-tags-print-block"
+    >
+      <PriceTagGrid :products="printProducts" :template="printTemplate" :show-discount="printShowDiscount" />
+    </div>
   </UApp>
 </template>
 
@@ -49,6 +63,18 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+.price-tags-print-block {
+  display: none;
+}
+@media print {
+  .price-tags-print-block {
+    display: block;
+    position: fixed;
+    left: 0;
+    top: 0;
+  }
 }
 
 /* Cross-fade: old page fades out while new page fades in simultaneously */

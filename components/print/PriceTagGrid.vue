@@ -8,9 +8,8 @@ const props = withDefaults(
     products: Array<PriceTagProduct & { copies: number }>;
     template: PriceTagTemplate;
     showDiscount?: boolean;
-    a4?: boolean;
   }>(),
-  { showDiscount: true, a4: false },
+  { showDiscount: true },
 );
 
 const tags = computed(() => {
@@ -24,9 +23,8 @@ const tags = computed(() => {
   return expanded;
 });
 
-// A4 mode gangs multiple tags on standard sheets (grid wraps naturally);
-// otherwise each tag gets its own page — the expected behavior when printing
-// on a roll of pre-cut labels sized to the template itself.
+// Each tag gets its own page sized exactly to the template — printing is
+// always onto a roll of pre-cut labels sized to the template itself.
 const PAGE_STYLE_ID = "price-tag-page-size";
 
 function applyPageStyle() {
@@ -37,12 +35,10 @@ function applyPageStyle() {
     tag.id = PAGE_STYLE_ID;
     document.head.appendChild(tag);
   }
-  tag.textContent = props.a4
-    ? `@media print { @page { size: A4; margin: 10mm; } }`
-    : `@media print { @page { size: ${props.template.width}mm ${props.template.length}mm; margin: 0; } }`;
+  tag.textContent = `@media print { @page { size: ${props.template.width}mm ${props.template.length}mm; margin: 0; } }`;
 }
 
-watch(() => [props.a4, props.template.width, props.template.length], applyPageStyle, { immediate: true });
+watch(() => [props.template.width, props.template.length], applyPageStyle, { immediate: true });
 onMounted(applyPageStyle);
 onUnmounted(() => {
   if (!import.meta.client) return;
@@ -52,8 +48,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="price-tag-grid"
-    :class="{ 'price-tag-grid-single': !a4 }"
+    class="price-tag-grid price-tag-grid-single"
     :style="{ '--tag-width': `${template.width}mm`, '--tag-height': `${template.length}mm` }"
   >
     <PriceTag
