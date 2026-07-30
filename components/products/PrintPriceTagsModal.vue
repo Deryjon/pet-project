@@ -85,6 +85,13 @@ async function reloadProducts() {
 
 async function open() {
   loading.value = true;
+  // Reset per-open — this modal instance is kept mounted and reused (see
+  // DataTableProductInfo.vue), so a previous "По остаткам" print or a typed
+  // copy count would otherwise leak into the next, unrelated print (e.g.
+  // printing a single product after a bulk stock-based print silently
+  // reused the old stock quantity as the copy count).
+  quantityMode.value = "manual";
+  manualCopies.value = 1;
   try {
     templates.value = await fetchPriceTagTemplateList().catch((e) => {
       console.error("PrintPriceTagsModal: failed to load templates", e);

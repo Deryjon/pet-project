@@ -49,5 +49,22 @@ export function renderBarcodeSvg(
     }
   }
 
+  // JsBarcode sizes the SVG to its own natural width (module width × number
+  // of bars, unrelated to the mm box it will be dropped into) and a fixed
+  // pixel height. Without a viewBox, CSS `max-width` shrinks width and height
+  // together (aspect-ratio preserved), which for a wide barcode squeezed into
+  // a narrow template box produced a barely-visible sliver. Adding a viewBox
+  // and stretching to 100%/100% lets the caller's container dictate the
+  // final box exactly; scaling all bars by the same horizontal factor keeps
+  // the barcode scannable even when non-uniform vs. its natural aspect ratio.
+  const naturalWidth = svg.getAttribute("width");
+  const naturalHeight = svg.getAttribute("height");
+  if (naturalWidth && naturalHeight) {
+    svg.setAttribute("viewBox", `0 0 ${parseFloat(naturalWidth)} ${parseFloat(naturalHeight)}`);
+  }
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.setAttribute("preserveAspectRatio", "none");
+
   return new XMLSerializer().serializeToString(svg);
 }
