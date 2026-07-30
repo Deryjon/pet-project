@@ -74,7 +74,7 @@ function barcodeSvg(el: PriceTagElement) {
       <div
         v-if="el.type === 'barcode' && product.barcode"
         class="price-tag-el price-tag-barcode"
-        :style="{ left: `${el.xAxis}mm`, top: `${el.yAxis}mm`, width: `${el.width}mm`, transform: el.rotation ? `rotate(${el.rotation}deg)` : 'none', transformOrigin: 'top left' }"
+        :style="{ left: `${el.xAxis}mm`, top: `${el.yAxis}mm`, width: `${el.width}mm`, height: `${el.length}mm`, transform: el.rotation ? `rotate(${el.rotation}deg)` : 'none', transformOrigin: 'top left' }"
         v-html="barcodeSvg(el)"
       />
       <div v-else-if="el.type === 'text' && textValue(el)" class="price-tag-el price-tag-text" :style="elementStyle(el)">
@@ -107,6 +107,7 @@ function barcodeSvg(el: PriceTagElement) {
 }
 .price-tag-barcode :deep(svg) {
   display: block;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
 }
 </style>

@@ -364,7 +364,7 @@
                   @mousedown.prevent="startDrag($event, el)"
                 >
                   <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
-                  <div v-else class="price-tag-barcode" :style="{ width: el.width + 'mm' }" v-html="elementBarcodeSvg(el)" />
+                  <div v-else class="price-tag-barcode" :style="{ width: el.width + 'mm', height: el.length + 'mm' }" v-html="elementBarcodeSvg(el)" />
                 </div>
               </div>
             </div>
@@ -944,7 +944,8 @@ select.input { cursor: pointer; }
 
 .price-tag-barcode :deep(svg) {
   display: block;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
