@@ -15,10 +15,10 @@
     visibility: hidden !important;
   }
   /* This stylesheet is global (see nuxt.config.ts), so it loads on every
-     route, including the standalone /print/price-tags page — which has no
-     .receipt-print-root element at all. Without opting that page's own root
-     back into visibility here too, the rule above hides it completely and
-     printing price tags produces a blank page. */
+     route. Price tags print from a hidden .price-tags-page block mounted
+     app-wide (see app.vue) rather than .receipt-print-root, so it needs its
+     own opt-back-into-visibility rule here too — without it, the rule above
+     hides it completely and printing price tags produces a blank page. */
   .receipt-print-root,
   .receipt-print-root *,
   .price-tags-page,

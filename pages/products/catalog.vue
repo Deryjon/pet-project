@@ -233,6 +233,7 @@ import StatsBox from "@/components/ui/StatsBox.vue";
 import BulkSkuBarcodeEditor from "@/components/BulkSkuBarcodeEditor.vue";
 import { useCatalogDataTableStore } from "@/store/DataTables/catalogDataTableStore";
 import { usePrintWindow } from "~/composables/usePrintWindow";
+import { usePriceTagsData, pickPriceTagTemplate } from "~/composables/usePriceTagsData";
 import { useLocationStore } from "@/store/useLocationStore";
 import { normalizeApiError, useProducts } from "~/composables/useProducts";
 
@@ -397,10 +398,33 @@ function printSelectedTags() {
   priceTagsDialogOpen.value = true;
 }
 
-function confirmPrintTags() {
+async function confirmPrintTags() {
+  const { fetchPriceTags, fetchPriceTagTemplateList } = usePriceTagsData();
   const { openPriceTagsPrint } = usePrintWindow();
-  openPriceTagsPrint(store.selectedProducts, priceTagCopies.value);
-  priceTagsDialogOpen.value = false;
+  const ids = store.selectedProducts.map(String);
+  const copies = Object.fromEntries(Object.entries(priceTagCopies.value).map(([id, count]) => [String(id), count]));
+  try {
+    const [templates, printProducts] = await Promise.all([
+      fetchPriceTagTemplateList().catch((e) => {
+        console.error("printSelectedTags: failed to load templates", e);
+        return [];
+      }),
+      fetchPriceTags(ids, copies),
+    ]);
+    if (!printProducts.length) {
+      toast.add({ title: "Товары не найдены", color: "warning" });
+      return;
+    }
+    await openPriceTagsPrint(printProducts, pickPriceTagTemplate(templates));
+  } catch (e: any) {
+    toast.add({
+      title: "Не удалось подготовить печать ценников",
+      description: e?.data?.message || e?.message,
+      color: "error",
+    });
+  } finally {
+    priceTagsDialogOpen.value = false;
+  }
 }
 
 async function confirmClearArchive() {
