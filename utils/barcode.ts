@@ -12,6 +12,15 @@ export function detectBarcodeFormat(value: string): BarcodeFormat {
  * Renders a real, scannable barcode to an SVG markup string on the client.
  * JsBarcode needs a live SVG element to draw into, so we build one off-DOM,
  * render into it, then serialize — same pattern as utils/qrcode.ts's uqr use.
+ *
+ * The SVG below gets stretched to fill an arbitrary box via
+ * preserveAspectRatio="none" (safe for the bars — a uniform horizontal scale
+ * keeps every module's ratio intact) but that same stretch visibly garbles
+ * JsBarcode's own digit text if displayValue is on. Callers that need the
+ * human-readable number in a box that isn't the SVG's natural aspect ratio
+ * (price tags) should pass displayValue: false and render the number as a
+ * separate plain-HTML text element instead; callers with a fixed-aspect box
+ * (receipts) can leave displayValue on.
  */
 export function renderBarcodeSvg(
   value: string,
@@ -21,13 +30,14 @@ export function renderBarcodeSvg(
   if (!trimmed || typeof document === "undefined") return "";
 
   const format = options?.format ?? detectBarcodeFormat(trimmed);
+  const displayValue = options?.displayValue ?? true;
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 
   try {
     JsBarcode(svg, trimmed, {
       format,
       height: options?.height ?? 40,
-      displayValue: options?.displayValue ?? true,
+      displayValue,
       margin: 0,
       background: "transparent",
       lineColor: "#000000",
@@ -39,7 +49,7 @@ export function renderBarcodeSvg(
       JsBarcode(svg, trimmed, {
         format: "CODE128",
         height: options?.height ?? 40,
-        displayValue: options?.displayValue ?? true,
+        displayValue,
         margin: 0,
         background: "transparent",
         lineColor: "#000000",
