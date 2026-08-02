@@ -49,6 +49,7 @@ const MM_TO_PX = 3.7795275591; // real CSS mm-to-px ratio — must match PriceTa
 
 const selectedTemplate = computed(() => templates.value.find((t) => t.id === selectedTemplateId.value) ?? null);
 const previewProduct = computed<PriceTagProduct | null>(() => products.value[0] ?? null);
+const stockModeCopies = computed(() => Math.max(1, Math.round(previewProduct.value?.quantity || 1)));
 const previewWidthPx = computed(() => (selectedTemplate.value?.width ?? 40) * MM_TO_PX * PREVIEW_ZOOM);
 const previewHeightPx = computed(() => (selectedTemplate.value?.length ?? 20) * MM_TO_PX * PREVIEW_ZOOM);
 
@@ -63,20 +64,32 @@ async function fetchShops() {
     : [];
 }
 
+// Guards against out-of-order responses: open() fires an initial reload,
+// and picking a shop right after fires another via the selectedBranchCode
+// watcher — if the first (branch-less) request resolves after the second
+// (branch-specific) one, it would silently overwrite products.value with
+// stale data (wrong quantity/shop_name). Only the reload started last is
+// allowed to apply its result.
+let reloadToken = 0;
+
 async function reloadProducts() {
+  const token = ++reloadToken;
   if (!props.productIds.length) {
     products.value = [];
     productsError.value = "";
     return;
   }
   try {
-    products.value = await fetchPriceTags(
+    const result = await fetchPriceTags(
       props.productIds.map(String),
       {},
       selectedBranchCode.value || undefined,
     );
+    if (token !== reloadToken) return;
+    products.value = result;
     productsError.value = products.value.length ? "" : "Товар не найден.";
   } catch (e: any) {
+    if (token !== reloadToken) return;
     console.error("PrintPriceTagsModal: failed to load product data", e);
     products.value = [];
     productsError.value = e?.data?.message || e?.message || "Не удалось загрузить данные товара.";
@@ -258,7 +271,10 @@ async function confirmPrint() {
                 v-model.number="manualCopies"
                 class="input mt-2"
               />
-              <p v-else class="hint">Количество копий = остаток товара в выбранном магазине.</p>
+              <p v-else class="hint">
+                Количество копий = остаток товара в выбранном магазине:
+                <strong>{{ previewProduct ? stockModeCopies : "—" }} шт.</strong>
+              </p>
             </div>
 
             <label class="switch-row">

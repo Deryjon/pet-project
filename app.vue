@@ -18,15 +18,30 @@ onMounted(() => {
 
 <template>
   <UApp>
-    <NuxtLoadingIndicator
-      :height="3"
-      color="linear-gradient(90deg, #1f78ff, #38bdf8)"
-      :duration="2500"
-      :throttle="100"
-    />
-    <NuxtLayout>
-      <NuxtPage :transition="pageTransition" />
-    </NuxtLayout>
+    <!-- Price tags print at a tiny fixed @page size (the template's own
+         mm dimensions), unlike receipts which use @page size:auto (one
+         infinitely tall page). body * {visibility:hidden} alone (below)
+         keeps the rest of the app invisible but NOT out of layout flow —
+         combined with receipt-print.css forcing every element's
+         max-height:none for the (unrelated) receipt-clipping fix, the
+         real, expanded height of the whole app still gets paginated
+         across dozens of 20mm-tall pages, and since the price-tag block
+         is position:fixed it then gets reprinted on every one of them.
+         Fully removing the rest of the app from layout during a price-tag
+         print (display:none, not just invisible) avoids that entirely.
+         Scoped to price-tag printing only — receipts still need this
+         subtree alive since #receipt-page-size lives inside it. -->
+    <div class="app-shell" :class="{ 'app-shell-print-hidden': printTemplate && printProducts.length }">
+      <NuxtLoadingIndicator
+        :height="3"
+        color="linear-gradient(90deg, #1f78ff, #38bdf8)"
+        :duration="2500"
+        :throttle="100"
+      />
+      <NuxtLayout>
+        <NuxtPage :transition="pageTransition" />
+      </NuxtLayout>
+    </div>
 
     <!-- Single app-wide print target for price tags — kept out of normal
          layout flow and hidden on screen; the global print stylesheet
@@ -65,13 +80,26 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+@media print {
+  .app-shell-print-hidden {
+    display: none !important;
+  }
+}
+
 .price-tags-print-block {
   display: none;
 }
 @media print {
   .price-tags-print-block {
     display: block;
-    position: fixed;
+    /* position:fixed is the CSS Paged Media "repeat on every page" mode
+       (like a running header) — content inside it does NOT participate in
+       normal-flow pagination, so break-after:page on each .price-tag never
+       actually produced more than 1 physical page once the rest of the app
+       stopped contributing extra height (see app-shell-print-hidden above).
+       position:absolute keeps it out of the (hidden) app-shell's layout
+       without opting into that per-page-repeat behavior. */
+    position: absolute;
     left: 0;
     top: 0;
   }
