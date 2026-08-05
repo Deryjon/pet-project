@@ -364,12 +364,10 @@
                   @mousedown.prevent="startDrag($event, el)"
                 >
                   <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
-                  <div v-else class="price-tag-barcode-wrap" :style="{ width: el.width + 'mm', height: el.length + 'mm' }">
-                    <div class="price-tag-barcode" v-html="elementBarcodeSvg(el)" />
-                    <div class="price-tag-barcode-text" :style="{ fontSize: `${el.fontSize}pt`, fontFamily: el.fontFamily || 'Arial, sans-serif' }">
-                      {{ sampleProduct.barcode || "123456789012" }}
-                    </div>
-                  </div>
+                  <template v-else>
+                    <div class="price-tag-barcode" :style="{ width: el.width + 'mm', height: el.length + 'mm' }" v-html="elementBarcodeSvg(el)" />
+                    <div class="price-tag-barcode-value" :style="{ width: el.width + 'mm' }">{{ sampleProduct.barcode || "123456789012" }}</div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -855,10 +853,9 @@ function elHtml(el: PriceTagElement): string {
       height: el.length * CSS_PX_PER_MM,
       displayValue: false,
     });
-    const wrapStyle = `${base}height:${el.length}mm;display:flex;flex-direction:column;align-items:stretch;`;
-    const svgStyle = "flex:1 1 auto;min-height:0;";
-    const textStyle = `flex:0 0 auto;overflow:hidden;white-space:nowrap;line-height:1.1;text-align:center;color:#111;font-family:${el.fontFamily || "Arial, sans-serif"};font-size:${el.fontSize}pt;`;
-    return `<div style="${wrapStyle}"><div style="${svgStyle}">${svg}</div><div style="${textStyle}">${sampleProduct.value.barcode || "123456789012"}</div></div>`;
+    const barStyle = `${base}height:${el.length}mm;`;
+    const valueStyle = `position:absolute;left:${el.xAxis}mm;top:${el.yAxis + el.length}mm;width:${el.width}mm;font-size:6pt;font-family:Arial, sans-serif;text-align:center;white-space:nowrap;overflow:hidden;color:#111;`;
+    return `<div style="${barStyle}">${svg}</div><div style="${valueStyle}">${sampleProduct.value.barcode || "123456789012"}</div>`;
   }
 
   const text = sampleText(el);
@@ -950,26 +947,17 @@ select.input { cursor: pointer; }
   color: #666;
 }
 
-.price-tag-barcode-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-.price-tag-barcode {
-  flex: 1 1 auto;
-  min-height: 0;
-}
 .price-tag-barcode :deep(svg) {
   display: block;
   width: 100%;
   height: 100%;
 }
-.price-tag-barcode-text {
-  flex: 0 0 auto;
-  overflow: hidden;
-  white-space: nowrap;
-  line-height: 1.1;
+.price-tag-barcode-value {
+  font-size: 6pt;
+  font-family: Arial, sans-serif;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
   color: #111;
 }
 

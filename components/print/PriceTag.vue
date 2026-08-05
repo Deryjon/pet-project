@@ -73,13 +73,16 @@ function barcodeSvg(el: PriceTagElement) {
     <template v-for="el in visibleElements" :key="el.id">
       <div
         v-if="el.type === 'barcode' && product.barcode"
-        class="price-tag-el price-tag-barcode-wrap"
+        class="price-tag-el price-tag-barcode"
         :style="{ left: `${el.xAxis}mm`, top: `${el.yAxis}mm`, width: `${el.width}mm`, height: `${el.length}mm`, transform: el.rotation ? `rotate(${el.rotation}deg)` : 'none', transformOrigin: 'top left' }"
+        v-html="barcodeSvg(el)"
+      />
+      <div
+        v-if="el.type === 'barcode' && product.barcode"
+        class="price-tag-el price-tag-barcode-value"
+        :style="{ left: `${el.xAxis}mm`, top: `${el.yAxis + el.length}mm`, width: `${el.width}mm` }"
       >
-        <div class="price-tag-barcode" v-html="barcodeSvg(el)" />
-        <div class="price-tag-barcode-text" :style="{ fontSize: `${el.fontSize}pt`, fontFamily: el.fontFamily || 'Arial, sans-serif' }">
-          {{ product.barcode }}
-        </div>
+        {{ product.barcode }}
       </div>
       <div v-else-if="el.type === 'text' && textValue(el)" class="price-tag-el price-tag-text" :style="elementStyle(el)">
         {{ textValue(el) }}
@@ -109,25 +112,16 @@ function barcodeSvg(el: PriceTagElement) {
   -webkit-box-orient: vertical;
   white-space: normal;
 }
-.price-tag-barcode-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-.price-tag-barcode {
-  flex: 1 1 auto;
-  min-height: 0;
-}
 .price-tag-barcode :deep(svg) {
   display: block;
   width: 100%;
   height: 100%;
 }
-.price-tag-barcode-text {
-  flex: 0 0 auto;
-  overflow: hidden;
-  white-space: nowrap;
-  line-height: 1.1;
+.price-tag-barcode-value {
+  font-size: 6pt;
+  font-family: Arial, sans-serif;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
 }
 </style>
