@@ -80,6 +80,9 @@ export function createStockRows(shops: ProductFormShopOption[] = []): ProductSto
     id: shop.id,
     name: shop.name,
     qty: 0,
+    purchasePrice: 0,
+    markupPercent: 0,
+    salePrice: 0,
   }));
 }
 
@@ -194,6 +197,20 @@ export function validateCreateProductForm(form: CreateProductFormState): FormVal
           message: `Количество в магазине "${stock.name}" не может быть меньше 0.`,
         });
       }
+
+      if (nonNegative(stock.purchasePrice) !== stock.purchasePrice) {
+        issues.push({
+          path: `stocks.${stock.id}.purchasePrice`,
+          message: `Цена прихода в магазине "${stock.name}" не может быть меньше 0.`,
+        });
+      }
+
+      if (nonNegative(stock.salePrice) !== stock.salePrice) {
+        issues.push({
+          path: `stocks.${stock.id}.salePrice`,
+          message: `Цена продажи в магазине "${stock.name}" не может быть меньше 0.`,
+        });
+      }
     }
   }
 
@@ -279,15 +296,23 @@ function buildProductPayload(
     ? form.variations[0]?.prices ?? createDefaultPrices()
     : form.prices;
 
+  // Simple (non-variative) goods carry their own price per shop
+  // (form.stocks[i].purchasePrice/salePrice); variative goods still share one
+  // price per variant across all shops (no per-shop-per-variant pricing yet).
   const activeStocks = form.stocks
     .map((stock) => ({
       shop_id: String(stock.id || "").trim(),
       quantity: nonNegative(stock.qty),
-      supply_price: nonNegative(basePrices.purchasePrice),
-      retail_price: nonNegative(basePrices.salePrice),
+      supply_price: nonNegative(isVariative ? basePrices.purchasePrice : stock.purchasePrice),
+      retail_price: nonNegative(isVariative ? basePrices.salePrice : stock.salePrice),
       wholesale_price: 0,
     }))
     .filter((stock) => stock.shop_id);
+
+  // Top-level supply_price/retail_price are a flat fallback still read by
+  // some legacy consumers (product-level price when no shop context is
+  // known) — represented by the first shop's price for simple goods.
+  const primaryStockPrices = !isVariative ? activeStocks[0] : undefined;
 
   const payload: CreateProductApiPayload = {
     name: form.name.trim(),
@@ -295,9 +320,11 @@ function buildProductPayload(
     measurement_type: "unit",
     description: form.attributes.optionalField.trim() || undefined,
     brand_name: form.attributes.brand.trim() || undefined,
-    supply_price: nonNegative(basePrices.purchasePrice),
-    retail_price: nonNegative(basePrices.salePrice),
-    profit_margin: nonNegative(basePrices.markupPercent),
+    supply_price: nonNegative(primaryStockPrices ? primaryStockPrices.supply_price : basePrices.purchasePrice),
+    retail_price: nonNegative(primaryStockPrices ? primaryStockPrices.retail_price : basePrices.salePrice),
+    profit_margin: nonNegative(
+      !isVariative && form.stocks[0] ? form.stocks[0].markupPercent : basePrices.markupPercent,
+    ),
   };
 
   if (form.sku.trim()) {
@@ -444,6 +471,7 @@ export function createProductFormStateFromApi(
   const productType = normalizeProductTypeLabel(raw?.product_type_id ?? raw?.product_type);
   const variationType = normalizeVariationTypeLabel(raw);
   const quantityByShop = extractShopQuantities(raw);
+  const priceByShop = extractShopPrices(raw);
   const purchasePrice = Number(
     raw?.supply_price ??
       raw?.purchase_price ??
@@ -475,10 +503,19 @@ export function createProductFormStateFromApi(
     salePrice: nonNegative(salePrice),
     markupPercent: calculateMarkup(purchasePrice, salePrice),
   };
-  form.stocks = createStockRows(shops).map((stock) => ({
-    ...stock,
-    qty: nonNegative(quantityByShop[stock.id] ?? 0),
-  }));
+  form.stocks = createStockRows(shops).map((stock) => {
+    const shopPrice = priceByShop[stock.id];
+    const stockPurchasePrice = nonNegative(shopPrice?.purchasePrice ?? purchasePrice);
+    const stockSalePrice = nonNegative(shopPrice?.salePrice ?? salePrice);
+
+    return {
+      ...stock,
+      qty: nonNegative(quantityByShop[stock.id] ?? 0),
+      purchasePrice: stockPurchasePrice,
+      salePrice: stockSalePrice,
+      markupPercent: calculateMarkup(stockPurchasePrice, stockSalePrice),
+    };
+  });
   form.attributes = {
     brand: String(raw?.brand_name ?? raw?.brand?.name ?? raw?.brand ?? "").trim(),
     supplier: extractSupplierName(raw),
@@ -585,6 +622,28 @@ export function extractShopQuantities(raw: any): Record<string, number> {
     );
     return acc;
   }, {} as Record<string, number>);
+}
+
+export function extractShopPrices(
+  raw: any,
+): Record<string, { purchasePrice: number; salePrice: number }> {
+  const entries = Array.isArray(raw?.shop_prices) ? raw.shop_prices : [];
+
+  return entries.reduce(
+    (acc: Record<string, { purchasePrice: number; salePrice: number }>, item: any) => {
+      const shopId = String(item?.shop_id ?? item?.shopId ?? "").trim();
+      if (!shopId) {
+        return acc;
+      }
+
+      acc[shopId] = {
+        purchasePrice: nonNegative(item?.supply_price ?? item?.purchase_price ?? 0),
+        salePrice: nonNegative(item?.retail_price ?? item?.sale_price ?? 0),
+      };
+      return acc;
+    },
+    {} as Record<string, { purchasePrice: number; salePrice: number }>,
+  );
 }
 
 function extractImages(raw: any): CreateProductFormState["images"] {

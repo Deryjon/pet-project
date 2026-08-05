@@ -24,6 +24,9 @@ export interface ProductStoreStock {
   id: string;
   name: string;
   qty: number;
+  purchasePrice: number;
+  markupPercent: number;
+  salePrice: number;
 }
 
 export interface ProductVariationForm {
