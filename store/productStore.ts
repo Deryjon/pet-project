@@ -5,6 +5,7 @@ import {
   createInitialProductFormState,
   createStockRows,
   createVariation,
+  extractShopPrices,
   extractShopQuantities,
   nonNegative,
   type ProductFormShopOption,
@@ -81,13 +82,24 @@ export const useProductStore = defineStore("product", {
       const quantityByShop = this.editingProductSource
         ? extractShopQuantities(this.editingProductSource)
         : null;
-      const previousStocksById = new Map(this.form.stocks.map((stock) => [stock.id, stock.qty]));
-      this.form.stocks = createStockRows(normalized).map((stock) => ({
-        ...stock,
-        qty: previousStocksById.has(stock.id)
-          ? (previousStocksById.get(stock.id) ?? 0)
-          : nonNegative(quantityByShop?.[stock.id] ?? 0),
-      }));
+      const priceByShop = this.editingProductSource
+        ? extractShopPrices(this.editingProductSource)
+        : null;
+      const previousStocksById = new Map(this.form.stocks.map((stock) => [stock.id, stock]));
+      this.form.stocks = createStockRows(normalized).map((stock) => {
+        const previous = previousStocksById.get(stock.id);
+        if (previous) {
+          return { ...previous, id: stock.id, name: stock.name };
+        }
+
+        const shopPrice = priceByShop?.[stock.id];
+        return {
+          ...stock,
+          qty: nonNegative(quantityByShop?.[stock.id] ?? 0),
+          purchasePrice: nonNegative(shopPrice?.purchasePrice ?? 0),
+          salePrice: nonNegative(shopPrice?.salePrice ?? 0),
+        };
+      });
 
       this.form.variations = this.form.variations.map((variation) => {
         const nextStocks = normalized.reduce(
@@ -180,6 +192,18 @@ export const useProductStore = defineStore("product", {
     setStoreQty(storeId: string, qty: number) {
       const store = this.form.stocks.find((s) => s.id === storeId);
       if (store) store.qty = nonNegative(qty);
+    },
+    setStorePurchasePrice(storeId: string, purchasePrice: number) {
+      const store = this.form.stocks.find((s) => s.id === storeId);
+      if (store) store.purchasePrice = nonNegative(purchasePrice);
+    },
+    setStoreSalePrice(storeId: string, salePrice: number) {
+      const store = this.form.stocks.find((s) => s.id === storeId);
+      if (store) store.salePrice = nonNegative(salePrice);
+    },
+    setStoreMarkupPercent(storeId: string, markupPercent: number) {
+      const store = this.form.stocks.find((s) => s.id === storeId);
+      if (store) store.markupPercent = nonNegative(markupPercent);
     },
     addVariation() {
       this.form.variations.push(createVariation(this.availableShops));

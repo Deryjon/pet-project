@@ -168,10 +168,11 @@ function guardStockIncrease(target: ReceiptTarget) {
 function getInitialReceiptPurchasePrice(target: ReceiptTarget) {
   if (target.kind === "variant") {
     const variation = store.form.variations.find((item) => item.id === target.variationId);
-    return nonNegative(variation?.prices.purchasePrice ?? store.form.prices.purchasePrice);
+    return nonNegative(variation?.prices.purchasePrice ?? 0);
   }
 
-  return nonNegative(store.form.prices.purchasePrice);
+  const stock = store.form.stocks.find((item) => item.id === target.storeId);
+  return nonNegative(stock?.purchasePrice ?? 0);
 }
 
 function applyReceiptTarget(target: ReceiptTarget) {
@@ -230,7 +231,7 @@ function confirmReceipt() {
       variation.prices.purchasePrice = nonNegative(receiptPurchasePrice.value);
     }
   } else {
-    store.form.prices.purchasePrice = nonNegative(receiptPurchasePrice.value);
+    store.setStorePurchasePrice(target.storeId, nonNegative(receiptPurchasePrice.value));
   }
 
   receiptModalOpen.value = false;

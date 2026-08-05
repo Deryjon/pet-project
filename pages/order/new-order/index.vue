@@ -196,18 +196,22 @@ async function fetchProducts() {
       productId: p.id,
       publicId: p.publicId ?? p.public_id,
       name: String(p.name ?? p.base_name ?? p.product?.name ?? ""),
+      // shop_prices[0] is scoped to the requested shop_id by the backend
+      // (sales.service.ts toNewSaleProductResponse) and must win over the
+      // flat retail_price/sale_price fields, which are the product's global
+      // price and ignore which branch is actually selling it.
       price: Number(
-        p.retail_price ??
+        p.shop_prices?.[0]?.retail_price ??
+          p.retail_price ??
           p.sellPrice ??
           p.sell_price ??
           p.sale_price ??
-          p.shop_prices?.[0]?.retail_price ??
           p.price ??
           0,
       ),
       basePrice: Number(
-        p.retail_price ??
-          p.shop_prices?.[0]?.retail_price ??
+        p.shop_prices?.[0]?.retail_price ??
+          p.retail_price ??
           p.price ??
           0,
       ),

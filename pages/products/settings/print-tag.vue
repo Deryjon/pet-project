@@ -354,16 +354,21 @@
                   class="absolute select-none"
                   :class="[
                     dragging?.id === el.id ? 'cursor-grabbing' : 'cursor-grab',
+                    el.type === 'text' ? 'flex items-center overflow-hidden' : '',
                   ]"
                   :style="{
                     left: el.xAxis + 'mm',
                     top: el.yAxis + 'mm',
+                    width: el.type === 'text' ? el.width + 'mm' : undefined,
+                    height: el.type === 'text' ? el.length + 'mm' : undefined,
+                    transform: el.type === 'text' && el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                    transformOrigin: el.type === 'text' ? 'top left' : undefined,
                     outline: selectedEl?.id === el.id ? (0.5 / zoom) + 'mm solid #1f78ff' : 'none',
                     outlineOffset: (0.5 / zoom) + 'mm',
                   }"
                   @mousedown.prevent="startDrag($event, el)"
                 >
-                  <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
+                  <span v-if="el.type === 'text'" class="price-tag-text" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
                   <template v-else>
                     <div class="price-tag-barcode" :style="{ width: el.width + 'mm', height: el.length + 'mm' }" v-html="elementBarcodeSvg(el)" />
                     <div class="price-tag-barcode-value" :style="{ width: el.width + 'mm' }">{{ sampleProduct.barcode || "123456789012" }}</div>
@@ -411,9 +416,17 @@
                   v-for="el in visibleElements"
                   :key="el.id"
                   class="absolute overflow-hidden"
-                  :style="{ left: el.xAxis + 'mm', top: el.yAxis + 'mm', width: el.width + 'mm' }"
+                  :class="el.type === 'text' ? 'flex items-center' : ''"
+                  :style="{
+                    left: el.xAxis + 'mm',
+                    top: el.yAxis + 'mm',
+                    width: el.width + 'mm',
+                    height: el.type === 'text' ? el.length + 'mm' : undefined,
+                    transform: el.type === 'text' && el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                    transformOrigin: el.type === 'text' ? 'top left' : undefined,
+                  }"
                 >
-                  <span v-if="el.type === 'text'" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
+                  <span v-if="el.type === 'text'" class="price-tag-text" :style="elementTextStyle(el)">{{ sampleText(el) }}</span>
                   <div v-else v-html="elementBarcodeSvg(el)" />
                 </div>
               </div>
@@ -635,7 +648,6 @@ function formatPrice(value: number) {
 // editing here always matches the real print exactly.
 function elementTextStyle(el: PriceTagElement): Record<string, string> {
   return {
-    display: "block",
     fontSize: `${el.fontSize}pt`,
     fontFamily: el.fontFamily || "Arial, sans-serif",
     fontWeight: el.isBold ? "700" : "400",
@@ -643,9 +655,6 @@ function elementTextStyle(el: PriceTagElement): Record<string, string> {
     textDecoration: [el.isUnderlined ? "underline" : "", el.isLineThrough ? "line-through" : ""].filter(Boolean).join(" ") || "none",
     textAlign: el.alignmentType.toLowerCase() as "left" | "center" | "right",
     color: "#111",
-    whiteSpace: "nowrap",
-    transform: el.rotation ? `rotate(${el.rotation}deg)` : "none",
-    transformOrigin: "top left",
   };
 }
 
@@ -861,8 +870,12 @@ function elHtml(el: PriceTagElement): string {
   const text = sampleText(el);
   if (!text) return "";
   const decoration = [el.isUnderlined ? "underline" : "", el.isLineThrough ? "line-through" : ""].filter(Boolean).join(" ") || "none";
-  const style = `${base}font-family:${el.fontFamily || "Arial, sans-serif"};font-size:${el.fontSize}pt;font-weight:${el.isBold ? 700 : 400};font-style:${el.isItalic ? "italic" : "normal"};text-decoration:${decoration};text-align:${el.alignmentType.toLowerCase()};color:#111;white-space:nowrap;`;
-  return `<span style="${style}">${text}</span>`;
+  // Fixed-height flex box (vertically centers) wrapping a line-clamped span —
+  // same structure as components/print/PriceTag.vue's .price-tag-text-box, so
+  // a wrapped 2-line name stays centered instead of only growing downward.
+  const boxStyle = `${base}height:${el.length}mm;display:flex;align-items:center;overflow:hidden;`;
+  const textStyle = `width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;line-height:1.15;font-family:${el.fontFamily || "Arial, sans-serif"};font-size:${el.fontSize}pt;font-weight:${el.isBold ? 700 : 400};font-style:${el.isItalic ? "italic" : "normal"};text-decoration:${decoration};text-align:${el.alignmentType.toLowerCase()};color:#111;`;
+  return `<div style="${boxStyle}"><span style="${textStyle}">${text}</span></div>`;
 }
 
 function buildPrintHtml(count: number): string {
@@ -959,6 +972,17 @@ select.input { cursor: pointer; }
   white-space: nowrap;
   overflow: hidden;
   color: #111;
+}
+.price-tag-text {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  line-height: 1.15;
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }

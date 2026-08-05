@@ -37,11 +37,23 @@ function textValue(el: PriceTagElement): string {
   }
 }
 
-function elementStyle(el: PriceTagElement): Record<string, string> {
+// Box that positions/rotates the text element and vertically centers its
+// content (via el.length as a fixed height) so a name that wraps to 2 lines
+// stays centered around the same anchor instead of only growing downward
+// from `top`.
+function textBoxStyle(el: PriceTagElement): Record<string, string> {
   return {
     left: `${el.xAxis}mm`,
     top: `${el.yAxis}mm`,
     width: `${el.width}mm`,
+    height: `${el.length}mm`,
+    transform: el.rotation ? `rotate(${el.rotation}deg)` : "none",
+    transformOrigin: "top left",
+  };
+}
+
+function elementStyle(el: PriceTagElement): Record<string, string> {
+  return {
     fontSize: `${el.fontSize}pt`,
     fontFamily: el.fontFamily || "Arial, sans-serif",
     fontWeight: el.isBold ? "700" : "400",
@@ -50,8 +62,6 @@ function elementStyle(el: PriceTagElement): Record<string, string> {
       .filter(Boolean)
       .join(" ") || "none",
     textAlign: el.alignmentType.toLowerCase() as "left" | "center" | "right",
-    transform: el.rotation ? `rotate(${el.rotation}deg)` : "none",
-    transformOrigin: "top left",
   };
 }
 
@@ -84,8 +94,8 @@ function barcodeSvg(el: PriceTagElement) {
       >
         {{ product.barcode }}
       </div>
-      <div v-else-if="el.type === 'text' && textValue(el)" class="price-tag-el price-tag-text" :style="elementStyle(el)">
-        {{ textValue(el) }}
+      <div v-else-if="el.type === 'text' && textValue(el)" class="price-tag-el price-tag-text-box" :style="textBoxStyle(el)">
+        <span class="price-tag-text" :style="elementStyle(el)">{{ textValue(el) }}</span>
       </div>
     </template>
   </div>
@@ -104,7 +114,14 @@ function barcodeSvg(el: PriceTagElement) {
   position: absolute;
   line-height: 1.15;
 }
+.price-tag-text-box {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
 .price-tag-text {
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;

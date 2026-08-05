@@ -27,12 +27,30 @@ function parsePriceInput(value: string) {
   return digitsOnly ? Number(digitsOnly) : 0;
 }
 
-function setSimplePurchasePrice(value: string | number) {
-  store.form.prices.purchasePrice = nonNegative(parsePriceInput(String(value)));
+function setStockPurchasePrice(storeId: string, value: string | number) {
+  store.setStorePurchasePrice(storeId, parsePriceInput(String(value)));
 }
 
-function setSimpleSalePrice(value: string | number) {
-  store.form.prices.salePrice = nonNegative(parsePriceInput(String(value)));
+function setStockSalePrice(storeId: string, value: string | number) {
+  store.setStoreSalePrice(storeId, parsePriceInput(String(value)));
+}
+
+function updateStockSale(storeId: string) {
+  const stock = store.form.stocks.find((s) => s.id === storeId);
+  if (!stock) return;
+
+  stock.purchasePrice = nonNegative(stock.purchasePrice);
+  stock.markupPercent = nonNegative(stock.markupPercent);
+  stock.salePrice = calculateSalePrice(stock.purchasePrice, stock.markupPercent);
+}
+
+function updateStockMarkup(storeId: string) {
+  const stock = store.form.stocks.find((s) => s.id === storeId);
+  if (!stock) return;
+
+  stock.purchasePrice = nonNegative(stock.purchasePrice);
+  stock.salePrice = nonNegative(stock.salePrice);
+  stock.markupPercent = calculateMarkup(stock.purchasePrice, stock.salePrice);
 }
 
 function setVariationPurchasePrice(variationId: string, value: string | number) {
@@ -45,24 +63,6 @@ function setVariationSalePrice(variationId: string, value: string | number) {
   const variation = store.form.variations.find((item) => item.id === variationId);
   if (!variation) return;
   variation.prices.salePrice = nonNegative(parsePriceInput(String(value)));
-}
-
-function updateSimpleSale() {
-  store.form.prices.purchasePrice = nonNegative(store.form.prices.purchasePrice);
-  store.form.prices.markupPercent = nonNegative(store.form.prices.markupPercent);
-  store.form.prices.salePrice = calculateSalePrice(
-    store.form.prices.purchasePrice,
-    store.form.prices.markupPercent,
-  );
-}
-
-function updateSimpleMarkup() {
-  store.form.prices.purchasePrice = nonNegative(store.form.prices.purchasePrice);
-  store.form.prices.salePrice = nonNegative(store.form.prices.salePrice);
-  store.form.prices.markupPercent = calculateMarkup(
-    store.form.prices.purchasePrice,
-    store.form.prices.salePrice,
-  );
 }
 
 function updateVariationSale(variationId: string) {
@@ -99,54 +99,73 @@ function updateVariationMarkup(variationId: string) {
       ></div>
     </div>
 
-    <div v-if="!isVariantGoods" class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <div>
-        <label class="font-medium">Цена прихода</label>
-        <div class="mt-2 flex items-center gap-2">
-          <UInput
-            :model-value="formatPrice(store.form.prices.purchasePrice)"
-            type="text"
-            inputmode="numeric"
-            class="w-full"
-            placeholder="0"
-            :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-            @update:model-value="setSimplePurchasePrice"
-            @blur="updateSimpleSale"
-          />
-          <span class="text-sm text-gray-300">UZS</span>
-        </div>
-      </div>
-      <div>
-        <label class="font-medium">Наценка</label>
-        <div class="mt-2 flex items-center gap-2">
-          <UInput
-            v-model.number="store.form.prices.markupPercent"
-            type="number"
-            min="0"
-            class="w-full"
-            placeholder="0"
-            :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-            @blur="updateSimpleSale"
-          />
-          <span class="text-sm text-gray-300">%</span>
-        </div>
-      </div>
-      <div>
-        <label class="font-medium">Цена продажи</label>
-        <div class="mt-2 flex items-center gap-2">
-          <UInput
-            :model-value="formatPrice(store.form.prices.salePrice)"
-            type="text"
-            inputmode="numeric"
-            class="w-full"
-            placeholder="0"
-            :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
-            @update:model-value="setSimpleSalePrice"
-            @blur="updateSimpleMarkup"
-          />
-          <span class="text-sm text-gray-300">UZS</span>
-        </div>
-      </div>
+    <div v-if="!isVariantGoods" class="mt-4 overflow-x-auto rounded-lg">
+      <p class="mb-3 text-sm text-[#9f9f9f]">
+        Цена задаётся отдельно для каждого филиала.
+      </p>
+      <table class="w-full min-w-[640px] overflow-hidden rounded-lg">
+        <thead>
+          <tr>
+            <th class="p-3 text-left">Филиал</th>
+            <th class="p-3 text-left">Цена прихода</th>
+            <th class="p-3 text-left">Наценка</th>
+            <th class="p-3 text-left">Цена продажи</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="stock in store.form.stocks"
+            :key="stock.id"
+            class="border-t border-[#454545]"
+          >
+            <td class="p-3">{{ stock.name }}</td>
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <UInput
+                  :model-value="formatPrice(stock.purchasePrice)"
+                  type="text"
+                  inputmode="numeric"
+                  class="w-44"
+                  placeholder="0"
+                  :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                  @update:model-value="setStockPurchasePrice(stock.id, String($event))"
+                  @blur="updateStockSale(stock.id)"
+                />
+                <span class="text-sm text-gray-300">UZS</span>
+              </div>
+            </td>
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <UInput
+                  v-model.number="stock.markupPercent"
+                  type="number"
+                  min="0"
+                  class="w-32"
+                  placeholder="0"
+                  :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                  @blur="updateStockSale(stock.id)"
+                />
+                <span class="text-sm text-gray-300">%</span>
+              </div>
+            </td>
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <UInput
+                  :model-value="formatPrice(stock.salePrice)"
+                  type="text"
+                  inputmode="numeric"
+                  class="w-44"
+                  placeholder="0"
+                  :ui="{ base: 'rounded-[15px] border-0 ring-0 bg-[#404040] p-4 text-[18px] font-semibold text-white placeholder:text-gray-400' }"
+                  @update:model-value="setStockSalePrice(stock.id, String($event))"
+                  @blur="updateStockMarkup(stock.id)"
+                />
+                <span class="text-sm text-gray-300">UZS</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div v-else class="mt-4 overflow-x-auto rounded-lg">
