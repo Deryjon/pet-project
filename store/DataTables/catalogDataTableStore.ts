@@ -239,35 +239,50 @@ export const useCatalogDataTableStore = defineStore("catalogDataTableStore", () 
       statistics.value = result.statistics;
       statisticsByStatus.value = result.statisticsByStatus;
 
-      rawData.value = result.products.map((p: ProductDTO) => ({
-        id: p.id,
-        public_id: (p as any)?._original?.public_id ?? p.id,
-        variation_id: (p as any).variation_id ?? p.id,
-        photo: p.photo || undefined,
-        name: p.name,
-        sku: p.sku,
-        barcode: p.barcode,
-        category: p.category?.name || "",
-        shop_name: p.shop_name || "",
-        suppliers:
-          Array.isArray(p.suppliers) && p.suppliers.length
-            ? p.suppliers.map((s) => s.name).join(", ")
-            : "",
-        quantity: p.quantity,
-        is_service: !!((p as any)._original?.is_service),
-        purchase_price: p.purchase_price,
-        sale_price: p.sale_price,
-        wholesale_price: Number(
-          (p as any)?.shop_prices?.[0]?.wholesale_price ??
-            (p as any)?._original?.shop_prices?.[0]?.wholesale_price ??
-            0,
-        ),
-        discount_price: (p as any).discount_price ?? null,
-        brand:
-          typeof (p as any).brand?.name === "string" ? (p as any).brand.name : "",
-        unit: p.unit || "",
-        _original: (p as any)._original ?? p,
-      }));
+      // When the list is filtered to a single shop, show that shop's own
+      // price instead of the product's flat/global price — `p.purchase_price`
+      // / `p.sale_price` default to the first shop in `shop_prices[]`, which
+      // isn't necessarily the shop the user is actually looking at.
+      const selectedShopId = resolveSingleValue(filters.value.store, shopOptions.value);
+
+      rawData.value = result.products.map((p: ProductDTO) => {
+        const shopScopedPrice = selectedShopId
+          ? ((p as any)?._original?.shop_prices as any[] | undefined)?.find(
+              (sp) => String(sp?.shop_id ?? "") === selectedShopId,
+            )
+          : undefined;
+
+        return {
+          id: p.id,
+          public_id: (p as any)?._original?.public_id ?? p.id,
+          variation_id: (p as any).variation_id ?? p.id,
+          photo: p.photo || undefined,
+          name: p.name,
+          sku: p.sku,
+          barcode: p.barcode,
+          category: p.category?.name || "",
+          shop_name: p.shop_name || "",
+          suppliers:
+            Array.isArray(p.suppliers) && p.suppliers.length
+              ? p.suppliers.map((s) => s.name).join(", ")
+              : "",
+          quantity: p.quantity,
+          is_service: !!((p as any)._original?.is_service),
+          purchase_price: Number(shopScopedPrice?.supply_price ?? p.purchase_price),
+          sale_price: Number(shopScopedPrice?.retail_price ?? p.sale_price),
+          wholesale_price: Number(
+            shopScopedPrice?.wholesale_price ??
+              (p as any)?.shop_prices?.[0]?.wholesale_price ??
+              (p as any)?._original?.shop_prices?.[0]?.wholesale_price ??
+              0,
+          ),
+          discount_price: (p as any).discount_price ?? null,
+          brand:
+            typeof (p as any).brand?.name === "string" ? (p as any).brand.name : "",
+          unit: p.unit || "",
+          _original: (p as any)._original ?? p,
+        };
+      });
     } catch (e) {
       console.error("Failed to load products", e);
       rawData.value = [];
